@@ -31,14 +31,22 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(AQUI)
 
 
+def _limpiar(t):
+    """Quita BOM, comillas y espacios. El Bloc de notas de Windows mete un BOM
+    invisible que GitHub rechaza con un 401 imposible de diagnosticar a simple vista."""
+    t = t.replace('\ufeff', '').strip().strip('"').strip("'").strip()
+    return t.split()[0] if t else ''
+
+
 def token(ruta=None):
     if ruta:
-        return open(ruta, encoding='utf-8').read().strip()
+        return _limpiar(open(ruta, encoding='utf-8-sig').read())
     if os.environ.get('GITHUB_TOKEN'):
-        return os.environ['GITHUB_TOKEN'].strip()
-    por_defecto = os.path.join(RAIZ, '.github-token')
-    if os.path.exists(por_defecto):
-        return open(por_defecto, encoding='utf-8').read().strip()
+        return _limpiar(os.environ['GITHUB_TOKEN'])
+    for nombre in ('.github-token', '.github-token.txt'):
+        por_defecto = os.path.join(RAIZ, nombre)
+        if os.path.exists(por_defecto):
+            return _limpiar(open(por_defecto, encoding='utf-8-sig').read())
     sys.exit('No hay token. Use --token-file, GITHUB_TOKEN o cree .github-token en la raíz.')
 
 
