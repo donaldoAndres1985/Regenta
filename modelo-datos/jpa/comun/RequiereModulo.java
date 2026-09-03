@@ -3,7 +3,7 @@ package com.regenta.comun.seguridad;
 import java.lang.annotation.*;
 
 /**
- * La validación de plan del CLAUDE.md, en el backend.
+ * La validación de plan por módulo, en el backend.
  * Ocultar el botón en Flutter no es control de acceso: si alguien manipula
  * la app o llama al API directo, esto es lo único que lo detiene.
  *

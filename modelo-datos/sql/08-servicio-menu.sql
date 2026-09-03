@@ -2,7 +2,7 @@
 -- REGENTA — servicio-menu  (esquema: menu)
 -- PATRON: Comanda — modulo de CATALOGO (equivale a Inventario).
 --
--- HALLAZGO IMPORTANTE: ni el PDF ni el CLAUDE.md mencionan como se
+-- HALLAZGO IMPORTANTE: el documento de arquitectura no menciona como se
 -- descuenta el inventario en un restaurante. Un plato no es un producto
 -- con stock; consume INSUMOS. Sin la tabla `recetas` el patron Comanda
 -- queda desconectado de Inventario y el negocio no puede saber cuanta

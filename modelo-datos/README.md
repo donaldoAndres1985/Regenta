@@ -1,6 +1,6 @@
 # Modelo de datos de Regenta
 
-Traducción del PDF de arquitectura y del `CLAUDE.md` a un modelo entidad-relación
+Traducción del documento de arquitectura y de las convenciones del proyecto a un modelo entidad-relación
 ejecutable. **147 tablas en 15 esquemas**, uno por microservicio.
 
 Los 16 scripts de `sql/` se ejecutaron completos contra PostgreSQL 16 sin errores.

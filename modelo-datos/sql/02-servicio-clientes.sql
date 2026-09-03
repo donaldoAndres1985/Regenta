@@ -1,7 +1,7 @@
 -- =====================================================================
 -- REGENTA — servicio-clientes  (esquema: crm)
 -- HALLAZGO: el modulo "Clientes / CRM" aparece en la tabla de planes del
--- PDF y del CLAUDE.md, pero NO existe un `servicio-clientes` en el
+-- documento de arquitectura, pero NO existe un `servicio-clientes` en el
 -- scaffold de repos. Se propone como servicio propio: es consumido por
 -- Ventas, Reservas, Comandas y Facturacion (los cuatro), asi que meterlo
 -- dentro de Ventas lo volveria una dependencia sincrona de todos.

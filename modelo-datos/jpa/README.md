@@ -1,6 +1,6 @@
 # Entidades JPA — Regenta
 
-Esqueleto de entidades por servicio, siguiendo las convenciones del `CLAUDE.md`:
+Esqueleto de entidades por servicio, siguiendo las convenciones del proyecto:
 paquetes **por feature**, no por capa (`com.regenta.ventas.domain`, no
 `com.regenta.domain.ventas`).
 
@@ -13,7 +13,7 @@ patrones que se ven aquí.
 |---|---|
 | `EntidadTenant.java` | `@MappedSuperclass` con `negocio_id`, auditoría y `@Version` |
 | `TenantContext.java` + `TenantFilterAspect.java` | Fija `app.negocio_id` por transacción para que funcione la RLS |
-| `RequiereModulo.java` + `ModuloInterceptor.java` | La validación de plan del `CLAUDE.md`, en el backend |
+| `RequiereModulo.java` + `ModuloInterceptor.java` | La validación de plan por módulo, en el backend |
 | `OutboxEvento.java` | Transactional Outbox |
 
 ## Notas de mapeo
