@@ -282,7 +282,8 @@ de aceptación salen de las restricciones reales del modelo, no de una plantilla
 | `historias/TABLERO.md` | Los siete hitos, el grafo de dependencias y las historias que no se pueden hacer mal |
 | `historias/epicas/*.md` | El detalle de cada historia, agrupado por épica |
 | `historias/historias.csv` | Importación a Jira, Linear o GitHub Projects |
-| `historias/crear-issues.sh` · `.ps1` | Crean las issues y los hitos en GitHub con el CLI `gh` |
+| `historias/crear-issues.py` | Crea las issues y los hitos llamando al API de GitHub |
+| `historias/crear-issues.sh` · `.ps1` | Lo mismo con el CLI `gh` |
 
 ### Los siete hitos
 

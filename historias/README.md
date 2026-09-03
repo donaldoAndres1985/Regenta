@@ -178,5 +178,32 @@ Puntos en escala de Fibonacci. Como referencia:
 | `epicas/*.md` | El detalle de cada historia, agrupado por épica |
 | `TABLERO.md` | El orden de ejecución y el grafo de dependencias |
 | `historias.csv` | Importación a Jira, Linear o GitHub Projects |
-| `crear-issues.sh` | Crea las issues en GitHub con `gh` (bash / Git Bash) |
-| `crear-issues.ps1` | Lo mismo desde PowerShell |
+| `crear-issues.py` | Crea las issues llamando al API de GitHub — solo necesita Python y un token |
+| `crear-issues.sh` | Lo mismo con el CLI `gh` (bash / Git Bash) |
+| `crear-issues.ps1` | Lo mismo con `gh` desde PowerShell |
+
+## Subir el backlog a GitHub
+
+Dos caminos, ambos idempotentes: si una issue con el mismo título ya existe, se salta.
+
+**Con el CLI `gh`** — si ya lo tienes autenticado:
+
+```bash
+gh auth login
+bash historias/crear-issues.sh          # o:  .\historias\crear-issues.ps1
+```
+
+**Con el API y un token** — no necesita instalar nada más que Python:
+
+```bash
+python3 historias/crear-issues.py --dry-run    # revisa qué haría
+python3 historias/crear-issues.py              # lo hace
+```
+
+El token se lee de `--token-file`, de la variable `GITHUB_TOKEN`, o de un archivo
+`.github-token` en la raíz (que está en `.gitignore`). Conviene un token de acceso
+personal **de grano fino**, limitado a este repositorio, con permiso *Issues: Read and
+write* y caducidad de un día. Al terminar, se revoca y se borra el archivo.
+
+Cualquiera de los dos crea los 17 hitos, las 24 etiquetas y las 112 issues con su
+cuerpo completo.

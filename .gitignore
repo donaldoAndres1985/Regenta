@@ -33,6 +33,10 @@ GEMINI.md
 application-local.yml
 application-local.properties
 application-secret*.yml
+# Token para crear las issues en GitHub — nunca se versiona
+.github-token
+.github-token.*
+
 serviceAccountKey.json
 google-services.json
 GoogleService-Info.plist
