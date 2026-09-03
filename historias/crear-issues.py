@@ -104,6 +104,12 @@ def main():
     p.add_argument('--repo', default='donaldoAndres1985/Regenta')
     p.add_argument('--token-file')
     p.add_argument('--dry-run', action='store_true')
+    p.add_argument('--segundos', type=float, default=0,
+                   help='Presupuesto de tiempo: se detiene limpiamente al agotarlo. '
+                        'Como el script es idempotente, basta con volver a lanzarlo '
+                        'para continuar donde quedó.')
+    p.add_argument('--pausa', type=float, default=0.9,
+                   help='Pausa entre issues. GitHub permite ~80 creaciones por minuto.')
     a = p.parse_args()
     tk = token(a.token_file)
 
@@ -171,7 +177,12 @@ def main():
     print('  issues ya existentes en el repo: %d\n' % len(abiertas))
 
     creadas = saltadas = fallidas = 0
+    inicio = time.time()
+    agotado = False
     for f in filas:
+        if a.segundos and time.time() - inicio > a.segundos:
+            agotado = True
+            break
         titulo = '%s · %s' % (f['ID'], f['Titulo'])
         if titulo in abiertas:
             saltadas += 1; print('  = %s (ya existe #%d)' % (f['ID'], abiertas[titulo])); continue
@@ -192,9 +203,12 @@ def main():
             fallidas += 1; print('  ! %s  error %s: %s' % (f['ID'], st, (r or {}).get('message')))
             if st in (403, 429):
                 print('    límite de tasa; espero 60 s'); time.sleep(60)
-        time.sleep(1.2)          # el límite de creación de contenido es ~80/min
+        time.sleep(a.pausa)
 
     print('\nCreadas: %d · ya existían: %d · fallidas: %d' % (creadas, saltadas, fallidas))
+    if agotado:
+        pend = len(filas) - saltadas - creadas
+        print('Se agotó el presupuesto de tiempo. Quedan ~%d por crear: vuelva a lanzarlo.' % pend)
 
 
 if __name__ == '__main__':
