@@ -21,6 +21,7 @@ infraestructura.
 | Arquitectura y decisiones de diseño | ✅ Definida |
 | Modelo de datos (147 tablas, 15 esquemas) | ✅ Escrito y verificado contra PostgreSQL 16 |
 | Diseño de las 22 pantallas (móvil + web) | ✅ Terminado |
+| Backlog de desarrollo (112 historias) | ✅ Escrito |
 | Implementación del backend | ⬜ Sin empezar |
 | Implementación de la app Flutter | ⬜ Sin empezar |
 
@@ -269,6 +270,44 @@ Detalles en `design/README.md`.
 
 ---
 
+## Backlog de desarrollo
+
+**112 historias de usuario en 17 épicas, 645 puntos.** Cada historia declara qué tablas del
+modelo toca, qué pantalla del diseño implementa y de qué otras historias depende. Los criterios
+de aceptación salen de las restricciones reales del modelo, no de una plantilla.
+
+| Ruta | Qué es |
+|---|---|
+| `historias/README.md` | Índice de épicas y el listado completo de historias |
+| `historias/TABLERO.md` | Los siete hitos, el grafo de dependencias y las historias que no se pueden hacer mal |
+| `historias/epicas/*.md` | El detalle de cada historia, agrupado por épica |
+| `historias/historias.csv` | Importación a Jira, Linear o GitHub Projects |
+| `historias/crear-issues.sh` · `.ps1` | Crean las issues y los hitos en GitHub con el CLI `gh` |
+
+### Los siete hitos
+
+| Hito | Qué queda funcionando | Épicas | Puntos |
+|---|---|---|---:|
+| 1 · Fundación | Repos, bases, CI y mecanismos transversales | `E00` | 49 |
+| 2 · Núcleo operable | Un negocio se da de alta, entra y administra usuarios | `E01` `E16` | 81 |
+| 3 · MVP vendible | Una ferretería opera de verdad, con factura electrónica | `E03` `E04` `E02` `E06` | 239 |
+| 4 · Negocio completo | Compras, caja, alertas y reportes | `E05` `E07` `E13` `E14` | 105 |
+| 5 · Patrón Reserva | Un hotel opera sin tocar nada de lo anterior | `E08` `E09` | 82 |
+| 6 · Patrón Comanda | Un restaurante opera, con cocina e inventario conectados | `E10` `E11` `E12` | 97 |
+| 7 · Escala | Multi-sucursal, auditoría y sincronización | `E15` | 32 |
+
+Para crear las issues en GitHub, con el CLI `gh` autenticado:
+
+```bash
+gh auth login
+bash historias/crear-issues.sh          # o:  .\historias\crear-issues.ps1
+```
+
+Crea las 17 épicas como *milestones*, las etiquetas por módulo y las 112 issues con su cuerpo
+completo.
+
+---
+
 ## Puesta en marcha
 
 ### Requisitos
@@ -329,6 +368,7 @@ Recién después, el segundo patrón operativo.
 - [x] Modelo de datos verificado contra PostgreSQL 16
 - [x] Diagramas ER y análisis
 - [x] Diseño de las 22 pantallas
+- [x] Backlog de 112 historias con criterios de aceptación
 - [ ] `servicio-usuarios` — tenant, planes, identidad y roles
 - [ ] `servicio-inventario` — catálogo configurable y stock por bodega
 - [ ] `servicio-ventas` — transacción y saga con Inventario
