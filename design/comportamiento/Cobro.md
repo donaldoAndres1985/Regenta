@@ -28,7 +28,24 @@ venta, la línea queda con el fondo de error y el botón *Cobrar* se deshabilita
 
 Cuanto más aburrida y literal la frase, mejor test sale de ella. -->
 
-_Sin definir._
+### R1 · El adquiriente se ve antes de confirmar
+**Dado** el cobro de una venta, **cuando** la factura electrónica está activada, **entonces** el
+panel muestra a nombre de quién sale: nombre, documento, régimen y el correo al que se envía.
+Nadie debería enterarse de que facturó mal después de emitir.
+
+### R2 · Sin cliente se avisa, no se bloquea
+**Dada** una venta sin cliente, **cuando** llego al cobro, **entonces** aparece la fila
+*Consumidor final · Agregar cliente* y la advertencia de que el adquiriente queda genérico. El
+cobro sigue disponible: se cobra igual.
+
+### R3 · Agregar cliente desde el cobro vuelve al cobro
+**Dado** el cobro en curso, **cuando** agrego el cliente, **entonces** vuelvo al cobro con las
+formas de pago y los montos ya digitados intactos.
+
+### R4 · El snapshot se congela al emitir
+**Dada** una factura emitida, **cuando** después editan el cliente, **entonces** la factura no
+cambia: `facturas.cliente_snapshot` guarda los datos del momento de la emisión.
+
 
 ## Al abrir
 

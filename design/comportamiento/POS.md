@@ -28,7 +28,24 @@ venta, la línea queda con el fondo de error y el botón *Cobrar* se deshabilita
 
 Cuanto más aburrida y literal la frase, mejor test sale de ella. -->
 
-_Sin definir._
+### R1 · La venta arranca sin cliente
+**Dada** una venta nueva, **cuando** se crea, **entonces** `cliente_id` queda en NULL y la fila
+punteada muestra *Consumidor final · Agregar cliente*. No hay paso obligatorio de cliente: en
+mostrador la mayoría de las ventas no lo tienen.
+
+### R2 · La fila de cliente lleva al selector
+**Dada** la fila de cliente, **cuando** la toco, **entonces** abre `ClienteVenta` sin perder el
+carrito ni el borrador de la venta.
+
+### R3 · Con cliente asignado se ve quién compra
+**Dada** una venta con cliente, **cuando** miro el panel, **entonces** veo nombre, documento y
+su condición de crédito, con *Cambiar* y *Quitar* a la vista. La composición web muestra este
+estado; la móvil muestra el estado sin cliente.
+
+### R4 · El crédito exige cliente
+**Dada** una venta sin cliente, **cuando** intento pagar a crédito, **entonces** se pide asignar
+el cliente primero: el cupo y la cartera son de alguien.
+
 
 ## Al abrir
 

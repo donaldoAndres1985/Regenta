@@ -20,7 +20,7 @@ infraestructura.
 |---|---|
 | Arquitectura y decisiones de diseño | ✅ Definida |
 | Modelo de datos (147 tablas, 15 esquemas) | ✅ Escrito y verificado contra PostgreSQL 16 |
-| Diseño de las 22 pantallas (móvil + web) | ✅ Terminado |
+| Diseño de las 23 pantallas (móvil + web) | ✅ Terminado |
 | Backlog de desarrollo (112 historias) | ✅ Escrito |
 | Implementación del backend | ⬜ Sin empezar |
 | Implementación de la app Flutter | ⬜ Sin empezar |
@@ -170,7 +170,7 @@ Repos separados porque los microservicios se despliegan de forma independiente.
 ```
 Regenta/                          este repo — especificación
   modelo-datos/                   modelo de datos, diagramas y análisis
-  design/                         las 22 pantallas en móvil y web
+  design/                         las 23 pantallas en móvil y web
 
 regenta-app/                      repo Flutter (monorepo con melos)
   packages/
@@ -252,7 +252,7 @@ una clave foránea que cruce de un esquema a otro, así que separarlos no rompe 
 
 ## Diseño de pantallas
 
-**22 pantallas, cada una en móvil (390×844) y web (1440×900).** El HTML es la
+**23 pantallas, cada una en móvil (390×844) y web (1440×900).** El HTML es la
 referencia exacta de medidas y color; el PNG es para mirar.
 
 | Ruta | Qué es |
@@ -401,7 +401,7 @@ Recién después, el segundo patrón operativo.
 - [x] Arquitectura y patrones operativos
 - [x] Modelo de datos verificado contra PostgreSQL 16
 - [x] Diagramas ER y análisis
-- [x] Diseño de las 22 pantallas
+- [x] Diseño de las 23 pantallas
 - [x] Backlog de 112 historias con criterios de aceptación
 - [ ] `servicio-usuarios` — tenant, planes, identidad y roles
 - [ ] `servicio-inventario` — catálogo configurable y stock por bodega

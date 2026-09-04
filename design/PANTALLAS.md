@@ -180,6 +180,21 @@ La pantalla que sostiene toda la tesis del sistema: aquí es donde ferretería, 
 
 Al confirmar no se descuenta stock de una: se pide reserva a Inventario y se espera respuesta. Si no alcanza, la venta vuelve a borrador.
 
+### Cliente de la venta
+
+| | |
+|---|---|
+| Patrón | Venta directa |
+| Móvil | `design/pantallas/ClienteVentaMovil.html` · `design/png/ClienteVentaMovil.png` |
+| Web | `design/pantallas/ClienteVentaWeb.html` · `design/png/ClienteVentaWeb.png` |
+| Paquete Flutter | `packages/ventas` |
+| Microservicio | `servicio-clientes` |
+| DDL | `modelo-datos/sql/02-servicio-clientes.sql` |
+| Tablas | `crm.clientes` · `ventas.ventas.cliente_id` · `ventas.ventas.cliente_snapshot` · `facturacion.facturas.cliente_snapshot` |
+| Comportamiento | `design/comportamiento/ClienteVenta.md` |
+
+El cliente es opcional en la venta —cliente_id NULL es consumidor final—, pero facturas.cliente_snapshot es NOT NULL: al emitir siempre se congela un adquiriente, aunque sea el genérico sin identificar.
+
 ### Cobro y caja
 
 | | |

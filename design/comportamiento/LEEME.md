@@ -38,7 +38,7 @@ después cuesta un refactor con tests que reescribir.
 
 `_Sin definir._` significa exactamente eso: nadie lo decidió, y lo va a resolver quien
 implemente, con su criterio. Si el detalle te importa, escríbelo antes. No hace falta llenar
-las ocho secciones de las 22 pantallas: se llena la pantalla que sigue en el tablero.
+las ocho secciones de las 23 pantallas: se llena la pantalla que sigue en el tablero.
 
 ## Qué pasa después
 
@@ -48,6 +48,12 @@ aquí y sin test es una regla que no existe.
 
 Si al programar aparece una decisión que no estaba escrita, se escribe **aquí primero** y
 después se implementa. El archivo no es documentación de lo que ya se hizo: es la fuente.
+
+## Preguntas abiertas
+
+Un archivo puede terminar con una sección **Preguntas abiertas**: decisiones que hay que tomar
+fuera —con la DIAN, con un cliente, con el contador— antes de poder escribir la regla. Sirve
+para que no se confundan con lo que simplemente nadie ha escrito todavía.
 
 ## Si una regla contradice el mockup
 

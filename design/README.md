@@ -1,14 +1,14 @@
 # design/ — las pantallas del sistema
 
-Las 22 pantallas de Regenta, cada una en dos composiciones: móvil (390×844) y web
+Las 23 pantallas de Regenta, cada una en dos composiciones: móvil (390×844) y web
 (1440×900). Son la referencia visual para implementar la app en Flutter.
 
 ## Qué hay aquí
 
 | Carpeta | Qué es | Para qué |
 |---|---|---|
-| `pantallas/` | 45 archivos `.html` autónomos, uno por composición | **La fuente de verdad.** Se abren en cualquier navegador |
-| `png/` | Los mismos 44, renderizados | Mirar rápido, pegar en un issue, comparar el resultado |
+| `pantallas/` | 47 archivos `.html` autónomos, uno por composición | **La fuente de verdad.** Se abren en cualquier navegador |
+| `png/` | Los mismos 46, renderizados | Mirar rápido, pegar en un issue, comparar el resultado |
 | `tokens/regenta_theme.dart` | Colores, tipografía y espaciado como código Dart | Anclar el tema una sola vez, sin valores sueltos |
 | `comportamiento/` | Un `.md` por pantalla con sus reglas en *dado / cuando / entonces* | **Cómo se comporta**, que el mockup no dice. Se llena antes de implementar |
 | `PANTALLAS.md` | Índice: pantalla → archivos → tablas del modelo → paquete → servicio → DDL | Todo el contexto de una pantalla en un solo sitio |
@@ -92,7 +92,7 @@ criterio. Ver `comportamiento/LEEME.md`.
 
 ## Lo que estos mockups NO son
 
-- **No son un design system terminado.** Son 22 pantallas coherentes entre sí. Los estados
+- **No son un design system terminado.** Son 23 pantallas coherentes entre sí. Los estados
   vacíos, de carga y de error se definen en `comportamiento/<Pantalla>.md` y se dibujan
   cuando se implementa cada pantalla.
 - **Los datos son inventados.** Ferretería El Tornillo, Hotel Casa Mangle y Bar La
