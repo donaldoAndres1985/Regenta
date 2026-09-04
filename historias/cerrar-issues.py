@@ -85,6 +85,45 @@ Verificado aplicando las 15 migraciones, **cada una con el usuario de su servici
 su base vacía**: 183 tablas, cero errores. El test de checksum comprueba que modificar
 una migración ya aplicada falla en vez de aplicarse en silencio.""",
 
+ 'HU-008': """Entregado en `backend/comun/`: una libreria que los servicios agregan como
+dependencia y queda andando por autoconfiguracion. No se despliega sola y no tiene `main`.
+
+**Outbox.** `RegistroDeEventos.registrar(...)` escribe el evento en la propia base, dentro de
+la transaccion del agregado. Esta marcado `MANDATORY` a proposito: llamarlo fuera de una
+transaccion falla, porque abrir una propia seria exactamente el problema que el Outbox viene a
+resolver. Si el commit falla no queda ni el agregado ni el evento; si pasa, el evento sobrevive
+aunque RabbitMQ este caido y sale en la siguiente pasada del publicador.
+
+El publicador toma los pendientes con bloqueo y salto (`SKIP_LOCKED`), asi que varias
+instancias del mismo servicio pueden publicar a la vez sin duplicar. A los 10 intentos el
+evento queda `FALLIDO` y se enruta a `regenta.eventos.muertos`.
+
+**Inbox.** La clave es el `message-id` de AMQP, que el publicador pone igual al id del outbox.
+El registro y el efecto van en la misma transaccion: un consumidor que revienta a mitad no deja
+el mensaje marcado como procesado, y el reintento vuelve a entregarlo.
+
+Los tests crean el esquema con **las migraciones reales** de servicio-ventas, no con un
+`create table` de mentira: si manana cambia la tabla y nadie toca la entidad, fallan. Y con
+`ddl-auto` en `validate`, Hibernate compara el mapeo contra la tabla al arrancar el contexto.
+
+Cuatro cosas que aparecieron construyendolo, todas por suponer en vez de verificar:
+
+1. `spring-boot-starter-data-jpa` no arrastra Jackson —lo trae `starter-web`, del que una
+   libreria no tiene por que depender—: hubo que declararlo.
+2. Los servicios de la libreria tenian `@Service` **y** estaban declarados como `@Bean`: el
+   mismo bean definido dos veces y el contexto no arrancaba.
+3. Declarar `@EnableJpaRepositories` apaga el escaneo automatico de Spring Boot. Apuntando solo
+   al paquete de la libreria, los repositorios de cada servicio habrian dejado de registrarse
+   en cuanto E01 tuviera el primero. Ahora escanea `com.regenta` entero.
+4. La consulta del publicador era SQL nativo: Hibernate no aplica `default_schema` a las
+   nativas, asi que buscaba la tabla en `public` y no en el esquema del servicio. Pasa a JPQL
+   con `@Lock` y el hint de `SKIP_LOCKED`.
+
+**Limitacion conocida:** el reintento cubre el caso "broker caido", que es el que importa y el
+que esta probado. Un evento que sale al broker pero no se enruta a ninguna cola no se detecta:
+RabbitMQ no falla de forma sincrona ahi. Eso necesita *publisher confirms* y merece su propia
+historia.""",
+
  'HU-006': """Entregado: `V2__rls.sql` en cada servicio. **142 tablas** con `ENABLE` y
 `FORCE ROW LEVEL SECURITY` y la política `tenant_isolation`.
 
