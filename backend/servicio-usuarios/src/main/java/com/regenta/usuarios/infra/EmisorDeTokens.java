@@ -91,6 +91,15 @@ public class EmisorDeTokens {
 
     /** {@code <negocio>.<secreto>}: el negocio delante para poder buscarlo con RLS. */
     public String nuevoRefresco(UUID negocio) {
+        return nuevoSecreto(negocio);
+    }
+
+    /**
+     * Un secreto opaco con el negocio delante. Lo usan el refresh token y la
+     * invitacion, y por la misma razon: sus tablas tienen RLS y sin saber a que
+     * negocio pertenece el secreto no hay forma de buscarlo.
+     */
+    public String nuevoSecreto(UUID negocio) {
         byte[] secreto = new byte[32];
         AZAR.nextBytes(secreto);
         return negocio + "." + Base64.getUrlEncoder().withoutPadding().encodeToString(secreto);

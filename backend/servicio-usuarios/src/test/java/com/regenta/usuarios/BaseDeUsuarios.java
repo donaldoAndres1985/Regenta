@@ -9,6 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -52,6 +56,28 @@ public abstract class BaseDeUsuarios {
         registro.add("regenta.eventos.publicador-activo", () -> false);
         registro.add("regenta.operador.clave", () -> "clave-del-operador-de-pruebas");
         registro.add("regenta.jwt.secreto", () -> SECRETO_DE_PRUEBAS);
+    }
+
+    /**
+     * Lo que hara el gateway en produccion: dejar el negocio, el usuario y sus
+     * permisos en el contexto antes de que el caso de uso corra.
+     */
+    protected static <T> T enContexto(UUID negocio, UUID usuario, Set<String> permisos,
+            Supplier<T> tarea) {
+        AtomicReference<T> resultado = new AtomicReference<>();
+        com.regenta.comun.negocio.ContextoDeNegocio.en(
+                new com.regenta.comun.negocio.DatosDelNegocio(negocio, usuario, "PROFESIONAL",
+                        "VENTA_DIRECTA", Set.of("ADMINISTRADOR"), Set.of(), permisos, Set.of()),
+                () -> resultado.set(tarea.get()));
+        return resultado.get();
+    }
+
+    protected static void enContexto(UUID negocio, UUID usuario, Set<String> permisos,
+            Runnable tarea) {
+        enContexto(negocio, usuario, permisos, () -> {
+            tarea.run();
+            return null;
+        });
     }
 
     /** Conexion sin RLS, para comprobar lo que quedo escrito de verdad. */
