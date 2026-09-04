@@ -18,6 +18,10 @@ GEMINI.md
 .github/copilot-instructions.md
 *.ai.md
 
+# Carpeta que crea la app de escritorio con los archivos enviados al chat.
+# Son copias de lo que ya esta en design/ y modelo-datos/.
+Claude outputs/
+
 # ----------------------------------------------------------------------------
 #  Secretos y configuración local
 # ----------------------------------------------------------------------------
