@@ -107,6 +107,11 @@ class EsqueletoBackendTest {
         assertThat(padre).contains("maven-toolchains-plugin");
         assertThat(padre).contains("select-jdk-toolchain");
         assertThat(padre).contains("<version>[${java.version},)</version>");
+
+        // Sin esto, Spring pierde los nombres de los parametros y no puede elegir
+        // entre dos beans del mismo tipo. Lo trae starter-parent, del que este POM
+        // no hereda a proposito.
+        assertThat(padre).contains("<parameters>true</parameters>");
     }
 
     @Test

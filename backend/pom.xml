@@ -86,6 +86,11 @@
           <version>${maven-compiler-plugin.version}</version>
           <configuration>
             <release>${java.version}</release>
+            <!-- Sin -parameters el compilador borra los nombres de los parametros y
+                 Spring resuelve solo por tipo: dos beans del mismo tipo y el contexto
+                 no arranca. spring-boot-starter-parent lo activa; como el padre de
+                 aqui no hereda de el, se activa a mano. -->
+            <parameters>true</parameters>
           </configuration>
         </plugin>
         <plugin>

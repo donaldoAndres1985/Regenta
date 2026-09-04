@@ -6,6 +6,7 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -62,8 +63,11 @@ public class EventosAutoConfiguracion {
     }
 
     @Bean
-    public Binding bindingDeMuertos(Queue colaDeMuertos, TopicExchange exchangeDeMuertos) {
-        return BindingBuilder.bind(colaDeMuertos).to(exchangeDeMuertos).with("#");
+    public Binding bindingDeMuertos(@Qualifier("colaDeMuertos") Queue cola,
+                                    @Qualifier("exchangeDeMuertos") TopicExchange exchange) {
+        // Con @Qualifier explicito no depende de que el nombre del parametro sobreviva
+        // a la compilacion: hay dos TopicExchange y por tipo son indistinguibles.
+        return BindingBuilder.bind(cola).to(exchange).with("#");
     }
 
     @Bean
