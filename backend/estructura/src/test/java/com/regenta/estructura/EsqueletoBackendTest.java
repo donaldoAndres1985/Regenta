@@ -100,6 +100,12 @@ class EsqueletoBackendTest {
         assertThat(padre).contains("<release>${java.version}</release>");
         assertThat(padre).contains("maven-surefire-plugin");
         assertThat(padre).contains("<maven-surefire-plugin.version>");
+
+        // Maven puede correr sobre un JDK mas viejo que el del proyecto. El
+        // toolchain hace que se compile con 21 igual, o que falle diciendolo.
+        assertThat(padre).contains("maven-toolchains-plugin");
+        assertThat(padre).contains("select-jdk-toolchain");
+        assertThat(padre).contains("<version>[${java.version},)</version>");
     }
 
     @Test

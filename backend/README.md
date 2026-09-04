@@ -59,6 +59,23 @@ memoria, y un test que pasa ahí y revienta en producción es peor que no tenerl
 `./mvnw` usa el `mvn` de la máquina si existe; si no, descarga Maven una vez y lo
 cachea. Se puede reemplazar por el wrapper oficial con `mvn -N wrapper:wrapper`.
 
+### El JDK: Maven puede correr en otro
+
+El proyecto compila y se prueba **con Java 21**, pero tu Maven puede estar corriendo
+sobre otro JDK —17, por ejemplo—. De eso se encarga el plugin de toolchains: busca
+los JDK instalados y elige uno que sirva. Si no encuentra ninguno de 21 o más, el
+build falla diciéndolo, en vez de compilar contra la versión equivocada.
+
+```bash
+mvn toolchains:display-discovered-jdk-toolchains   # qué JDK ve Maven
+mvn toolchains:generate-jdk-toolchains-xml         # genera ~/.m2/toolchains.xml
+```
+
+Si el descubrimiento automático no lo encuentra, se declara a mano en
+`~/.m2/toolchains.xml` —en Windows `%USERPROFILE%\.m2\toolchains.xml`—. La
+plantilla está en `toolchains.example.xml`. En CI no hace falta: `actions/setup-java`
+escribe el `toolchains.xml` solo.
+
 ## Una base por servicio
 
 `docker/postgres/init-databases.sql` crea las 15 bases con su usuario, revoca

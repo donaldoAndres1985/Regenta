@@ -23,6 +23,7 @@
     <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
     <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
     <maven-jar-plugin.version>3.4.1</maven-jar-plugin.version>
+    <maven-toolchains-plugin.version>3.3.0</maven-toolchains-plugin.version>
   </properties>
 
   <modules>
@@ -95,6 +96,11 @@
           <version>${maven-jar-plugin.version}</version>
         </plugin>
         <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-toolchains-plugin</artifactId>
+          <version>${maven-toolchains-plugin.version}</version>
+        </plugin>
+        <plugin>
           <groupId>org.springframework.boot</groupId>
           <artifactId>spring-boot-maven-plugin</artifactId>
           <version>${spring-boot.version}</version>
@@ -103,6 +109,28 @@
     </pluginManagement>
 
     <plugins>
+      <!-- Maven puede correr sobre otro JDK (17, por ejemplo); el proyecto se
+           compila y se prueba con 21. El plugin descubre los JDK instalados en la
+           maquina y elige uno que cumpla; si no encuentra ninguno, el build falla
+           diciendolo, en vez de compilar contra la version equivocada.
+             mvn toolchains:display-discovered-jdk-toolchains   -> que ve Maven
+             mvn toolchains:generate-jdk-toolchains-xml         -> genera toolchains.xml -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-toolchains-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>seleccionar-jdk</id>
+            <goals>
+              <goal>select-jdk-toolchain</goal>
+            </goals>
+            <configuration>
+              <version>[${java.version},)</version>
+              <discoverToolchains>true</discoverToolchains>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>

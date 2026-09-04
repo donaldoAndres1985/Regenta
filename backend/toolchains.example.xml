@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Plantilla de ~/.m2/toolchains.xml (en Windows: %USERPROFILE%\.m2\toolchains.xml).
+
+  Solo hace falta si el plugin de toolchains no descubre solo el JDK 21 de la
+  maquina. Para ver que encuentra Maven:
+
+      mvn toolchains:display-discovered-jdk-toolchains
+
+  Y para generar el archivo con lo que encontro, en vez de escribirlo a mano:
+
+      mvn toolchains:generate-jdk-toolchains-xml
+
+  Este archivo NO se copia al repo con datos reales: las rutas son de cada
+  maquina. Queda aqui como referencia.
+-->
+<toolchains>
+  <toolchain>
+    <type>jdk</type>
+    <provides>
+      <version>21</version>
+      <vendor>temurin</vendor>
+    </provides>
+    <configuration>
+      <jdkHome>C:\Program Files\Eclipse Adoptium\jdk-21</jdkHome>
+    </configuration>
+  </toolchain>
+</toolchains>
