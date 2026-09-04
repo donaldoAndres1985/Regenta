@@ -39,10 +39,15 @@
       <artifactId>spring-security-crypto</artifactId>
     </dependency>
 
-    <!-- Firma del JWT que emite este servicio (HU-013). -->
+    <!-- Firma del JWT que emite este servicio (HU-013). Se toma de
+         spring-security-oauth2-jose y no de com.nimbusds directamente: el BOM
+         de Spring Boot gestiona la version de este, no la de nimbus, y asi
+         firmamos con exactamente la misma libreria con la que valida el
+         gateway. No arrastra la cadena de filtros: no hay spring-security-web
+         ni -config, asi que la autoconfiguracion de seguridad no se activa. -->
     <dependency>
-      <groupId>com.nimbusds</groupId>
-      <artifactId>nimbus-jose-jwt</artifactId>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-jose</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
