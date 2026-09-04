@@ -146,6 +146,53 @@ historia.
 Falta la pieza de aplicación: el interceptor que emite el `SET LOCAL` a partir del JWT.
 Entra con el primer servicio que tenga repositorios, en E01.
 
+## El borde: qué valida el gateway y qué no
+
+El gateway hace dos cosas: comprueba el token y enruta. Nada más. Ninguna regla de
+negocio vive ahí, y ninguna decisión suya se da por buena río abajo: cada servicio
+revalida el plan, el módulo y el negocio por su cuenta. El día que alguien llegue a un
+servicio sin pasar por el gateway, el servicio tiene que seguir estando protegido.
+
+Las rutas se declaran **servicio por servicio** en `application.yml`. Nada de comodines:
+un servicio nuevo no se expone solo.
+
+**El contrato del token.** Lo emite `servicio-usuarios` (HU-013) y lo valida el gateway.
+Firma HS256 con el secreto de `JWT_SECRETO`, idéntico en los dos lados; sin él el gateway
+no arranca, porque un gateway que no puede validar firmas atiende cualquier cosa.
+
+| Claim | Ejemplo | Para qué |
+|---|---|---|
+| `iss` | `regenta` | Emisor esperado (`JWT_EMISOR`) |
+| `sub` | UUID del usuario | Quién pide |
+| `exp` / `iat` | — | Vigencia; el gateway rechaza expirados |
+| `negocio_id` | UUID | El `SET LOCAL app.negocio_id` de cada transacción sale de aquí |
+| `plan` | `PRO` | El servicio decide si el módulo entra en el plan |
+| `patron` | `VENTA_DIRECTA` | Patrón operativo del negocio |
+| `roles` | `["ADMINISTRADOR","CAJERO"]` | Permisos, que resuelve el servicio |
+| `sucursales` | `["<uuid>"]` | Sucursales del usuario |
+| `estado_negocio` | `ACTIVO` | `SUSPENDIDO` o `CANCELADO` ⇒ 402 en el borde |
+
+Del token salen las cabeceras que ve el servicio: `X-Regenta-Negocio`, `-Usuario`,
+`-Plan`, `-Patron`, `-Roles`, `-Sucursales` y `X-Regenta-Traza`. Las que traiga el
+cliente con esos nombres **se descartan** antes de escribir las nuestras: el único origen
+de la verdad es el token firmado. El `Authorization` original viaja igual, para que el
+servicio pueda revalidar sin confiar en el borde.
+
+| Situación | Respuesta |
+|---|---|
+| Sin token | 401, sin tocar el servicio destino |
+| Token expirado, firma rota u otro emisor | 401, al log con el `trace_id` |
+| Token sin `negocio_id` | 401 |
+| Negocio `SUSPENDIDO` o `CANCELADO` | 402, sin tocar el servicio destino |
+
+El estado del negocio viaja **en el claim**, no se consulta a ningún servicio: el gateway
+no llama a nadie para decidir. El precio es que una suspensión tarda en surtir efecto lo
+que le quede de vida al access token; por eso el token es corto y la suspensión se hace
+efectiva de verdad en el servicio, no en el borde.
+
+Toda petición lleva `X-Regenta-Traza`, propia o inventada aquí, y toda respuesta la
+devuelve. Es lo que se busca en los logs cuando alguien reporta "me dio error".
+
 ## Eventos: nada se pierde, nada se procesa dos veces
 
 `comun` trae el Outbox y el Inbox, y con solo agregar la dependencia quedan activos.
@@ -192,10 +239,9 @@ La épica `E00` va a la mitad. Falta, en orden:
 | Historia | Qué trae |
 |---|---|
 | HU-002 | El monorepo Flutter con melos |
-| HU-007 | Gateway con validación de JWT y enrutamiento real |
 | HU-009 | Pipeline de CI |
 | HU-010 | Documentación OpenAPI por servicio |
 
-Hasta HU-007 el gateway solo enruta. Hasta HU-006 la separación entre negocios
-depende del filtro de la aplicación: la red de seguridad de PostgreSQL todavía no
-está puesta.
+Falta también la pieza de aplicación del aislamiento: el interceptor que emite el
+`SET LOCAL app.negocio_id` a partir de la cabecera `X-Regenta-Negocio`. Entra con el
+primer servicio que tenga repositorios, en E01.

@@ -51,6 +51,8 @@ services:
     image: regenta/gateway:dev
     environment:
       SERVER_PORT: 8080
+      JWT_SECRETO: ${JWT_SECRETO}
+      JWT_EMISOR: ${JWT_EMISOR:-regenta}
       SERVICIO_USUARIOS_URI: http://servicio-usuarios:8080
       SERVICIO_CLIENTES_URI: http://servicio-clientes:8080
       SERVICIO_INVENTARIO_URI: http://servicio-inventario:8080
