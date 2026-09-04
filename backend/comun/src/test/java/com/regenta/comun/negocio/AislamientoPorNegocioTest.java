@@ -95,6 +95,6 @@ class AislamientoPorNegocioTest {
 
     private static DatosDelNegocio datos() {
         return new DatosDelNegocio(NEGOCIO, UUID.randomUUID(), "BASICO", "VENTA_DIRECTA",
-                Set.of("ADMINISTRADOR"), Set.of("VENTAS"), Set.of());
+                Set.of("ADMINISTRADOR"), Set.of("VENTAS"), Set.of(), Set.of());
     }
 }

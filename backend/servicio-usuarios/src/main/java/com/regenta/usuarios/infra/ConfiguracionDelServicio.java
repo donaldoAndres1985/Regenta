@@ -2,6 +2,7 @@ package com.regenta.usuarios.infra;
 
 import java.time.Clock;
 
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -9,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 /** Las dos piezas sueltas del servicio: como se guardan las claves y que hora es. */
 @Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(PropiedadesDeToken.class)
 public class ConfiguracionDelServicio {
 
     /**

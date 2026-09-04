@@ -186,6 +186,7 @@ no arranca, porque un gateway que no puede validar firmas atiende cualquier cosa
 | `patron` | `VENTA_DIRECTA` | Patrón operativo del negocio |
 | `roles` | `["ADMINISTRADOR","CAJERO"]` | Permisos, que resuelve el servicio |
 | `modulos` | `["VENTAS","FACTURACION"]` | Módulos activos del negocio; los usa `@RequiereModulo` |
+| `permisos` | `["VENTAS_VENTA_CREAR"]` | Permisos efectivos del usuario; los usa `@RequierePermiso` |
 | `sucursales` | `["<uuid>"]` | Sucursales del usuario |
 | `estado_negocio` | `ACTIVO` | `SUSPENDIDO` o `CANCELADO` ⇒ 402 en el borde |
 
@@ -197,7 +198,7 @@ servicio pueda revalidar sin confiar en el borde.
 
 | Situación | Respuesta |
 |---|---|
-| Sin token | 401, sin tocar el servicio destino |
+| Sin token en una ruta protegida | 401, sin tocar el servicio destino |
 | Token expirado, firma rota u otro emisor | 401, al log con el `trace_id` |
 | Token sin `negocio_id` | 401 |
 | Negocio `SUSPENDIDO` o `CANCELADO` | 402, sin tocar el servicio destino |
@@ -206,6 +207,11 @@ El estado del negocio viaja **en el claim**, no se consulta a ningún servicio: 
 no llama a nadie para decidir. El precio es que una suspensión tarda en surtir efecto lo
 que le quede de vida al access token; por eso el token es corto y la suspensión se hace
 efectiva de verdad en el servicio, no en el borde.
+
+Las **únicas rutas públicas** son `/api/usuarios/auth/**` —de ahí sale el token, mal
+podría exigirlo— y la salud del propio gateway. En ellas el gateway igual borra las
+cabeceras `X-Regenta-*` que traiga el cliente antes de enrutar: sin token no hay
+contexto, y lo que mande el cliente con esos nombres no es contexto, es un intento.
 
 Toda petición lleva `X-Regenta-Traza`, propia o inventada aquí, y toda respuesta la
 devuelve. Es lo que se busca en los logs cuando alguien reporta "me dio error".
@@ -270,6 +276,27 @@ Los dos primeros los pone el gateway antes de que la peticion llegue al servicio
 otros dos salen del filtro de permisos y de la validacion. Si el generador del cliente
 no los ve en el contrato, no genera con que atraparlos. Un servicio que documente uno
 de los cuatro por su cuenta manda sobre el texto comun.
+
+## Identidad: entrar y mantenerse dentro
+
+El login es el único punto del sistema que empieza sin saber a qué negocio pertenece
+quien llama. Por eso arranca en `acceso_por_correo` —la única tabla del servicio sin
+RLS, y que no guarda ni hash ni estado ni roles— y en cuanto sabe el negocio lo fija
+para el resto de la transacción.
+
+Si el mismo correo trabaja en dos negocios, el API no adivina: devuelve la lista y
+espera a que la app diga en cuál.
+
+El token de acceso dura 15 minutos. El de refresco dura 30 días pero **rota en cada
+uso**: el anterior queda revocado y apuntando al que lo reemplazó. Si alguien presenta
+uno ya usado, es que hay dos manos con el mismo secreto y no hay forma de saber cuál es
+la del dueño, así que se cae la sesión entera. De los refresh tokens solo se guarda su
+SHA-256, y llevan el negocio delante (`<uuid>.<secreto>`) porque su tabla tiene RLS y
+sin saber el negocio no hay forma de buscarlos.
+
+Cinco intentos fallidos seguidos bloquean la cuenta 15 minutos. El contador se escribe
+en su propia transacción: si viviera en la del login, se iría con el rollback del 401 y
+no bloquearía nunca.
 
 ## Lo que todavía no está
 

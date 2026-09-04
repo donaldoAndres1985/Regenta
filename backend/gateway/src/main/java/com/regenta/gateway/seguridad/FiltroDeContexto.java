@@ -39,10 +39,11 @@ public class FiltroDeContexto implements GlobalFilter, Ordered {
     public static final String PATRON = "X-Regenta-Patron";
     public static final String ROLES = "X-Regenta-Roles";
     public static final String MODULOS = "X-Regenta-Modulos";
+    public static final String PERMISOS = "X-Regenta-Permisos";
     public static final String SUCURSALES = "X-Regenta-Sucursales";
 
     private static final List<String> CABECERAS_DE_CONTEXTO =
-            List.of(NEGOCIO, USUARIO, PLAN, PATRON, ROLES, MODULOS, SUCURSALES);
+            List.of(NEGOCIO, USUARIO, PLAN, PATRON, ROLES, MODULOS, PERMISOS, SUCURSALES);
 
     /** Estados en los que el negocio no recibe servicio hasta que se ponga al dia. */
     private static final Set<String> SIN_SERVICIO = Set.of("SUSPENDIDO", "CANCELADO");
@@ -59,8 +60,24 @@ public class FiltroDeContexto implements GlobalFilter, Ordered {
                 .defaultIfEmpty(Optional.empty())
                 .flatMap(token -> token
                         .map(jwt -> enrutar(intercambio, cadena, jwt))
-                        .orElseGet(() -> RespuestaDeError.escribir(intercambio,
-                                HttpStatus.UNAUTHORIZED, "token ausente o invalido")));
+                        .orElseGet(() -> sinToken(intercambio, cadena)));
+    }
+
+    /**
+     * Solo llega aqui una ruta publica: Spring Security ya rechazo todo lo
+     * demas. Se pasa igual, pero limpia: sin token no hay contexto que valga, y
+     * las cabeceras que traiga el cliente no son contexto, son un intento.
+     */
+    private Mono<Void> sinToken(ServerWebExchange intercambio, GatewayFilterChain cadena) {
+        ServerHttpRequest peticion = intercambio.getRequest().mutate()
+                .headers(cabeceras -> {
+                    for (String cabecera : CABECERAS_DE_CONTEXTO) {
+                        cabeceras.remove(cabecera);
+                    }
+                    cabeceras.set(Trazas.CABECERA, Trazas.de(intercambio));
+                })
+                .build();
+        return cadena.filter(intercambio.mutate().request(peticion).build());
     }
 
     private Mono<Void> enrutar(ServerWebExchange intercambio, GatewayFilterChain cadena, Jwt jwt) {
@@ -92,6 +109,7 @@ public class FiltroDeContexto implements GlobalFilter, Ordered {
                     poner(cabeceras, PATRON, texto(jwt.getClaim("patron")));
                     poner(cabeceras, ROLES, lista(jwt.getClaim("roles")));
                     poner(cabeceras, MODULOS, lista(jwt.getClaim("modulos")));
+                    poner(cabeceras, PERMISOS, lista(jwt.getClaim("permisos")));
                     poner(cabeceras, SUCURSALES, lista(jwt.getClaim("sucursales")));
                     cabeceras.set(Trazas.CABECERA, Trazas.de(intercambio));
                 })

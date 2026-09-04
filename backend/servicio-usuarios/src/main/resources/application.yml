@@ -37,6 +37,18 @@ spring:
     username: ${RABBIT_USER:regenta}
     password: ${RABBIT_PASSWORD:cambiar_en_local}
 
+regenta:
+  jwt:
+    # El MISMO secreto con el que valida el gateway. Este servicio lo firma;
+    # el gateway lo comprueba. Si no coinciden, nadie entra a ninguna parte.
+    secreto: ${JWT_SECRETO:}
+    emisor: ${JWT_EMISOR:regenta}
+    vigencia-acceso: ${JWT_VIGENCIA_ACCESO:PT15M}
+    vigencia-refresco: ${JWT_VIGENCIA_REFRESCO:P30D}
+  operador:
+    # Sin esto, el alta de negocios no atiende a nadie.
+    clave: ${REGENTA_OPERADOR_CLAVE:}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

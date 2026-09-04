@@ -86,6 +86,9 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/regenta_usuarios
       DB_USER: reg_usuarios
       DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      JWT_SECRETO: ${JWT_SECRETO}
+      JWT_EMISOR: ${JWT_EMISOR:-regenta}
+      REGENTA_OPERADOR_CLAVE: ${REGENTA_OPERADOR_CLAVE}
       RABBIT_HOST: rabbitmq
       RABBIT_USER: ${RABBIT_USER}
       RABBIT_PASSWORD: ${RABBIT_PASSWORD}

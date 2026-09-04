@@ -58,6 +58,12 @@ public class NegocioAutoConfiguracion {
         return new GuardiaDeModulos();
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public GuardiaDePermisos guardiaDePermisos() {
+        return new GuardiaDePermisos();
+    }
+
     /** Piezas que solo tienen sentido cuando el servicio atiende HTTP. */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)

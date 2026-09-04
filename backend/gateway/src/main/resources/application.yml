@@ -87,10 +87,12 @@ regenta:
       # cualquier token. Minimo 32 caracteres (HS256 exige 256 bits).
       secreto: ${JWT_SECRETO:}
       emisor: ${JWT_EMISOR:regenta}
-    # Lo unico que se atiende sin token.
+    # Lo unico que se atiende sin token. El login, por razones obvias: es
+    # donde se consigue el token. Todo lo demas exige uno.
     rutas-publicas:
       - /actuator/health/**
       - /actuator/info
+      - /api/usuarios/auth/**
 
 management:
   endpoints:

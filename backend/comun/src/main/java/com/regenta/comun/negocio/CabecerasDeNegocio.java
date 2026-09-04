@@ -13,6 +13,7 @@ public final class CabecerasDeNegocio {
     public static final String PATRON = "X-Regenta-Patron";
     public static final String ROLES = "X-Regenta-Roles";
     public static final String MODULOS = "X-Regenta-Modulos";
+    public static final String PERMISOS = "X-Regenta-Permisos";
     public static final String SUCURSALES = "X-Regenta-Sucursales";
     public static final String TRAZA = "X-Regenta-Traza";
 

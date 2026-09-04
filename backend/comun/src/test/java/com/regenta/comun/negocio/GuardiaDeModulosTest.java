@@ -70,6 +70,6 @@ class GuardiaDeModulosTest {
 
     private static DatosDelNegocio conModulos(Set<String> modulos) {
         return new DatosDelNegocio(UUID.randomUUID(), UUID.randomUUID(), "BASICO",
-                "VENTA_DIRECTA", Set.of("ADMINISTRADOR"), modulos, Set.of());
+                "VENTA_DIRECTA", Set.of("ADMINISTRADOR"), modulos, Set.of(), Set.of());
     }
 }

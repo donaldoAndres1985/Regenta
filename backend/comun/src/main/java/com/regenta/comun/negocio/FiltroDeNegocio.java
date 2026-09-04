@@ -45,6 +45,7 @@ public class FiltroDeNegocio extends OncePerRequestFilter implements Ordered {
                 texto(peticion.getHeader(CabecerasDeNegocio.PATRON)),
                 lista(peticion.getHeader(CabecerasDeNegocio.ROLES)),
                 lista(peticion.getHeader(CabecerasDeNegocio.MODULOS)),
+                lista(peticion.getHeader(CabecerasDeNegocio.PERMISOS)),
                 listaDeUuid(peticion.getHeader(CabecerasDeNegocio.SUCURSALES)));
     }
 

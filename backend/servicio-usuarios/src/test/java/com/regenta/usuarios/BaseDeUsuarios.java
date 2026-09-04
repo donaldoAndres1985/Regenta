@@ -31,6 +31,10 @@ public abstract class BaseDeUsuarios {
     protected static final String ROL = "reg_usuarios";
     protected static final String CLAVE = "clave_de_prueba";
 
+    /** El mismo que usaria el gateway. Minimo 32 caracteres. */
+    protected static final String SECRETO_DE_PRUEBAS =
+            "secreto-de-pruebas-de-regenta-con-mas-de-32-caracteres";
+
     static final PostgreSQLContainer<?> PG =
             new PostgreSQLContainer<>(DockerImageName.parse("postgres:16"));
 
@@ -47,6 +51,7 @@ public abstract class BaseDeUsuarios {
         registro.add("spring.datasource.password", () -> CLAVE);
         registro.add("regenta.eventos.publicador-activo", () -> false);
         registro.add("regenta.operador.clave", () -> "clave-del-operador-de-pruebas");
+        registro.add("regenta.jwt.secreto", () -> SECRETO_DE_PRUEBAS);
     }
 
     /** Conexion sin RLS, para comprobar lo que quedo escrito de verdad. */

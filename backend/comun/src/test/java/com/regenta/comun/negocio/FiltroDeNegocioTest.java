@@ -39,6 +39,7 @@ class FiltroDeNegocioTest {
         peticion.addHeader(CabecerasDeNegocio.PATRON, "VENTA_DIRECTA");
         peticion.addHeader(CabecerasDeNegocio.ROLES, "administrador, cajero");
         peticion.addHeader(CabecerasDeNegocio.MODULOS, "VENTAS,FACTURACION");
+        peticion.addHeader(CabecerasDeNegocio.PERMISOS, "VENTAS_VENTA_CREAR");
         peticion.addHeader(CabecerasDeNegocio.SUCURSALES, SUCURSAL + ", no-es-un-uuid");
 
         AtomicReference<DatosDelNegocio> visto = new AtomicReference<>();
@@ -53,6 +54,8 @@ class FiltroDeNegocioTest {
         assertThat(datos.roles()).containsExactlyInAnyOrder("ADMINISTRADOR", "CAJERO");
         assertThat(datos.tieneModulo("facturacion")).isTrue();
         assertThat(datos.tieneModulo("INVENTARIO")).isFalse();
+        assertThat(datos.puede("ventas_venta_crear")).isTrue();
+        assertThat(datos.puede("VENTAS_PRECIO_EDITAR")).isFalse();
         assertThat(datos.sucursales()).containsExactly(SUCURSAL);
         assertThat(datos.alcanza(SUCURSAL)).isTrue();
         assertThat(datos.alcanza(UUID.randomUUID())).isFalse();
