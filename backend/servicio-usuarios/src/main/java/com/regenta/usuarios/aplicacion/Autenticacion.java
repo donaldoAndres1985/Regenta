@@ -57,6 +57,7 @@ public class Autenticacion {
     private final PasswordEncoder claves;
     private final EmisorDeTokens emisor;
     private final RegistroDeIntentos intentos;
+    private final RevocadorDeSesiones revocador;
     private final FijadorDeNegocio fijador;
     private final Clock reloj;
 
@@ -64,7 +65,7 @@ public class Autenticacion {
             NegocioRepositorio negocios, PlanRepositorio planes, RolRepositorio roles,
             NegocioModuloRepositorio negocioModulos, RefreshTokenRepositorio refrescos,
             PasswordEncoder claves, EmisorDeTokens emisor, RegistroDeIntentos intentos,
-            FijadorDeNegocio fijador, Clock reloj) {
+            RevocadorDeSesiones revocador, FijadorDeNegocio fijador, Clock reloj) {
         this.accesos = accesos;
         this.usuarios = usuarios;
         this.negocios = negocios;
@@ -75,6 +76,7 @@ public class Autenticacion {
         this.claves = claves;
         this.emisor = emisor;
         this.intentos = intentos;
+        this.revocador = revocador;
         this.fijador = fijador;
         this.reloj = reloj;
     }
@@ -140,7 +142,9 @@ public class Autenticacion {
                 .orElseThrow(() -> new NoAutenticadoException("Token de refresco invalido"));
 
         if (guardado.yaSeUso()) {
-            revocarLaCadena(guardado, ahora);
+            // En su propia transaccion: esta se va a ir con el rollback del 401.
+            revocador.revocarLaSesion(guardado.getNegocioId(), guardado.getUsuarioId(),
+                    guardado.getDispositivoId());
             throw new NoAutenticadoException(
                     "Ese token de refresco ya se habia usado. Se cerro la sesion por seguridad");
         }
@@ -169,17 +173,9 @@ public class Autenticacion {
     }
 
     /** HU-014 criterio 3: revocar un dispositivo corta su acceso de inmediato. */
-    @Transactional
     public int cerrarSesionesDe(String dispositivoId) {
-        UUID usuarioId = ContextoDeNegocio.usuarioActual();
-        List<RefreshToken> vivos = dispositivoId == null || dispositivoId.isBlank()
-                ? refrescos.findByUsuarioIdAndRevocadoEnIsNull(usuarioId)
-                : refrescos.findByUsuarioIdAndDispositivoIdAndRevocadoEnIsNull(usuarioId,
-                        dispositivoId);
-        OffsetDateTime ahora = OffsetDateTime.now(reloj);
-        vivos.forEach(token -> token.revocar(ahora));
-        refrescos.saveAll(vivos);
-        return vivos.size();
+        return revocador.revocarLaSesion(ContextoDeNegocio.negocioActual(),
+                ContextoDeNegocio.usuarioActual(), dispositivoId);
     }
 
     @Transactional(readOnly = true)
@@ -200,15 +196,6 @@ public class Autenticacion {
                     .orElseThrow(() -> new NoAutenticadoException(NO_CUADRA));
         }
         return posibles.size() == 1 ? posibles.get(0).getNegocioId() : null;
-    }
-
-    private void revocarLaCadena(RefreshToken reusado, OffsetDateTime ahora) {
-        List<RefreshToken> deLaSesion = reusado.getDispositivoId() == null
-                ? refrescos.findByUsuarioIdAndRevocadoEnIsNull(reusado.getUsuarioId())
-                : refrescos.findByUsuarioIdAndDispositivoIdAndRevocadoEnIsNull(
-                        reusado.getUsuarioId(), reusado.getDispositivoId());
-        deLaSesion.forEach(token -> token.revocar(ahora));
-        refrescos.saveAll(deLaSesion);
     }
 
     private ResultadoDeLogin emitir(Usuario usuario, String dispositivoId, String plataforma,
