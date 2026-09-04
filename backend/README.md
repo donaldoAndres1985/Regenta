@@ -104,6 +104,44 @@ Reglas:
 - El modelo se diseña y se revisa en `modelo-datos/`; de ahí sale la primera
   migración. Después mandan las migraciones.
 
+## Aislamiento entre negocios
+
+142 tablas de negocio tienen `ENABLE` **y** `FORCE ROW LEVEL SECURITY` con la política
+`tenant_isolation`. El filtro por `negocio_id` en la aplicación es la primera línea;
+esto es la segunda: si alguien olvida el `WHERE`, PostgreSQL igual no devuelve filas
+de otro negocio.
+
+El backend fija el negocio al inicio de **cada transacción**:
+
+```sql
+SET LOCAL app.negocio_id = '<claim negocio_id del JWT>';
+```
+
+`SET LOCAL`, nunca `SET` a secas. HikariCP reutiliza conexiones entre peticiones: un
+`SET` normal deja el negocio anterior pegado a la conexión y convierte el mecanismo de
+seguridad en la fuga que venía a evitar. Sin negocio fijado,
+`app_negocio_actual()` devuelve NULL y toda comparación da NULL: cero filas. Falla
+cerrado.
+
+`FORCE` no es opcional: sin él, el dueño de la tabla —que es el usuario con el que se
+conecta el servicio— se salta la política.
+
+Qué se queda **sin** RLS, a propósito, y está documentado en cada `V2__rls.sql`:
+
+| Tablas | Por qué |
+|---|---|
+| `modulos`, `planes`, `permisos`, `plantillas_rol`, `patrones_operativos`, `tipos_alerta`, `dim_fecha` | Catálogo global: el mismo para todos los negocios, sin datos de ninguno |
+| `outbox_eventos`, `inbox_eventos` | Las lee el publicador en segundo plano, fuera de toda transacción de negocio. Con RLS activa vería cero filas y no publicaría nunca |
+| `posicion_consumo` | Infraestructura del proyector CQRS |
+
+Tres tablas puente —`rol_permisos`, `usuario_roles`, `usuario_sucursales`— no tienen
+`negocio_id` propio y se filtran por su padre con un `EXISTS`. Se aparta de la
+convención del modelo; agregarles la columna es un cambio de esquema y va en su propia
+historia.
+
+Falta la pieza de aplicación: el interceptor que emite el `SET LOCAL` a partir del JWT.
+Entra con el primer servicio que tenga repositorios, en E01.
+
 ## Lo que todavía no está
 
 La épica `E00` va a la mitad. Falta, en orden:
@@ -111,7 +149,6 @@ La épica `E00` va a la mitad. Falta, en orden:
 | Historia | Qué trae |
 |---|---|
 | HU-002 | El monorepo Flutter con melos |
-| HU-006 | Row-Level Security en todas las tablas de negocio |
 | HU-007 | Gateway con validación de JWT y enrutamiento real |
 | HU-008 | Outbox e Inbox como librería compartida |
 | HU-009 | Pipeline de CI |
