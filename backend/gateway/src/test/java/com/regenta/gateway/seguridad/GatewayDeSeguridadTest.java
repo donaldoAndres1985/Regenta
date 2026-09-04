@@ -118,7 +118,8 @@ class GatewayDeSeguridadTest {
                 .containsEntry("x-regenta-usuario", USUARIO)
                 .containsEntry("x-regenta-plan", "PRO")
                 .containsEntry("x-regenta-patron", "VENTA_DIRECTA")
-                .containsEntry("x-regenta-roles", "ADMINISTRADOR,CAJERO");
+                .containsEntry("x-regenta-roles", "ADMINISTRADOR,CAJERO")
+                .containsEntry("x-regenta-modulos", "VENTAS,INVENTARIO");
         assertThat(CABECERAS_RECIBIDAS.get("x-regenta-traza")).isNotBlank();
         assertThat(CABECERAS_RECIBIDAS.get("authorization")).startsWith("Bearer ");
     }
@@ -205,7 +206,8 @@ class GatewayDeSeguridadTest {
 
         assertThat(CABECERAS_RECIBIDAS)
                 .containsEntry("x-regenta-negocio", NEGOCIO)
-                .containsEntry("x-regenta-roles", "ADMINISTRADOR,CAJERO");
+                .containsEntry("x-regenta-roles", "ADMINISTRADOR,CAJERO")
+                .containsEntry("x-regenta-modulos", "VENTAS,INVENTARIO");
     }
 
     @Test
@@ -255,6 +257,7 @@ class GatewayDeSeguridadTest {
                 .claim("plan", "PRO")
                 .claim("patron", "VENTA_DIRECTA")
                 .claim("roles", List.of("ADMINISTRADOR", "CAJERO"))
+                .claim("modulos", List.of("VENTAS", "INVENTARIO"))
                 .claim("estado_negocio", "ACTIVO")
                 .issueTime(Date.from(Instant.now().minusSeconds(30)))
                 .expirationTime(Date.from(Instant.now().plusSeconds(900)));

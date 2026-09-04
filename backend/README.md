@@ -143,8 +143,24 @@ Tres tablas puente —`rol_permisos`, `usuario_roles`, `usuario_sucursales`— n
 convención del modelo; agregarles la columna es un cambio de esquema y va en su propia
 historia.
 
-Falta la pieza de aplicación: el interceptor que emite el `SET LOCAL` a partir del JWT.
-Entra con el primer servicio que tenga repositorios, en E01.
+**La pieza de aplicación**, en `comun`, son tres clases y un detalle de orden:
+
+| Clase | Qué hace |
+|---|---|
+| `FiltroDeNegocio` | Lee las cabeceras `X-Regenta-*` del gateway y arma el contexto. Lo limpia **siempre** en un `finally`: el hilo vuelve al pool y un `ThreadLocal` sucio es una fuga entre negocios |
+| `ContextoDeNegocio` | El negocio, el usuario, el plan, el patrón, los roles, los módulos y las sucursales de la petición en curso |
+| `AislamientoPorNegocio` | Ejecuta `set_config('app.negocio_id', ..., true)` —el `SET LOCAL` parametrizable— al empezar cada transacción |
+
+El detalle de orden importa más de lo que parece. Spring pone su interceptor
+transaccional en la última posición, y no hay forma de meter un aspecto por dentro de
+algo que ya es lo más interno. Si el aspecto corriera por fuera, el `set_config` se
+ejecutaría en su propia transacción y se perdería al empezar la de verdad —y la RLS
+devolvería cero filas sin que nadie entienda por qué. Por eso `NegocioAutoConfiguracion`
+declara la gestión de transacciones con orden 0 y el aspecto con orden 10: cuando el
+aspecto corre, la transacción ya está abierta.
+
+Sin negocio en contexto no se fija nada: la consulta ve cero filas y la escritura la
+rechaza la política. Falla cerrado, nunca abierto.
 
 ## El borde: qué valida el gateway y qué no
 
@@ -169,11 +185,12 @@ no arranca, porque un gateway que no puede validar firmas atiende cualquier cosa
 | `plan` | `PRO` | El servicio decide si el módulo entra en el plan |
 | `patron` | `VENTA_DIRECTA` | Patrón operativo del negocio |
 | `roles` | `["ADMINISTRADOR","CAJERO"]` | Permisos, que resuelve el servicio |
+| `modulos` | `["VENTAS","FACTURACION"]` | Módulos activos del negocio; los usa `@RequiereModulo` |
 | `sucursales` | `["<uuid>"]` | Sucursales del usuario |
 | `estado_negocio` | `ACTIVO` | `SUSPENDIDO` o `CANCELADO` ⇒ 402 en el borde |
 
 Del token salen las cabeceras que ve el servicio: `X-Regenta-Negocio`, `-Usuario`,
-`-Plan`, `-Patron`, `-Roles`, `-Sucursales` y `X-Regenta-Traza`. Las que traiga el
+`-Plan`, `-Patron`, `-Roles`, `-Modulos`, `-Sucursales` y `X-Regenta-Traza`. Las que traiga el
 cliente con esos nombres **se descartan** antes de escribir las nuestras: el único origen
 de la verdad es el token firmado. El `Authorization` original viaja igual, para que el
 servicio pueda revalidar sin confiar en el borde.
@@ -263,6 +280,5 @@ De la épica `E00` falta:
 | HU-002 | El monorepo Flutter con melos |
 | HU-009 | Pipeline de CI |
 
-Falta también la pieza de aplicación del aislamiento: el interceptor que emite el
-`SET LOCAL app.negocio_id` a partir de la cabecera `X-Regenta-Negocio`. Entra con el
-primer servicio que tenga repositorios, en E01.
+De ahí en adelante empieza `E01`, que es donde `servicio-usuarios` deja de ser una
+carpeta vacía.

@@ -27,6 +27,20 @@
       <artifactId>spring-boot-starter-amqp</artifactId>
     </dependency>
 
+    <!-- El aislamiento por negocio y @RequiereModulo son aspectos. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-aop</artifactId>
+    </dependency>
+
+    <!-- Solo para compilar el filtro que lee las cabeceras del gateway: el
+         contenedor lo aporta el servicio, no esta libreria. -->
+    <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- El contrato OpenAPI es el mismo para los quince servicios (HU-010), asi
          que la dependencia vive aqui y no repetida en cada pom. Arrastra
          spring-webmvc pero no un contenedor: la autoconfiguracion solo se activa

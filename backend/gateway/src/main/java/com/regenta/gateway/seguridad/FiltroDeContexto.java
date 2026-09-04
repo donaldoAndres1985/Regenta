@@ -38,10 +38,11 @@ public class FiltroDeContexto implements GlobalFilter, Ordered {
     public static final String PLAN = "X-Regenta-Plan";
     public static final String PATRON = "X-Regenta-Patron";
     public static final String ROLES = "X-Regenta-Roles";
+    public static final String MODULOS = "X-Regenta-Modulos";
     public static final String SUCURSALES = "X-Regenta-Sucursales";
 
     private static final List<String> CABECERAS_DE_CONTEXTO =
-            List.of(NEGOCIO, USUARIO, PLAN, PATRON, ROLES, SUCURSALES);
+            List.of(NEGOCIO, USUARIO, PLAN, PATRON, ROLES, MODULOS, SUCURSALES);
 
     /** Estados en los que el negocio no recibe servicio hasta que se ponga al dia. */
     private static final Set<String> SIN_SERVICIO = Set.of("SUSPENDIDO", "CANCELADO");
@@ -90,6 +91,7 @@ public class FiltroDeContexto implements GlobalFilter, Ordered {
                     poner(cabeceras, PLAN, texto(jwt.getClaim("plan")));
                     poner(cabeceras, PATRON, texto(jwt.getClaim("patron")));
                     poner(cabeceras, ROLES, lista(jwt.getClaim("roles")));
+                    poner(cabeceras, MODULOS, lista(jwt.getClaim("modulos")));
                     poner(cabeceras, SUCURSALES, lista(jwt.getClaim("sucursales")));
                     cabeceras.set(Trazas.CABECERA, Trazas.de(intercambio));
                 })
