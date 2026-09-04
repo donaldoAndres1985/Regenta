@@ -24,8 +24,14 @@ import org.springframework.scheduling.annotation.Scheduled;
  */
 @AutoConfiguration
 @EnableConfigurationProperties(PropiedadesEventos.class)
-@EntityScan(basePackageClasses = OutboxEvento.class)
-@EnableJpaRepositories(basePackageClasses = OutboxRepositorio.class)
+// Se escanea "com.regenta" entero, no solo el paquete de la libreria, y esto no es
+// pereza: declarar @EnableJpaRepositories apaga el escaneo automatico de Spring Boot.
+// Si aqui se pusiera solo el paquete de comun, los repositorios del propio servicio
+// —com.regenta.ventas.infra y demas— dejarian de registrarse, y el servicio arrancaria
+// quejandose de un bean que si existe. Como todos los modulos cuelgan de com.regenta,
+// una sola raiz cubre la libreria y el servicio.
+@EntityScan(basePackages = "com.regenta")
+@EnableJpaRepositories(basePackages = "com.regenta")
 @EnableScheduling
 public class EventosAutoConfiguracion {
 

@@ -3,7 +3,6 @@ package com.regenta.comun.eventos;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
  * agregado no tiene sentido —seria exactamente el problema que el Outbox viene a
  * resolver—, asi que en vez de abrir una transaccion nueva, falla.
  */
-@Service
 public class RegistroDeEventos {
 
     private final OutboxRepositorio outbox;

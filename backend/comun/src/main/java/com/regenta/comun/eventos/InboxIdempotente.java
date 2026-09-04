@@ -5,7 +5,6 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -15,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
  * veces, descuenta stock dos veces o cobra dos veces. El registro en el Inbox va en la
  * MISMA transaccion que el efecto: o quedan los dos, o no queda ninguno.
  */
-@Service
 public class InboxIdempotente {
 
     private static final Logger log = LoggerFactory.getLogger(InboxIdempotente.class);

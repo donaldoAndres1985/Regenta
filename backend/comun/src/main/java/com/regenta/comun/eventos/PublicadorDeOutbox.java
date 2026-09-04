@@ -1,11 +1,12 @@
 package com.regenta.comun.eventos;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
-import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.core.MessageDeliveryMode;
+import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,19 +73,21 @@ public class PublicadorDeOutbox {
     }
 
     private Message aMensaje(OutboxEvento evento) {
-        MessageBuilder builder = MessageBuilder
-                .withBody(evento.getPayload().getBytes(java.nio.charset.StandardCharsets.UTF_8))
-                .setContentType("application/json")
-                .setContentEncoding("UTF-8")
-                .setMessageId(evento.getId().toString())
-                .setDeliveryMode(MessageDeliveryMode.PERSISTENT)
-                .setHeader("negocio_id", evento.getNegocioId().toString())
-                .setHeader("tipo_evento", evento.getTipoEvento())
-                .setHeader("agregado_tipo", evento.getAgregadoTipo())
-                .setHeader("agregado_id", evento.getAgregadoId().toString());
+        MessageProperties propiedades = new MessageProperties();
+        propiedades.setContentType(MessageProperties.CONTENT_TYPE_JSON);
+        propiedades.setContentEncoding(StandardCharsets.UTF_8.name());
+        propiedades.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+        // El message-id es el id del outbox: con ese id el consumidor descarta
+        // los repetidos en su inbox. Si se pierde, la idempotencia no tiene de
+        // donde agarrarse.
+        propiedades.setMessageId(evento.getId().toString());
+        propiedades.setHeader("negocio_id", evento.getNegocioId().toString());
+        propiedades.setHeader("tipo_evento", evento.getTipoEvento());
+        propiedades.setHeader("agregado_tipo", evento.getAgregadoTipo());
+        propiedades.setHeader("agregado_id", evento.getAgregadoId().toString());
         if (evento.getTraceId() != null) {
-            builder.setHeader("trace_id", evento.getTraceId());
+            propiedades.setHeader("trace_id", evento.getTraceId());
         }
-        return builder.build();
+        return new Message(evento.getPayload().getBytes(StandardCharsets.UTF_8), propiedades);
     }
 }
