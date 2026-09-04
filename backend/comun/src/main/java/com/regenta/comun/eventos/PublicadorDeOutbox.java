@@ -8,6 +8,7 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +40,7 @@ public class PublicadorDeOutbox {
     /** Devuelve cuantos publico. Se llama sola por schedule, y a mano en los tests. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public int publicarPendientes() {
-        List<OutboxEvento> pendientes = outbox.tomarPendientes(propiedades.getLote());
+        List<OutboxEvento> pendientes = outbox.tomarPendientes(PageRequest.of(0, propiedades.getLote()));
         int publicados = 0;
         for (OutboxEvento evento : pendientes) {
             try {

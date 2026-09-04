@@ -7,8 +7,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -19,13 +17,22 @@ import org.testcontainers.utility.DockerImageName;
  * olvida la entidad, este test falla. Con `ddl-auto: validate`, Hibernate ademas
  * compara el mapeo contra la tabla real al arrancar.
  */
-@Testcontainers
 @SpringBootTest(classes = AplicacionDePrueba.class)
 public abstract class BaseConPostgres {
 
-    @Container
+    /**
+     * Un solo PostgreSQL para toda la ejecucion, arrancado a mano y no por clase.
+     *
+     * <p>Con un contenedor por clase, Spring reutiliza el contexto que cacheo para la
+     * primera —la configuracion es la misma— y el datasource apunta a un contenedor que
+     * ya se apago. Ryuk lo recoge al terminar la JVM.
+     */
     static final PostgreSQLContainer<?> PG =
             new PostgreSQLContainer<>(DockerImageName.parse("postgres:16"));
+
+    static {
+        PG.start();
+    }
 
     static Path migracionesDeVentas() {
         Path comun = Paths.get("").toAbsolutePath();

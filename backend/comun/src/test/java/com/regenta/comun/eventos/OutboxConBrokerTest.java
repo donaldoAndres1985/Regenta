@@ -19,7 +19,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.RabbitMQContainer;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -34,9 +33,13 @@ class OutboxConBrokerTest extends BaseConPostgres {
     private static final UUID NEGOCIO = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final String COLA = "prueba.venta_completada";
 
-    @Container
+    /** Mismo motivo que el de PostgreSQL: uno solo, arrancado a mano. */
     static final RabbitMQContainer RABBIT =
             new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management"));
+
+    static {
+        RABBIT.start();
+    }
 
     @DynamicPropertySource
     static void rabbit(DynamicPropertyRegistry r) {
