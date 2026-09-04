@@ -5,6 +5,10 @@ El HTML es la referencia exacta de medidas y color; el PNG es para mirar rápido
 
 Bajo cada pantalla, en el propio HTML, hay una franja gris con las tablas que usa.
 
+La fila **Comportamiento** apunta al archivo donde se escriben las reglas de la pantalla
+—foco, validaciones, estados vacíos, sin conexión, permisos— en *dado / cuando / entonces*.
+Se llenan antes de implementar; ver `design/comportamiento/LEEME.md`.
+
 
 ## Núcleo
 
@@ -19,6 +23,7 @@ Bajo cada pantalla, en el propio HTML, hay una franja gris con las tablas que us
 | Microservicio | `servicio-usuarios` |
 | DDL | `modelo-datos/sql/01-servicio-usuarios.sql` |
 | Tablas | `usuarios` · `negocios` · `planes` · `patrones_operativos` · `refresh_tokens` |
+| Comportamiento | `design/comportamiento/Login.md` |
 
 El correo es único por negocio, no global: la misma persona puede trabajar en varios. El JWT sale de aquí con negocio_id, plan, patrón y roles.
 
@@ -33,6 +38,7 @@ El correo es único por negocio, no global: la misma persona puede trabajar en v
 | Microservicio | `servicio-reportes` |
 | DDL | `modelo-datos/sql/14-servicio-reportes.sql` |
 | Tablas | `reportes.agregados_diarios` · `reportes.ranking_productos` · `alertas.alertas` · `ventas.ventas` |
+| Comportamiento | `design/comportamiento/Inicio.md` |
 
 Todo lo que se ve aquí sale del servicio de Reportes, que vive de eventos: ninguna consulta cruza a la base de Ventas.
 
@@ -47,6 +53,7 @@ Todo lo que se ve aquí sale del servicio de Reportes, que vive de eventos: ning
 | Microservicio | `servicio-clientes` |
 | DDL | `modelo-datos/sql/02-servicio-clientes.sql` |
 | Tablas | `crm.clientes` · `crm.cliente_metricas` · `crm.cuentas_por_cobrar` · `crm.recaudos` |
+| Comportamiento | `design/comportamiento/Clientes.md` |
 
 cliente_metricas es una proyección alimentada por los tres eventos de cierre — venta_completada, estancia_finalizada y pedido_completado.
 
@@ -61,6 +68,7 @@ cliente_metricas es una proyección alimentada por los tres eventos de cierre �
 | Microservicio | `servicio-usuarios` |
 | DDL | `modelo-datos/sql/01-servicio-usuarios.sql` |
 | Tablas | `configuracion_negocio` · `impuestos` · `sucursales` · `negocios` |
+| Comportamiento | `design/comportamiento/Configuracion.md` |
 
 Los impuestos los define cada negocio; las sucursales solo aparecen con el módulo Multi-sucursal, pero sucursal_id existe en el modelo desde el día 1.
 
@@ -75,6 +83,7 @@ Los impuestos los define cada negocio; las sucursales solo aparecen con el módu
 | Microservicio | `servicio-usuarios` |
 | DDL | `modelo-datos/sql/01-servicio-usuarios.sql` |
 | Tablas | `usuarios` · `roles` · `rol_permisos` · `usuario_roles` · `permisos` · `plantillas_rol` |
+| Comportamiento | `design/comportamiento/Usuarios.md` |
 
 El motor de permisos no cambia entre patrones. Solo cambian las plantillas que el negocio instancia: Vendedor y Cajero aquí; Recepcionista o Mesero en otro patrón.
 
@@ -89,6 +98,7 @@ El motor de permisos no cambia entre patrones. Solo cambian las plantillas que e
 | Microservicio | `servicio-facturacion` |
 | DDL | `modelo-datos/sql/11-servicio-facturacion.sql` |
 | Tablas | `facturacion.facturas` · `factura_lineas` · `factura_impuestos` · `resoluciones` · `transmisiones` |
+| Comportamiento | `design/comportamiento/Factura.md` |
 
 El emisor y el adquiriente son snapshots JSONB: una factura emitida no cambia si mañana editan el cliente. El consecutivo sale del rango de la resolución DIAN.
 
@@ -103,6 +113,7 @@ El emisor y el adquiriente son snapshots JSONB: una factura emitida no cambia si
 | Microservicio | `servicio-reportes` |
 | DDL | `modelo-datos/sql/14-servicio-reportes.sql` |
 | Tablas | `reportes.hechos_venta` · `dim_producto` · `dim_fecha` · `agregados_diarios` · `ranking_productos` |
+| Comportamiento | `design/comportamiento/Reportes.md` |
 
 Esquema en estrella con dimensiones SCD tipo 2: cambiar el nombre de un producto no reescribe el histórico.
 
@@ -120,6 +131,7 @@ Esquema en estrella con dimensiones SCD tipo 2: cambiar el nombre de un producto
 | Microservicio | `servicio-inventario` |
 | DDL | `modelo-datos/sql/03-servicio-inventario.sql` |
 | Tablas | `inventario.productos` · `existencias` · `bodegas` · `categorias` |
+| Comportamiento | `design/comportamiento/Inventario.md` |
 
 El stock es (producto, bodega), no una columna de productos. Es la corrección más importante sobre el documento original.
 
@@ -134,6 +146,7 @@ El stock es (producto, bodega), no una columna de productos. Es la corrección m
 | Microservicio | `servicio-inventario` |
 | DDL | `modelo-datos/sql/03-servicio-inventario.sql` |
 | Tablas | `productos` · `atributos_categoria` · `existencias` · `lotes` · `movimientos_inventario` |
+| Comportamiento | `design/comportamiento/Producto.md` |
 
 Los campos del recuadro punteado los define el negocio y viven en el JSONB productos.atributos. Una vidriería o una veterinaria no necesitan código nuevo.
 
@@ -148,6 +161,7 @@ Los campos del recuadro punteado los define el negocio y viven en el JSONB produ
 | Microservicio | `servicio-inventario` |
 | DDL | `modelo-datos/sql/03-servicio-inventario.sql` |
 | Tablas | `categorias` · `atributos_categoria` · `productos.atributos` |
+| Comportamiento | `design/comportamiento/Categorias.md` |
 
 La pantalla que sostiene toda la tesis del sistema: aquí es donde ferretería, papelería y droguería dejan de ser módulos distintos y pasan a ser configuración.
 
@@ -162,6 +176,7 @@ La pantalla que sostiene toda la tesis del sistema: aquí es donde ferretería, 
 | Microservicio | `servicio-ventas` |
 | DDL | `modelo-datos/sql/04-servicio-ventas.sql` |
 | Tablas | `ventas.ventas` · `venta_lineas` · `productos` · `existencias` · `reservas_stock` · `sagas` |
+| Comportamiento | `design/comportamiento/POS.md` |
 
 Al confirmar no se descuenta stock de una: se pide reserva a Inventario y se espera respuesta. Si no alcanza, la venta vuelve a borrador.
 
@@ -176,6 +191,7 @@ Al confirmar no se descuenta stock de una: se pide reserva a Inventario y se esp
 | Microservicio | `servicio-caja` |
 | DDL | `modelo-datos/sql/12-servicio-caja.sql` |
 | Tablas | `pagos_venta` · `caja.sesiones_caja` · `movimientos_caja` · `arqueo_denominaciones` |
+| Comportamiento | `design/comportamiento/Cobro.md` |
 
 Caja es transversal a los tres patrones: también recibe pagos de comandas y anticipos de reservas. Por eso no vive dentro de Ventas.
 
@@ -190,6 +206,7 @@ Caja es transversal a los tres patrones: también recibe pagos de comandas y ant
 | Microservicio | `servicio-compras` |
 | DDL | `modelo-datos/sql/05-servicio-compras.sql` |
 | Tablas | `compras.ordenes_compra` · `recepciones` · `recepcion_lineas` · `inventario.lotes` · `cuentas_por_pagar` |
+| Comportamiento | `design/comportamiento/Recepcion.md` |
 
 El lote y el vencimiento se capturan al recibir, no en la ficha del producto: el mismo medicamento entra con lotes distintos cada semana.
 
@@ -207,6 +224,7 @@ El lote y el vencimiento se capturan al recibir, no en la ficha del producto: el
 | Microservicio | `servicio-reservas` |
 | DDL | `modelo-datos/sql/07-servicio-reservas.sql` |
 | Tablas | `reservas.reservas (periodo tstzrange)` · `recursos.recursos` · `bloqueos_recurso` |
+| Comportamiento | `design/comportamiento/Calendario.md` |
 
 Cada barra es un rango de tiempo. Que dos no puedan solaparse lo garantiza un constraint de exclusión GiST en PostgreSQL, no la aplicación.
 
@@ -221,6 +239,7 @@ Cada barra es un rango de tiempo. Que dos no puedan solaparse lo garantiza un co
 | Microservicio | `servicio-recursos` |
 | DDL | `modelo-datos/sql/06-servicio-recursos.sql` |
 | Tablas | `recursos` · `tipos_recurso` · `atributos_tipo_recurso` · `tarifas` · `bloqueos_recurso` |
+| Comportamiento | `design/comportamiento/Recurso.md` |
 
 Espejo exacto de la ficha de producto: tipos_recurso + atributos_tipo_recurso hacen para un hotel lo que categorias + atributos_categoria hacen para una ferretería.
 
@@ -235,6 +254,7 @@ Espejo exacto de la ficha de producto: tipos_recurso + atributos_tipo_recurso ha
 | Microservicio | `servicio-reservas` |
 | DDL | `modelo-datos/sql/07-servicio-reservas.sql` |
 | Tablas | `reservas` · `tarifas` · `servicios_adicionales` · `politicas_cancelacion` · `cupos_tipo_recurso` |
+| Comportamiento | `design/comportamiento/NuevaReserva.md` |
 
 El periodo es semiabierto: la salida de las 11:00 no choca con una entrada a las 11:00 del mismo día. Eso lo da el tipo de rango, no una regla escrita a mano.
 
@@ -249,6 +269,7 @@ El periodo es semiabierto: la salida de las 11:00 no choca con una entrada a las
 | Microservicio | `servicio-reservas` |
 | DDL | `modelo-datos/sql/07-servicio-reservas.sql` |
 | Tablas | `estancias` · `consumos_estancia` · `ocupantes` · `pagos_reserva` |
+| Comportamiento | `design/comportamiento/Estancia.md` |
 
 Al cerrar se publica estancia_finalizada: el equivalente exacto de venta_completada. Facturación, Reportes, CRM y Caja lo consumen igual.
 
@@ -263,6 +284,7 @@ Al cerrar se publica estancia_finalizada: el equivalente exacto de venta_complet
 | Microservicio | `servicio-recursos` |
 | DDL | `modelo-datos/sql/06-servicio-recursos.sql` |
 | Tablas | `tarifas` · `politicas_cancelacion` · `reglas_disponibilidad` |
+| Comportamiento | `design/comportamiento/Tarifas.md` |
 
 Varias tarifas pueden aplicar a la misma noche. El campo prioridad resuelve el empate sin obligar al negocio a ordenarlas o borrarlas.
 
@@ -280,6 +302,7 @@ Varias tarifas pueden aplicar a la misma noche. El campo prioridad resuelve el e
 | Microservicio | `servicio-mesas` |
 | DDL | `modelo-datos/sql/09-servicio-mesas.sql` |
 | Tablas | `mesas.mesas` · `zonas` · `sesiones_mesa` · `sesion_mesas` · `comandas` |
+| Comportamiento | `design/comportamiento/Mesas.md` |
 
 Entre la mesa y la comanda va una sesión de mesa: es lo que permite unir mesas, medir la rotación y que al cerrar quede «por limpiar» en vez de libre.
 
@@ -294,6 +317,7 @@ Entre la mesa y la comanda va una sesión de mesa: es lo que permite unir mesas,
 | Microservicio | `servicio-comandas` |
 | DDL | `modelo-datos/sql/10-servicio-comandas.sql` |
 | Tablas | `comandas.comandas` · `comanda_lineas` · `comanda_linea_modificadores` · `menu.items_menu` · `modificadores` |
+| Comportamiento | `design/comportamiento/Comanda.md` |
 
 Aquí está la diferencia real con una venta: cada línea tiene su propio ciclo de vida, y anular una ya enviada a cocina genera merma.
 
@@ -308,6 +332,7 @@ Aquí está la diferencia real con una venta: cada línea tiene su propio ciclo 
 | Microservicio | `servicio-comandas` |
 | DDL | `modelo-datos/sql/10-servicio-comandas.sql` |
 | Tablas | `tickets_cocina` · `ticket_cocina_lineas` · `comanda_lineas` · `menu.estaciones_cocina` |
+| Comportamiento | `design/comportamiento/KDS.md` |
 
 Fondo oscuro a propósito: es una pantalla que se mira de lejos, en una cocina, con las manos ocupadas. Al marcar «Listo» se publica linea_lista.
 
@@ -322,6 +347,7 @@ Fondo oscuro a propósito: es una pantalla que se mira de lejos, en una cocina, 
 | Microservicio | `servicio-comandas` |
 | DDL | `modelo-datos/sql/10-servicio-comandas.sql` |
 | Tablas | `comandas.cuentas` · `cuenta_lineas` · `pagos_comanda` |
+| Comportamiento | `design/comportamiento/Cuenta.md` |
 
 cuenta_lineas guarda una proporción, así que un plato compartido se reparte entre dos cuentas. Sin esto, «pagamos por separado» obliga a rehacer la comanda.
 

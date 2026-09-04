@@ -10,6 +10,7 @@ Las 22 pantallas de Regenta, cada una en dos composiciones: móvil (390×844) y 
 | `pantallas/` | 45 archivos `.html` autónomos, uno por composición | **La fuente de verdad.** Se abren en cualquier navegador |
 | `png/` | Los mismos 44, renderizados | Mirar rápido, pegar en un issue, comparar el resultado |
 | `tokens/regenta_theme.dart` | Colores, tipografía y espaciado como código Dart | Anclar el tema una sola vez, sin valores sueltos |
+| `comportamiento/` | Un `.md` por pantalla con sus reglas en *dado / cuando / entonces* | **Cómo se comporta**, que el mockup no dice. Se llena antes de implementar |
 | `PANTALLAS.md` | Índice: pantalla → archivos → tablas del modelo → paquete → servicio → DDL | Todo el contexto de una pantalla en un solo sitio |
 
 Cada pantalla existe dos veces: `XxxMovil.html` y `XxxWeb.html`. No son la misma
@@ -79,11 +80,21 @@ Los mockups se generan con un script, no se dibujan a mano. Si cambia uno, se
 regeneran los tres formatos —canvas, HTML y PNG— de una vez, para que no se
 desincronicen entre ellos.
 
+## El mockup dice cómo se ve, no cómo se comporta
+
+Un HTML estático no puede decir qué campo toma el foco al abrir, qué pasa al escanear un
+producto sin stock, qué se puede hacer sin conexión o qué ve un rol sin permisos. Eso va en
+`comportamiento/<Pantalla>.md`, en *dado / cuando / entonces*, porque de ahí salen los tests.
+
+Se escribe **antes** de implementar la pantalla: en ese momento cambiar una regla cuesta una
+línea de texto. Lo que quede en `_Sin definir._` lo resolverá quien implemente, con su
+criterio. Ver `comportamiento/LEEME.md`.
+
 ## Lo que estos mockups NO son
 
-- **No son un design system terminado.** Son 22 pantallas coherentes entre sí. Faltan
-  los estados vacíos, de carga y de error, que se resuelven al implementar cada una
-  y conviene ir agregando aquí a medida que se definan.
+- **No son un design system terminado.** Son 22 pantallas coherentes entre sí. Los estados
+  vacíos, de carga y de error se definen en `comportamiento/<Pantalla>.md` y se dibujan
+  cuando se implementa cada pantalla.
 - **Los datos son inventados.** Ferretería El Tornillo, Hotel Casa Mangle y Bar La
   Terraza no existen. Los CUFE, NIT y números de resolución tienen la forma correcta
   pero no son válidos.

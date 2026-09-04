@@ -261,10 +261,15 @@ referencia exacta de medidas y color; el PNG es para mirar.
 | `design/pantallas/*.html` | Fuente de verdad de cada composición |
 | `design/png/*.png` | Los mismos, renderizados |
 | `design/tokens/regenta_theme.dart` | Paleta, tipografía y espaciado como código Dart |
+| `design/comportamiento/*.md` | Cómo se comporta cada pantalla, en *dado / cuando / entonces* |
 
 Al implementar: usar siempre `RegentaColors`, `RegentaType` y `RegentaSpacing`; una
 sola pantalla que se adapta con `LayoutBuilder` en `kBreakpointEscritorio` (900 px),
 no dos widgets distintos; objetivo de toque mínimo de 44 px en móvil.
+
+El mockup dice cómo se ve una pantalla; `design/comportamiento/` dice cómo se comporta
+—foco, validaciones, estados vacíos, sin conexión, permisos, qué impedir— y se escribe antes
+de implementarla, porque de ahí salen los tests.
 
 Detalles en `design/README.md`.
 
