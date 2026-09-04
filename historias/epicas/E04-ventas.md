@@ -4,8 +4,8 @@ El POS, la saga con Inventario, los pagos y las devoluciones.
 
 | | |
 |---|---|
-| Historias | 9 |
-| Puntos | 60 |
+| Historias | 11 |
+| Puntos | 68 |
 | Plan mínimo | Básico |
 
 ---
@@ -298,3 +298,73 @@ El POS, la saga con Inventario, los pagos y las devoluciones.
 - [ ] Revisada en PR por otra persona.
 
 ---
+
+---
+
+### HU-113 · Asignar un cliente a la venta
+
+**Como** vendedor, **quiero** decir quién compra en esta venta **para** que la factura salga con sus datos y el crédito quede cargado a su cuenta
+
+| | |
+|---|---|
+| Épica | `E04` · Ventas · transacción del patrón Venta directa |
+| Puntos | 5 |
+| Microservicio | `servicio-ventas` |
+| Paquete Flutter | `ventas` |
+| Tablas | `ventas, crm.clientes` |
+| Pantalla | `design/pantallas/ClienteVentaWeb.html` |
+| Depende de | HU-021 · HU-037 |
+| Etiquetas | `ventas` · `backend` · `flutter` |
+
+> El snapshot es lo que hace que el histórico no se corrompa: `crm.clientes` cambia, la venta no. Reglas completas en `design/comportamiento/ClienteVenta.md`.
+
+**Criterios de aceptación**
+
+1. Dada una venta nueva, cuando se crea, entonces `cliente_id` queda en NULL y el POS muestra *Consumidor final*: vender sin cliente no exige ningún paso extra.
+2. Dado un cliente de mi negocio, cuando lo asigno, entonces la venta guarda `cliente_id` **y** un `cliente_snapshot` con nombre, tipo y número de documento.
+3. Dado un cliente de otro negocio, cuando intento asignarlo por su id, entonces responde 404.
+4. Dada una venta con cliente, cuando lo quito, entonces `cliente_id` vuelve a NULL y se limpia la forma de pago a crédito si la había.
+5. Dada una venta ya confirmada, cuando después editan la razón social en el CRM, entonces la venta conserva el snapshot con el que se hizo.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados.
+- [ ] Endpoints documentados en el contrato OpenAPI del servicio.
+- [ ] Las reglas de `design/comportamiento/ClienteVenta.md` están cubiertas por tests.
+- [ ] La pantalla coincide con `design/pantallas/ClienteVenta*.html` en medidas y color.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-114 · Crear un cliente desde la venta, sin salir de la pantalla
+
+**Como** vendedor, **quiero** crear el cliente en el momento, con lo mínimo para facturar **para** no perder el carrito ni hacer esperar a quien está en el mostrador
+
+| | |
+|---|---|
+| Épica | `E04` · Ventas · transacción del patrón Venta directa |
+| Puntos | 3 |
+| Microservicio | `servicio-clientes` |
+| Paquete Flutter | `ventas` |
+| Tablas | `crm.clientes` |
+| Pantalla | `design/pantallas/ClienteVentaWeb.html` |
+| Depende de | HU-021 · HU-113 |
+| Etiquetas | `clientes` · `ventas` · `backend` · `flutter` |
+
+> Lo mínimo para facturar es tipo y número de documento, nombre o razón social y correo. El resto se completa después en la ficha del cliente.
+
+**Criterios de aceptación**
+
+1. Dados tipo y número de documento, nombre o razón social y correo, cuando confirmo, entonces el cliente queda creado y asignado a la venta, y el carrito sigue intacto.
+2. Dado un cliente con el mismo tipo y número de documento en mi negocio, cuando intento crearlo, entonces responde 409 y ofrece asignar el que ya existe.
+3. Dado un NIT, cuando escribo el número, entonces el dígito de verificación se calcula solo y se puede corregir a mano.
+4. Dado un rol sin permiso de crear clientes, cuando abro el selector, entonces puedo buscar y asignar pero no crear.
+5. Dado el modo sin conexión, cuando creo el cliente, entonces se crea con su propio UUID y sube en la cola de sincronización junto con la venta.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados.
+- [ ] Endpoints documentados en el contrato OpenAPI del servicio.
+- [ ] Las reglas de `design/comportamiento/ClienteVenta.md` están cubiertas por tests.
+- [ ] La pantalla coincide con `design/pantallas/ClienteVenta*.html` en medidas y color.
+- [ ] Revisada en PR por otra persona.

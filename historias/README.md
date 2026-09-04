@@ -1,6 +1,6 @@
 # Historias de usuario de Regenta
 
-Backlog completo del producto: **112 historias** en **17 épicas**, **645 puntos**.
+Backlog completo del producto: **114 historias** en **17 épicas**, **653 puntos**.
 
 Cada historia declara qué tablas del modelo toca, qué pantalla del diseño implementa y de
 qué otras historias depende. Nada aquí es genérico: los criterios de aceptación salen de las
@@ -14,7 +14,7 @@ restricciones reales del modelo de datos.
 | `E01` | Core · Tenant e identidad | 10 | 42 | Todos | [`E01-core.md`](epicas/E01-core.md) |
 | `E02` | Clientes y cartera | 5 | 20 | Profesional | [`E02-clientes-cartera.md`](epicas/E02-clientes-cartera.md) |
 | `E03` | Inventario · catálogo del patrón Venta directa | 11 | 65 | Básico | [`E03-inventario.md`](epicas/E03-inventario.md) |
-| `E04` | Ventas · transacción del patrón Venta directa | 9 | 60 | Básico | [`E04-ventas.md`](epicas/E04-ventas.md) |
+| `E04` | Ventas · transacción del patrón Venta directa | 11 | 68 | Básico | [`E04-ventas.md`](epicas/E04-ventas.md) |
 | `E05` | Compras y proveedores | 6 | 31 | Profesional | [`E05-compras-proveedores.md`](epicas/E05-compras-proveedores.md) |
 | `E06` | Facturación electrónica DIAN | 7 | 57 | Profesional | [`E06-facturacion-electronica-dian.md`](epicas/E06-facturacion-electronica-dian.md) |
 | `E07` | Caja y POS | 5 | 19 | Empresarial | [`E07-caja-pos.md`](epicas/E07-caja-pos.md) |
@@ -144,6 +144,8 @@ restricciones reales del modelo de datos.
 | `HU-110` | Base de datos local con Drift en Android y Web | `E16` | 8 | `HU-002` |
 | `HU-111` | Cola de sincronización en segundo plano | `E16` | 8 | `HU-110` `HU-102` |
 | `HU-112` | Cliente HTTP con manejo uniforme de errores | `E16` | 5 | `HU-109` |
+| `HU-113` | Asignar un cliente a la venta | `E04` | 5 | `HU-021` `HU-037` |
+| `HU-114` | Crear un cliente desde la venta, sin salir de la pantalla | `E04` | 3 | `HU-021` `HU-113` |
 
 ## Cómo se lee una historia
 

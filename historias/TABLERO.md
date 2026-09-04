@@ -71,12 +71,12 @@ Un negocio puede darse de alta, entrar y administrar sus usuarios. La app arranc
 
 Una ferretería puede operar de verdad: catálogo configurable, stock, POS y factura electrónica.
 
-**32 historias · 202 puntos · acumulado 332**
+**34 historias · 210 puntos · acumulado 340**
 
 | Épica | Nombre | HU | Puntos |
 |---|---|---:|---:|
 | `E03` | Inventario · catálogo del patrón Venta directa | 11 | 65 |
-| `E04` | Ventas · transacción del patrón Venta directa | 9 | 60 |
+| `E04` | Ventas · transacción del patrón Venta directa | 11 | 68 |
 | `E02` | Clientes y cartera | 5 | 20 |
 | `E06` | Facturación electrónica DIAN | 7 | 57 |
 
@@ -102,6 +102,8 @@ Una ferretería puede operar de verdad: catálogo configurable, stock, POS y fac
 - `HU-043` Sincronización de ventas creadas sin conexión
 - `HU-044` Cotizaciones que se convierten en venta
 - `HU-045` Pantalla de POS en móvil y en web
+- `HU-113` Asignar un cliente a la venta
+- `HU-114` Crear un cliente desde la venta, sin salir de la pantalla
 - `HU-021` Crear y consultar clientes
 - `HU-022` Cupo de crédito y cartera del cliente
 - `HU-023` Métricas del cliente alimentadas por eventos
@@ -123,7 +125,7 @@ Una ferretería puede operar de verdad: catálogo configurable, stock, POS y fac
 
 Compras, caja y los reportes que hacen que el dueño abra la app todos los días.
 
-**20 historias · 110 puntos · acumulado 442**
+**20 historias · 110 puntos · acumulado 450**
 
 | Épica | Nombre | HU | Puntos |
 |---|---|---:|---:|
@@ -163,7 +165,7 @@ Compras, caja y los reportes que hacen que el dueño abra la app todos los días
 
 Un hotel opera sin tocar nada de lo anterior.
 
-**12 historias · 79 puntos · acumulado 521**
+**12 historias · 79 puntos · acumulado 529**
 
 | Épica | Nombre | HU | Puntos |
 |---|---|---:|---:|
@@ -193,7 +195,7 @@ Un hotel opera sin tocar nada de lo anterior.
 
 Un restaurante opera, con cocina e inventario conectados.
 
-**16 historias · 92 puntos · acumulado 613**
+**16 historias · 92 puntos · acumulado 621**
 
 | Épica | Nombre | HU | Puntos |
 |---|---|---:|---:|
@@ -228,7 +230,7 @@ Un restaurante opera, con cocina e inventario conectados.
 
 Multi-sucursal, auditoría y sincronización para el plan Empresarial.
 
-**5 historias · 32 puntos · acumulado 645**
+**5 historias · 32 puntos · acumulado 653**
 
 | Épica | Nombre | HU | Puntos |
 |---|---|---:|---:|
