@@ -6,6 +6,7 @@ WORKDIR /src
 COPY pom.xml .
 COPY .mvn .mvn
 COPY mvnw .
+COPY comun/pom.xml comun/pom.xml
 COPY gateway/pom.xml gateway/pom.xml
 COPY estructura/pom.xml estructura/pom.xml
 COPY servicio-usuarios/pom.xml servicio-usuarios/pom.xml

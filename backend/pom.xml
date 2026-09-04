@@ -27,6 +27,7 @@
   </properties>
 
   <modules>
+    <module>comun</module>
     <module>gateway</module>
     <module>servicio-usuarios</module>
     <module>servicio-clientes</module>
@@ -48,6 +49,13 @@
 
   <dependencyManagement>
     <dependencies>
+      <!-- La libreria propia se versiona con el proyecto: los modulos la piden
+           sin version, igual que cualquier dependencia gestionada. -->
+      <dependency>
+        <groupId>com.regenta</groupId>
+        <artifactId>comun</artifactId>
+        <version>${project.version}</version>
+      </dependency>
       <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-dependencies</artifactId>

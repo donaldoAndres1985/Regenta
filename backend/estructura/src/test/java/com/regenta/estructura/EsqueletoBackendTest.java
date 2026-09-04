@@ -65,6 +65,7 @@ class EsqueletoBackendTest {
         // hay dos versiones de la misma libreria en el mismo despliegue.
         List<Path> hijos = new ArrayList<>();
         hijos.add(Repo.backend().resolve("gateway/pom.xml"));
+        hijos.add(Repo.backend().resolve("comun/pom.xml"));
         hijos.add(Repo.backend().resolve("estructura/pom.xml"));
         Repo.SERVICIOS.forEach(s -> hijos.add(Repo.moduloServicio(s).resolve("pom.xml")));
 

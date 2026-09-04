@@ -23,7 +23,11 @@ servicio consulta la base de otro: lo que necesita de afuera le llega por evento
 | `servicio-alertas` | `regenta_alertas` | `reg_alertas` | `alertas` | 8093 |
 | `servicio-reportes` | `regenta_reportes` | `reg_reportes` | `reportes` | 8094 |
 | `servicio-auditoria` | `regenta_auditoria` | `reg_auditoria` | `auditoria` | 8095 |
+| `comun` | — | — | — | — |
 | `estructura` | — | — | — | — |
+
+`comun` es la librería que comparten los servicios: Outbox e Inbox. No se despliega
+sola y no tiene `main`; se agrega como dependencia y queda andando.
 
 `estructura` no se despliega: es el módulo donde viven los tests de la fundación
 —estructura de módulos, compose, bases y migraciones—. Las decisiones de
@@ -142,6 +146,45 @@ historia.
 Falta la pieza de aplicación: el interceptor que emite el `SET LOCAL` a partir del JWT.
 Entra con el primer servicio que tenga repositorios, en E01.
 
+## Eventos: nada se pierde, nada se procesa dos veces
+
+`comun` trae el Outbox y el Inbox, y con solo agregar la dependencia quedan activos.
+
+**Publicar** es escribir en la propia base, dentro de la transacción del agregado:
+
+```java
+@Transactional
+public void completar(Venta venta) {
+    ventas.save(venta);
+    eventos.registrar(venta.getNegocioId(), "Venta", venta.getId(),
+                      "venta_completada", venta.aEvento());   // misma transacción
+}
+```
+
+Si el commit falla no queda ni la venta ni el evento; si el commit pasa, el evento está
+guardado aunque RabbitMQ esté caído, y sale en la siguiente pasada del publicador.
+Publicar dentro del método, antes del commit, es justo lo que no se puede hacer: el
+broker recibiría el aviso de algo que todavía puede no ocurrir.
+
+**Consumir** pasa siempre por el Inbox:
+
+```java
+inbox.procesarUnaVez(mensajeId, negocioId, tipoEvento, payload, cuerpo -> {
+    // el efecto: facturar, descontar stock, lo que sea
+});
+```
+
+La clave es el `message-id` de AMQP, que el publicador pone igual al id del Outbox.
+RabbitMQ entrega *at-least-once*: el mismo evento puede llegar dos veces —basta con que
+un consumidor muera antes del ack— y sin el Inbox se factura dos veces.
+
+Un evento que falla 10 veces queda `FALLIDO` y se enruta a `regenta.eventos.muertos`.
+El publicador toma los pendientes con `FOR UPDATE SKIP LOCKED`, así que varias
+instancias del mismo servicio pueden publicar a la vez sin duplicar.
+
+Se configura bajo `regenta.eventos.*` (exchange, lote, intervalo, intentos). En tests se
+apaga el latido con `regenta.eventos.publicador-activo=false` y se publica a mano.
+
 ## Lo que todavía no está
 
 La épica `E00` va a la mitad. Falta, en orden:
@@ -150,7 +193,6 @@ La épica `E00` va a la mitad. Falta, en orden:
 |---|---|
 | HU-002 | El monorepo Flutter con melos |
 | HU-007 | Gateway con validación de JWT y enrutamiento real |
-| HU-008 | Outbox e Inbox como librería compartida |
 | HU-009 | Pipeline de CI |
 | HU-010 | Documentación OpenAPI por servicio |
 
