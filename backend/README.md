@@ -298,6 +298,28 @@ Cinco intentos fallidos seguidos bloquean la cuenta 15 minutos. El contador se e
 en su propia transacción: si viviera en la del login, se iría con el rollback del 401 y
 no bloquearía nunca.
 
+## El plan manda, pero no decide
+
+Lo que un negocio tiene encendido está en `negocio_modulos`, no en su plan. El plan
+decide con qué lista nace y qué pasa cuando se cambia; de ahí en adelante manda la
+tabla. Eso es lo que permite vender un add-on sin cambiar de plan y apagar un módulo
+puntual sin bajarlo.
+
+El grafo `modulo_dependencias` no es decoración: `FACTURACION` sin `VENTAS` no tiene de
+dónde sacar qué facturar. No se enciende algo que necesita lo que no está, ni se apaga
+algo de lo que otro depende.
+
+Cambiar de plan cierra la suscripción vigente, abre la nueva, recalcula los módulos del
+plan y **respeta los add-ons**. Publica `plan_cambiado`; la app se entera al refrescar el
+token, que dura 15 minutos a propósito.
+
+Dos códigos distintos para dos cosas distintas, y esto se repite en los quince servicios:
+
+| | |
+|---|---|
+| `@RequiereModulo` | **402**. El usuario tiene el permiso; lo que falta es el módulo en el plan |
+| `@RequierePermiso` | **403**. El módulo está; lo que no alcanza es el rol |
+
 ## Lo que todavía no está
 
 De la épica `E00` falta:
@@ -307,5 +329,7 @@ De la épica `E00` falta:
 | HU-002 | El monorepo Flutter con melos |
 | HU-009 | Pipeline de CI |
 
-De ahí en adelante empieza `E01`, que es donde `servicio-usuarios` deja de ser una
-carpeta vacía.
+`E01` está completa: `servicio-usuarios` da de alta negocios, emite y rota tokens,
+gestiona usuarios con el techo del plan, roles con el catálogo de permisos, módulos con
+su grafo, configuración fiscal y sucursales. Lo siguiente es `E02` en adelante, y el
+primer servicio que consuma eventos de este.
