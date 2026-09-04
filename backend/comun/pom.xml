@@ -26,6 +26,15 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-amqp</artifactId>
     </dependency>
+
+    <!-- El contrato OpenAPI es el mismo para los quince servicios (HU-010), asi
+         que la dependencia vive aqui y no repetida en cada pom. Arrastra
+         spring-webmvc pero no un contenedor: la autoconfiguracion solo se activa
+         donde hay servlet, no en los tests de esta libreria. -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    </dependency>
     <!-- El payload del evento es JSONB. data-jpa no arrastra Jackson —lo trae
          starter-web, que una libreria no tiene por que depender de—, asi que se
          declara aqui explicitamente. La version la pone el BOM del padre. -->

@@ -232,15 +232,36 @@ instancias del mismo servicio pueden publicar a la vez sin duplicar.
 Se configura bajo `regenta.eventos.*` (exchange, lote, intervalo, intentos). En tests se
 apaga el latido con `regenta.eventos.publicador-activo=false` y se publica a mano.
 
+## El contrato: OpenAPI en cada servicio
+
+Cada servicio publica el suyo en `/v3/api-docs` y lo muestra en `/swagger-ui`. La
+dependencia y la configuracion entran **una sola vez**, por `comun`: los quince
+servicios dicen lo mismo sin copiar y pegar, y el cliente Dart generado contra uno
+sabe leer a todos.
+
+Todo endpoint declara, sin que el servicio escriba una linea, los cuatro codigos que
+pueden pasarle a cualquiera:
+
+| Codigo | Cuando |
+|---|---|
+| 401 | Token ausente, expirado, con firma invalida o de otro emisor |
+| 402 | El negocio esta `SUSPENDIDO` o `CANCELADO` |
+| 403 | Autenticado, pero sin permiso, o con el modulo fuera de su plan |
+| 422 | Peticion bien formada que rompe una regla de negocio |
+
+Los dos primeros los pone el gateway antes de que la peticion llegue al servicio; los
+otros dos salen del filtro de permisos y de la validacion. Si el generador del cliente
+no los ve en el contrato, no genera con que atraparlos. Un servicio que documente uno
+de los cuatro por su cuenta manda sobre el texto comun.
+
 ## Lo que todavía no está
 
-La épica `E00` va a la mitad. Falta, en orden:
+De la épica `E00` falta:
 
 | Historia | Qué trae |
 |---|---|
 | HU-002 | El monorepo Flutter con melos |
 | HU-009 | Pipeline de CI |
-| HU-010 | Documentación OpenAPI por servicio |
 
 Falta también la pieza de aplicación del aislamiento: el interceptor que emite el
 `SET LOCAL app.negocio_id` a partir de la cabecera `X-Regenta-Negocio`. Entra con el
