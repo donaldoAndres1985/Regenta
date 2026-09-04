@@ -22,12 +22,12 @@ infraestructura.
 | Modelo de datos (147 tablas, 15 esquemas) | ✅ Escrito y verificado contra PostgreSQL 16 |
 | Diseño de las 23 pantallas (móvil + web) | ✅ Terminado |
 | Backlog de desarrollo (112 historias) | ✅ Escrito |
-| Implementación del backend | ⬜ Sin empezar |
+| Implementación del backend | 🟡 Fundación en curso (HU-001, 003, 004, 005) |
 | Implementación de la app Flutter | ⬜ Sin empezar |
 
-Este repositorio contiene hoy **la especificación completa**: el modelo de datos
-ejecutable, los diagramas y el diseño de todas las pantallas. El código de la app y
-de los microservicios va en repositorios aparte (ver *Estructura de repositorios*).
+Este repositorio contiene la **especificación completa** —modelo de datos ejecutable,
+diagramas, las 23 pantallas y el backlog— y, desde la épica E00, el **código del
+backend** en `backend/`. La app Flutter entra en `app/` cuando arranque HU-002.
 
 ---
 
@@ -163,35 +163,35 @@ Ninguna de las tres basta sola.
 
 ---
 
-## Estructura de repositorios
+## Estructura del repositorio
 
-Repos separados porque los microservicios se despliegan de forma independiente.
+Un solo repositorio: la especificación y el código viven juntos y se versionan
+juntos. Los microservicios siguen siendo módulos independientes y se despliegan por
+separado; lo que comparten es el repo, no el ciclo de despliegue.
 
 ```
-Regenta/                          este repo — especificación
+Regenta/
   modelo-datos/                   modelo de datos, diagramas y análisis
-  design/                         las 23 pantallas en móvil y web
+  design/                         las 23 pantallas, sus tokens y su comportamiento
+  historias/                      las 112 historias de usuario y el tablero
 
-regenta-app/                      repo Flutter (monorepo con melos)
-  packages/
-    core/                         modelos, cliente HTTP, auth, DB local, tema
-    usuarios/                     usuarios y roles (por negocio)
-    reportes/
-    facturacion/
-    inventario/  ventas/  compras/          → patrón Venta directa
-    recursos/    reservas/                  → patrón Reserva
-    menu/        mesas/    comandas/        → patrón Comanda
-  apps/
-    regenta/                      app única; compila a Android y a Web
+  backend/                        microservicios (Java 21 + Spring Boot)
+    pom.xml                       POM padre: las versiones se declaran una sola vez
+    gateway/                      enruta y valida el JWT
+    servicio-usuarios/  servicio-clientes/  servicio-facturacion/
+    servicio-inventario/  servicio-ventas/  servicio-compras/     → Venta directa
+    servicio-recursos/    servicio-reservas/                      → Reserva
+    servicio-menu/        servicio-mesas/   servicio-comandas/    → Comanda
+    servicio-caja/  servicio-alertas/  servicio-reportes/  servicio-auditoria/
+    estructura/                   tests de la fundación (no se despliega)
+    docker/postgres/              una base y un usuario por servicio
+    docker-compose.yml            PostgreSQL 16 + RabbitMQ + los 16 módulos
 
-regenta-backend/                  repo backend (microservicios)
-  gateway/
-  servicio-usuarios/  servicio-facturacion/  servicio-reportes/
-  servicio-inventario/  servicio-ventas/  servicio-compras/
-  servicio-recursos/    servicio-reservas/
-  servicio-menu/        servicio-mesas/    servicio-comandas/
-  docker-compose.yml              Postgres + RabbitMQ + servicios en local
+  app/                            app Flutter (entra con HU-002)
 ```
+
+Cada servicio tiene **su propia base**, con su usuario, y no puede conectarse a la de
+otro: PostgreSQL lo rechaza. Detalles y comandos en `backend/README.md`.
 
 ---
 

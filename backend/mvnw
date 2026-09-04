@@ -1,0 +1,33 @@
+#!/bin/sh
+# Wrapper minimo de Maven.
+#   1. Si la maquina ya tiene mvn en el PATH, lo usa.
+#   2. Si no, descarga una vez la distribucion declarada en
+#      .mvn/wrapper/maven-wrapper.properties y la cachea en ~/.m2/wrapper.
+# Se puede reemplazar por el wrapper oficial con: mvn -N wrapper:wrapper
+set -e
+
+BASE=$(cd "$(dirname "$0")" && pwd)
+
+if command -v mvn >/dev/null 2>&1; then
+  exec mvn "$@"
+fi
+
+PROPS="$BASE/.mvn/wrapper/maven-wrapper.properties"
+[ -f "$PROPS" ] || { echo "Falta $PROPS" >&2; exit 1; }
+URL=$(sed -n 's/^distributionUrl=//p' "$PROPS" | tr -d '\r')
+VER=$(basename "$URL" | sed -e 's/^apache-maven-//' -e 's/-bin\.zip$//')
+DEST="${MAVEN_USER_HOME:-$HOME/.m2}/wrapper/dists/apache-maven-$VER"
+
+if [ ! -x "$DEST/bin/mvn" ]; then
+  echo "Descargando Apache Maven $VER..." >&2
+  TMP="$DEST.tmp.$$"
+  mkdir -p "$TMP"
+  if command -v curl >/dev/null 2>&1; then curl -fsSL "$URL" -o "$TMP/maven.zip"
+  else wget -q "$URL" -O "$TMP/maven.zip"; fi
+  unzip -q "$TMP/maven.zip" -d "$TMP"
+  mkdir -p "$(dirname "$DEST")"
+  mv "$TMP/apache-maven-$VER" "$DEST"
+  rm -rf "$TMP"
+fi
+
+exec "$DEST/bin/mvn" "$@"

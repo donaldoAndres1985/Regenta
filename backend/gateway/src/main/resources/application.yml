@@ -1,0 +1,80 @@
+# gateway
+# Solo enruta. La validacion del JWT entra en HU-007; hasta entonces esto es
+# el esqueleto de rutas y nada mas.
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+        - id: servicio-usuarios
+          uri: ${SERVICIO_USUARIOS_URI:http://localhost:8081}
+          predicates:
+            - Path=/api/usuarios/**
+        - id: servicio-clientes
+          uri: ${SERVICIO_CLIENTES_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/clientes/**
+        - id: servicio-inventario
+          uri: ${SERVICIO_INVENTARIO_URI:http://localhost:8083}
+          predicates:
+            - Path=/api/inventario/**
+        - id: servicio-ventas
+          uri: ${SERVICIO_VENTAS_URI:http://localhost:8084}
+          predicates:
+            - Path=/api/ventas/**
+        - id: servicio-compras
+          uri: ${SERVICIO_COMPRAS_URI:http://localhost:8085}
+          predicates:
+            - Path=/api/compras/**
+        - id: servicio-recursos
+          uri: ${SERVICIO_RECURSOS_URI:http://localhost:8086}
+          predicates:
+            - Path=/api/recursos/**
+        - id: servicio-reservas
+          uri: ${SERVICIO_RESERVAS_URI:http://localhost:8087}
+          predicates:
+            - Path=/api/reservas/**
+        - id: servicio-menu
+          uri: ${SERVICIO_MENU_URI:http://localhost:8088}
+          predicates:
+            - Path=/api/menu/**
+        - id: servicio-mesas
+          uri: ${SERVICIO_MESAS_URI:http://localhost:8089}
+          predicates:
+            - Path=/api/mesas/**
+        - id: servicio-comandas
+          uri: ${SERVICIO_COMANDAS_URI:http://localhost:8090}
+          predicates:
+            - Path=/api/comandas/**
+        - id: servicio-facturacion
+          uri: ${SERVICIO_FACTURACION_URI:http://localhost:8091}
+          predicates:
+            - Path=/api/facturacion/**
+        - id: servicio-caja
+          uri: ${SERVICIO_CAJA_URI:http://localhost:8092}
+          predicates:
+            - Path=/api/caja/**
+        - id: servicio-alertas
+          uri: ${SERVICIO_ALERTAS_URI:http://localhost:8093}
+          predicates:
+            - Path=/api/alertas/**
+        - id: servicio-reportes
+          uri: ${SERVICIO_REPORTES_URI:http://localhost:8094}
+          predicates:
+            - Path=/api/reportes/**
+        - id: servicio-auditoria
+          uri: ${SERVICIO_AUDITORIA_URI:http://localhost:8095}
+          predicates:
+            - Path=/api/auditoria/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

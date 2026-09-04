@@ -1,0 +1,51 @@
+# servicio-facturacion
+# La base es SOLO de este servicio. Nunca apuntar a la de otro.
+server:
+  port: ${SERVER_PORT:8091}
+
+spring:
+  application:
+    name: servicio-facturacion
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/regenta_facturacion}
+    username: ${DB_USER:reg_facturacion}
+    password: ${DB_PASSWORD:cambiar_en_local}
+    hikari:
+      pool-name: facturacion-pool
+      maximum-pool-size: ${DB_POOL_MAX:10}
+  jpa:
+    open-in-view: false
+    hibernate:
+      # SIEMPRE validate. El esquema lo crea Flyway; Hibernate solo comprueba
+      # que coincide. Con update o create, produccion y migraciones divergen.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: facturacion
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    schemas: facturacion
+    default-schema: facturacion
+    create-schemas: true
+    baseline-on-migrate: false
+    validate-on-migrate: true
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USER:regenta}
+    password: ${RABBIT_PASSWORD:cambiar_en_local}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,flyway
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    org.flywaydb: INFO

@@ -1,0 +1,423 @@
+# Entorno local completo: una base por servicio, RabbitMQ con panel y los
+# 16 modulos. Un solo comando:  docker compose up -d
+#
+# Las credenciales salen de .env (copiar de .env.example). Nada de secretos
+# en este archivo. Para ajustes de maquina, usar docker-compose.override.yml,
+# que esta en .gitignore.
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+      REGENTA_DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - regenta_postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-init-databases.sh:ro
+      - ./docker/postgres/init-databases.sql:/sql/init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - regenta_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      args:
+        MODULO: gateway
+    image: regenta/gateway:dev
+    environment:
+      SERVER_PORT: 8080
+      SERVICIO_USUARIOS_URI: http://servicio-usuarios:8080
+      SERVICIO_CLIENTES_URI: http://servicio-clientes:8080
+      SERVICIO_INVENTARIO_URI: http://servicio-inventario:8080
+      SERVICIO_VENTAS_URI: http://servicio-ventas:8080
+      SERVICIO_COMPRAS_URI: http://servicio-compras:8080
+      SERVICIO_RECURSOS_URI: http://servicio-recursos:8080
+      SERVICIO_RESERVAS_URI: http://servicio-reservas:8080
+      SERVICIO_MENU_URI: http://servicio-menu:8080
+      SERVICIO_MESAS_URI: http://servicio-mesas:8080
+      SERVICIO_COMANDAS_URI: http://servicio-comandas:8080
+      SERVICIO_FACTURACION_URI: http://servicio-facturacion:8080
+      SERVICIO_CAJA_URI: http://servicio-caja:8080
+      SERVICIO_ALERTAS_URI: http://servicio-alertas:8080
+      SERVICIO_REPORTES_URI: http://servicio-reportes:8080
+      SERVICIO_AUDITORIA_URI: http://servicio-auditoria:8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-usuarios:
+    build:
+      context: .
+      args:
+        MODULO: servicio-usuarios
+    image: regenta/servicio-usuarios:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_usuarios
+      DB_USER: reg_usuarios
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-clientes:
+    build:
+      context: .
+      args:
+        MODULO: servicio-clientes
+    image: regenta/servicio-clientes:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_clientes
+      DB_USER: reg_clientes
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8082:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-inventario:
+    build:
+      context: .
+      args:
+        MODULO: servicio-inventario
+    image: regenta/servicio-inventario:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_inventario
+      DB_USER: reg_inventario
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8083:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-ventas:
+    build:
+      context: .
+      args:
+        MODULO: servicio-ventas
+    image: regenta/servicio-ventas:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_ventas
+      DB_USER: reg_ventas
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8084:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-compras:
+    build:
+      context: .
+      args:
+        MODULO: servicio-compras
+    image: regenta/servicio-compras:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_compras
+      DB_USER: reg_compras
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8085:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-recursos:
+    build:
+      context: .
+      args:
+        MODULO: servicio-recursos
+    image: regenta/servicio-recursos:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_recursos
+      DB_USER: reg_recursos
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8086:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-reservas:
+    build:
+      context: .
+      args:
+        MODULO: servicio-reservas
+    image: regenta/servicio-reservas:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_reservas
+      DB_USER: reg_reservas
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8087:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-menu:
+    build:
+      context: .
+      args:
+        MODULO: servicio-menu
+    image: regenta/servicio-menu:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_menu
+      DB_USER: reg_menu
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8088:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-mesas:
+    build:
+      context: .
+      args:
+        MODULO: servicio-mesas
+    image: regenta/servicio-mesas:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_mesas
+      DB_USER: reg_mesas
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8089:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-comandas:
+    build:
+      context: .
+      args:
+        MODULO: servicio-comandas
+    image: regenta/servicio-comandas:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_comandas
+      DB_USER: reg_comandas
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8090:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-facturacion:
+    build:
+      context: .
+      args:
+        MODULO: servicio-facturacion
+    image: regenta/servicio-facturacion:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_facturacion
+      DB_USER: reg_facturacion
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8091:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-caja:
+    build:
+      context: .
+      args:
+        MODULO: servicio-caja
+    image: regenta/servicio-caja:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_caja
+      DB_USER: reg_caja
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8092:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-alertas:
+    build:
+      context: .
+      args:
+        MODULO: servicio-alertas
+    image: regenta/servicio-alertas:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_alertas
+      DB_USER: reg_alertas
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8093:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-reportes:
+    build:
+      context: .
+      args:
+        MODULO: servicio-reportes
+    image: regenta/servicio-reportes:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_reportes
+      DB_USER: reg_reportes
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8094:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  servicio-auditoria:
+    build:
+      context: .
+      args:
+        MODULO: servicio-auditoria
+    image: regenta/servicio-auditoria:dev
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/regenta_auditoria
+      DB_USER: reg_auditoria
+      DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBIT_USER}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+    ports:
+      - "8095:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  regenta_postgres_data:
+  regenta_rabbitmq_data:
