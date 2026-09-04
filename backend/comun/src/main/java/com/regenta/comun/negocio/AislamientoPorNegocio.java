@@ -30,7 +30,7 @@ import jakarta.persistence.EntityManagerFactory;
 @Aspect
 public class AislamientoPorNegocio implements Ordered {
 
-    static final String FIJAR = "select set_config('app.negocio_id', :negocio, true)";
+    public static final String FIJAR = "select set_config('app.negocio_id', :negocio, true)";
 
     private final EntityManagerFactory fabrica;
     private final int orden;

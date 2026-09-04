@@ -48,6 +48,12 @@ public class NegocioAutoConfiguracion {
 
     @Bean
     @ConditionalOnMissingBean
+    public FijadorDeNegocio fijadorDeNegocio(EntityManagerFactory fabrica) {
+        return new FijadorDeNegocio(fabrica);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public GuardiaDeModulos guardiaDeModulos() {
         return new GuardiaDeModulos();
     }
