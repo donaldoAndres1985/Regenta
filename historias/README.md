@@ -156,6 +156,12 @@ Cada historia trae, además del *como / quiero / para*:
   convertirse en tests sin reinterpretarlos.
 - **Terminado cuando**: la lista que hay que marcar antes de cerrar la historia.
 
+**Las historias se implementan con TDD.** El primer paso al tomar una es transcribir sus
+criterios de aceptación como tests y verlos fallar; recién después se escribe el código. Una
+historia no está terminada si sus criterios no tienen un test que los cubra, y el backend se
+prueba contra PostgreSQL real (Testcontainers), nunca contra H2. El detalle de la disciplina
+está en la sección 11 del archivo de contexto del proyecto.
+
 Las historias marcadas con la etiqueta `clave` son las que sostienen una decisión de
 arquitectura: si se implementan mal, el problema no se arregla después sin reescribir.
 

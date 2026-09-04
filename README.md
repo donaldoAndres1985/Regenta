@@ -349,7 +349,35 @@ flutter build web
   `test:`, `chore:`.
 - **Un módulo o servicio por Pull Request.** No mezclar cambios de dos módulos —ni de
   dos patrones— en el mismo PR.
+- **TDD, sin excepciones.** El test se escribe antes que el código y va en el mismo
+  commit. Cada criterio de aceptación de la historia se transcribe como un test que falla
+  antes de que exista la implementación.
 - **Nunca implementar un módulo sin que sus dependencias ya existan y estén probadas.**
+
+### Pruebas
+
+El proyecto se desarrolla con **TDD**: rojo, verde, refactor. Las historias de
+`historias/` traen sus criterios en *dado / cuando / entonces* para que cada criterio se
+convierta en un test uno a uno, sin reinterpretarlo.
+
+| Capa | Herramienta | Qué cubre |
+|---|---|---|
+| Dominio Java | JUnit 5 + AssertJ | Reglas puras: totales, impuestos, transiciones de estado |
+| Repositorios y DDL | `@DataJpaTest` + Testcontainers | RLS, `EXCLUDE USING gist`, índices únicos, Flyway |
+| API | `@SpringBootTest` + MockMvc | Contratos HTTP, validación de plan y de módulo |
+| Mensajería y saga | Testcontainers RabbitMQ | Outbox, inbox idempotente, compensación |
+| Flutter | `flutter test` + golden tests | Estado, pantallas contra los mockups, cola offline |
+
+Dos reglas que sostienen al resto:
+
+- **El backend se prueba contra PostgreSQL real, nunca contra H2.** RLS, la restricción de
+  exclusión, JSONB y las particiones no existen en una base en memoria; un test que pasa
+  ahí y revienta en producción es peor que no tener test.
+- **Todo test de repositorio corre con dos negocios cargados**, y verifica que el segundo
+  no ve los datos del primero. Con un solo negocio, el test sigue en verde aunque
+  desaparezca el filtro por `negocio_id`.
+
+---
 
 ### Orden de implementación
 
