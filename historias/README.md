@@ -187,6 +187,7 @@ Puntos en escala de Fibonacci. Como referencia:
 | `crear-issues.py` | Crea las issues llamando al API de GitHub — solo necesita Python y un token |
 | `crear-issues.sh` | Lo mismo con el CLI `gh` (bash / Git Bash) |
 | `crear-issues.ps1` | Lo mismo con `gh` desde PowerShell |
+| `cerrar-issues.py` | Cierra las issues terminadas, dejando antes un comentario con lo que se entregó y cómo se verificó |
 
 ## Subir el backlog a GitHub
 
@@ -203,6 +204,16 @@ bash historias/crear-issues.sh          # o:  .\historias\crear-issues.ps1
 
 ```bash
 python3 historias/crear-issues.py --dry-run    # revisa qué haría
+
+Y para cerrar las que ya están hechas:
+
+```bash
+python3 historias/cerrar-issues.py --dry-run
+python3 historias/cerrar-issues.py --hu HU-001 HU-003 HU-004 HU-005 HU-006
+```
+
+Sin `--hu` cierra todas las que tengan texto de cierre escrito. Es idempotente: una
+issue ya cerrada se salta.
 python3 historias/crear-issues.py              # lo hace
 ```
 
