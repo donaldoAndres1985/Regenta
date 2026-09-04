@@ -61,10 +61,11 @@ cachea. Se puede reemplazar por el wrapper oficial con `mvn -N wrapper:wrapper`.
 
 ### El JDK: Maven puede correr en otro
 
-El proyecto compila y se prueba **con Java 21**, pero tu Maven puede estar corriendo
-sobre otro JDK —17, por ejemplo—. De eso se encarga el plugin de toolchains: busca
-los JDK instalados y elige uno que sirva. Si no encuentra ninguno de 21 o más, el
-build falla diciéndolo, en vez de compilar contra la versión equivocada.
+El proyecto compila y se prueba **con Java 17**, la misma versión sobre la que suele
+correr Maven aquí, así que normalmente no hay nada que configurar. El plugin de
+toolchains queda declarado por si algún día Maven arranca con un JDK anterior: en ese
+caso busca uno de 17 o más y, si no encuentra ninguno, el build falla diciéndolo en
+vez de compilar contra la versión equivocada.
 
 ```bash
 mvn toolchains:display-discovered-jdk-toolchains   # qué JDK ve Maven

@@ -14,8 +14,8 @@
   <!-- Las versiones se declaran UNA sola vez, aqui. Ningun modulo hijo
        repite una version: si lo hace, el test de estructura falla. -->
   <properties>
-    <java.version>21</java.version>
-    <maven.compiler.release>21</maven.compiler.release>
+    <java.version>17</java.version>
+    <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <spring-boot.version>3.5.14</spring-boot.version>
     <spring-cloud.version>2025.0.3</spring-cloud.version>

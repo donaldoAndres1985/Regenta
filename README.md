@@ -175,7 +175,7 @@ Regenta/
   design/                         las 23 pantallas, sus tokens y su comportamiento
   historias/                      las 112 historias de usuario y el tablero
 
-  backend/                        microservicios (Java 21 + Spring Boot)
+  backend/                        microservicios (Java 17 + Spring Boot)
     pom.xml                       POM padre: las versiones se declaran una sola vez
     gateway/                      enruta y valida el JWT
     servicio-usuarios/  servicio-clientes/  servicio-facturacion/
@@ -319,7 +319,7 @@ completo.
 ### Requisitos
 
 - Flutter 3.x + Dart
-- JDK 21 + Maven
+- JDK 17 + Maven
 - Docker y Docker Compose
 - PostgreSQL 16 (o el contenedor del compose)
 

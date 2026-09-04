@@ -68,7 +68,7 @@ Set-Content -Path $tmp -Value @"
 ### Criterios de aceptación
 
 1. Dado el repo recién clonado, cuando ejecuto ``./mvnw -q -DskipTests package``, entonces compilan los 15 módulos y el gateway sin errores.
-2. Dado el POM padre, cuando reviso las versiones, entonces Spring Boot, Java 21 y las dependencias comunes están declaradas una sola vez en ``dependencyManagement``.
+2. Dado el POM padre, cuando reviso las versiones, entonces Spring Boot, Java 17 y las dependencias comunes están declaradas una sola vez en ``dependencyManagement``.
 3. Dado un módulo cualquiera, cuando abro su ``src/main/java``, entonces los paquetes están por feature (``com.regenta.ventas.domain``, ``com.regenta.ventas.api``) y no por capa.
 4. Dado el repo, cuando busco archivos de contexto de asistentes, entonces no hay ninguno versionado y el ``.gitignore`` los excluye.
 

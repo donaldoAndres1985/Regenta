@@ -56,7 +56,7 @@ class EsqueletoBackendTest {
     void versionesSoloEnElPadre() throws Exception {
         Document padre = xml(Repo.backend().resolve("pom.xml"));
 
-        assertThat(textos(padre, "java.version")).containsExactly("21");
+        assertThat(textos(padre, "java.version")).containsExactly("17");
         assertThat(padre.getElementsByTagName("dependencyManagement").getLength()).isEqualTo(1);
         assertThat(textos(padre, "artifactId"))
                 .contains("spring-boot-dependencies", "spring-cloud-dependencies");
@@ -87,7 +87,7 @@ class EsqueletoBackendTest {
     }
 
     @Test
-    @DisplayName("criterio 2 . el compilador esta fijado y compila contra Java 21")
+    @DisplayName("criterio 2 . el compilador esta fijado y compila contra Java 17")
     void compiladorFijado() throws Exception {
         // Sin version fija, Maven usa la de su super-POM. En instalaciones viejas eso
         // es el compilador 3.1, que no entiende <release> y compila contra Java 5:

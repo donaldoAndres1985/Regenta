@@ -1,6 +1,6 @@
 # Un solo Dockerfile para los 16 modulos. El modulo se elige con --build-arg.
 #   docker build --build-arg MODULO=servicio-ventas .
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:17-jdk AS build
 ARG MODULO
 WORKDIR /src
 COPY pom.xml .
@@ -28,7 +28,7 @@ RUN ./mvnw -B -q -pl ${MODULO} -am dependency:go-offline
 COPY . .
 RUN ./mvnw -B -q -pl ${MODULO} -am -DskipTests package
 
-FROM eclipse-temurin:21-jre AS run
+FROM eclipse-temurin:17-jre AS run
 ARG MODULO
 WORKDIR /app
 COPY --from=build /src/${MODULO}/target/*.jar app.jar
