@@ -87,6 +87,22 @@ class EsqueletoBackendTest {
     }
 
     @Test
+    @DisplayName("criterio 2 . el compilador esta fijado y compila contra Java 21")
+    void compiladorFijado() throws Exception {
+        // Sin version fija, Maven usa la de su super-POM. En instalaciones viejas eso
+        // es el compilador 3.1, que no entiende <release> y compila contra Java 5:
+        // "Source option 5 is no longer supported". El build pasa o falla segun la
+        // maquina, que es la peor forma de fallar.
+        String padre = Repo.leer(Repo.backend().resolve("pom.xml"));
+
+        assertThat(padre).contains("maven-compiler-plugin");
+        assertThat(padre).contains("<maven-compiler-plugin.version>");
+        assertThat(padre).contains("<release>${java.version}</release>");
+        assertThat(padre).contains("maven-surefire-plugin");
+        assertThat(padre).contains("<maven-surefire-plugin.version>");
+    }
+
+    @Test
     @DisplayName("criterio 3 . los paquetes son por feature, no por capa")
     void paquetesPorFeature() {
         for (String s : Repo.SERVICIOS) {
