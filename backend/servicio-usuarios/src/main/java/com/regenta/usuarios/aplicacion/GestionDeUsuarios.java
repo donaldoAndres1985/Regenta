@@ -63,13 +63,14 @@ public class GestionDeUsuarios {
     private final EmisorDeTokens emisor;
     private final RegistroDeEventos eventos;
     private final FijadorDeNegocio fijador;
+    private final MarcadorDeInvitaciones marcador;
     private final Clock reloj;
 
     public GestionDeUsuarios(UsuarioRepositorio usuarios, RolRepositorio roles,
             NegocioRepositorio negocios, PlanRepositorio planes,
             InvitacionRepositorio invitaciones, AccesoPorCorreoRepositorio accesos,
             PasswordEncoder claves, EmisorDeTokens emisor, RegistroDeEventos eventos,
-            FijadorDeNegocio fijador, Clock reloj) {
+            FijadorDeNegocio fijador, MarcadorDeInvitaciones marcador, Clock reloj) {
         this.usuarios = usuarios;
         this.roles = roles;
         this.negocios = negocios;
@@ -80,6 +81,7 @@ public class GestionDeUsuarios {
         this.emisor = emisor;
         this.eventos = eventos;
         this.fijador = fijador;
+        this.marcador = marcador;
         this.reloj = reloj;
     }
 
@@ -150,8 +152,9 @@ public class GestionDeUsuarios {
             throw new RecursoExpiradoException("Esa invitacion ya no sirve");
         }
         if (invitacion.vencio(ahora)) {
-            invitacion.marcarVencida();
-            invitaciones.save(invitacion);
+            // En su propia transaccion: el throw de abajo revierte esta, y la
+            // invitacion tiene que quedar EXPIRADA de verdad.
+            marcador.marcarVencida(negocioId, invitacion.getId());
             throw new RecursoExpiradoException("La invitacion vencio. Pide otra");
         }
 
