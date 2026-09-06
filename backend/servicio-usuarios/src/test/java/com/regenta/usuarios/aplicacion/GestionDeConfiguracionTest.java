@@ -45,8 +45,12 @@ class GestionDeConfiguracionTest extends BaseDeUsuarios {
     }
 
     private static CambioDeConfiguracion cambio(NegocioCreado negocio, Boolean incluyeImpuesto) {
+        // uq_negocio_documento (pais, tipo, numero) es global: cada negocio de esta
+        // clase necesita su propio documento, estable entre llamadas del mismo test.
+        String documento = "900" + Math.abs(
+                negocio.negocioId().getMostSignificantBits() % 10_000_000L);
         return new CambioDeConfiguracion("Tienda La Esquina", "La Esquina SAS", "NIT",
-                "900123456", "7", "Calle 10 # 5-30", "Medellin", "Antioquia", "6041234567",
+                documento, "7", "Calle 10 # 5-30", "Medellin", "Antioquia", "6041234567",
                 "hola@laesquina.co", "https://laesquina.co", "050001", null,
                 "RESPONSABLE_IVA", List.of("O-13", "O-15"), (short) 2, "dd/MM/yyyy",
                 incluyeImpuesto, false, Map.of("tema", "claro"));
