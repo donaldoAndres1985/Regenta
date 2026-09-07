@@ -78,6 +78,24 @@ public class Existencia {
         this.cantidad = saldoSiAplico(signo, cantidad);
     }
 
+    /** Lo que queda para vender: {@code cantidad - cantidad_reservada}. */
+    public BigDecimal disponible() {
+        return cantidad.subtract(cantidadReservada);
+    }
+
+    /** Aparta stock para una venta en curso (HU-034). No toca {@code cantidad}. */
+    public void reservar(BigDecimal cantidad) {
+        this.cantidadReservada = this.cantidadReservada.add(cantidad);
+    }
+
+    /** Suelta stock apartado: al expirar la reserva, o al convertirla en salida. */
+    public void liberarReserva(BigDecimal cantidad) {
+        this.cantidadReservada = this.cantidadReservada.subtract(cantidad);
+        if (this.cantidadReservada.signum() < 0) {
+            this.cantidadReservada = BigDecimal.ZERO;
+        }
+    }
+
     public UUID getProductoId() {
         return productoId;
     }
