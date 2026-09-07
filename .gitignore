@@ -61,7 +61,12 @@ pubspec.lock
 *.freezed.dart
 *.mocks.dart
 **/doc/api/
+
+# melos: overrides y ficheros de IDE que genera bootstrap
 .melos_tool/
+pubspec_overrides.yaml
+*.iml
+.idea/
 
 # Android
 android/.gradle/

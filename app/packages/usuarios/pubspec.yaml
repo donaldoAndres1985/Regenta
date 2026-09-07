@@ -1,0 +1,19 @@
+name: regenta_usuarios
+description: "Modulo usuarios de Regenta. Cuelga del nucleo, nunca de otro modulo."
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.0
+  flutter: ">=3.38.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  regenta_core:
+    path: ../core
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

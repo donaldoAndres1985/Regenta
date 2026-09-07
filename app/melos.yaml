@@ -1,0 +1,33 @@
+name: regenta
+
+packages:
+  - apps/*
+  - packages/*
+
+command:
+  bootstrap:
+    runPubGetInParallel: true
+
+scripts:
+  analyze:
+    description: Analisis estatico de todos los paquetes. Cualquier aviso es un fallo.
+    exec: flutter analyze --fatal-infos --fatal-warnings
+    concurrency: 1
+
+  test:
+    description: Pruebas de los paquetes que tienen carpeta test/.
+    exec: flutter test
+    concurrency: 1
+    packageFilters:
+      dirExists: test
+
+  deps-check:
+    description: Ningun paquete de modulo depende de otro paquete de modulo, solo de core.
+    run: dart run tool/check_module_deps.dart
+
+  verify:
+    description: Lo que tiene que pasar antes de un push. Igual que el CI.
+    steps:
+      - deps-check
+      - analyze
+      - test

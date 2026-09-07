@@ -1,0 +1,17 @@
+name: regenta_core
+description: "Nucleo compartido por todos los modulos y patrones: tema, sesion, navegacion y base offline."
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.0
+  flutter: ">=3.38.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

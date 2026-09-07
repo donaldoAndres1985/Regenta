@@ -1,0 +1,23 @@
+name: regenta
+description: "Regenta: gestion de negocio modular para Android y Web. Un solo codigo compila a APK y a PWA."
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.10.0
+  flutter: ">=3.38.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  regenta_core:
+    path: ../../packages/core
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
