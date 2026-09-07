@@ -30,7 +30,7 @@ Cuanto más aburrida y literal la frase, mejor test sale de ella. -->
 
 > R1–R5 son **HU-052** (`servicio-facturacion`, `/api/facturacion/resoluciones`).
 > R6–R9 son **HU-054** (`AsignadorDeConsecutivos`, sin endpoint propio: lo usa la emisión).
-> La emisión de la factura es **HU-053**.
+> R10–R15 son **HU-053** (emisión desde eventos; consulta en `/api/facturacion/facturas`).
 
 ### R1 · Cargar una resolución
 **Dado** que un administrador carga una resolución (`POST /api/facturacion/resoluciones` con
@@ -82,6 +82,44 @@ con 50 emisiones simultáneas.
 **Dado** que la transacción de emisión hace rollback, **cuando** ocurre, **entonces** el
 avance de `consecutivoActual` se deshace con ella: el siguiente número vuelve a estar
 disponible. No es un `BIGSERIAL` justamente por esto.
+
+### R10 · Un cierre emite su factura, venga del patrón que venga
+**Dado** un evento `venta_completada` / `estancia_finalizada` / `pedido_completado`, **cuando**
+`ConsumidorDeCierresFacturables` lo recibe, **entonces** se emite una factura con
+`origen_tipo` = `VENTA` / `RESERVA` / `COMANDA` según la clave de enrutamiento y `origen_id` el
+del documento de origen. Es el mismo código para los tres: `servicio-facturacion` no conoce
+las bases de Ventas, Reservas ni Comandas. La factura queda en estado `GENERADA` (la firma es
+HU-055).
+
+### R11 · El evento trae lo que hace falta para facturar
+**Dado** el payload del cierre, **entonces** trae `negocio_id`, el id del origen
+(`origen_id` / `venta_id` / `estancia_id` / `pedido_id`), `cliente_id` (opcional), `emisor` y
+`cliente` (objetos que se congelan tal cual), y `lineas` con sus `impuestos`. Sin `lineas` la
+emisión falla (`ReglaDeNegocioException`). El emisor de estos eventos (hoy `servicio-ventas`)
+debe enriquecer su payload; hasta entonces la emisión real no se dispara.
+
+### R12 · Los totales se recalculan desde las líneas
+**Dadas** las líneas del evento, **cuando** se emite, **entonces** `subtotal`,
+`descuento_total`, `base_gravable`, `impuestos_total`, `retenciones_total` y `total` se calculan
+sumando las líneas y sus impuestos (escala 4, HALF_UP); `total = base_gravable + impuestos −
+retenciones + propina`. Las líneas y sus impuestos quedan en `factura_lineas` y
+`factura_impuestos`.
+
+### R13 · Una factura por documento de origen
+**Dado** el mismo evento entregado dos veces (misma `message-id`, o distinta pero mismo
+`origen_id`), **cuando** llega el duplicado, **entonces** no se emite una segunda factura. Lo
+cuidan el Inbox y, además, el índice parcial `uq_factura_origen`
+(`negocio_id, origen_tipo, origen_id` para facturas de venta no anuladas).
+
+### R14 · El emisor y el cliente quedan congelados
+**Dada** la emisión, **cuando** se guarda, **entonces** `emisor_snapshot` y `cliente_snapshot`
+quedan en JSONB con los datos de ese momento. Si mañana cambian los datos del cliente,
+`GET /api/facturacion/facturas/{id}` sigue mostrando los de la fecha de emisión.
+
+### R15 · La emisión no tiene endpoint
+**Dado** que la factura nace de un evento, **entonces** no hay `POST` para emitir: solo
+`GET /api/facturacion/facturas` (listado) y `GET /api/facturacion/facturas/{id}` (detalle con
+líneas, impuestos y snapshots). Ambos exigen `FACTURACION_FACTURA_VER`.
 
 ## Al abrir
 
@@ -138,3 +176,7 @@ que más se olvida. -->
 - **No** facturar con una resolución vencida, agotada o anulada.
 - **No** un `BIGSERIAL` para el consecutivo: se toma con bloqueo sobre la resolución dentro de
   la transacción de emisión (HU-054).
+- **No** dos facturas para el mismo `(origen_tipo, origen_id)` (Inbox + `uq_factura_origen`).
+- **No** que `servicio-facturacion` consulte las tablas de Ventas, Reservas ni Comandas: todo
+  llega por evento.
+- **No** que una factura emitida cambie porque se editó el cliente: el snapshot es inmutable.
