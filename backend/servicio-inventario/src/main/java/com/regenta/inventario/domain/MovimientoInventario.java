@@ -79,7 +79,7 @@ public class MovimientoInventario {
     }
 
     public static MovimientoInventario de(UUID negocioId, UUID productoId, UUID bodegaId,
-            TipoMovimiento tipo, BigDecimal cantidad, BigDecimal saldoPosterior,
+            UUID loteId, TipoMovimiento tipo, BigDecimal cantidad, BigDecimal saldoPosterior,
             OrigenMovimiento origenTipo, UUID origenId, UUID usuarioId, String motivo,
             String idempotencyKey, OffsetDateTime ocurridoEn) {
         MovimientoInventario m = new MovimientoInventario();
@@ -88,6 +88,7 @@ public class MovimientoInventario {
         m.negocioId = negocioId;
         m.productoId = productoId;
         m.bodegaId = bodegaId;
+        m.loteId = loteId;
         m.tipo = tipo;
         m.signo = (short) tipo.signo();
         m.cantidad = cantidad;
@@ -115,6 +116,10 @@ public class MovimientoInventario {
 
     public UUID getBodegaId() {
         return bodegaId;
+    }
+
+    public UUID getLoteId() {
+        return loteId;
     }
 
     public TipoMovimiento getTipo() {
