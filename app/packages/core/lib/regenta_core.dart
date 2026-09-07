@@ -2,6 +2,9 @@
 /// ningun otro modulo.
 library;
 
+export 'src/adaptativa/area_de_toque.dart';
+export 'src/adaptativa/composicion_adaptativa.dart';
+export 'src/adaptativa/forma_de_pantalla.dart';
 export 'src/tema/patron_operativo.dart';
 export 'src/tema/regenta_colors.dart';
 export 'src/tema/regenta_spacing.dart';
