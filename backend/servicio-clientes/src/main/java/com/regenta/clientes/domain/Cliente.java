@@ -85,6 +85,10 @@ public class Cliente {
     @Column(name = "cupo_credito", nullable = false)
     private BigDecimal cupoCredito;
 
+    @Column(name = "dias_credito", nullable = false)
+    private short diasCredito;
+
+    /** Proyección de cartera: lo que el cliente debe. La mantiene HU-022. */
     @Column(name = "saldo_pendiente", nullable = false)
     private BigDecimal saldoPendiente;
 
@@ -147,9 +151,22 @@ public class Cliente {
         cliente.notas = notas;
         cliente.creditoHabilitado = false;
         cliente.cupoCredito = BigDecimal.ZERO;
+        cliente.diasCredito = 0;
         cliente.saldoPendiente = BigDecimal.ZERO;
         cliente.activo = true;
         return cliente;
+    }
+
+    /** HU-022: el administrador fija (o quita) el cupo de crédito del cliente. */
+    public void configurarCredito(boolean habilitado, BigDecimal cupo, int diasCredito) {
+        this.creditoHabilitado = habilitado;
+        this.cupoCredito = cupo == null || cupo.signum() < 0 ? BigDecimal.ZERO : cupo;
+        this.diasCredito = (short) Math.max(0, diasCredito);
+    }
+
+    /** Suma (o resta, con signo negativo) a la cartera. Nunca por debajo de 0. */
+    public void ajustarSaldoPendiente(BigDecimal delta) {
+        this.saldoPendiente = this.saldoPendiente.add(delta).max(BigDecimal.ZERO);
     }
 
     /** Cambia los datos editables. Persona y documento no se tocan aqui. */
@@ -245,6 +262,15 @@ public class Cliente {
 
     public BigDecimal getCupoCredito() {
         return cupoCredito;
+    }
+
+    public short getDiasCredito() {
+        return diasCredito;
+    }
+
+    /** Lo que aún cabe a crédito: cupo menos lo que ya debe, nunca negativo. */
+    public BigDecimal getCupoDisponible() {
+        return cupoCredito.subtract(saldoPendiente).max(BigDecimal.ZERO);
     }
 
     public BigDecimal getSaldoPendiente() {

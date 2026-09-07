@@ -21,8 +21,8 @@ cliente_metricas es una proyección alimentada por los tres eventos de cierre �
 > R7–R10 son **HU-023** (proyección `cliente_metricas` alimentada por eventos).
 > R11–R13 son **HU-024** (historial de interacciones y recordatorio de seguimiento).
 > R14–R16 son **HU-025** (listado móvil en `packages/clientes`, `PantallaClientes`).
-> El bloque de cartera (chips «al día / excedido / vencido» completos) lo cierra **HU-022**; la
-> ficha de detalle con el timeline de interacciones queda para su propia HU.
+> R17–R20 son **HU-022** (cupo de crédito y cartera).
+> La ficha de detalle con el timeline de interacciones queda para su propia HU.
 
 ## Reglas
 
@@ -144,6 +144,35 @@ copia.
 campo que el listado del backend traerá con HU-022; hasta entonces el filtro existe pero no
 selecciona a nadie). Cada fila muestra el saldo y un chip *al día / excedido / sin saldo* según
 `saldo` contra `cupo_credito`. Objetivo de toque de 44 px en chips y filas.
+
+### R17 · El administrador fija el cupo de crédito
+**Dado** un cliente, **cuando** un administrador configura su crédito (`PUT
+/api/clientes/{id}/credito` con `habilitado`, `cupo`, `diasCredito`), **entonces** quedan
+guardados en `clientes`. Exige `CLIENTES_CLIENTE_EDITAR`. `cupo` negativo se guarda como 0.
+
+### R18 · La API avisa antes de vender a crédito por encima del cupo
+**Dado** un cliente con crédito habilitado, cupo $5.000.000 y saldo $4.800.000, **cuando** se
+valida una venta a crédito de $500.000 (`POST /api/clientes/{id}/cupo/validacion`, body
+`{monto}`), **entonces** responde `cabe = false` con un aviso que nombra el cupo y el
+disponible ($200.000). Con $200.000 o menos, `cabe = true`. Sin crédito habilitado, nada cabe.
+Exige `CLIENTES_CARTERA_VER`. Lo consume **HU-040** (venta a crédito en Ventas) antes de
+confirmar.
+
+### R19 · Una venta a crédito abre una cuenta por cobrar
+**Dado** el evento `venta_a_credito` (`negocio_id`, `venta_id`, `cliente_id`, `numero`,
+`monto`, `fecha_vencimiento`), **cuando** llega, **entonces** se abre una `cuentas_por_cobrar`
+(`origen_tipo = VENTA`, `saldo = monto`, `estado = PENDIENTE`) y el `saldo_pendiente` del
+cliente sube ese monto. Idempotente por el Inbox y, además, por `(origen_tipo, origen_id)`. Al
+consultar la cartera, cada cuenta trae sus días de mora (`hoy − fecha_vencimiento` si venció y
+no está pagada).
+
+### R20 · Los recaudos bajan el saldo, y el CHECK lo cuida
+**Dado** un recaudo (`POST /api/clientes/cuentas/{cuentaId}/recaudos` con `monto`, `metodo`,
+`referencia`), **cuando** se registra, **entonces** el saldo de la cuenta baja ese monto y su
+`saldo_pendiente` de cliente también; la cuenta queda `PARCIAL`, o `PAGADA` si el recaudo
+iguala el saldo. Un recaudo mayor que el saldo es 422. `saldo` nunca queda negativo ni mayor
+que `monto`: lo garantiza el CHECK `ck_saldo` de la base, no solo la validación de Java. Exige
+`CLIENTES_CLIENTE_EDITAR`.
 
 ## Al abrir
 
