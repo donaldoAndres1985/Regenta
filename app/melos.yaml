@@ -25,6 +25,12 @@ scripts:
     description: Ningun paquete de modulo depende de otro paquete de modulo, solo de core.
     run: dart run tool/check_module_deps.dart
 
+  generar:
+    description: Codigo generado (Drift). Corre cuando cambia un esquema local.
+    exec: dart run build_runner build --delete-conflicting-outputs
+    packageFilters:
+      dependsOn: build_runner
+
   verify:
     description: Lo que tiene que pasar antes de un push. Igual que el CI.
     steps:

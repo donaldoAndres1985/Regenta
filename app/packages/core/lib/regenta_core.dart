@@ -12,6 +12,8 @@ export 'src/adaptativa/forma_de_pantalla.dart';
 export 'src/http/cliente_http.dart';
 export 'src/http/cola_de_salida.dart';
 export 'src/http/errores_http.dart';
+export 'src/local/base_local.dart';
+export 'src/local/politica_de_purga.dart';
 export 'src/navegacion/enlace_profundo.dart';
 export 'src/navegacion/enrutador_regenta.dart';
 export 'src/navegacion/guardia_de_rutas.dart';

@@ -62,6 +62,12 @@ pubspec.lock
 *.mocks.dart
 **/doc/api/
 
+# El esquema Drift generado SI se versiona: el CI comprueba que este al dia
+# (dart run build_runner build; git diff --exit-code) en vez de regenerarlo
+# en cada rama, y build_runner queda fijado por su incompatibilidad con el
+# hook nativo de sqlite3 en Dart 3.10.
+!app/packages/core/lib/src/local/base_local.g.dart
+
 # melos: overrides y ficheros de IDE que genera bootstrap
 .melos_tool/
 pubspec_overrides.yaml
