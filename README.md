@@ -22,12 +22,16 @@ infraestructura.
 | Modelo de datos (147 tablas, 15 esquemas) | ✅ Escrito y verificado contra PostgreSQL 16 |
 | Diseño de las 23 pantallas (móvil + web) | ✅ Terminado |
 | Backlog de desarrollo (112 historias) | ✅ Escrito |
-| Implementación del backend | 🟡 Fundación en curso (HU-001, 003, 004, 005) |
-| Implementación de la app Flutter | ⬜ Sin empezar |
+| Hito 1 · Fundación (E00) | ✅ Completo — 10/10 historias |
+| Hito 2 · Núcleo operable (E01 · E16) | 🟡 16/17 historias — falta HU-111 (cola de sincronización) |
+| Hito 3 · MVP Venta directa (E03 Inventario) | 🟡 6/11 historias — hasta HU-031 (lotes y vencimientos) |
+| Resto del backlog (E02, E04–E15) | ⬜ Sin empezar |
 
 Este repositorio contiene la **especificación completa** —modelo de datos ejecutable,
-diagramas, las 23 pantallas y el backlog— y, desde la épica E00, el **código del
-backend** en `backend/`. La app Flutter entra en `app/` cuando arranque HU-002.
+diagramas, las 23 pantallas y el backlog— y, cada vez más, el **código**: el backend
+en `backend/` (fundación completa, `servicio-usuarios` completo, `servicio-inventario`
+hasta lotes) y la app Flutter en `app/` (monorepo melos, paquete `core` operativo).
+El detalle historia por historia está en [Progreso de implementación](#progreso-de-implementación).
 
 ---
 
@@ -187,7 +191,9 @@ Regenta/
     docker/postgres/              una base y un usuario por servicio
     docker-compose.yml            PostgreSQL 16 + RabbitMQ + los 16 módulos
 
-  app/                            app Flutter (entra con HU-002)
+  app/                            app Flutter — monorepo melos
+    packages/core/                tema, sesión, navegación, HTTP y base local (E16)
+    apps/regenta/                 la app única: Android y Web
 ```
 
 Cada servicio tiene **su propia base**, con su usuario, y no puede conectarse a la de
@@ -314,6 +320,71 @@ completo.
 
 ---
 
+## Progreso de implementación
+
+Todo lo de abajo está en `main`, con sus tests en verde en CI (Testcontainers contra
+PostgreSQL 16 real para el backend; `flutter test` para la app). Cada historia se
+desarrolló con TDD: los criterios de aceptación de `historias/` transcritos como tests
+antes de la implementación.
+
+### Hito 1 · Fundación — `E00` ✅ 10/10
+
+| Historia | Qué quedó funcionando |
+|---|---|
+| **HU-001** Scaffolding del backend | POM padre (Java 17, BOM de Spring Boot y Spring Cloud, versiones de plugins fijadas una sola vez), `gateway` + 15 servicios con paquetes por *feature*, módulo `estructura` para los tests de la fundación. |
+| **HU-002** Scaffolding de la app Flutter | Monorepo `melos` en `app/`: `packages/core` + `apps/regenta` (la app única para Android y Web), `melos.yaml` con los scripts de `bootstrap`, `analyze` y `test`. |
+| **HU-003** Entorno local con Docker Compose | `backend/docker-compose.yml`: PostgreSQL 16 + RabbitMQ con healthchecks, volúmenes nombrados, un solo `Dockerfile` parametrizado por `--build-arg MODULO`. |
+| **HU-004** Una base por microservicio | `docker/postgres/init-databases.sql`: una base y un usuario por servicio, `REVOKE ALL … FROM PUBLIC` y `CONNECT` solo para el dueño. Un servicio no puede ni conectarse a la base de otro. Script idempotente. |
+| **HU-005** Migraciones con Flyway | `V1__esquema_inicial.sql` por servicio (portado del DDL de `modelo-datos/sql/`), `ddl-auto: validate` en los 15 `application.yml`. Test de checksum: modificar una migración aplicada falla en vez de aplicarse en silencio. |
+| **HU-006** Row-Level Security | `V2__rls.sql` por servicio: `ENABLE` + `FORCE` + política `tenant_isolation` en toda tabla de negocio. Se activa con `SET LOCAL app.negocio_id`, nunca con `SET`. Verificado con dos negocios: sin negocio fijado, cero filas (falla cerrado). |
+| **HU-007** API Gateway | Spring Cloud Gateway: valida el JWT, pasa `negocio_id`/plan/patrón/roles por cabeceras internas, responde 402 al negocio cuyo plan no incluye el servicio pedido. El Gateway solo enruta y valida: nada de lógica de negocio. |
+| **HU-008** Outbox e Inbox | Librería en `backend/comun/`, entra por autoconfiguración. `RegistroDeEventos.registrar` escribe el evento en la misma transacción del agregado (`MANDATORY`). Publicador con `SKIP_LOCKED`; a los 10 intentos → cola de muertos. Inbox idempotente por `message-id` de AMQP. |
+| **HU-009** Pipeline de CI | GitHub Actions: `backend.yml` (Maven + Testcontainers) y `app.yml` (`melos analyze` + `flutter test` + build de Android y Web), disparados por los `paths` que cada uno toca. |
+| **HU-010** OpenAPI por servicio | `springdoc-openapi` entra una sola vez por `comun`; los 15 servicios exponen `/v3/api-docs` y `/swagger-ui`. |
+
+### Hito 2 · Núcleo operable — `E01` ✅ 10/10 · `E16` 🟡 6/7
+
+**`servicio-usuarios` — tenant, planes e identidad**
+
+| Historia | Qué quedó funcionando |
+|---|---|
+| **HU-011** Registrar un negocio | Alta de negocio con su plan y su patrón operativo; crea el esquema de datos fiscales y el primer usuario en una sola operación. |
+| **HU-012** Primer usuario administrador | El alta del negocio deja un administrador con rol completo; la invitación vencida queda `EXPIRADA` aunque el 410 revierta la transacción. |
+| **HU-013** Autenticación con JWT | Login con emisión de *access token* + *refresh token*; la firma sale de `spring-security-oauth2-jose`. |
+| **HU-014** Rotación y revocación de refresh tokens | Cada refresco rota el token; reusar uno ya rotado revoca toda la familia, y esa revocación sobrevive al 401. |
+| **HU-015** Gestión de usuarios con límite por plan | Alta de usuarios del negocio con el tope que fija el plan; aislada por `negocio_id`. |
+| **HU-016** Motor de roles y permisos | Roles y permisos por negocio; el Core solo conoce «rol» y «permiso», las plantillas por patrón viven en configuración. `@RequierePermiso("MODULO_RECURSO_ACCION")`. |
+| **HU-017** Validación de módulo por plan en el backend | `ContextoDeNegocio` + guardia de módulos por transacción; add-ons con grafo de dependencias y cambio de plan. La validación es del backend, no del cliente. |
+| **HU-018** Configuración fiscal y de operación | Datos fiscales del negocio, impuestos y su configuración vigente, con historial de cambios. |
+| **HU-019** Sucursales del negocio | Alta de sucursales; una principal por defecto, solo una principal a la vez, segunda sucursal → 402 sin Multi-sucursal. |
+| **HU-020** Consulta del plan y los módulos activos desde la app | Endpoint que la app consume para saber qué módulos pintar; la fuente de verdad sigue siendo el backend. |
+
+**App Flutter — paquete `core` (`E16`)**
+
+| Historia | Qué quedó funcionando |
+|---|---|
+| **HU-106** Tema y sistema de diseño en código | `RegentaColors`, `RegentaType`, `RegentaSpacing` con los valores literales de los mockups; fuentes Archivo e IBM Plex Mono empaquetadas. Test que prohíbe colores literales fuera de `src/tema`. |
+| **HU-107** Navegación con rutas protegidas | `go_router` re-exportado desde el núcleo; guardia de rutas por rol y módulo activo, enlaces profundos. |
+| **HU-108** Composición adaptativa móvil/escritorio | Una sola pantalla que se adapta con el punto de corte de 900 px; área de toque mínima de 44 px. |
+| **HU-109** Sesión, token seguro y refresco automático | `flutter_secure_storage` para el token; el motor de sesión refresca antes de que venza, comparte un solo refresco entre llamadas concurrentes y cierra si el refresco falla. |
+| **HU-110** Base de datos local con Drift | Base offline-first: SQLite en Android, `sqlite3.wasm` en Web; política de purga. `build_runner` fijado `<2.5.0`. |
+| **HU-112** Cliente HTTP con manejo uniforme de errores | Cliente sobre `dio` con mapeo de errores homogéneo e interceptor de refresco; cola de salida para lo que se envía sin conexión. |
+| HU-111 Cola de sincronización en segundo plano | ⬜ Pendiente. |
+
+### Hito 3 · MVP Venta directa — `servicio-inventario` (`E03`) 🟡 6/11
+
+| Historia | Qué quedó funcionando |
+|---|---|
+| **HU-026** Categorías con jerarquía | Categorías propias del negocio, con materialized path; nombre único por padre; no se borra una con productos. |
+| **HU-027** Atributos por categoría | `atributos_categoria` define qué campos extra exige cada categoría (TEXTO, NUMERO, DECIMAL, FECHA, BOOLEANO, LISTA, MULTILISTA), con obligatoriedad y rango. Es lo que hace que un tipo de negocio nuevo no requiera código. |
+| **HU-028** Crear producto con atributos dinámicos | Los atributos variables van al JSONB `atributos`, validados contra `atributos_categoria` en el servicio; SKU y código de barras únicos por negocio; el CHECK `ck_lotes_perecedero` exige que un perecedero maneje lotes; índice GIN sobre `atributos`. |
+| **HU-029** Bodegas y existencias | El stock es `(producto, bodega)`, nunca una columna de `productos`. `cantidad_disponible` la calcula la base. Bodega principal por defecto; no se borra una con existencias. |
+| **HU-030** Libro mayor de movimientos | `movimientos_inventario` append-only (trigger de la base): todo cambio de stock deja un movimiento con tipo, signo, cantidad, saldo posterior, origen y usuario. Idempotente por `idempotency_key`. Sumar el libro cuadra exacto con `existencias.cantidad`. Particionado mensual. |
+| **HU-031** Lotes y fechas de vencimiento | Un producto que maneja lotes exige el código de lote al entrar mercancía; existencia del lote desglosada por bodega; sugerencia FEFO (del que vence antes); el lote vencido se bloquea al salir salvo autorización explícita, que queda registrada en `autorizaciones_lote_vencido` (append-only). |
+| HU-032–HU-036 | ⬜ Traslados, ajustes, reserva/saga, búsqueda/escáner, listas de precios. |
+
+---
+
 ## Puesta en marcha
 
 ### Requisitos
@@ -403,10 +474,12 @@ Recién después, el segundo patrón operativo.
 - [x] Diagramas ER y análisis
 - [x] Diseño de las 23 pantallas
 - [x] Backlog de 112 historias con criterios de aceptación
-- [ ] `servicio-usuarios` — tenant, planes, identidad y roles
-- [ ] `servicio-inventario` — catálogo configurable y stock por bodega
+- [x] Fundación del backend — bases, Flyway, RLS, Gateway, Outbox/Inbox, CI, OpenAPI (E00)
+- [x] `servicio-usuarios` — tenant, planes, identidad, roles, config fiscal y sucursales (E01)
+- [x] App Flutter: núcleo `core` — tema, navegación, sesión, HTTP y base local (E16, falta HU-111)
+- [~] `servicio-inventario` — catálogo configurable, stock por bodega, libro mayor y lotes (E03, hasta HU-031)
+- [ ] `servicio-inventario` — traslados, ajustes, reserva/saga, listas de precios (HU-032–036)
 - [ ] `servicio-ventas` — transacción y saga con Inventario
-- [ ] App Flutter: núcleo, tema y navegación
 - [ ] Patrón Venta directa completo, de punta a punta
 - [ ] Facturación electrónica DIAN
 - [ ] Patrones Reserva y Comanda
