@@ -231,6 +231,22 @@ public class Venta {
         this.motivoAnulacion = motivo.trim();
     }
 
+    /**
+     * Registra que hubo una devolución (HU-042). {@code completa} = todas las
+     * líneas quedaron totalmente devueltas.
+     */
+    public void registrarDevolucion(boolean completa) {
+        if (estado != EstadoVenta.CONFIRMADA && estado != EstadoVenta.DEVUELTA_PARCIAL) {
+            throw new ConflictoDeEstadoException("La venta " + numero + " esta en " + estado
+                    + " y no admite devoluciones");
+        }
+        this.estado = completa ? EstadoVenta.DEVUELTA : EstadoVenta.DEVUELTA_PARCIAL;
+    }
+
+    public boolean estaFacturada() {
+        return "EMITIDA".equals(estadoFactura);
+    }
+
     public String getMotivoAnulacion() {
         return motivoAnulacion;
     }

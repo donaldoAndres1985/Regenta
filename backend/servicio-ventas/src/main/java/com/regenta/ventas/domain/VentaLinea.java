@@ -80,6 +80,9 @@ public class VentaLinea {
     @Column(name = "costo_unitario_snapshot", nullable = false, updatable = false)
     private BigDecimal costoUnitarioSnapshot;
 
+    @Column(name = "cantidad_devuelta", nullable = false)
+    private BigDecimal cantidadDevuelta;
+
     protected VentaLinea() {
     }
 
@@ -102,6 +105,7 @@ public class VentaLinea {
         l.impuestoCodigo = impuestoCodigo;
         l.impuestoPct = impuestoPct == null ? BigDecimal.ZERO : impuestoPct;
         l.costoUnitarioSnapshot = costoUnitario == null ? BigDecimal.ZERO : costoUnitario;
+        l.cantidadDevuelta = BigDecimal.ZERO;
         l.calcular();
         return l;
     }
@@ -109,6 +113,35 @@ public class VentaLinea {
     public void cambiarCantidad(BigDecimal cantidad) {
         this.cantidad = cantidad;
         calcular();
+    }
+
+    /** Suma una devolución. No puede pasar de lo vendido (HU-042, criterio 2). */
+    public void registrarDevolucion(BigDecimal cantidad) {
+        BigDecimal total = this.cantidadDevuelta.add(cantidad);
+        if (total.compareTo(this.cantidad) > 0) {
+            throw new com.regenta.comun.errores.ReglaDeNegocioException("No se puede devolver "
+                    + cantidad + " de la linea " + linea + ": se vendieron " + this.cantidad
+                    + " y ya se devolvieron " + this.cantidadDevuelta);
+        }
+        this.cantidadDevuelta = total;
+    }
+
+    /** Cuánto de esta línea corresponde devolver, con impuesto, por unidad. */
+    public BigDecimal montoDevolucionPor(BigDecimal cantidad) {
+        return total.divide(this.cantidad, ESCALA + 2, RoundingMode.HALF_UP).multiply(cantidad)
+                .setScale(ESCALA, RoundingMode.HALF_UP);
+    }
+
+    public boolean totalmenteDevuelta() {
+        return cantidadDevuelta.compareTo(cantidad) >= 0;
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public BigDecimal getCantidadDevuelta() {
+        return cantidadDevuelta;
     }
 
     private void calcular() {
