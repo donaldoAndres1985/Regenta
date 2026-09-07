@@ -43,6 +43,13 @@ jobs:
       - name: dependencias entre modulos
         run: dart run tool/check_module_deps.dart
 
+      # El codigo generado (Drift) esta versionado: aqui se comprueba que no
+      # quedo desactualizado respecto al esquema.
+      - name: codigo generado al dia
+        run: |
+          melos run generar --no-select
+          git diff --exit-code -- '*.g.dart'
+
       - name: analyze
         run: melos run analyze --no-select
 

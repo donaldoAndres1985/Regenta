@@ -10,8 +10,40 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  dio: ^5.7.0
+  drift: ^2.20.0
+  drift_flutter: ^0.2.0
+  flutter_secure_storage: ^9.2.4
+  go_router: ^14.6.2
+  meta: ^1.15.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  build_runner: ">=2.4.0 <2.5.0"
+  drift_dev: ^2.20.0
+  sqlite3: ^2.4.0
+
+flutter:
+  # Empaquetadas con el nucleo: cargan igual en Android y en Web, sin la red.
+  # Archivo para la interfaz; IBM Plex Mono para codigo, dinero e identificadores.
+  fonts:
+    - family: Archivo
+      fonts:
+        - asset: fonts/Archivo-Regular.ttf
+          weight: 400
+        - asset: fonts/Archivo-Medium.ttf
+          weight: 500
+        - asset: fonts/Archivo-SemiBold.ttf
+          weight: 600
+        - asset: fonts/Archivo-Bold.ttf
+          weight: 700
+    - family: IBMPlexMono
+      fonts:
+        - asset: fonts/IBMPlexMono-Regular.ttf
+          weight: 400
+        - asset: fonts/IBMPlexMono-Medium.ttf
+          weight: 500
+        - asset: fonts/IBMPlexMono-SemiBold.ttf
+          weight: 600
