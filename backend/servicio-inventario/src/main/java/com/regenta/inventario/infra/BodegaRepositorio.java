@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.regenta.inventario.domain.Bodega;
+import com.regenta.inventario.domain.TipoBodega;
 
 public interface BodegaRepositorio extends JpaRepository<Bodega, UUID> {
 
@@ -15,6 +16,8 @@ public interface BodegaRepositorio extends JpaRepository<Bodega, UUID> {
     Optional<Bodega> findByNegocioIdAndCodigo(UUID negocioId, String codigo);
 
     Optional<Bodega> findFirstByNegocioIdAndEsDefaultTrue(UUID negocioId);
+
+    Optional<Bodega> findFirstByNegocioIdAndTipo(UUID negocioId, TipoBodega tipo);
 
     boolean existsByNegocioId(UUID negocioId);
 

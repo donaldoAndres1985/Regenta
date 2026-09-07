@@ -12,6 +12,7 @@ import com.regenta.comun.errores.RecursoDuplicadoException;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.RequierePermiso;
 import com.regenta.inventario.domain.Bodega;
+import com.regenta.inventario.domain.TipoBodega;
 import com.regenta.inventario.infra.BodegaRepositorio;
 import com.regenta.inventario.infra.ExistenciaRepositorio;
 
@@ -44,6 +45,17 @@ public class GestionDeBodegas {
                 .orElseGet(() -> bodegas.existsByNegocioId(negocioId)
                         ? bodegas.findByNegocioIdOrderByCodigo(negocioId).get(0)
                         : bodegas.save(Bodega.principalPorDefecto(negocioId)));
+    }
+
+    /**
+     * Garantiza la bodega de transito del negocio, por donde pasa la mercancia
+     * de un traslado mientras viaja (HU-032). Idempotente.
+     */
+    @Transactional
+    public Bodega asegurarBodegaDeTransito() {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        return bodegas.findFirstByNegocioIdAndTipo(negocioId, TipoBodega.TRANSITO)
+                .orElseGet(() -> bodegas.save(Bodega.deTransito(negocioId)));
     }
 
     @Transactional(readOnly = true)

@@ -70,6 +70,11 @@ public class Bodega {
         return nueva(negocioId, "BOD-PRAL", "Bodega principal", TipoBodega.PRINCIPAL, true);
     }
 
+    /** La bodega donde vive la mercancia mientras viaja de una sede a otra (HU-032). */
+    public static Bodega deTransito(UUID negocioId) {
+        return nueva(negocioId, "BOD-TRANS", "Transito", TipoBodega.TRANSITO, false);
+    }
+
     public void renombrar(String nombre, UUID sucursalId) {
         this.nombre = nombre;
         this.sucursalId = sucursalId;
