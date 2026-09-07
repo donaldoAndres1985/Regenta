@@ -31,12 +31,14 @@ public class GestionDeVentas {
     private final VentaRepositorio ventas;
     private final VentaLineaRepositorio lineas;
     private final AsignadorDeConsecutivos consecutivos;
+    private final SagaDeConfirmacionDeVenta saga;
 
     public GestionDeVentas(VentaRepositorio ventas, VentaLineaRepositorio lineas,
-            AsignadorDeConsecutivos consecutivos) {
+            AsignadorDeConsecutivos consecutivos, SagaDeConfirmacionDeVenta saga) {
         this.ventas = ventas;
         this.lineas = lineas;
         this.consecutivos = consecutivos;
+        this.saga = saga;
     }
 
     @Transactional
@@ -79,12 +81,16 @@ public class GestionDeVentas {
         recalcular(venta);
     }
 
+    /**
+     * Confirma la venta: arranca la saga que reserva el stock en Inventario
+     * (HU-038). La venta pasa a {@code PENDIENTE_STOCK}; se decide {@code CONFIRMADA}
+     * o vuelve a {@code BORRADOR} cuando Inventario responde.
+     */
     @Transactional
     @RequierePermiso("VENTAS_VENTA_CONFIRMAR")
     public void confirmar(UUID ventaId) {
-        Venta venta = ventaDelNegocio(ventaId);
-        venta.confirmar();
-        ventas.save(venta);
+        ventaDelNegocio(ventaId);   // valida negocio y existencia
+        saga.iniciar(ventaId, SagaDeConfirmacionDeVenta.TIMEOUT_POR_DEFECTO);
     }
 
     @Transactional(readOnly = true)

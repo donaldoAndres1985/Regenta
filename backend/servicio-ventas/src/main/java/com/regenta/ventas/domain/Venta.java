@@ -90,6 +90,9 @@ public class Venta {
     @Column(name = "saldo_pendiente", nullable = false)
     private BigDecimal saldoPendiente;
 
+    @Column(columnDefinition = "text")
+    private String nota;
+
     @CreationTimestamp
     @Column(name = "creado_en", nullable = false, updatable = false)
     private OffsetDateTime creadoEn;
@@ -147,11 +150,31 @@ public class Venta {
         this.costoTotal = costo;
     }
 
-    /** BORRADOR → CONFIRMADA. HU-037 lo deja simple; la saga real llega en HU-038. */
-    public void confirmar() {
+    /** BORRADOR → PENDIENTE_STOCK: confirmar arranca la saga de reserva (HU-038). */
+    public void aPendienteStock() {
         exigirBorrador("confirmar");
+        this.estado = EstadoVenta.PENDIENTE_STOCK;
+    }
+
+    /** PENDIENTE_STOCK → CONFIRMADA: la reserva de stock salió bien. */
+    public void aConfirmada() {
+        exigirEsperandoStock("confirmar");
         this.estado = EstadoVenta.CONFIRMADA;
         this.saldoPendiente = this.total;
+    }
+
+    /** PENDIENTE_STOCK → BORRADOR: no hubo stock; vuelve a edición con el motivo. */
+    public void volverABorrador(String motivo) {
+        exigirEsperandoStock("devolver a borrador");
+        this.estado = EstadoVenta.BORRADOR;
+        this.nota = motivo;
+    }
+
+    private void exigirEsperandoStock(String accion) {
+        if (estado != EstadoVenta.PENDIENTE_STOCK) {
+            throw new ConflictoDeEstadoException("La venta " + numero + " esta en " + estado
+                    + " y no se puede " + accion);
+        }
     }
 
     public UUID getId() {
@@ -160,6 +183,10 @@ public class Venta {
 
     public UUID getNegocioId() {
         return negocioId;
+    }
+
+    public UUID getBodegaId() {
+        return bodegaId;
     }
 
     public String getNumero() {

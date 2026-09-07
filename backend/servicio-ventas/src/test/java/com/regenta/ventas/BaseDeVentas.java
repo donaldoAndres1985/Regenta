@@ -53,6 +53,9 @@ public abstract class BaseDeVentas {
         registro.add("spring.datasource.username", () -> ROL);
         registro.add("spring.datasource.password", () -> CLAVE);
         registro.add("regenta.eventos.publicador-activo", () -> false);
+        // Sin RabbitMQ en los tests: los @RabbitListener no arrancan su contenedor.
+        // La saga se ejercita llamando a sus metodos, como haria el consumidor.
+        registro.add("spring.rabbitmq.listener.simple.auto-startup", () -> false);
     }
 
     /**
