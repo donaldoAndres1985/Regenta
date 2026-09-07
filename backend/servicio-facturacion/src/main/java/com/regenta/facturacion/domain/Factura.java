@@ -132,6 +132,25 @@ public class Factura {
     @Column(nullable = false, length = 20)
     private EstadoFactura estado;
 
+    @Column(length = 96)
+    private String cufe;
+
+    @Column(name = "xml_url", columnDefinition = "text")
+    private String xmlUrl;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "respuesta_dian", columnDefinition = "jsonb")
+    private Map<String, Object> respuestaDian;
+
+    @Column(name = "intentos_envio", nullable = false)
+    private short intentosEnvio;
+
+    @Column(name = "enviada_en")
+    private OffsetDateTime enviadaEn;
+
+    @Column(name = "aceptada_en")
+    private OffsetDateTime aceptadaEn;
+
     @CreationTimestamp
     @Column(name = "creado_en", nullable = false, updatable = false)
     private OffsetDateTime creadoEn;
@@ -187,6 +206,7 @@ public class Factura {
         f.medioPagoCodigo = medioPagoCodigo;
         f.propina = escala(propina == null ? BigDecimal.ZERO : propina);
         f.estado = EstadoFactura.GENERADA;
+        f.intentosEnvio = 0;
 
         BigDecimal subtotal = BigDecimal.ZERO;
         BigDecimal descuentoTotal = BigDecimal.ZERO;
@@ -248,6 +268,49 @@ public class Factura {
         f.retencionesTotal = escala(retenciones);
         f.total = escala(base.add(impuestos).subtract(retenciones).add(f.propina));
         return f;
+    }
+
+    /** Criterio 1: se guarda el CUFE y la URL del XML; el XML no va a la base. */
+    public void firmar(String cufe, String xmlUrl) {
+        if (estado != EstadoFactura.GENERADA) {
+            return;   // ya firmada: idempotente
+        }
+        this.cufe = cufe;
+        this.xmlUrl = xmlUrl;
+        this.estado = EstadoFactura.FIRMADA;
+    }
+
+    public boolean estaFirmada() {
+        return cufe != null && estado != EstadoFactura.GENERADA && estado != EstadoFactura.BORRADOR;
+    }
+
+    /** Cada intento de transmisión, haya respondido o no la DIAN (criterio 4). */
+    public void registrarIntentoDeEnvio() {
+        this.intentosEnvio++;
+        this.enviadaEn = OffsetDateTime.now();
+        if (estado == EstadoFactura.FIRMADA) {
+            this.estado = EstadoFactura.ENVIADA;
+        }
+    }
+
+    public void aceptar(Map<String, Object> respuesta) {
+        this.respuestaDian = respuesta;
+        this.estado = EstadoFactura.ACEPTADA;
+        this.aceptadaEn = OffsetDateTime.now();
+    }
+
+    /** Criterio 3: la factura queda RECHAZADA con el código de error. */
+    public void rechazar(String codigo, String mensaje) {
+        Map<String, Object> r = new LinkedHashMap<>();
+        r.put("codigo", codigo);
+        r.put("mensaje", mensaje);
+        this.respuestaDian = r;
+        this.estado = EstadoFactura.RECHAZADA;
+    }
+
+    public boolean puedeTransmitirse() {
+        return estado == EstadoFactura.FIRMADA || estado == EstadoFactura.ENVIADA
+                || estado == EstadoFactura.RECHAZADA;
     }
 
     private static BigDecimal escala(BigDecimal v) {
@@ -348,6 +411,22 @@ public class Factura {
 
     public EstadoFactura getEstado() {
         return estado;
+    }
+
+    public String getCufe() {
+        return cufe;
+    }
+
+    public String getXmlUrl() {
+        return xmlUrl;
+    }
+
+    public Map<String, Object> getRespuestaDian() {
+        return respuestaDian;
+    }
+
+    public short getIntentosEnvio() {
+        return intentosEnvio;
     }
 
     public List<FacturaLinea> getLineas() {
