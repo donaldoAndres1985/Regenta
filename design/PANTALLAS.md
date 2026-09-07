@@ -49,7 +49,7 @@ Todo lo que se ve aquí sale del servicio de Reportes, que vive de eventos: ning
 | Patrón | Core |
 | Móvil | `design/pantallas/ClientesMovil.html` · `design/png/ClientesMovil.png` |
 | Web | `design/pantallas/ClientesWeb.html` · `design/png/ClientesWeb.png` |
-| Paquete Flutter | `packages/core` |
+| Paquete Flutter | `packages/clientes` |
 | Microservicio | `servicio-clientes` |
 | DDL | `modelo-datos/sql/02-servicio-clientes.sql` |
 | Tablas | `crm.clientes` · `crm.cliente_metricas` · `crm.cuentas_por_cobrar` · `crm.recaudos` |
