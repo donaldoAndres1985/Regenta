@@ -110,9 +110,13 @@ CREATE TABLE interacciones (
     detalle      TEXT,
     ocurrido_en  TIMESTAMPTZ NOT NULL DEFAULT now(),
     seguimiento_en DATE,
+    seguimiento_notificado_en TIMESTAMPTZ,   -- HU-024: el barrido ya avisó al responsable
     creado_en    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX ix_interacciones_cliente ON interacciones (negocio_id, cliente_id, ocurrido_en DESC);
+-- Lo que consulta el barrido de seguimientos: con fecha y sin avisar todavía.
+CREATE INDEX ix_interacciones_seguimiento ON interacciones (negocio_id, seguimiento_en)
+    WHERE seguimiento_en IS NOT NULL AND seguimiento_notificado_en IS NULL;
 
 -- Proyeccion alimentada por eventos venta_completada / reserva_confirmada /
 -- pedido_completado. NO se calcula con un JOIN a Ventas: son servicios

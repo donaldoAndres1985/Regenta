@@ -19,8 +19,9 @@ cliente_metricas es una proyección alimentada por los tres eventos de cierre �
 
 > R1–R6 son el contrato del backend de **HU-021** (`servicio-clientes`, `POST/GET /api/clientes`).
 > R7–R10 son **HU-023** (proyección `cliente_metricas` alimentada por eventos).
-> La pantalla `ClientesWeb.html` / `ClientesMovil.html` la cablea **HU-025** (listado móvil con
-> búsqueda y filtros); el bloque de cartera es **HU-022**; el historial, **HU-024**.
+> R11–R13 son **HU-024** (historial de interacciones y recordatorio de seguimiento).
+> La pantalla `ClientesWeb.html` / `ClientesMovil.html` (incluida la ficha con el timeline de
+> interacciones) la cablea **HU-025**; el bloque de cartera es **HU-022**.
 
 ## Reglas
 
@@ -102,6 +103,27 @@ Ventas, Reservas ni Comandas.
 `total_documentos` baja 1 y `monto_total` resta el `total`, nunca por debajo de cero (si el
 `venta_completada` original no se había procesado, no queda métrica negativa).
 
+### R11 · Registrar una interacción
+**Dado** un cliente del negocio, **cuando** registro una interacción (`POST
+/api/clientes/{id}/interacciones` con `tipo` de `LLAMADA|EMAIL|VISITA|WHATSAPP|NOTA|RECLAMO`),
+**entonces** queda con ese tipo, `ocurrido_en` (el que mande o ahora), el `usuario_id` del que
+la registró como autor, y el `detalle`. Un `tipo` fuera de la lista es 422; un cliente que no
+existe en el negocio es 404. Exige `CLIENTES_CLIENTE_EDITAR`.
+
+### R12 · La ficha muestra el historial de la más reciente a la más antigua
+**Dado** un cliente con interacciones, **cuando** pido su historial (`GET
+/api/clientes/{id}/interacciones`), **entonces** vienen ordenadas por `ocurrido_en`
+descendente. Exige `CLIENTES_CLIENTE_VER`.
+
+### R13 · El seguimiento vencido avisa al responsable
+**Dada** una interacción con `seguimiento_en`, **cuando** llega esa fecha y corre el barrido
+(`POST /api/clientes/seguimientos/barrido`), **entonces** se publica un evento
+`recordatorio_de_seguimiento` con `negocio_id`, `cliente_id`, `interaccion_id`, `responsable_id`
+(el `usuario_id` de la interacción), `tipo`, `asunto` y `seguimiento_en`, y la interacción
+queda con `seguimiento_notificado_en` — el barrido no la vuelve a avisar. Un seguimiento con
+fecha futura no dispara nada. El `@Scheduled` y el barrido multi-tenant se conectan con el rol
+privilegiado, igual que el publicador de outbox y el barrido de la saga (E04).
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
@@ -174,3 +196,5 @@ que más se olvida. -->
   `cliente_metricas` en negativo tras una anulación.
 - **No** calcular `cliente_metricas` con un JOIN a Ventas/Reservas/Comandas: es proyección,
   se alimenta solo de eventos.
+- **No** avisar dos veces del mismo seguimiento: `seguimiento_notificado_en` lo marca; el
+  índice parcial `ix_interacciones_seguimiento` solo cubre los que faltan.
