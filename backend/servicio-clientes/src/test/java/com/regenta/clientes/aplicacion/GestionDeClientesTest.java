@@ -121,8 +121,8 @@ class GestionDeClientesTest extends BaseDeClientes {
 
         assertThat(uno.id()).isNotEqualTo(otro.id());
         assertThat(uno.nombreDisplay()).isEqualTo("Consumidor final");
-        assertThat(contar("select count(*) from clientes where tipo_documento = 'SIN_IDENTIFICAR'"))
-                .isEqualTo(2);
+        assertThat(comoElServicio(negocioA, "select count(*) from clientes"
+                + " where tipo_documento = 'SIN_IDENTIFICAR'")).containsExactly("2");
     }
 
     @Test
@@ -138,8 +138,10 @@ class GestionDeClientesTest extends BaseDeClientes {
     void publicaClienteCreado() {
         ClienteDelNegocio ana = crearEn(negocioA, natural("Ana", "CC", "52000111"));
 
-        assertThat(comoElServicio(negocioA,
-                "select agregado_id::text from outbox_eventos where tipo_evento = 'cliente_creado'"))
-                .containsExactly(ana.id().toString());
+        // outbox_eventos no lleva RLS: se filtra por agregado_id, no por negocio,
+        // porque otras pruebas de la suite tambien dejan cliente_creado ahi.
+        assertThat(comoElServicio(negocioA, "select count(*) from outbox_eventos"
+                + " where tipo_evento = 'cliente_creado' and agregado_id = '" + ana.id() + "'"))
+                .containsExactly("1");
     }
 }
