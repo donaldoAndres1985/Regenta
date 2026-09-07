@@ -118,12 +118,14 @@ class GestionDeVentasTest extends BaseDeVentas {
     }
 
     @Test
-    @DisplayName("Criterio 5: una venta confirmada ya no admite editar sus líneas")
+    @DisplayName("Criterio 5: una venta que salió de borrador ya no admite editar sus líneas")
     void laVentaConfirmadaNoSeEdita() {
         agregar("SKU-5", "1", "100", "19");
         enContexto(negocio, usuario, SETUP, () -> ventas.confirmar(venta));
 
-        assertThat(columnaVenta("estado")).isEqualTo("CONFIRMADA");
+        // Confirmar arranca la saga (HU-038): la venta pasa a PENDIENTE_STOCK y
+        // ya no es BORRADOR, así que no se edita.
+        assertThat(columnaVenta("estado")).isEqualTo("PENDIENTE_STOCK");
         assertThatThrownBy(() -> agregar("SKU-6", "1", "50", "19"))
                 .isInstanceOf(ConflictoDeEstadoException.class);
         assertThatThrownBy(() -> enContexto(negocio, usuario, SETUP,
