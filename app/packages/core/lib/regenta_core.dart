@@ -2,6 +2,9 @@
 /// ningun otro modulo.
 library;
 
+export 'src/http/cliente_http.dart';
+export 'src/http/cola_de_salida.dart';
+export 'src/http/errores_http.dart';
 export 'src/sesion/almacen_de_sesion.dart';
 export 'src/sesion/cliente_auth.dart';
 export 'src/sesion/cliente_auth_http.dart';
