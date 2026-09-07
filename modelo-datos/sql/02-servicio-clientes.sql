@@ -14,7 +14,7 @@ CREATE TABLE clientes (
     negocio_id        UUID         NOT NULL,          -- [ref logica]
     tipo_persona      VARCHAR(20)  NOT NULL DEFAULT 'NATURAL'
                       CHECK (tipo_persona IN ('NATURAL','JURIDICA')),
-    tipo_documento    VARCHAR(10)  NOT NULL DEFAULT 'CC'
+    tipo_documento    VARCHAR(20)  NOT NULL DEFAULT 'CC'
                       CHECK (tipo_documento IN ('CC','CE','NIT','PP','TI','NIT_EXT','SIN_IDENTIFICAR')),
     numero_documento  VARCHAR(30),
     digito_verificacion CHAR(1),
@@ -57,8 +57,16 @@ CREATE UNIQUE INDEX uq_cliente_documento
     WHERE numero_documento IS NOT NULL AND tipo_documento <> 'SIN_IDENTIFICAR';
 CREATE UNIQUE INDEX uq_cliente_offline
     ON clientes (negocio_id, origen_offline_id) WHERE origen_offline_id IS NOT NULL;
+-- Indice de expresion sobre el cast a text (el planificador genera el
+-- predicado ILIKE sobre nombre_display::text; con la clave VARCHAR quedaba en
+-- Seq Scan) y parcial sobre los clientes vivos, que es como consulta el
+-- servicio. Con RLS FORCE, ademas, hace falta marcar textlike/texticlike como
+-- LEAKPROOF (superusuario, una vez) para que el planificador lo use; si no, la
+-- busqueda cae en ix_clientes_negocio + filtro, que igual evita el scan
+-- completo.
 CREATE INDEX ix_clientes_busqueda
-    ON clientes USING gin (nombre_display gin_trgm_ops);
+    ON clientes USING gin ((nombre_display::text) gin_trgm_ops)
+    WHERE eliminado_en IS NULL;
 CREATE INDEX ix_clientes_negocio ON clientes (negocio_id) WHERE eliminado_en IS NULL;
 
 CREATE TABLE direcciones_cliente (
