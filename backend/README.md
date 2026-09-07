@@ -110,8 +110,9 @@ Reglas:
 
 ## Aislamiento entre negocios
 
-142 tablas de negocio tienen `ENABLE` **y** `FORCE ROW LEVEL SECURITY` con la política
-`tenant_isolation`. El filtro por `negocio_id` en la aplicación es la primera línea;
+Más de 140 tablas de negocio tienen `ENABLE` **y** `FORCE ROW LEVEL SECURITY` con la
+política `tenant_isolation` (cada migración nueva que agrega una tabla de negocio suma
+la suya). El filtro por `negocio_id` en la aplicación es la primera línea;
 esto es la segunda: si alguien olvida el `WHERE`, PostgreSQL igual no devuelve filas
 de otro negocio.
 
@@ -320,16 +321,19 @@ Dos códigos distintos para dos cosas distintas, y esto se repite en los quince 
 | `@RequiereModulo` | **402**. El usuario tiene el permiso; lo que falta es el módulo en el plan |
 | `@RequierePermiso` | **403**. El módulo está; lo que no alcanza es el rol |
 
-## Lo que todavía no está
+## Estado
 
-De la épica `E00` falta:
+- **`E00` Fundación — completa.** Bases por servicio, Flyway con `validate`, RLS con
+  `FORCE`, Gateway (JWT + enrutado + 402 por plan), Outbox/Inbox como librería,
+  pipeline de CI y OpenAPI por servicio.
+- **`E01` Core — completa.** `servicio-usuarios` da de alta negocios, emite y rota
+  tokens, gestiona usuarios con el techo del plan, roles con el catálogo de permisos,
+  módulos con su grafo, configuración fiscal y sucursales.
+- **`E03` Inventario — en curso (HU-026 → HU-031).** `servicio-inventario` tiene
+  categorías con jerarquía, atributos por categoría, productos con validación contra
+  `atributos_categoria`, bodegas y existencias `(producto, bodega)`, libro mayor
+  append-only y lotes con FEFO y bloqueo del vencido. Faltan traslados, ajustes,
+  reserva/saga, búsqueda/escáner y listas de precios (HU-032 → HU-036).
 
-| Historia | Qué trae |
-|---|---|
-| HU-002 | El monorepo Flutter con melos |
-| HU-009 | Pipeline de CI |
-
-`E01` está completa: `servicio-usuarios` da de alta negocios, emite y rota tokens,
-gestiona usuarios con el techo del plan, roles con el catálogo de permisos, módulos con
-su grafo, configuración fiscal y sucursales. Lo siguiente es `E02` en adelante, y el
-primer servicio que consuma eventos de este.
+Lo siguiente es cerrar `E03` y arrancar `servicio-ventas` con la saga que reserva
+stock en Inventario, más el primer servicio que consuma eventos de `servicio-usuarios`.
