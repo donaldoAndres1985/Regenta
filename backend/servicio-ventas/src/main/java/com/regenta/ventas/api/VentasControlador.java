@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.regenta.ventas.aplicacion.GestionDeAnulaciones;
 import com.regenta.ventas.aplicacion.GestionDeVentas;
 import com.regenta.ventas.aplicacion.LineaDeVenta;
 import com.regenta.ventas.aplicacion.SolicitudDeLinea;
@@ -31,9 +32,11 @@ import jakarta.validation.Valid;
 public class VentasControlador {
 
     private final GestionDeVentas ventas;
+    private final GestionDeAnulaciones anulaciones;
 
-    public VentasControlador(GestionDeVentas ventas) {
+    public VentasControlador(GestionDeVentas ventas, GestionDeAnulaciones anulaciones) {
         this.ventas = ventas;
+        this.anulaciones = anulaciones;
     }
 
     @PostMapping
@@ -69,6 +72,15 @@ public class VentasControlador {
         ventas.confirmar(ventaId);
     }
 
+    @PostMapping("/{ventaId}/anulacion")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Anula una venta confirmada; publica venta_anulada para reintegrar stock")
+    @ApiResponse(responseCode = "409", description = "La venta no está confirmada")
+    @ApiResponse(responseCode = "422", description = "Sin motivo, o la venta ya fue facturada")
+    public void anular(@PathVariable UUID ventaId, @RequestBody MotivoDeAnulacion cuerpo) {
+        anulaciones.anular(ventaId, cuerpo.motivo());
+    }
+
     @GetMapping("/{ventaId}")
     @Operation(summary = "Una venta con sus líneas y sus totales guardados")
     public VentaDelNegocio ver(@PathVariable UUID ventaId) {
@@ -77,5 +89,9 @@ public class VentasControlador {
 
     /** Cuerpo del PATCH de cantidad. */
     public record CantidadNueva(BigDecimal cantidad) {
+    }
+
+    /** Cuerpo de la anulación. */
+    public record MotivoDeAnulacion(String motivo) {
     }
 }

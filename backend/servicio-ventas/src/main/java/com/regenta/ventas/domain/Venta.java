@@ -10,6 +10,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 import com.regenta.comun.errores.ConflictoDeEstadoException;
+import com.regenta.comun.errores.ReglaDeNegocioException;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -93,6 +94,18 @@ public class Venta {
     @Column(name = "fecha_vencimiento")
     private java.time.LocalDate fechaVencimiento;
 
+    @Column(name = "estado_factura", length = 20)
+    private String estadoFactura;
+
+    @Column(name = "anulada_en")
+    private OffsetDateTime anuladaEn;
+
+    @Column(name = "anulada_por")
+    private UUID anuladaPor;
+
+    @Column(name = "motivo_anulacion", columnDefinition = "text")
+    private String motivoAnulacion;
+
     @Column(columnDefinition = "text")
     private String nota;
 
@@ -133,6 +146,7 @@ public class Venta {
         v.total = BigDecimal.ZERO;
         v.costoTotal = BigDecimal.ZERO;
         v.saldoPendiente = BigDecimal.ZERO;
+        v.estadoFactura = "NO_APLICA";
         return v;
     }
 
@@ -195,6 +209,30 @@ public class Venta {
         if (fechaVencimiento != null) {
             this.fechaVencimiento = fechaVencimiento;
         }
+    }
+
+    /**
+     * CONFIRMADA → ANULADA (HU-041). Nunca borra: la venta queda con su histórico
+     * intacto y consta quién, cuándo y por qué. Una venta ya facturada
+     * electrónicamente no se anula: hay que emitir una nota crédito.
+     */
+    public void anular(UUID usuarioId, String motivo) {
+        exigirConfirmada("anular");
+        if ("EMITIDA".equals(estadoFactura)) {
+            throw new ReglaDeNegocioException("La venta " + numero
+                    + " ya fue facturada electronicamente: emite una nota credito para revertirla");
+        }
+        if (motivo == null || motivo.isBlank()) {
+            throw new ReglaDeNegocioException("Indica el motivo de la anulacion");
+        }
+        this.estado = EstadoVenta.ANULADA;
+        this.anuladaEn = OffsetDateTime.now();
+        this.anuladaPor = usuarioId;
+        this.motivoAnulacion = motivo.trim();
+    }
+
+    public String getMotivoAnulacion() {
+        return motivoAnulacion;
     }
 
     public UUID getId() {
