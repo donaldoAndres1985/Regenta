@@ -28,8 +28,9 @@ venta, la línea queda con el fondo de error y el botón *Cobrar* se deshabilita
 
 Cuanto más aburrida y literal la frase, mejor test sale de ella. -->
 
-> R1–R5 son **HU-052** (`servicio-facturacion`, `/api/facturacion/resoluciones`). La asignación
-> del consecutivo dentro del rango es **HU-054**; la emisión, **HU-053**.
+> R1–R5 son **HU-052** (`servicio-facturacion`, `/api/facturacion/resoluciones`).
+> R6–R9 son **HU-054** (`AsignadorDeConsecutivos`, sin endpoint propio: lo usa la emisión).
+> La emisión de la factura es **HU-053**.
 
 ### R1 · Cargar una resolución
 **Dado** que un administrador carga una resolución (`POST /api/facturacion/resoluciones` con
@@ -59,6 +60,28 @@ consume al emitir (HU-054), **entonces** se publica `resolucion_por_agotarse` co
 **Dada** una resolución cuya `vigenteHasta` ya pasó (o cuyo estado no es `VIGENTE`), **cuando**
 se pide la vigente para emitir (`GET /api/facturacion/resoluciones/vigente?tipoDocumento=…`),
 **entonces** es 422 nombrando la fecha de vencimiento, o 404 si no hay ninguna de ese tipo.
+
+### R6 · El número se toma con la resolución bloqueada, dentro de la transacción
+**Dada** una emisión, **cuando** se asigna el número, **entonces** la resolución vigente se
+lee con `SELECT … FOR UPDATE` en la misma transacción que guarda la factura. Se hace en una
+sola consulta (no cargar sin bloqueo y después bloquear), para que la fila llegue con su
+`@Version` fresca.
+
+### R7 · Números continuos y sin huecos, aún concurrentes
+**Dadas** N emisiones a la vez sobre la misma resolución, **cuando** ocurren, **entonces** cada
+una recibe un número distinto y los números salen consecutivos desde `consecutivoActual`, sin
+huecos ni repetidos. El `numeroCompleto` es `prefijo + número` (p. ej. `FE990000001`). Probado
+con 50 emisiones simultáneas.
+
+### R8 · Al tomar el último, la resolución queda AGOTADA
+**Dado** que se toma el último número del rango, **cuando** se asigna, **entonces**
+`consecutivoActual` queda en `rangoHasta + 1` (lo permite `ck_consecutivo`) y el estado pasa a
+`AGOTADA`. Las siguientes emisiones se rechazan: ya no hay resolución `VIGENTE` de ese tipo.
+
+### R9 · Un rollback no consume el número
+**Dado** que la transacción de emisión hace rollback, **cuando** ocurre, **entonces** el
+avance de `consecutivoActual` se deshace con ella: el siguiente número vuelve a estar
+disponible. No es un `BIGSERIAL` justamente por esto.
 
 ## Al abrir
 
