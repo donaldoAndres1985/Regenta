@@ -2,6 +2,12 @@
 /// ningun otro modulo.
 library;
 
+export 'src/tema/patron_operativo.dart';
+export 'src/tema/regenta_colors.dart';
+export 'src/tema/regenta_spacing.dart';
+export 'src/tema/regenta_theme.dart';
+export 'src/tema/regenta_type.dart';
+
 /// Version del contrato del nucleo. Sube cuando cambia algo que los modulos
 /// consumen.
 const String versionDelNucleo = '0.1.0';
