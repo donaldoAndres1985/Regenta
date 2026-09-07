@@ -20,8 +20,9 @@ cliente_metricas es una proyección alimentada por los tres eventos de cierre �
 > R1–R6 son el contrato del backend de **HU-021** (`servicio-clientes`, `POST/GET /api/clientes`).
 > R7–R10 son **HU-023** (proyección `cliente_metricas` alimentada por eventos).
 > R11–R13 son **HU-024** (historial de interacciones y recordatorio de seguimiento).
-> La pantalla `ClientesWeb.html` / `ClientesMovil.html` (incluida la ficha con el timeline de
-> interacciones) la cablea **HU-025**; el bloque de cartera es **HU-022**.
+> R14–R16 son **HU-025** (listado móvil en `packages/clientes`, `PantallaClientes`).
+> El bloque de cartera (chips «al día / excedido / vencido» completos) lo cierra **HU-022**; la
+> ficha de detalle con el timeline de interacciones queda para su propia HU.
 
 ## Reglas
 
@@ -124,12 +125,35 @@ queda con `seguimiento_notificado_en` — el barrido no la vuelve a avisar. Un s
 fecha futura no dispara nada. El `@Scheduled` y el barrido multi-tenant se conectan con el rol
 privilegiado, igual que el publicador de outbox y el barrido de la saga (E04).
 
+### R14 · Buscar filtra la lista sin volver a pedir nada
+**Dada** la lista cargada, **cuando** escribo en el buscador, **entonces** la lista se reduce a
+los clientes cuyo nombre o número de documento contiene lo que escribí (sin distinguir
+mayúsculas). No hay llamada nueva al backend: el filtrado es en memoria sobre lo ya cargado.
+
+### R15 · Sin conexión se muestra la copia local
+**Dado** que abro la lista sin señal, **cuando** falla la llamada al servidor, **entonces** se
+muestran los clientes de la última carga (guardados en `catalogos`, `tipo = 'clientes'`) con un
+aviso de que es la copia sin conexión. Si nunca se bajó nada, se muestra el mensaje de que no
+hay clientes guardados. Cuando vuelve la señal, la lista se refresca y se vuelve a guardar la
+copia.
+
+### R16 · Los filtros de cartera responden al instante
+**Dados** los chips *Todos / Con saldo / Vencidos / Mayoristas*, **cuando** toco uno,
+**entonces** la lista se filtra en memoria: *Con saldo* = `saldo_pendiente > 0`, *Mayoristas* =
+`segmento == 'MAYORISTA'`, *Vencidos* = el cliente tiene cartera vencida (`carteraVencida`, un
+campo que el listado del backend traerá con HU-022; hasta entonces el filtro existe pero no
+selecciona a nadie). Cada fila muestra el saldo y un chip *al día / excedido / sin saldo* según
+`saldo` contra `cupo_credito`. Objetivo de toque de 44 px en chips y filas.
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
 recuerda de la última vez (filtros, sucursal, orden de la tabla). -->
 
-_Sin definir._
+Listado (HU-025): primero se pinta la copia local (si hay), luego se pide `GET /api/clientes`
+y se reemplaza con lo fresco. Mientras no hay ni copia ni respuesta, un indicador de carga. El
+filtro arranca en *Todos* y el buscador vacío; no se recuerda entre sesiones (_sin definir_ si
+debería). El foco no salta al buscador en móvil (evita abrir el teclado sobre la lista).
 
 ## Validaciones
 
@@ -162,14 +186,25 @@ estados distintos): _sin definir_ — HU-025.
 <!-- Qué se puede seguir haciendo, qué se encola para sincronizar después, qué se bloquea, y
 cómo se entera la persona de en cuál de los tres está. -->
 
-_Sin definir._
+- **Listado (HU-025):** se lee de la copia local (`catalogos`, `tipo = 'clientes'`) apenas se
+  abre, y se refresca contra el servidor si hay señal. Sin señal se ve la copia con un aviso;
+  buscar y filtrar siguen funcionando sobre ella (R14–R16).
+- **Alta / edición / interacciones:** _sin definir_ si se encolan sin señal. Por ahora fallan
+  con el error de red del `ClienteHttp`; encolarlas es una decisión aparte (HU-102/E15).
 
 ## Móvil y web
 
 <!-- Dónde el comportamiento se separa: atajos de teclado, orden de tabulación, columnas que
 se ocultan en móvil, acciones que solo tienen sentido con teclado o solo con el dedo. -->
 
-_Sin definir._
+- **Corte:** `kBreakpointEscritorio` (900 px) sobre el ancho que da `LayoutBuilder`.
+- **Móvil** (`< 900`, `Key('clientes-movil')`): una columna, buscador y chips fijos arriba,
+  objetivo de toque de 44 px en chips y filas.
+- **Escritorio** (`>= 900`, `Key('clientes-escritorio')`): la misma lista centrada con ancho
+  máximo (~760 px). El panel de detalle a la derecha queda para la HU de la ficha.
+- La barra de navegación inferior de `ClientesMovil.html` es presentacional; la cablea el
+  shell de la app.
+- Atajos de teclado y orden de tabulación en escritorio: _sin definir_.
 
 ## Permisos
 
@@ -198,3 +233,6 @@ que más se olvida. -->
   se alimenta solo de eventos.
 - **No** avisar dos veces del mismo seguimiento: `seguimiento_notificado_en` lo marca; el
   índice parcial `ix_interacciones_seguimiento` solo cubre los que faltan.
+- **No** volver a pedir la lista al buscar o al cambiar de filtro (HU-025): es en memoria.
+- **No** dejar la pantalla en blanco sin señal si ya se había bajado la lista alguna vez: se
+  muestra la copia local.
