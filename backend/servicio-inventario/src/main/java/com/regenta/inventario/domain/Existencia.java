@@ -68,6 +68,16 @@ public class Existencia {
         return existencia;
     }
 
+    /** El saldo que quedaria si se aplicara un movimiento, sin aplicarlo. */
+    public BigDecimal saldoSiAplico(int signo, BigDecimal cantidad) {
+        return this.cantidad.add(cantidad.multiply(BigDecimal.valueOf(signo)));
+    }
+
+    /** Mueve la cantidad segun el signo del movimiento (+1 entrada, -1 salida). */
+    public void aplicar(int signo, BigDecimal cantidad) {
+        this.cantidad = saldoSiAplico(signo, cantidad);
+    }
+
     public UUID getProductoId() {
         return productoId;
     }

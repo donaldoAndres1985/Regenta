@@ -112,6 +112,24 @@ public abstract class BaseDeInventario {
     }
 
     /**
+     * Ejecuta una sentencia con el rol del servicio y el negocio fijado. Lanza
+     * {@link IllegalStateException} si PostgreSQL la rechaza: sirve para
+     * comprobar triggers y CHECKs (append-only, etc.).
+     */
+    protected static void ejecutarComoElServicio(UUID negocio, String sql) {
+        try (Connection conexion = DriverManager.getConnection(PG.getJdbcUrl(), ROL, CLAVE);
+                Statement declaracion = conexion.createStatement()) {
+            declaracion.execute("SET search_path TO inventario, public");
+            if (negocio != null) {
+                declaracion.execute("SELECT set_config('app.negocio_id', '" + negocio + "', false)");
+            }
+            declaracion.execute(sql);
+        } catch (SQLException fallo) {
+            throw new IllegalStateException("PostgreSQL rechazo: " + sql, fallo);
+        }
+    }
+
+    /**
      * Una consulta con el rol del servicio, fijando (o no) el negocio: asi se
      * comprueba que la RLS corta de verdad.
      */
