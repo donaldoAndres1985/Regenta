@@ -1,0 +1,80 @@
+name: app
+
+on:
+  push:
+    paths:
+      - "app/**"
+      - ".github/workflows/app.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/app.yml"
+
+concurrency:
+  group: app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-test:
+    name: analizar y probar
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.38.9"
+          channel: stable
+          cache: true
+
+      - name: melos
+        run: |
+          dart pub global activate melos 6.3.2
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: bootstrap
+        run: melos bootstrap
+
+      # Criterio 3 de HU-002: ningun modulo depende de otro modulo.
+      - name: dependencias entre modulos
+        run: dart run tool/check_module_deps.dart
+
+      - name: analyze
+        run: melos run analyze --no-select
+
+      - name: test
+        run: melos run test --no-select
+
+  build:
+    name: compilar Android y Web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/apps/regenta
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.38.9"
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: build web
+        run: flutter build web --release
+
+      - name: build apk
+        run: flutter build apk --debug

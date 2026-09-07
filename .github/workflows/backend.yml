@@ -1,0 +1,43 @@
+name: backend
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: compilar y probar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      # ubuntu-latest ya trae Docker; Testcontainers levanta PostgreSQL 16 y
+      # RabbitMQ contra los que corren los tests de integracion (HU-006, HU-008).
+      - name: mvnw test
+        working-directory: backend
+        run: ./mvnw -B --no-transfer-progress test
+
+      - name: Publicar informes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: "backend/**/target/surefire-reports/*.xml"
+          if-no-files-found: ignore
