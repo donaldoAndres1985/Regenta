@@ -109,9 +109,11 @@ class GestionDeResolucionesTest extends BaseDeFacturacion {
         boolean avisoCerca = enContexto(negocioA, admin, DE_ADMIN,
                 () -> resoluciones.avisarSiPorAgotarse(r.id()));
         assertThat(avisoCerca).isTrue();
-        assertThat(comoElServicio(negocioA, "select agregado_id::text from outbox_eventos"
-                + " where tipo_evento = 'resolucion_por_agotarse'"))
-                .containsExactly(r.id().toString());
+        // outbox_eventos no lleva RLS: se filtra por agregado_id porque otras
+        // pruebas de la suite tambien publican resolucion_por_agotarse.
+        assertThat(comoElServicio(negocioA, "select count(*) from outbox_eventos where tipo_evento"
+                + " = 'resolucion_por_agotarse' and agregado_id = '" + r.id() + "'"))
+                .containsExactly("1");
     }
 
     @Test

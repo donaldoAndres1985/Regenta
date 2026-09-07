@@ -157,6 +157,29 @@ public class Resolucion {
         }
     }
 
+    /**
+     * Toma el siguiente número del rango y avanza el consecutivo (HU-054). Al
+     * consumir el último, la resolución queda {@link EstadoResolucion#AGOTADA} y
+     * las siguientes llamadas se rechazan. Debe invocarse con la fila bloqueada
+     * ({@code SELECT … FOR UPDATE}) dentro de la transacción de emisión.
+     */
+    public long tomarSiguiente() {
+        if (estado != EstadoResolucion.VIGENTE || consecutivoActual > rangoHasta) {
+            throw new ReglaDeNegocioException(
+                    "La resolución " + numeroResolucion + " está agotada");
+        }
+        long asignado = consecutivoActual;
+        consecutivoActual = consecutivoActual + 1;
+        if (consecutivoActual > rangoHasta) {
+            estado = EstadoResolucion.AGOTADA;
+        }
+        return asignado;
+    }
+
+    public String numeroCompleto(long consecutivo) {
+        return prefijo + consecutivo;
+    }
+
     public void anular() {
         this.estado = EstadoResolucion.ANULADA;
     }

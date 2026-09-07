@@ -1,10 +1,8 @@
 package com.regenta.facturacion.aplicacion;
 
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -117,7 +115,7 @@ public class GestionDeResoluciones {
             return false;
         }
         eventos.registrar(resolucion.getNegocioId(), "resolucion", resolucion.getId(),
-                "resolucion_por_agotarse", aviso(resolucion));
+                "resolucion_por_agotarse", AvisosDeResolucion.porAgotarse(resolucion));
         return true;
     }
 
@@ -149,16 +147,5 @@ public class GestionDeResoluciones {
         } catch (IllegalArgumentException | NullPointerException noExiste) {
             throw new ReglaDeNegocioException("Valor no válido: " + texto);
         }
-    }
-
-    private static Map<String, Object> aviso(Resolucion r) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("negocio_id", r.getNegocioId().toString());
-        payload.put("resolucion_id", r.getId().toString());
-        payload.put("numero_resolucion", r.getNumeroResolucion());
-        payload.put("tipo_documento", r.getTipoDocumento().name());
-        payload.put("disponibles", r.numerosDisponibles());
-        payload.put("total_rango", r.totalDelRango());
-        return payload;
     }
 }
