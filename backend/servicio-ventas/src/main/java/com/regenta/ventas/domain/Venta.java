@@ -90,6 +90,9 @@ public class Venta {
     @Column(name = "saldo_pendiente", nullable = false)
     private BigDecimal saldoPendiente;
 
+    @Column(name = "fecha_vencimiento")
+    private java.time.LocalDate fechaVencimiento;
+
     @Column(columnDefinition = "text")
     private String nota;
 
@@ -177,6 +180,23 @@ public class Venta {
         }
     }
 
+    public void exigirConfirmada(String accion) {
+        if (estado != EstadoVenta.CONFIRMADA) {
+            throw new ConflictoDeEstadoException("La venta " + numero + " esta en " + estado
+                    + " y no se puede " + accion);
+        }
+    }
+
+    /** Deja el saldo pendiente, la forma de pago y —si es a crédito— el vencimiento (HU-039). */
+    public void registrarCobro(BigDecimal saldoPendiente, String formaPago,
+            java.time.LocalDate fechaVencimiento) {
+        this.saldoPendiente = saldoPendiente;
+        this.formaPago = formaPago;
+        if (fechaVencimiento != null) {
+            this.fechaVencimiento = fechaVencimiento;
+        }
+    }
+
     public UUID getId() {
         return id;
     }
@@ -187,6 +207,14 @@ public class Venta {
 
     public UUID getBodegaId() {
         return bodegaId;
+    }
+
+    public UUID getClienteId() {
+        return clienteId;
+    }
+
+    public BigDecimal getSaldoPendiente() {
+        return saldoPendiente;
     }
 
     public String getNumero() {
