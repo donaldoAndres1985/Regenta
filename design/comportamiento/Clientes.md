@@ -18,6 +18,7 @@
 cliente_metricas es una proyección alimentada por los tres eventos de cierre — venta_completada, estancia_finalizada y pedido_completado.
 
 > R1–R6 son el contrato del backend de **HU-021** (`servicio-clientes`, `POST/GET /api/clientes`).
+> R7–R10 son **HU-023** (proyección `cliente_metricas` alimentada por eventos).
 > La pantalla `ClientesWeb.html` / `ClientesMovil.html` la cablea **HU-025** (listado móvil con
 > búsqueda y filtros); el bloque de cartera es **HU-022**; el historial, **HU-024**.
 
@@ -69,6 +70,37 @@ publica nada (Outbox).
 **Dado** un usuario sin `CLIENTES_CLIENTE_CREAR`, **cuando** intenta crear un cliente,
 **entonces** el API responde **403**. Ver y buscar exigen `CLIENTES_CLIENTE_VER`; editar,
 `CLIENTES_CLIENTE_EDITAR`.
+
+### R7 · Un cierre suma a las métricas del cliente
+**Dado** un evento `venta_completada` con `negocio_id`, `cliente_id`, `total` y `ocurrido_en`,
+**cuando** el servicio lo consume, **entonces** en `cliente_metricas` de ese cliente
+`total_documentos` sube 1, `monto_total` suma el `total`, `ticket_promedio` se recalcula, y
+`primera_compra_en` / `ultima_compra_en` quedan en el mínimo / máximo de las fechas vistas. El
+`UPSERT` es atómico (no hay columna `version`): dos eventos a la vez para el mismo cliente no
+se pisan. Si el `cliente_id` no viene (venta a consumidor final) o no existe en este negocio,
+el evento no crea fila.
+
+> Contrato pendiente en el emisor: hoy `servicio-ventas` publica `venta_completada` y
+> `venta_anulada` **sin** `cliente_id` (ni `total` en la anulación). Añadirlos va con **HU-113**
+> (asignar cliente a la venta). Mientras tanto la proyección solo se mueve con eventos que ya
+> traen `cliente_id`; los patrones Reserva y Comanda aún no emiten `estancia_finalizada` /
+> `pedido_completado`.
+
+### R8 · El mismo evento dos veces no cuenta doble
+**Dado** un evento ya procesado, **cuando** RabbitMQ lo reentrega con el mismo `message-id`,
+**entonces** el Inbox lo descarta y las métricas no cambian. El registro en el Inbox y el
+efecto sobre la métrica van en la misma transacción: o quedan los dos, o ninguno.
+
+### R9 · Los tres patrones alimentan la misma proyección
+**Dado** un evento `estancia_finalizada` (Reserva) o `pedido_completado` (Comanda) con la
+misma forma de payload, **cuando** llega, **entonces** actualiza `cliente_metricas` igual que
+`venta_completada`. Una sola tabla para los tres patrones; ninguna consulta cruza a la base de
+Ventas, Reservas ni Comandas.
+
+### R10 · Una venta anulada deja de contar
+**Dado** un evento `venta_anulada` con `cliente_id` y `total`, **cuando** llega, **entonces**
+`total_documentos` baja 1 y `monto_total` resta el `total`, nunca por debajo de cero (si el
+`venta_completada` original no se había procesado, no queda métrica negativa).
 
 ## Al abrir
 
@@ -138,3 +170,7 @@ que más se olvida. -->
 - **No** publicar `cliente_creado` si el alta no llegó a `commit`.
 - **No** confiar en el chequeo de unicidad de Java como única barrera: el índice único parcial
   `uq_cliente_documento` lo garantiza en la base.
+- **No** contar dos veces un cierre reentregado (Inbox por `message-id`), ni dejar
+  `cliente_metricas` en negativo tras una anulación.
+- **No** calcular `cliente_metricas` con un JOIN a Ventas/Reservas/Comandas: es proyección,
+  se alimenta solo de eventos.
