@@ -65,8 +65,34 @@ ve: la RLS de `reglas_alerta`, `alertas` y `entregas` lo corta. `tipos_alerta` e
 
 ### R9 · Permisos
 `ALERTAS_ALERTA_VER` para el catálogo, listar y consultar reglas; `ALERTAS_ALERTA_EDITAR` para
-crear, editar, activar/desactivar y disparar una evaluación manual. Sin el permiso, **403**.
-Módulo `ALERTAS`, plan Profesional o superior.
+crear, editar, activar/desactivar y disparar una evaluación o el barrido manual. Sin el
+permiso, **403**. Módulo `ALERTAS`, plan Profesional o superior.
+
+### R10 · Stock bajo el mínimo genera la alerta (HU-093)
+**Dado** una regla `STOCK_MINIMO`, **cuando** llega el evento `stock_bajo_minimo` de
+Inventario (`{negocio_id, producto_id, producto_nombre, existencia, minimo, bodega_id,
+bodega_nombre}`), **entonces** el consumidor lo pasa por el Inbox y el motor genera la alerta
+con `entidad_tipo = Producto`, `ruta_app = /inventario/productos/{id}` y, en `datos`,
+`sugerencia_compra_ruta` — así se abre al producto y a la sugerencia de compra (criterio 3). El
+mismo evento repetido no genera otra (Inbox + huella).
+
+### R11 · Barrido de lotes por vencer (HU-093)
+**Dado** que hay reglas `VENCIMIENTO_LOTE` activas, **cuando** corre el barrido (`POST
+/api/alertas/vigilancia/vencimientos`, o el `@Scheduled` diario cuando exista el recorrido
+multi-negocio), **entonces** consulta al inventario los lotes dentro de una ventana de 90 días
+y publica un `lote_por_vencer` por cada uno. El consumidor de ese evento llama al motor con
+tipo `VENCIMIENTO_LOTE`: la condición de cada regla (`dias_para_vencer <= N`) decide cuáles
+generan alerta (criterio 2).
+
+### R12 · El stock repuesto resuelve la alerta sola (HU-093)
+**Dado** una alerta `STOCK_MINIMO` abierta de un producto, **cuando** llega
+`stock_normalizado` (`{negocio_id, producto_id}`), **entonces** todas las alertas activas
+(`NUEVA`/`VISTA`/`EN_CURSO`) de ese producto y tipo pasan a `RESUELTA` sin usuario que las
+resuelva (criterio 4).
+
+> El lado que emite `stock_bajo_minimo` / `stock_normalizado` y el que corre el job diario de
+> lotes (en `servicio-inventario`) quedan como seguimiento, igual que el consumidor de
+> `recepcion_registrada`.
 
 ## Qué NO debe pasar
 
