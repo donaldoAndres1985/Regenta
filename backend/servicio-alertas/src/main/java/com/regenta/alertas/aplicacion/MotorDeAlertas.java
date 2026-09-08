@@ -55,6 +55,22 @@ public class MotorDeAlertas {
         this.directorio = directorio;
     }
 
+    /**
+     * Resuelve solas las alertas abiertas de una entidad y un tipo (HU-093
+     * criterio 4: el stock volvió por encima del mínimo). Devuelve cuántas.
+     */
+    @Transactional
+    public int resolverPorEntidad(String tipoCodigo, String entidadTipo, UUID entidadId) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        List<com.regenta.alertas.domain.Alerta> abiertas =
+                alertas.activasDeEntidad(negocioId, tipoCodigo, entidadTipo, entidadId);
+        for (com.regenta.alertas.domain.Alerta a : abiertas) {
+            a.resolver(null);
+            alertas.save(a);
+        }
+        return abiertas.size();
+    }
+
     @Transactional
     public List<UUID> evaluar(HechoDeAlerta hecho) {
         UUID negocioId = ContextoDeNegocio.negocioActual();
