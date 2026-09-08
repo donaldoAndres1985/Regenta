@@ -101,9 +101,13 @@ CREATE TABLE entregas (
     intentos     SMALLINT    NOT NULL DEFAULT 0,
     error        TEXT,
     enviada_en   TIMESTAMPTZ,
-    leida_en     TIMESTAMPTZ
+    leida_en     TIMESTAMPTZ,
+    proximo_intento TIMESTAMPTZ,             -- HU-094: reintento con backoff
+    retenida_hasta  TIMESTAMPTZ              -- HU-094: retenida por "no molestar"
 );
 CREATE INDEX ix_entregas_pendientes ON entregas (estado, enviada_en)
+    WHERE estado IN ('PENDIENTE','FALLIDA');
+CREATE INDEX ix_entregas_reintento ON entregas (proximo_intento)
     WHERE estado IN ('PENDIENTE','FALLIDA');
 
 -- Preferencias por usuario (no molestar, canales que acepta)

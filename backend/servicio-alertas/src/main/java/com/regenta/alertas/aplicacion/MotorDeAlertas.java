@@ -44,15 +44,17 @@ public class MotorDeAlertas {
     private final AlertaRepositorio alertas;
     private final EntregaRepositorio entregas;
     private final DirectorioDeUsuarios directorio;
+    private final DespachoDeEntregas despacho;
 
     public MotorDeAlertas(ReglaAlertaRepositorio reglas, TipoAlertaRepositorio tipos,
             AlertaRepositorio alertas, EntregaRepositorio entregas,
-            DirectorioDeUsuarios directorio) {
+            DirectorioDeUsuarios directorio, DespachoDeEntregas despacho) {
         this.reglas = reglas;
         this.tipos = tipos;
         this.alertas = alertas;
         this.entregas = entregas;
         this.directorio = directorio;
+        this.despacho = despacho;
     }
 
     /**
@@ -106,6 +108,7 @@ public class MotorDeAlertas {
                     hecho.rutaApp(), huella);
             alertas.save(nueva);
             crearEntregas(negocioId, regla, nueva.getId());
+            despacho.despacharAlerta(nueva.getId());
             return nueva.getId();
         }
         if (existente.estaActiva()
@@ -116,6 +119,7 @@ public class MotorDeAlertas {
         existente.reabrir(titulo, mensaje, datos(hecho));
         alertas.save(existente);
         crearEntregas(negocioId, regla, existente.getId());
+        despacho.despacharAlerta(existente.getId());
         return existente.getId();
     }
 
@@ -125,7 +129,7 @@ public class MotorDeAlertas {
         for (UUID usuario : destinatarios) {
             for (String canal : regla.getCanales()) {
                 entregas.save(Entrega.pendiente(negocioId, alertaId, usuario,
-                        CanalDeAlerta.valueOf(canal)));
+                        CanalDeAlerta.valueOf(canal), null));
             }
         }
     }

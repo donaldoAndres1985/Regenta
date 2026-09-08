@@ -40,4 +40,26 @@ public interface AlertaRepositorio extends JpaRepository<Alerta, UUID> {
     List<Alerta> activasDeEntidad(@Param("negocioId") UUID negocioId,
             @Param("tipoCodigo") String tipoCodigo, @Param("entidadTipo") String entidadTipo,
             @Param("entidadId") UUID entidadId);
+
+    /**
+     * El centro de alertas del usuario (HU-094 criterio 2): las alertas que le
+     * llegaron por alguna entrega, las nuevas primero y por severidad.
+     */
+    @Query("""
+            select a from Alerta a
+            where a.negocioId = :negocioId
+              and a.id in (select e.alertaId from Entrega e where e.usuarioId = :usuarioId)
+            order by
+              case a.estado when com.regenta.alertas.domain.EstadoAlerta.NUEVA then 0
+                            when com.regenta.alertas.domain.EstadoAlerta.VISTA then 1
+                            when com.regenta.alertas.domain.EstadoAlerta.EN_CURSO then 2
+                            else 3 end,
+              case a.severidad when com.regenta.alertas.domain.Severidad.CRITICA then 0
+                               when com.regenta.alertas.domain.Severidad.ALTA then 1
+                               when com.regenta.alertas.domain.Severidad.MEDIA then 2
+                               else 3 end,
+              a.generadaEn desc
+            """)
+    List<Alerta> delUsuario(@Param("negocioId") UUID negocioId,
+            @Param("usuarioId") UUID usuarioId);
 }
