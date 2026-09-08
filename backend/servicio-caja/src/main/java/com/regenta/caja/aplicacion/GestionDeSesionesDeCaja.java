@@ -19,6 +19,7 @@ import com.regenta.caja.infra.MovimientoDeCajaRepositorio;
 import com.regenta.caja.infra.SesionDeCajaRepositorio;
 import com.regenta.comun.errores.ConflictoDeEstadoException;
 import com.regenta.comun.errores.NoEncontradoException;
+import com.regenta.comun.errores.ReglaDeNegocioException;
 import com.regenta.comun.eventos.RegistroDeEventos;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.RequierePermiso;
@@ -43,15 +44,17 @@ public class GestionDeSesionesDeCaja {
     private final MovimientoDeCajaRepositorio movimientos;
     private final AsignadorDeConsecutivos consecutivos;
     private final RegistroDeEventos eventos;
+    private final GestionDeArqueo arqueo;
 
     public GestionDeSesionesDeCaja(SesionDeCajaRepositorio sesiones, CajaRepositorio cajas,
             MovimientoDeCajaRepositorio movimientos, AsignadorDeConsecutivos consecutivos,
-            RegistroDeEventos eventos) {
+            RegistroDeEventos eventos, GestionDeArqueo arqueo) {
         this.sesiones = sesiones;
         this.cajas = cajas;
         this.movimientos = movimientos;
         this.consecutivos = consecutivos;
         this.eventos = eventos;
+        this.arqueo = arqueo;
     }
 
     @Transactional(readOnly = true)
@@ -108,7 +111,15 @@ public class GestionDeSesionesDeCaja {
         SesionDeCaja sesion = delNegocio(sesionId);
 
         BigDecimal esperado = movimientos.efectivoEsperado(sesionId);
-        sesion.cerrar(ContextoDeNegocio.actual().usuario(), esperado, solicitud.montoDeclarado(),
+        BigDecimal declarado = solicitud.montoDeclarado();
+        if (declarado == null) {
+            declarado = arqueo.totalContadoDe(sesionId); // HU-062: sale del conteo por denominaciones
+        }
+        if (declarado == null) {
+            throw new ReglaDeNegocioException(
+                    "Declara el monto contado o guarda el arqueo por denominaciones antes de cerrar");
+        }
+        sesion.cerrar(ContextoDeNegocio.actual().usuario(), esperado, declarado,
                 esperado, limpiar(solicitud.observaciones()));
         sesiones.save(sesion);
         sesiones.flush(); // para leer la columna generada `diferencia`
