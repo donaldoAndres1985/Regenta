@@ -201,6 +201,8 @@ CREATE TABLE contingencias (
     facturas_afectadas INT NOT NULL DEFAULT 0,
     regularizada BOOLEAN   NOT NULL DEFAULT false
 );
+-- Solo una contingencia abierta por negocio a la vez.
+CREATE UNIQUE INDEX uq_contingencia_abierta ON contingencias (negocio_id) WHERE fin_en IS NULL;
 
 -- EVENTOS PUBLICADOS: factura_emitida, factura_aceptada, factura_rechazada,
 --                     nota_credito_emitida

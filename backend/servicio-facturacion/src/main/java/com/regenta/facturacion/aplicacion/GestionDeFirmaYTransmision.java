@@ -38,6 +38,8 @@ public class GestionDeFirmaYTransmision {
     private static final int DIAS_PARA_AVISAR_CERT = 30;
     private static final int MAX_INTENTOS = 8;
     private static final int LOTE_DEL_BARRIDO = 200;
+    /** Intentos sin acuse de una factura antes de abrir contingencia (HU-057). */
+    private static final int UMBRAL_CONTINGENCIA = 3;
 
     private final FacturaRepositorio facturas;
     private final CertificadoRepositorio certificados;
@@ -46,12 +48,14 @@ public class GestionDeFirmaYTransmision {
     private final AlmacenDeDocumentos almacen;
     private final ClienteDeLaDian dian;
     private final BovedaDeSecretos boveda;
+    private final GestionDeContingencia contingencia;
     private final RegistroDeEventos eventos;
 
     public GestionDeFirmaYTransmision(FacturaRepositorio facturas,
             CertificadoRepositorio certificados, TransmisionesLog transmisiones,
             FirmadorDeXml firmador, AlmacenDeDocumentos almacen, ClienteDeLaDian dian,
-            BovedaDeSecretos boveda, RegistroDeEventos eventos) {
+            BovedaDeSecretos boveda, GestionDeContingencia contingencia,
+            RegistroDeEventos eventos) {
         this.facturas = facturas;
         this.certificados = certificados;
         this.transmisiones = transmisiones;
@@ -59,6 +63,7 @@ public class GestionDeFirmaYTransmision {
         this.almacen = almacen;
         this.dian = dian;
         this.boveda = boveda;
+        this.contingencia = contingencia;
         this.eventos = eventos;
     }
 
@@ -99,6 +104,19 @@ public class GestionDeFirmaYTransmision {
                     "La factura " + factura.getNumeroCompleto() + " no está lista para transmitir");
         }
         UUID negocioId = factura.getNegocioId();
+
+        // Criterio 2: con contingencia abierta no se llama a la DIAN; la factura
+        // ya tiene CUFE, se entrega al cliente y se transmite al cerrarla.
+        if (contingencia.hayAbierta(negocioId)) {
+            if (!factura.enContingencia()) {
+                factura.marcarContingencia();
+                contingencia.contarFacturaAfectada(negocioId);
+                facturas.save(factura);
+            }
+            return new ResultadoDeTransmision(facturaId, factura.getEstado().name(), false, null,
+                    factura.getIntentosEnvio());
+        }
+
         byte[] xml = almacen.leer(factura.getXmlUrl());
         factura.registrarIntentoDeEnvio();
 
@@ -122,6 +140,10 @@ public class GestionDeFirmaYTransmision {
             // y el registro. La factura queda ENVIADA y el barrido la reintenta.
             transmisiones.registrar(negocioId, facturaId, EventoDeTransmision.ENVIO, null, null,
                     null, null, "SIN_RESPUESTA", noRespondio.getMessage(), null);
+            // Criterio 1: al superar el umbral de intentos sin acuse, contingencia.
+            if (factura.getIntentosEnvio() >= UMBRAL_CONTINGENCIA) {
+                contingencia.abrirSiHaceFalta(noRespondio.getMessage());
+            }
         }
 
         facturas.save(factura);
@@ -132,8 +154,10 @@ public class GestionDeFirmaYTransmision {
     }
 
     /**
-     * Criterio 4: reintenta las facturas que quedaron sin acuse. El backoff lo
-     * pone el {@code @Scheduled} (mismo diferido que el resto de barridos).
+     * Criterio 4 de HU-055 y criterio 3 de HU-057: reintenta —de la más antigua
+     * a la más nueva, «en orden»— las facturas sin acuse y las que quedaron en
+     * contingencia. El backoff lo pone el {@code @Scheduled} (mismo diferido que
+     * el resto de barridos).
      *
      * @return cuántas se reintentaron
      */
@@ -142,14 +166,27 @@ public class GestionDeFirmaYTransmision {
         List<Factura> pendientes = facturas
                 .findByNegocioIdOrderByFechaEmisionDesc(ContextoDeNegocio.negocioActual()).stream()
                 .filter(f -> (f.getEstado() == EstadoFactura.ENVIADA
-                        || f.getEstado() == EstadoFactura.RECHAZADA)
+                        || f.getEstado() == EstadoFactura.RECHAZADA
+                        || f.getEstado() == EstadoFactura.CONTINGENCIA)
                         && f.getIntentosEnvio() < MAX_INTENTOS)
+                .sorted(java.util.Comparator.comparing(Factura::getFechaEmision))
                 .limit(LOTE_DEL_BARRIDO)
                 .toList();
         for (Factura f : pendientes) {
             transmitir(f.getId());
         }
         return pendientes.size();
+    }
+
+    /**
+     * Criterio 3 de HU-057: cierra la contingencia y retransmite lo que quedó
+     * pendiente, en orden.
+     */
+    @Transactional
+    public ContingenciaDelNegocio cerrarContingenciaYRetransmitir(UUID contingenciaId) {
+        ContingenciaDelNegocio cerrada = contingencia.cerrar(contingenciaId);
+        reintentarPendientes();
+        return cerrada;
     }
 
     /** Criterio 5: avisa por cada certificado activo a menos de 30 días de vencer. */

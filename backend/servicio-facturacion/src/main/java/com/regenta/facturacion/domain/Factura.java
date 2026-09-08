@@ -345,9 +345,22 @@ public class Factura {
         this.estado = EstadoFactura.RECHAZADA;
     }
 
+    /**
+     * HU-057 criterio 2: se emitió durante una contingencia de la DIAN. Tiene
+     * CUFE (ya está firmada), así que se entrega al cliente; se transmitirá al
+     * cerrar la contingencia.
+     */
+    public void marcarContingencia() {
+        this.estado = EstadoFactura.CONTINGENCIA;
+    }
+
+    public boolean enContingencia() {
+        return estado == EstadoFactura.CONTINGENCIA;
+    }
+
     public boolean puedeTransmitirse() {
         return estado == EstadoFactura.FIRMADA || estado == EstadoFactura.ENVIADA
-                || estado == EstadoFactura.RECHAZADA;
+                || estado == EstadoFactura.RECHAZADA || estado == EstadoFactura.CONTINGENCIA;
     }
 
     private static BigDecimal escala(BigDecimal v) {
