@@ -12,7 +12,7 @@
 | Web | `design/pantallas/TarifasWeb.html` |
 | Paquete Flutter | `packages/recursos` |
 | Microservicio | `servicio-recursos` |
-| Tablas | `tarifas` · `politicas_cancelacion` · `reglas_disponibilidad` |
+| Tablas | `tarifas` · `servicios_adicionales` · `politicas_cancelacion` · `reglas_disponibilidad` |
 | Historias | HU-066 (Tarifas por temporada, día y franja con prioridad) · HU-068 (Servicios adicionales y políticas de cancelación) |
 
 Varias tarifas pueden aplicar a la misma noche. El campo prioridad resuelve el empate sin obligar al negocio a ordenarlas o borrarlas.
@@ -80,6 +80,34 @@ tipo o recurso de otro negocio se trata como inexistente.
 deja de entrar en cualquier cotización pero sigue visible en el listado marcada como inactiva.
 El listado ordena por `prioridad` descendente y luego por `nombre`.
 
+### R10 · El modo de cobro de un servicio adicional decide sus unidades (HU-068)
+**Dado** un servicio adicional con `modo_cobro`, **cuando** se cotiza para una reserva de
+`personas` y `noches`, **entonces** las unidades son: `POR_ESTANCIA` → 1, `POR_NOCHE` →
+`noches`, `POR_PERSONA` → `personas`, `POR_PERSONA_NOCHE` → `personas × noches` (2 personas y
+3 noches = 6), `POR_UNIDAD` → la cantidad que se pida. El subtotal es `precio × unidades` con
+escala de 4. El `codigo` del servicio es único por negocio (**409** si se repite).
+
+### R11 · Consumir un servicio enlazado a un producto descuenta inventario (HU-068)
+**Dado** un servicio adicional con `producto_id`, **cuando** se registra su consumo en una
+reserva, **entonces** se publica `servicio_adicional_consumido` (con `producto_id` y la
+cantidad = unidades cobradas) para que `servicio-inventario` descuente stock. Un servicio sin
+`producto_id` no publica nada: la respuesta trae `descuentaInventario = false`. El descuento
+real vive en inventario; aquí solo se emite la instrucción por el outbox.
+
+### R12 · Una política de cancelación define anticipo requerido y penalización (HU-068)
+**Dado** una política con `horas_antes`, `penalizacion_pct` y `anticipo_requerido_pct` (los
+dos como fracción: `0.25` = 25 %), **cuando** se aplica a una reserva de monto `M` que empieza
+en `entrada` y se cancela ahora, **entonces**: el anticipo requerido es `M × anticipo_requerido_pct`
+siempre; la penalización es `0` si faltan `horas_antes` o más para la `entrada` (límite
+inclusivo), y `M × penalizacion_pct` si se cancela más tarde. Un `pct` fuera de `0..1` o unas
+`horas_antes` negativas se rechazan (**422**).
+
+### R13 · Solo una política de cancelación es la de por defecto (HU-068)
+**Dado** varias políticas de un negocio, **cuando** se marca una como de por defecto (al
+crearla, al editarla o con la acción explícita), **entonces** se desmarca la que lo fuera
+antes: nunca hay dos. Aplicar sin indicar política usa la de por defecto; si el negocio no
+tiene ninguna, responde **404**. Desactivar una política le quita el `es_default`.
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
@@ -120,15 +148,19 @@ _Sin definir._
 <!-- Qué ve y qué puede hacer cada rol en esta pantalla, y qué pasa exactamente cuando no
 tiene el permiso: no se ve, se ve deshabilitado, o falla al intentar. -->
 
-Las tarifas son parte del catálogo del recurso, así que comparten permisos con él:
+Las tarifas, los servicios adicionales y las políticas de cancelación son parte del catálogo
+del recurso, así que comparten sus permisos:
 
-- `RECURSOS_RECURSO_VER` — listar y ver tarifas, y cotizar una estancia.
-- `RECURSOS_RECURSO_CREAR` — crear una tarifa nueva.
-- `RECURSOS_RECURSO_EDITAR` — editar o desactivar una tarifa.
+- `RECURSOS_RECURSO_VER` — listar y ver tarifas, servicios y políticas; cotizar una estancia o
+  un servicio; aplicar una política.
+- `RECURSOS_RECURSO_CREAR` — crear una tarifa, un servicio o una política.
+- `RECURSOS_RECURSO_EDITAR` — editar/desactivar tarifas, servicios y políticas; consumir un
+  servicio; marcar la política por defecto.
 
 Sin el permiso, la llamada falla en el backend con `403` aunque el cliente haya ocultado el
-botón. La cotización es solo lectura y no exige un permiso propio de reservas: la usa tanto el
-administrador que arma tarifas como el recepcionista que responde por teléfono.
+botón. La cotización y la aplicación de política son solo lectura y no exigen un permiso propio
+de reservas: las usa tanto el administrador que arma el catálogo como el recepcionista que
+responde por teléfono.
 
 ## Qué NO debe pasar
 
@@ -146,3 +178,8 @@ que más se olvida. -->
   otro negocio.
 - Que el cálculo del precio viva en el cliente Flutter: el cliente muestra el desglose que
   devuelve `POST /api/recursos/cotizaciones`, no lo recompone.
+- Que un servicio adicional descuente stock desde `servicio-recursos`: solo emite
+  `servicio_adicional_consumido`; el movimiento de inventario lo hace `servicio-inventario`.
+- Que queden dos políticas de cancelación con `es_default = true` en un negocio.
+- Que se pueda aplicar una política de otro negocio, o cobrar un servicio de otro negocio: se
+  buscan siempre con `find...AndNegocioId` y responden `404`.
