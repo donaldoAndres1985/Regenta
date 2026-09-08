@@ -13,7 +13,7 @@
 | Paquete Flutter | `packages/recursos` |
 | Microservicio | `servicio-recursos` |
 | Tablas | `recursos` · `tipos_recurso` · `atributos_tipo_recurso` · `tarifas` · `bloqueos_recurso` |
-| Historias | HU-064 (Tipos de recurso con atributos configurables) · HU-065 (Administrar recursos individuales) |
+| Historias | HU-064 (Tipos de recurso con atributos configurables) · HU-065 (Administrar recursos individuales) · HU-067 (Bloqueos de recurso por mantenimiento) |
 
 Espejo exacto de la ficha de producto: tipos_recurso + atributos_tipo_recurso hacen para un hotel lo que categorias + atributos_categoria hacen para una ferretería.
 
@@ -82,6 +82,28 @@ se borra en blando (`eliminado_en`, `activo = false`) y deja de listarse.
 un valor del tipo equivocado responde **422**; lo válido queda en el JSONB `recursos.atributos`.
 Editar el recurso revalida.
 
+### R11 · Un bloqueo saca al recurso de disponible en su periodo (HU-067)
+**Dado** un recurso, **cuando** creo un bloqueo `[desde, hasta)` con un `motivo`
+(`MANTENIMIENTO`/`LIMPIEZA`/`EVENTO`/`FERIADO`/`OTRO`), **entonces** una consulta de
+disponibilidad de ese recurso sobre un periodo que toca el bloqueo responde
+`disponible = false` y lista los bloqueos que lo pisan. Un periodo que solo comparte el
+instante límite con el bloqueo (`[hasta, …)` contra `[…, hasta)`) no cuenta como solape: el
+rango es medio abierto. El fin del bloqueo debe ser posterior al inicio, si no **422**.
+
+### R12 · Dos bloqueos del mismo recurso no se pueden solapar (HU-067)
+**Dado** un recurso con un bloqueo, **cuando** creo un segundo bloqueo que se solapa con él,
+**entonces** PostgreSQL lo rechaza por `EXCLUDE USING gist (recurso_id WITH =, periodo WITH &&)`
+y la API responde **409**. Dos bloqueos adyacentes (uno empieza justo donde el otro termina) sí
+se permiten. La garantía vive en la base, no en el servicio: el test inserta el caso prohibido
+y espera la violación de PostgreSQL.
+
+### R13 · Un bloqueo sobre reservas confirmadas se crea igual, pero se advierte (HU-067)
+**Dado** un periodo con reservas confirmadas del recurso, **cuando** creo un bloqueo que lo
+cubre, **entonces** el bloqueo queda creado y la respuesta lista las reservas afectadas
+(código, entrada, salida, huésped) para que el administrador las gestione. No se rechaza: un
+recurso en obra con huéspedes dentro es justamente lo que hay que hacer visible. El dato de las
+reservas lo aporta `servicio-reservas` (por REST cuando exista; hasta entonces, un stub).
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
@@ -119,11 +141,11 @@ _Sin definir._
 
 ## Permisos
 
-`RECURSOS_RECURSO_VER` para listar y consultar tipos, atributos y recursos;
-`RECURSOS_RECURSO_CREAR` para crear un tipo o un recurso; `RECURSOS_RECURSO_EDITAR` para editar
-el tipo/recurso, sus atributos, desactivar el tipo y cambiar el estado del recurso;
-`RECURSOS_RECURSO_ELIMINAR` para eliminar un recurso. Sin el permiso, **403**. Módulo
-`RECURSOS`, plan Básico o superior.
+`RECURSOS_RECURSO_VER` para listar y consultar tipos, atributos, recursos, tarifas, bloqueos y
+disponibilidad; `RECURSOS_RECURSO_CREAR` para crear un tipo o un recurso; `RECURSOS_RECURSO_EDITAR`
+para editar el tipo/recurso, sus atributos, desactivar el tipo, cambiar el estado del recurso y
+crear o levantar bloqueos; `RECURSOS_RECURSO_ELIMINAR` para eliminar un recurso. Sin el permiso,
+**403**. Módulo `RECURSOS`, plan Básico o superior.
 
 ## Qué NO debe pasar
 
@@ -133,3 +155,8 @@ el tipo/recurso, sus atributos, desactivar el tipo y cambiar el estado del recur
 - **No** guardar un recurso cuyos `atributos` no cumplen el contrato de su tipo — se valida en
   la aplicación porque PostgreSQL no comprueba la forma del JSONB.
 - **No** una `unidadTiempo` fuera de `MINUTO`/`HORA`/`NOCHE`/`DIA`/`SESION`.
+- **No** dos bloqueos del mismo recurso con periodos que se solapan — lo corta el `EXCLUDE`
+  de la base, no un `SELECT` previo del servicio.
+- **No** rechazar un bloqueo porque haya reservas confirmadas: se crea y se devuelven las
+  afectadas.
+- **No** un bloqueo con `hasta` anterior o igual a `desde`.
