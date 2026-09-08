@@ -31,6 +31,8 @@ Cuanto más aburrida y literal la frase, mejor test sale de ella. -->
 > R1–R5 son **HU-052** (`servicio-facturacion`, `/api/facturacion/resoluciones`).
 > R6–R9 son **HU-054** (`AsignadorDeConsecutivos`, sin endpoint propio: lo usa la emisión).
 > R10–R15 son **HU-053** (emisión desde eventos; consulta en `/api/facturacion/facturas`).
+> R16–R21 son **HU-055** (firma, transmisión, certificados). Los adaptadores de DIAN, KMS y
+> storage son *stubs* con puertos; la integración real es un follow-up.
 
 ### R1 · Cargar una resolución
 **Dado** que un administrador carga una resolución (`POST /api/facturacion/resoluciones` con
@@ -121,6 +123,43 @@ quedan en JSONB con los datos de ese momento. Si mañana cambian los datos del c
 `GET /api/facturacion/facturas` (listado) y `GET /api/facturacion/facturas/{id}` (detalle con
 líneas, impuestos y snapshots). Ambos exigen `FACTURACION_FACTURA_VER`.
 
+### R16 · Al firmar se calcula el CUFE y el XML va fuera de la base
+**Dada** una factura `GENERADA`, **cuando** se firma, **entonces** se calcula el CUFE, el XML
+firmado se guarda en un storage externo (`AlmacenDeDocumentos`) y en `facturas` quedan solo
+`cufe` y `xml_url`. La factura pasa a `FIRMADA`. La clave privada la lee `BovedaDeSecretos` de
+`certificados.referencia_kms`; nunca toca la base ni el repositorio. Firmar dos veces es
+idempotente. `factura_emitida` (HU-053) dispara firma + transmisión.
+
+### R17 · La transmisión queda registrada completa
+**Dada** la transmisión, **cuando** la DIAN responde, **entonces** se inserta una fila en
+`transmisiones` (`evento = ENVIO`) con el `request` y el `response` completos, el `http_status`
+y la duración. Es evidencia legal.
+
+### R18 · Un rechazo deja la factura RECHAZADA y alerta
+**Dado** un rechazo de la DIAN, **cuando** llega, **entonces** la factura queda `RECHAZADA`,
+`respuesta_dian` guarda `{codigo, mensaje}` y se publica `factura_rechazada` (con el
+`codigo_error`) para Alertas. Una aceptación deja la factura `ACEPTADA` con `aceptada_en` y
+publica `factura_aceptada`.
+
+### R19 · Un fallo de red no pierde la factura
+**Dado** que la DIAN no responde (`DianNoDisponibleException`), **cuando** ocurre, **entonces**
+la factura queda `ENVIADA` con `intentos_envio` + 1 y una fila en `transmisiones` con
+`codigo_error = SIN_RESPUESTA`; la excepción **no** se relanza (abortar la transacción borraría
+el intento y el registro). `reintentarPendientes()` la reintenta; el backoff lo pone el
+`@Scheduled` (diferido, como el resto de barridos), con tope de 8 intentos.
+
+### R20 · Certificado por vencer → alerta
+**Dado** un certificado `ACTIVO` cuya `vigente_hasta` cae dentro de los próximos 30 días,
+**cuando** corre `revisarCertificadosPorVencer()`, **entonces** se publica
+`certificado_por_vencer` (`negocio_id`, `certificado_id`, `alias`, `vigente_hasta`).
+
+### R21 · El certificado se guarda por referencia, nunca el archivo
+**Dado** el alta de un certificado (`POST /api/facturacion/certificados`), **entonces** solo se
+recibe y se guarda `referenciaKms` (la clave en el gestor de secretos) más los metadatos
+(alias, emisor, serie, vigencia). Sin `referenciaKms` es 422; `alias` repetido, 409. La tabla
+`certificados` no tiene columna para el `.p12`: es estructural. Exige
+`FACTURACION_RESOLUCION_EDITAR`.
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
@@ -180,3 +219,8 @@ que más se olvida. -->
 - **No** que `servicio-facturacion` consulte las tablas de Ventas, Reservas ni Comandas: todo
   llega por evento.
 - **No** que una factura emitida cambie porque se editó el cliente: el snapshot es inmutable.
+- **No** el `.p12` ni el XML firmado en la base: KMS y storage externo, en la base solo la
+  referencia y la URL.
+- **No** relanzar el fallo de red al transmitir: perdería el intento y el log; la factura queda
+  `ENVIADA` y se reintenta.
+- **No** editar ni borrar una factura emitida: se corrige con una nota crédito (HU-056).
