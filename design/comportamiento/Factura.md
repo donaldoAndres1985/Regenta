@@ -33,7 +33,7 @@ Cuanto más aburrida y literal la frase, mejor test sale de ella. -->
 > R10–R15 son **HU-053** (emisión desde eventos; consulta en `/api/facturacion/facturas`).
 > R16–R21 son **HU-055** (firma, transmisión, certificados). Los adaptadores de DIAN, KMS y
 > storage son *stubs* con puertos; la integración real es un follow-up.
-> R22–R25 son **HU-056** (notas crédito).
+> R22–R25 son **HU-056** (notas crédito). R26–R29 son **HU-057** (contingencia).
 
 ### R1 · Cargar una resolución
 **Dado** que un administrador carga una resolución (`POST /api/facturacion/resoluciones` con
@@ -187,6 +187,30 @@ de origen no existe).
 (`GET /api/facturacion/facturas/{id}`), **entonces** el detalle trae `notasCredito` con el
 número, el `codigo_nota`, el total y el estado de cada una.
 
+### R26 · La DIAN caída abre una contingencia
+**Dado** que una factura acumula {@code >= 3} intentos sin acuse
+(`DianNoDisponibleException`), **cuando** se supera ese umbral y no hay ya una contingencia
+abierta, **entonces** se abre una (`contingencias`, `fin_en IS NULL`) y se publica
+`contingencia_abierta`. Solo una abierta por negocio: índice parcial
+`uq_contingencia_abierta`.
+
+### R27 · Con contingencia abierta se factura en contingencia
+**Dada** una contingencia abierta, **cuando** se emite/transmite una factura, **entonces** NO
+se llama a la DIAN: la factura se firma (tiene CUFE, se entrega al cliente) y queda en estado
+`CONTINGENCIA`, y `contingencias.facturas_afectadas` sube 1. El contador se incrementa por SQL
+atómico (no hay columna `version`).
+
+### R28 · Al cerrar la contingencia se retransmite en orden
+**Dado** que la DIAN vuelve, **cuando** se cierra la contingencia
+(`POST /api/facturacion/contingencias/{id}/cierre`), **entonces** `fin_en` y `regularizada`
+quedan puestos y las facturas `CONTINGENCIA` (y las `ENVIADA` / `RECHAZADA` sin acuse) se
+retransmiten de la más antigua a la más nueva. Exige `FACTURACION_FACTURA_CREAR`.
+
+### R29 · La contingencia dice cuántas facturas afectó
+**Dada** una contingencia, **cuando** se consulta (`GET /api/facturacion/contingencias/{id}`),
+**entonces** trae `inicio_en`, `fin_en`, `motivo`, `facturas_afectadas`, `abierta` y
+`regularizada`. Exige `FACTURACION_FACTURA_VER`.
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
@@ -254,3 +278,6 @@ que más se olvida. -->
 - **No** una NC sin `factura_origen_id` (CHECK `ck_nota_referencia`), ni dos NC para la misma
   devolución (`uq_nota_credito_origen`).
 - **No** una NC de una factura que aún no está aceptada.
+- **No** dos contingencias abiertas a la vez por negocio (`uq_contingencia_abierta`).
+- **No** llamar a la DIAN mientras haya una contingencia abierta: se factura en contingencia y
+  se transmite al cerrarla.
