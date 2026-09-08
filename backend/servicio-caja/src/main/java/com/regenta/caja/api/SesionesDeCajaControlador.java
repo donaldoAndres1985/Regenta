@@ -14,12 +14,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import com.regenta.caja.aplicacion.GestionDeArqueo;
 import com.regenta.caja.aplicacion.GestionDeSesionesDeCaja;
 import com.regenta.caja.aplicacion.MovimientoDelNegocio;
 import com.regenta.caja.aplicacion.RegistroDeMovimientos;
+import com.regenta.caja.aplicacion.ResumenDeArqueo;
 import com.regenta.caja.aplicacion.SesionDelNegocio;
 import com.regenta.caja.aplicacion.SolicitudDeApertura;
+import com.regenta.caja.aplicacion.SolicitudDeArqueo;
 import com.regenta.caja.aplicacion.SolicitudDeCierre;
+
+import org.springframework.web.bind.annotation.PutMapping;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -34,11 +39,13 @@ public class SesionesDeCajaControlador {
 
     private final GestionDeSesionesDeCaja sesiones;
     private final RegistroDeMovimientos movimientos;
+    private final GestionDeArqueo arqueo;
 
     public SesionesDeCajaControlador(GestionDeSesionesDeCaja sesiones,
-            RegistroDeMovimientos movimientos) {
+            RegistroDeMovimientos movimientos, GestionDeArqueo arqueo) {
         this.sesiones = sesiones;
         this.movimientos = movimientos;
+        this.arqueo = arqueo;
     }
 
     @GetMapping("/activa")
@@ -66,6 +73,20 @@ public class SesionesDeCajaControlador {
     @Operation(summary = "Los movimientos de la sesión, en orden")
     public List<MovimientoDelNegocio> movimientos(@PathVariable UUID sesionId) {
         return movimientos.deLaSesion(sesionId);
+    }
+
+    @GetMapping("/{sesionId}/arqueo")
+    @Operation(summary = "El conteo por denominaciones de la sesión, con su total y diferencia")
+    public ResumenDeArqueo verArqueo(@PathVariable UUID sesionId) {
+        return arqueo.ver(sesionId);
+    }
+
+    @PutMapping("/{sesionId}/arqueo")
+    @Operation(summary = "Guarda el conteo por denominaciones; devuelve total y diferencia al momento")
+    @ApiResponse(responseCode = "409", description = "Denominación repetida")
+    public ResumenDeArqueo guardarArqueo(@PathVariable UUID sesionId,
+            @Valid @RequestBody SolicitudDeArqueo solicitud) {
+        return arqueo.guardar(sesionId, solicitud);
     }
 
     @PostMapping("/{sesionId}/cierre")

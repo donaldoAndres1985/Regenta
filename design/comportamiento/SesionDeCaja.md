@@ -10,7 +10,7 @@
 | Paquete Flutter | `packages/ventas` (pantalla pendiente) |
 | Microservicio | `servicio-caja` |
 | Tablas | `caja.cajas` · `sesiones_caja` · `movimientos_caja` · `caja.consecutivos` |
-| Historias | HU-059 (Abrir y cerrar sesión de caja) · HU-060 (Movimientos desde los tres patrones) · HU-061 (Ingresos, retiros y gastos) |
+| Historias | HU-059 (Abrir y cerrar sesión de caja) · HU-060 (Movimientos desde los tres patrones) · HU-061 (Ingresos, retiros y gastos) · HU-062 (Arqueo por denominaciones) |
 
 Apertura, arqueo y cierre. Caja no vive dentro de Ventas: en Comanda también recibe pagos de
 comandas y en Reserva anticipos. Plan Empresarial.
@@ -97,6 +97,23 @@ cajero, responde **422**. Bajo el umbral no se pide nada. El umbral se fija con 
 **Dado** una sesión abierta, **cuando** registro un ingreso (`POST
 /api/caja/sesiones/{id}/ingresos` con `monto`, `concepto`), **entonces** entra con `signo +1` y
 `EFECTIVO` — sube el `monto_esperado` (criterio 3). Sin `concepto`, **422**.
+
+### R15 · Arqueo por denominaciones: el total se calcula solo (HU-062)
+**Dado** una sesión abierta, **cuando** guardo el conteo (`PUT
+/api/caja/sesiones/{id}/arqueo` con `denominaciones: [{denominacion, tipo, cantidad}]`),
+**entonces** cada `subtotal` = `denominacion × cantidad` lo calcula la base (columna generada) y
+la respuesta trae `totalContado` (Σ subtotal), `montoEsperado` y `diferencia` = `totalContado −
+montoEsperado` (criterios 1 y 2) — sin cerrar nada. Guardar otra vez reemplaza el conteo, no lo
+acumula. En una sesión cerrada, **409**.
+
+### R16 · Una denominación no se repite (HU-062)
+**Dado** el conteo, **cuando** mando la misma `denominacion` dos veces, **entonces** responde
+**409** (criterio 3). `uq_denominacion (sesion_id, denominacion)` lo respalda en la base.
+
+### R17 · El cierre puede tomar el total del arqueo (HU-062)
+**Dado** un arqueo guardado, **cuando** cierro sin `montoDeclarado` explícito (`POST
+/{id}/cierre` con `montoDeclarado` nulo), **entonces** se usa el `totalContado` del arqueo como
+lo declarado (R3). Sin arqueo ni `montoDeclarado`, **422**.
 
 ## Qué NO debe pasar
 
