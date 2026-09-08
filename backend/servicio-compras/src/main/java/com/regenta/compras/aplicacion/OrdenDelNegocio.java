@@ -29,6 +29,7 @@ public record OrdenDelNegocio(
         List<LineaDeOrden> lineas) {
 
     public record LineaDeOrden(
+            UUID id,
             int linea,
             UUID productoId,
             String nombre,
@@ -42,7 +43,7 @@ public record OrdenDelNegocio(
             BigDecimal total) {
 
         static LineaDeOrden de(OrdenCompraLinea l) {
-            return new LineaDeOrden(l.getLinea(), l.getProductoId(), l.getNombreSnapshot(),
+            return new LineaDeOrden(l.getId(), l.getLinea(), l.getProductoId(), l.getNombreSnapshot(),
                     l.getCantidadPedida(), l.getCantidadRecibida(), l.faltante(),
                     l.getCostoUnitario(), l.getDescuentoPct(), l.getImpuestoPct(),
                     l.getSubtotal(), l.getTotal());

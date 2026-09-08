@@ -143,6 +143,11 @@ CREATE TABLE recepcion_lineas (
     registro_sanitario VARCHAR(60),
     series           TEXT[]
 );
+CREATE INDEX ix_recepciones_orden ON recepciones (negocio_id, orden_id) WHERE orden_id IS NOT NULL;
+CREATE INDEX ix_recepciones_negocio_fecha ON recepciones (negocio_id, fecha DESC);
+CREATE INDEX ix_recepcion_lineas_recepcion ON recepcion_lineas (recepcion_id);
+CREATE INDEX ix_recepcion_lineas_orden_linea ON recepcion_lineas (orden_linea_id)
+    WHERE orden_linea_id IS NOT NULL;
 
 CREATE TABLE cuentas_por_pagar (
     id             UUID PRIMARY KEY,
@@ -163,6 +168,7 @@ CREATE TABLE cuentas_por_pagar (
 );
 CREATE INDEX ix_cxp_vencimiento ON cuentas_por_pagar (negocio_id, fecha_vencimiento)
     WHERE estado IN ('PENDIENTE','PARCIAL','VENCIDA');
+CREATE INDEX ix_cxp_recepcion ON cuentas_por_pagar (recepcion_id) WHERE recepcion_id IS NOT NULL;
 
 CREATE TABLE pagos_proveedor (
     id          UUID PRIMARY KEY,
