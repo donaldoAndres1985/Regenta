@@ -10,16 +10,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.regenta.comun.errores.NoEncontradoException;
+import com.regenta.comun.errores.ReglaDeNegocioException;
 import com.regenta.comun.eventos.RegistroDeEventos;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.RequierePermiso;
 import com.regenta.facturacion.domain.EstadoFactura;
+import com.regenta.facturacion.domain.EventoDeTransmision;
 import com.regenta.facturacion.domain.Factura;
 import com.regenta.facturacion.domain.OrigenDeFactura;
 import com.regenta.facturacion.domain.TipoDocumento;
 import com.regenta.facturacion.infra.FacturaImpuestoRepositorio;
 import com.regenta.facturacion.infra.FacturaLineaRepositorio;
 import com.regenta.facturacion.infra.FacturaRepositorio;
+import com.regenta.facturacion.infra.TransmisionesLog;
 
 /**
  * Emisión y consulta de facturas. HU-053.
@@ -37,15 +40,19 @@ public class GestionDeFacturas {
     private final FacturaLineaRepositorio lineas;
     private final FacturaImpuestoRepositorio impuestos;
     private final AsignadorDeConsecutivos asignador;
+    private final TransmisionesLog transmisiones;
+    private final EnviadorDeCorreo correo;
     private final RegistroDeEventos eventos;
 
     public GestionDeFacturas(FacturaRepositorio facturas, FacturaLineaRepositorio lineas,
             FacturaImpuestoRepositorio impuestos, AsignadorDeConsecutivos asignador,
-            RegistroDeEventos eventos) {
+            TransmisionesLog transmisiones, EnviadorDeCorreo correo, RegistroDeEventos eventos) {
         this.facturas = facturas;
         this.lineas = lineas;
         this.impuestos = impuestos;
         this.asignador = asignador;
+        this.transmisiones = transmisiones;
+        this.correo = correo;
         this.eventos = eventos;
     }
 
@@ -116,6 +123,57 @@ public class GestionDeFacturas {
                 impuestos.findByFacturaId(facturaId),
                 facturas.findByNegocioIdAndFacturaOrigenIdOrderByFechaEmisionAsc(
                         negocioId, facturaId));
+    }
+
+    /**
+     * HU-058 criterio 2: manda la factura al cliente por correo con el PDF y el
+     * XML adjuntos. Solo una factura aceptada se envía. Sin correo se usa el del
+     * snapshot del cliente. Queda registrado en {@code transmisiones}.
+     */
+    @Transactional
+    @RequierePermiso("FACTURACION_FACTURA_VER")
+    public ResultadoDeEnvio enviarAlCliente(UUID facturaId, String correoPedido) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        Factura factura = facturas.findByIdAndNegocioId(facturaId, negocioId)
+                .orElseThrow(() -> new NoEncontradoException("Esa factura no existe"));
+        if (factura.getEstado() != EstadoFactura.ACEPTADA) {
+            throw new ReglaDeNegocioException(
+                    "Solo se envía al cliente una factura aceptada por la DIAN");
+        }
+        String destinatario = correoPedido != null && !correoPedido.isBlank()
+                ? correoPedido.trim() : correoDelSnapshot(factura);
+        if (destinatario == null) {
+            throw new ReglaDeNegocioException("No hay un correo para enviar la factura");
+        }
+        List<String> adjuntos = new java.util.ArrayList<>();
+        if (factura.getXmlUrl() != null) {
+            adjuntos.add(factura.getXmlUrl());
+        }
+        adjuntos.add("pdf:" + factura.getNumeroCompleto());   // el PDF se genera al vuelo
+
+        correo.enviar(negocioId, factura.getNumeroCompleto(), destinatario, adjuntos);
+        transmisiones.registrar(negocioId, facturaId, EventoDeTransmision.EMAIL_CLIENTE, destinatario,
+                null, null, null, null, "Factura enviada al cliente", null);
+        eventos.registrar(negocioId, "factura", facturaId, "factura_enviada_al_cliente",
+                envioPayload(negocioId, factura, destinatario, adjuntos));
+        return new ResultadoDeEnvio(true, destinatario, adjuntos);
+    }
+
+    private static String correoDelSnapshot(Factura f) {
+        Map<String, Object> c = f.getClienteSnapshot();
+        Object correo = c == null ? null : c.getOrDefault("email", c.get("correo"));
+        return correo == null ? null : correo.toString();
+    }
+
+    private static Map<String, Object> envioPayload(UUID negocioId, Factura f, String destinatario,
+            List<String> adjuntos) {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("negocio_id", negocioId.toString());
+        p.put("factura_id", f.getId().toString());
+        p.put("numero_completo", f.getNumeroCompleto());
+        p.put("destinatario", destinatario);
+        p.put("adjuntos", adjuntos);
+        return p;
     }
 
     private static Map<String, Object> emitida(UUID negocioId, Factura f) {
