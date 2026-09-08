@@ -34,6 +34,7 @@ Cuanto más aburrida y literal la frase, mejor test sale de ella. -->
 > R16–R21 son **HU-055** (firma, transmisión, certificados). Los adaptadores de DIAN, KMS y
 > storage son *stubs* con puertos; la integración real es un follow-up.
 > R22–R25 son **HU-056** (notas crédito). R26–R29 son **HU-057** (contingencia).
+> R30–R33 son **HU-058** (pantalla `packages/facturacion` + envío al cliente).
 
 ### R1 · Cargar una resolución
 **Dado** que un administrador carga una resolución (`POST /api/facturacion/resoluciones` con
@@ -211,6 +212,32 @@ retransmiten de la más antigua a la más nueva. Exige `FACTURACION_FACTURA_CREA
 **entonces** trae `inicio_en`, `fin_en`, `motivo`, `facturas_afectadas`, `abierta` y
 `regularizada`. Exige `FACTURACION_FACTURA_VER`.
 
+### R30 · La pantalla muestra la factura completa
+**Dada** una factura, **cuando** se abre `PantallaFactura` (`GET
+/api/facturacion/facturas/{id}` + `.../transmisiones`), **entonces** se ven emisor,
+adquiriente (con su documento), líneas (descripción, código, `cantidad × precio`, total),
+totales (subtotal, descuento, base gravable, cada impuesto, total), el CUFE, el QR y la
+trazabilidad. El emisor y el adquiriente salen del snapshot: no cambian aunque después editen
+al cliente.
+
+### R31 · El CUFE se ve completo y se copia
+**Dado** el celular, **cuando** abro la factura, **entonces** el CUFE se muestra entero
+(seleccionable) y hay un botón *Copiar CUFE* de 44 px que lo lleva al portapapeles. El QR se
+arma con el CUFE (`…/searchqr?documentkey=<CUFE>`); la imagen del QR queda para una iteración.
+
+### R32 · El rechazo se ve sin buscarlo
+**Dada** una factura `RECHAZADA`, **cuando** la abro, **entonces** justo bajo la cabecera hay
+un aviso rojo con el código y el mensaje del rechazo, y el chip de estado dice «Rechazada por
+la DIAN». El botón *Enviar* queda deshabilitado (solo se envía una aceptada).
+
+### R33 · Enviar al cliente
+**Dada** una factura **aceptada**, **cuando** toco *Enviar* (`POST
+/api/facturacion/facturas/{id}/envio-cliente`, cuerpo opcional `{correo}`), **entonces** el
+backend manda el correo con el XML y el PDF adjuntos, lo registra en `transmisiones`
+(`evento = EMAIL_CLIENTE`) y publica `factura_enviada_al_cliente`; la pantalla avisa a quién se
+envió. Sin `correo` se usa el del snapshot del cliente; si no hay ninguno, 422. El envío de
+SMTP real es un stub con puerto (`EnviadorDeCorreo`). Exige `FACTURACION_FACTURA_VER`.
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
@@ -244,7 +271,11 @@ _Sin definir._
 <!-- Dónde el comportamiento se separa: atajos de teclado, orden de tabulación, columnas que
 se ocultan en móvil, acciones que solo tienen sentido con teclado o solo con el dedo. -->
 
-_Sin definir._
+`PantallaFactura` (HU-058) es un solo widget con `LayoutBuilder` en `kBreakpointEscritorio`
+(900 px): móvil = una columna (`Key('factura-movil')`); escritorio = la misma tarjeta centrada
+con ancho máximo ~720 px (`Key('factura-escritorio')`). Objetivo de toque de 44 px en el botón
+*Copiar CUFE* y en *Enviar* / *Imprimir*. La barra de navegación inferior de `FacturaMovil.html`
+es presentacional (shell). *Imprimir* (generación del PDF) queda para el shell / una iteración.
 
 ## Permisos
 
@@ -281,3 +312,5 @@ que más se olvida. -->
 - **No** dos contingencias abiertas a la vez por negocio (`uq_contingencia_abierta`).
 - **No** llamar a la DIAN mientras haya una contingencia abierta: se factura en contingencia y
   se transmite al cerrarla.
+- **No** enviar al cliente una factura que no está aceptada por la DIAN.
+- **No** recortar el CUFE en la pantalla: se muestra entero y copiable.

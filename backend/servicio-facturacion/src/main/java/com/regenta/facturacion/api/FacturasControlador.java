@@ -5,12 +5,18 @@ import java.util.UUID;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.facturacion.aplicacion.FacturaDetalle;
 import com.regenta.facturacion.aplicacion.FacturaEmitida;
 import com.regenta.facturacion.aplicacion.GestionDeFacturas;
+import com.regenta.facturacion.aplicacion.ResultadoDeEnvio;
+import com.regenta.facturacion.aplicacion.SolicitudDeEnvio;
+
+import jakarta.validation.Valid;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -42,5 +48,14 @@ public class FacturasControlador {
     @ApiResponse(responseCode = "404", description = "No existe en este negocio")
     public FacturaDetalle ver(@PathVariable UUID facturaId) {
         return facturas.ver(facturaId);
+    }
+
+    @PostMapping("/{facturaId}/envio-cliente")
+    @Operation(summary = "Envía la factura aceptada al cliente por correo, con el PDF y el XML")
+    @ApiResponse(responseCode = "404", description = "No existe en este negocio")
+    @ApiResponse(responseCode = "422", description = "La factura no está aceptada, o no hay correo")
+    public ResultadoDeEnvio enviar(@PathVariable UUID facturaId,
+            @Valid @RequestBody(required = false) SolicitudDeEnvio solicitud) {
+        return facturas.enviarAlCliente(facturaId, solicitud == null ? null : solicitud.correo());
     }
 }

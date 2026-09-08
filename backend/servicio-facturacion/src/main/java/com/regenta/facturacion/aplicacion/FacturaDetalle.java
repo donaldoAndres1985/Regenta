@@ -35,6 +35,9 @@ public record FacturaDetalle(
         UUID clienteId,
         UUID facturaOrigenId,
         String codigoNota,
+        String cufe,
+        String codigoRechazo,
+        String mensajeRechazo,
         Map<String, Object> emisor,
         Map<String, Object> cliente,
         List<LineaDeFactura> lineas,
@@ -43,14 +46,23 @@ public record FacturaDetalle(
 
     static FacturaDetalle de(Factura f, List<FacturaLinea> lineas, List<FacturaImpuesto> impuestos,
             List<Factura> notasCredito) {
+        Map<String, Object> dian = f.getRespuestaDian();
+        boolean rechazada = f.getEstado() == com.regenta.facturacion.domain.EstadoFactura.RECHAZADA;
+        String codigoRechazo = rechazada && dian != null ? texto(dian.get("codigo")) : null;
+        String mensajeRechazo = rechazada && dian != null ? texto(dian.get("mensaje")) : null;
         return new FacturaDetalle(f.getId(), f.getNumeroCompleto(), f.getTipoDocumento().name(),
                 f.getOrigenTipo().name(), f.getOrigenId(), f.getEstado().name(), f.getFechaEmision(),
                 f.getMoneda(), f.getSubtotal(), f.getDescuentoTotal(), f.getBaseGravable(),
                 f.getImpuestosTotal(), f.getRetencionesTotal(), f.getPropina(), f.getTotal(),
                 f.getFormaPago().name(), f.getClienteId(), f.getFacturaOrigenId(), f.getCodigoNota(),
+                f.getCufe(), codigoRechazo, mensajeRechazo,
                 f.getEmisorSnapshot(), f.getClienteSnapshot(),
                 lineas.stream().map(LineaDeFactura::de).toList(),
                 impuestos.stream().map(ImpuestoDeFactura::de).toList(),
                 notasCredito.stream().map(NotaCreditoEnlazada::de).toList());
+    }
+
+    private static String texto(Object v) {
+        return v == null ? null : v.toString();
     }
 }
