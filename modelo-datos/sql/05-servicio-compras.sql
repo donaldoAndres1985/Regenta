@@ -169,6 +169,7 @@ CREATE TABLE cuentas_por_pagar (
 CREATE INDEX ix_cxp_vencimiento ON cuentas_por_pagar (negocio_id, fecha_vencimiento)
     WHERE estado IN ('PENDIENTE','PARCIAL','VENCIDA');
 CREATE INDEX ix_cxp_recepcion ON cuentas_por_pagar (recepcion_id) WHERE recepcion_id IS NOT NULL;
+CREATE INDEX ix_cxp_proveedor ON cuentas_por_pagar (negocio_id, proveedor_id);
 
 CREATE TABLE pagos_proveedor (
     id          UUID PRIMARY KEY,
@@ -182,6 +183,7 @@ CREATE TABLE pagos_proveedor (
     usuario_id  UUID,
     creado_en   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX ix_pagos_cuenta ON pagos_proveedor (cuenta_id);
 
 -- EVENTOS PUBLICADOS: recepcion_registrada (Inventario da entrada),
 --                     orden_compra_aprobada, cuenta_por_pagar_creada
