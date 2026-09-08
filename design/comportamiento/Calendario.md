@@ -28,7 +28,34 @@ venta, la línea queda con el fondo de error y el botón *Cobrar* se deshabilita
 
 Cuanto más aburrida y literal la frase, mejor test sale de ella. -->
 
-_Sin definir._
+### R1 · Un recurso con una reserva que ocupa el periodo no aparece libre (HU-069)
+**Dado** un periodo `[desde, hasta)`, **cuando** se consulta la disponibilidad, **entonces** se
+excluye todo recurso que tenga una reserva en estado `PENDIENTE`, `CONFIRMADA` o `CHECK_IN`
+cuyo tramo (con el buffer de su tipo) pise el periodo, y todo recurso con un bloqueo que lo
+pise. Cada recurso excluido vuelve con su `motivo`: `RESERVA` o `BLOQUEO`.
+
+### R2 · Una reserva `CANCELADA` o `NO_SHOW` deja el recurso libre (HU-069)
+**Dado** un recurso con una reserva `CANCELADA`, `NO_SHOW`, `CHECK_OUT` o `EXPIRADA` que se
+solapa con el periodo, **cuando** se consulta, **entonces** el recurso aparece libre: esos
+estados no ocupan. Son los mismos que excluye el `EXCLUDE USING gist` de la tabla.
+
+### R3 · Un check-out libera el recurso desde la hora del check-out (HU-069)
+**Dado** una reserva que termina a las 11:00 y un tipo de recurso sin buffer de limpieza,
+**cuando** se consulta la disponibilidad desde las 11:00 del mismo día, **entonces** el recurso
+aparece libre. El periodo es medio abierto: `[…, 11:00)` no se solapa con `[11:00, …)`. Lo
+mismo vale para dos reservas donde una empieza justo cuando la otra termina.
+
+### R4 · El buffer de limpieza del tipo se respeta (HU-069)
+**Dado** un tipo de recurso con `buffer_despues_min = 120`, **cuando** se consulta desde la
+hora del check-out, **entonces** el recurso sigue ocupado durante esas dos horas y recién
+después aparece libre. El `buffer_antes_min` adelanta la ocupación antes del check-in de la
+misma forma.
+
+### R5 · La consulta de un mes sobre un catálogo grande responde rápido (HU-069)
+**Dado** un negocio con ~200 recursos y varios meses de reservas, **cuando** se consulta la
+disponibilidad de un mes, **entonces** responde en menos de 500 ms. La consulta a
+`reservas.reservas` se apoya en el índice GiST sobre `periodo` y en el filtro por `negocio_id`
+de la RLS.
 
 ## Al abrir
 
@@ -70,11 +97,19 @@ _Sin definir._
 <!-- Qué ve y qué puede hacer cada rol en esta pantalla, y qué pasa exactamente cuando no
 tiene el permiso: no se ve, se ve deshabilitado, o falla al intentar. -->
 
-_Sin definir._
+`RESERVAS_RESERVA_VER` para consultar disponibilidad. Sin el permiso, la llamada falla en el
+backend con `403`. Módulo `RESERVAS`, patrón Reserva, plan Básico o superior.
 
 ## Qué NO debe pasar
 
 <!-- Los casos que hay que impedir a propósito. Esta sección es la que más bugs evita y la
 que más se olvida. -->
 
-_Sin definir._
+- Que `servicio-reservas` consulte la base de `servicio-recursos`: el catálogo de recursos y
+  los bloqueos llegan por un puerto (`CatalogoDeRecursos`). Hoy es un stub; la integración real
+  (REST o réplica por eventos) es un pendiente.
+- Que una consulta con un periodo de fin anterior o igual al inicio pase: responde `422`.
+- Que la disponibilidad mezcle reservas de dos negocios: la consulta a `reservas.reservas` va
+  con RLS y filtra por `negocio_id`.
+- Que una reserva sin `recurso_id` asignado (solo cupo de tipo) excluya un recurso concreto —
+  esas se gestionan por cupo, no por recurso.
