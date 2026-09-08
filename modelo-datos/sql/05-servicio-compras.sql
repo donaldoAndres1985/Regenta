@@ -97,6 +97,19 @@ CREATE TABLE orden_compra_lineas (
     CONSTRAINT ck_recibida_oc CHECK (cantidad_recibida <= cantidad_pedida * 1.05) -- tolerancia 5%
 );
 
+-- Consecutivo por negocio para el `numero` de la orden (HU-047). Como en ventas:
+-- no un BIGSERIAL —dejaria huecos ante un rollback—, sino un
+-- INSERT ... ON CONFLICT ... RETURNING que bloquea la fila hasta el commit.
+CREATE TABLE consecutivos (
+    negocio_id  UUID        NOT NULL,
+    sucursal_id UUID,
+    tipo        VARCHAR(20) NOT NULL,   -- 'ORDEN_COMPRA','RECEPCION'
+    prefijo     VARCHAR(10) NOT NULL DEFAULT '',
+    siguiente   BIGINT      NOT NULL DEFAULT 1,
+    sucursal_key UUID GENERATED ALWAYS AS (COALESCE(sucursal_id,'00000000-0000-0000-0000-000000000000'::uuid)) STORED,
+    PRIMARY KEY (negocio_id, sucursal_key, tipo)
+);
+
 CREATE TABLE recepciones (
     id            UUID PRIMARY KEY,
     negocio_id    UUID        NOT NULL,
