@@ -7,6 +7,10 @@ library;
 export 'package:go_router/go_router.dart';
 
 export 'src/adaptativa/area_de_toque.dart';
+export 'src/alertas/alerta_vista.dart';
+export 'src/alertas/controlador_de_alertas.dart';
+export 'src/alertas/repositorio_de_alertas.dart';
+export 'src/alertas/widgets_de_alertas.dart';
 export 'src/adaptativa/composicion_adaptativa.dart';
 export 'src/adaptativa/forma_de_pantalla.dart';
 export 'src/http/cliente_http.dart';
