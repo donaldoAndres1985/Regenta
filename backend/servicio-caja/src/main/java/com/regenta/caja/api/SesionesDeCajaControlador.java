@@ -12,7 +12,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 import com.regenta.caja.aplicacion.GestionDeSesionesDeCaja;
+import com.regenta.caja.aplicacion.MovimientoDelNegocio;
+import com.regenta.caja.aplicacion.RegistroDeMovimientos;
 import com.regenta.caja.aplicacion.SesionDelNegocio;
 import com.regenta.caja.aplicacion.SolicitudDeApertura;
 import com.regenta.caja.aplicacion.SolicitudDeCierre;
@@ -29,9 +33,12 @@ import jakarta.validation.Valid;
 public class SesionesDeCajaControlador {
 
     private final GestionDeSesionesDeCaja sesiones;
+    private final RegistroDeMovimientos movimientos;
 
-    public SesionesDeCajaControlador(GestionDeSesionesDeCaja sesiones) {
+    public SesionesDeCajaControlador(GestionDeSesionesDeCaja sesiones,
+            RegistroDeMovimientos movimientos) {
         this.sesiones = sesiones;
+        this.movimientos = movimientos;
     }
 
     @GetMapping("/activa")
@@ -53,6 +60,12 @@ public class SesionesDeCajaControlador {
     @ApiResponse(responseCode = "409", description = "La caja ya tiene una sesión abierta")
     public SesionDelNegocio abrir(@Valid @RequestBody SolicitudDeApertura solicitud) {
         return sesiones.abrir(solicitud);
+    }
+
+    @GetMapping("/{sesionId}/movimientos")
+    @Operation(summary = "Los movimientos de la sesión, en orden")
+    public List<MovimientoDelNegocio> movimientos(@PathVariable UUID sesionId) {
+        return movimientos.deLaSesion(sesionId);
     }
 
     @PostMapping("/{sesionId}/cierre")
