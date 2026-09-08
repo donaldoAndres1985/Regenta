@@ -76,11 +76,31 @@ y el listado por antigüedad son HU-049.
 **Dado** una recepción de un negocio, **cuando** otro negocio consulta, **entonces** no la ve:
 la RLS de `recepciones` y `recepcion_lineas` lo corta aunque falte el `WHERE`.
 
+### R10 · Móvil: una línea a la vez, campos grandes (HU-051)
+**Dado** el celular (`< 900 px`), **cuando** abro la orden, **entonces** veo una línea a la vez
+con su nombre, su código, la cantidad pedida y un campo **Recibido** de al menos 44 px de alto,
+con teclado numérico; el **Costo** viene de la orden y es de solo lectura. Botones *anterior* /
+*siguiente* (44 px) mueven el foco entre líneas. En escritorio (`≥ 900 px`) es la misma
+pantalla pero con todas las líneas en una tabla (`Key('recepcion-escritorio')`); en móvil,
+`Key('recepcion-movil')`.
+
+### R11 · Móvil: los campos de lote aparecen solo en la línea que los exige (HU-051)
+**Dado** que llego a una línea con `exigeLote`, **cuando** la veo, **entonces** aparecen los
+campos **Lote** y **Vence** (fecha), con la nota "el lote se captura aquí". En una línea que no
+maneja lotes, esos campos no se dibujan (criterio 2). Recibir de más (> pedido restante + 5%) o
+dejar el lote incompleto pinta el aviso en rojo y deshabilita *Confirmar recepción*.
+
+### R12 · Móvil: escanear salta a la línea (HU-051)
+**Dado** que escaneo el código de un producto (o lo tecleo en el diálogo de respaldo, porque en
+la web no hay cámara), **cuando** se lee, **entonces** la pantalla salta a esa línea de la
+orden — se compara contra el `codigo`, el `productoId` o el nombre. Un código que no está en la
+orden pinta "Ningún renglón tiene el código «X»" y no mueve el foco (criterio 3).
+
 ## Al abrir
 
-_HU-051 (pantalla móvil)._ Se abre desde una orden `APROBADA`/`ENVIADA`/`PARCIAL`: se cargan
-sus líneas con la cantidad pedida y el foco va al primer campo de cantidad recibida. La bodega
-por defecto es la de destino de la orden.
+Se abre desde una orden `APROBADA`/`ENVIADA`/`PARCIAL`: se cargan sus líneas con la cantidad
+pedida y el foco va a la primera línea (campo *Recibido*). La bodega por defecto es la de
+destino de la orden. Mientras carga, un spinner; si la orden no carga, el mensaje del error.
 
 ## Validaciones
 
@@ -92,19 +112,23 @@ por defecto es la de destino de la orden.
 
 ## Estados vacíos y de error
 
-_HU-051._ Sin recepciones previas de la orden, la pantalla muestra las líneas de la orden con
-recibida en blanco. Error del servicio al confirmar: se mantiene el borrador y se reintenta.
+Sin nada capturado todavía, *Confirmar recepción* está deshabilitado. Error del servicio al
+confirmar: se mantiene lo capturado y se muestra el mensaje; se puede reintentar.
 
 ## Sin conexión
 
-_HU-051._ La recepción se arma y se guarda local; se encola y sube al recuperar señal. Hasta
-que suba, la orden no cambia de estado.
+Al confirmar sin señal (`ErrorDeRed`), el `POST /api/compras/recepciones` se encola en la
+`ColaDeSalida` del núcleo y el botón pasa a "Guardada sin señal" con el aviso "la recepción se
+guardó y subirá sola cuando vuelva" (criterio 4). La confirmación (`/{id}/confirmacion`) y el
+cambio de estado de la orden quedan pendientes hasta que la cola suba — cola real (Drift +
+workmanager) en HU-110/HU-111.
 
 ## Móvil y web
 
-Web (`RecepcionWeb.html`): tabla con todas las líneas, atajo de teclado para saltar de campo.
-Móvil (`RecepcionMovil.html`, HU-051): una línea a la vez, campos grandes, teclado numérico
-para cantidad/lote/vencimiento, escaneo para saltar a la línea.
+Web (`RecepcionWeb.html`): tabla con todas las líneas (`Key('recepcion-escritorio')`). Móvil
+(`RecepcionMovil.html`): una línea a la vez (`Key('recepcion-movil')`), campos grandes, teclado
+numérico para cantidad/lote/vencimiento, botón de escaneo para saltar a la línea. Es **un solo
+widget** que se corta con `LayoutBuilder` en `kBreakpointEscritorio` (900).
 
 ## Permisos
 
