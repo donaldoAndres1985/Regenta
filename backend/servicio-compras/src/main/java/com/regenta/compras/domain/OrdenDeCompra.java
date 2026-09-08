@@ -176,6 +176,26 @@ public class OrdenDeCompra {
         this.aprobadoEn = OffsetDateTime.now();
     }
 
+    /** Una recepción solo entra contra una orden ya comprometida y no cerrada. */
+    public void exigirRecibible() {
+        if (estado != EstadoOrdenCompra.APROBADA && estado != EstadoOrdenCompra.ENVIADA
+                && estado != EstadoOrdenCompra.PARCIAL) {
+            throw new ConflictoDeEstadoException(
+                    "No se recibe mercancía de una orden en estado " + estado);
+        }
+    }
+
+    /**
+     * Recalcula el estado después de una recepción (HU-048 criterio 5): si todas
+     * las líneas llegaron completas queda {@code RECIBIDA}; si llegó algo pero
+     * falta, {@code PARCIAL} y admite otra recepción.
+     */
+    public void registrarAvanceDeRecepcion(List<OrdenCompraLinea> lineas) {
+        exigirRecibible();
+        boolean todasCompletas = lineas.stream().allMatch(OrdenCompraLinea::estaCompleta);
+        this.estado = todasCompletas ? EstadoOrdenCompra.RECIBIDA : EstadoOrdenCompra.PARCIAL;
+    }
+
     /** Enviar al proveedor: solo después de aprobada. */
     public void enviar() {
         if (estado != EstadoOrdenCompra.APROBADA) {

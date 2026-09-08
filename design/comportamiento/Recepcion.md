@@ -10,71 +10,112 @@
 | Patrón | Venta directa |
 | Móvil | `design/pantallas/RecepcionMovil.html` |
 | Web | `design/pantallas/RecepcionWeb.html` |
-| Paquete Flutter | `packages/compras` |
+| Paquete Flutter | `packages/compras` (pendiente — la pantalla es HU-051) |
 | Microservicio | `servicio-compras` |
-| Tablas | `compras.ordenes_compra` · `recepciones` · `recepcion_lineas` · `inventario.lotes` · `cuentas_por_pagar` |
+| Tablas | `compras.ordenes_compra` · `recepciones` · `recepcion_lineas` · `cuentas_por_pagar` · `compras.consecutivos` · `inventario.lotes` (vía evento) |
 | Historias | HU-048 (Recepción de mercancía con captura de lotes) · HU-051 (Recepción desde el celular en la bodega) |
 
-El lote y el vencimiento se capturan al recibir, no en la ficha del producto: el mismo medicamento entra con lotes distintos cada semana.
+El lote y el vencimiento se capturan al recibir, no en la ficha del producto: el mismo
+medicamento entra con lotes distintos cada semana.
 
 ## Reglas
 
-<!-- Una regla por bloque. Formato:
+### R1 · La recepción nace en borrador contra una orden recibible
+**Dado** una orden en `APROBADA`, `ENVIADA` o `PARCIAL`, **cuando** creo una recepción (`POST
+/api/compras/recepciones` con `ordenId` y `lineas`), **entonces** queda en estado `BORRADOR`
+con un `numero` `REC-N` corrido por negocio (tabla `consecutivos`, tipo `RECEPCION`). Crear una
+recepción contra una orden en `BORRADOR`, `RECIBIDA`, `CERRADA` o `ANULADA` responde **409**.
 
-### R1 · Título corto de la regla
-**Dado** un producto con stock 0, **cuando** lo escaneo, **entonces** se agrega igual a la
-venta, la línea queda con el fondo de error y el botón *Cobrar* se deshabilita con el texto
-"Hay líneas sin stock". Al quitar la línea, el botón se rehabilita.
+### R2 · El lote se captura por línea, solo donde la categoría lo exige
+**Dado** una línea cuyo producto exige lote (`exigeLote = true`, que el cliente trae de la
+config de categorías de inventario, HU-031), **cuando** la recibo sin `codigoLote` o sin
+`fechaVencimiento`, **entonces** responde **422** (criterio 1). **Dado** una línea que no
+maneja lotes (`exigeLote = false`), **cuando** mando `codigoLote`/`fechaVencimiento` igual,
+**entonces** se ignoran: la fila de `recepcion_lineas` queda con esos campos en `NULL`
+(criterio 2). El `registro_sanitario` sigue la misma regla que el lote.
 
-Cuanto más aburrida y literal la frase, mejor test sale de ella. -->
+### R3 · El costo de la línea recibida se puede omitir
+**Dado** una línea de recepción sin `costoUnitario`, **cuando** la creo, **entonces** toma el
+`costo_unitario` de la línea de la orden. El `total` de la recepción es la suma de
+`cantidad × costo_unitario` de sus líneas (escala 4).
 
-_Sin definir._
+### R4 · Confirmar sube lo recibido de cada línea de la orden
+**Dado** una recepción en `BORRADOR`, **cuando** la confirmo (`POST
+/api/compras/recepciones/{id}/confirmacion`), **entonces** por cada línea se suma la cantidad a
+`orden_compra_lineas.cantidad_recibida`. Confirmar una recepción que ya no está en `BORRADOR`
+responde **409**.
+
+### R5 · No se recibe más de lo pedido + 5%
+**Dado** que la cantidad recibida acumulada de una línea superaría lo pedido más el 5% de
+tolerancia, **cuando** confirmo la recepción, **entonces** responde **422** y no se aplica nada
+(criterio 4). La misma garantía vive en la base: el CHECK `ck_recibida_oc` sobre
+`orden_compra_lineas` rechaza el `UPDATE`.
+
+### R6 · Recepción parcial deja la orden en PARCIAL y admite otra
+**Dado** que después de confirmar quedan líneas de la orden sin completar, **cuando** confirmo,
+**entonces** la orden pasa a `PARCIAL` y admite otra recepción (criterio 5). **Dado** que todas
+las líneas quedaron completas (recibida ≥ pedida), **cuando** confirmo, **entonces** la orden
+pasa a `RECIBIDA`.
+
+### R7 · Confirmar publica `recepcion_registrada`
+**Dado** una recepción confirmada, **cuando** se publica `recepcion_registrada` por el outbox,
+**entonces** el evento lleva `negocio_id`, `recepcion_id`, `orden_id`, `proveedor_id`,
+`bodega_id`, `numero` y las `lineas` con `producto_id`, `cantidad`, `costo_unitario`,
+`codigo_lote`, `fecha_vencimiento` y `registro_sanitario`. Inventario lo consume para dar
+entrada y recalcular el costo promedio ponderado (criterio 3, lado de `servicio-inventario`).
+
+### R8 · Con factura del proveedor se abre la cuenta por pagar
+**Dado** una recepción con `facturaProveedor` (en el `crear` o en el `confirmacion`) y `total`
+mayor que cero, **cuando** la confirmo, **entonces** se crea una fila en `cuentas_por_pagar`
+con `monto` = `saldo` = total de la recepción, `fecha_emision` = hoy y `fecha_vencimiento` =
+`fecha_emision + dias_credito` del proveedor (criterio 6). Sin factura, no se abre cuenta. Un
+`numero_factura` repetido para el mismo proveedor responde **409** (índice `uq_cxp`). Los pagos
+y el listado por antigüedad son HU-049.
+
+### R9 · Aislamiento por negocio
+**Dado** una recepción de un negocio, **cuando** otro negocio consulta, **entonces** no la ve:
+la RLS de `recepciones` y `recepcion_lineas` lo corta aunque falte el `WHERE`.
 
 ## Al abrir
 
-<!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
-recuerda de la última vez (filtros, sucursal, orden de la tabla). -->
-
-_Sin definir._
+_HU-051 (pantalla móvil)._ Se abre desde una orden `APROBADA`/`ENVIADA`/`PARCIAL`: se cargan
+sus líneas con la cantidad pedida y el foco va al primer campo de cantidad recibida. La bodega
+por defecto es la de destino de la orden.
 
 ## Validaciones
 
-<!-- Campo por campo: qué se rechaza, con qué mensaje exacto, y cuándo se valida — al
-escribir, al salir del campo o al enviar. -->
-
-_Sin definir._
+- `cantidad` de cada línea: mayor que cero; si supera lo pedido acumulado + 5%, se rechaza al
+  **confirmar** con "La línea N recibe X y lo pedido con tolerancia es Y".
+- `codigoLote` + `fechaVencimiento`: obligatorios al **crear** si la línea `exigeLote`; el
+  mensaje es "El producto exige lote y fecha de vencimiento al recibirlo".
+- `ordenLineaId`: debe pertenecer a la orden de la recepción; si no, **404**.
 
 ## Estados vacíos y de error
 
-<!-- Qué se ve cuando no hay datos todavía, cuando la búsqueda no encuentra nada, y cuando
-el servicio responde con error. Los tres son distintos. -->
-
-_Sin definir._
+_HU-051._ Sin recepciones previas de la orden, la pantalla muestra las líneas de la orden con
+recibida en blanco. Error del servicio al confirmar: se mantiene el borrador y se reintenta.
 
 ## Sin conexión
 
-<!-- Qué se puede seguir haciendo, qué se encola para sincronizar después, qué se bloquea, y
-cómo se entera la persona de en cuál de los tres está. -->
-
-_Sin definir._
+_HU-051._ La recepción se arma y se guarda local; se encola y sube al recuperar señal. Hasta
+que suba, la orden no cambia de estado.
 
 ## Móvil y web
 
-<!-- Dónde el comportamiento se separa: atajos de teclado, orden de tabulación, columnas que
-se ocultan en móvil, acciones que solo tienen sentido con teclado o solo con el dedo. -->
-
-_Sin definir._
+Web (`RecepcionWeb.html`): tabla con todas las líneas, atajo de teclado para saltar de campo.
+Móvil (`RecepcionMovil.html`, HU-051): una línea a la vez, campos grandes, teclado numérico
+para cantidad/lote/vencimiento, escaneo para saltar a la línea.
 
 ## Permisos
 
-<!-- Qué ve y qué puede hacer cada rol en esta pantalla, y qué pasa exactamente cuando no
-tiene el permiso: no se ve, se ve deshabilitado, o falla al intentar. -->
-
-_Sin definir._
+`COMPRAS_COMPRA_VER` para consultar recepciones; `COMPRAS_COMPRA_CREAR` para crear y confirmar.
+Sin el permiso, **403**. Módulo `COMPRAS`, plan Profesional o superior.
 
 ## Qué NO debe pasar
 
-<!-- Los casos que hay que impedir a propósito. Esta sección es la que más bugs evita y la
-que más se olvida. -->
-
-_Sin definir._
+- **No** recibir contra una orden que no está `APROBADA`/`ENVIADA`/`PARCIAL`.
+- **No** guardar lote/vencimiento de un producto que no los maneja.
+- **No** recibir más de lo pedido + 5% — ni por la API ni por un `UPDATE` directo.
+- **No** confirmar dos veces la misma recepción.
+- **No** abrir dos cuentas por pagar con la misma factura del mismo proveedor.
+- **No** confiar en la validación de Java para la tolerancia: `ck_recibida_oc` la garantiza.

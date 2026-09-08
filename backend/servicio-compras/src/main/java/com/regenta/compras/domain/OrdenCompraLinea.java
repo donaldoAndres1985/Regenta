@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.UUID;
 
+import com.regenta.comun.errores.ReglaDeNegocioException;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -111,10 +113,41 @@ public class OrdenCompraLinea {
         return total.subtract(subtotal);
     }
 
-    /** Criterio 4: lo pedido menos lo recibido. Nunca negativo. */
+    /** Criterio 4 de HU-047: lo pedido menos lo recibido. Nunca negativo. */
     public BigDecimal faltante() {
         BigDecimal falta = cantidadPedida.subtract(cantidadRecibida);
         return falta.signum() < 0 ? BigDecimal.ZERO : falta;
+    }
+
+    /** El máximo que se puede recibir de esta línea: lo pedido + 5% de tolerancia. */
+    public BigDecimal topeConTolerancia() {
+        return cantidadPedida.multiply(new BigDecimal("1.05"));
+    }
+
+    /**
+     * Suma lo recibido en una recepción (HU-048). Recibir por encima de lo
+     * pedido más el 5% se rechaza — 422 (criterio 4); el CHECK
+     * {@code ck_recibida_oc} lo vuelve a cortar en la base.
+     */
+    public void recibir(BigDecimal cantidad) {
+        if (cantidad == null || cantidad.signum() <= 0) {
+            throw new ReglaDeNegocioException("La cantidad recibida debe ser mayor que cero");
+        }
+        BigDecimal acumulada = cantidadRecibida.add(cantidad);
+        if (acumulada.compareTo(topeConTolerancia()) > 0) {
+            throw new ReglaDeNegocioException("La línea " + linea + " recibe " + acumulada
+                    + " y lo pedido con tolerancia es " + topeConTolerancia());
+        }
+        this.cantidadRecibida = acumulada;
+    }
+
+    /** Recibida al menos toda la cantidad pedida (sin exigir la tolerancia). */
+    public boolean estaCompleta() {
+        return cantidadRecibida.compareTo(cantidadPedida) >= 0;
+    }
+
+    public boolean tieneRecepcion() {
+        return cantidadRecibida.signum() > 0;
     }
 
     public UUID getId() {
