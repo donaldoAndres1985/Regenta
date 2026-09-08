@@ -89,6 +89,18 @@ public class NotificacionesControlador {
         return centro.mias();
     }
 
+    @PostMapping("/mias/vistas")
+    @Operation(summary = "Al abrir el centro: marca vistas las alertas nuevas del usuario")
+    public Map<String, Integer> marcarVistas() {
+        return Map.of("marcadas", centro.marcarMiasVistas());
+    }
+
+    @PostMapping("/mias/{alertaId}/resolucion")
+    @Operation(summary = "Marca una alerta resuelta: sale de las pendientes y queda quién la resolvió")
+    public AlertaDelUsuario resolver(@PathVariable UUID alertaId) {
+        return centro.resolver(alertaId);
+    }
+
     @PostMapping("/entregas/reintento")
     @Operation(summary = "Reprocesa la cola de entregas pendientes y fallidas del negocio")
     public Map<String, Integer> reintentar() {

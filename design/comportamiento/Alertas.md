@@ -9,6 +9,7 @@
 | Paquete Flutter | `core` (centro de alertas: HU-095) |
 | Microservicio | `servicio-alertas` |
 | Tablas | `alertas.tipos_alerta` · `reglas_alerta` · `alertas` · `entregas` |
+| Pantalla | `design/pantallas/InicioWeb.html` (panel de alertas) |
 | Historias | HU-092 (Motor de reglas configurable) · HU-093 (Alertas de inventario) · HU-094 (Entrega) · HU-095 (Centro de alertas) |
 
 Un motor de reglas, no condiciones escritas en el código. "Alertar vencimientos en droguería"
@@ -129,6 +130,30 @@ sin enviarse.
 > FCM y SMTP reales, y el cliente Flutter en `core` que registra el token al arrancar, quedan
 > como seguimiento (parte del cableado de E16). El `@Scheduled` que recorre todos los negocios
 > necesita el rol privilegiado que está diferido en el proyecto.
+
+### R18 · El centro de alertas ordena las pendientes (HU-095)
+**Dado** el `CentroDeAlertas` de `packages/core`, **cuando** lo abro (`GET /api/alertas/mias`),
+**entonces** veo solo las pendientes (`NUEVA`/`VISTA`/`EN_CURSO`), las nuevas primero y dentro
+de cada grupo por severidad (`CRITICA` → `BAJA`) y luego por fecha (criterio 1). Las resueltas
+y descartadas no se listan.
+
+### R19 · Resolver saca la alerta de las pendientes (HU-095)
+**Dado** una alerta en el centro, **cuando** toco *Resolver* (`POST
+/api/alertas/mias/{id}/resolucion`), **entonces** pasa a `RESUELTA` con `resuelta_por` = el
+usuario, desaparece de la lista de pendientes (el cliente la quita de una; si el POST falla,
+vuelve) (criterio 2). Solo se puede resolver una alerta que le llegó al usuario (tiene una
+`entrega` suya); si no, **404**.
+
+### R20 · Tocar la alerta lleva a su entidad (HU-095)
+**Dado** una fila del centro, **cuando** la toco (fuera del botón *Resolver*), **entonces** el
+widget llama `onAbrirEntidad(alerta)` con su `rutaApp` y su `entidad_tipo`/`entidad_id` — el
+shell navega con `go_router` (criterio 3).
+
+### R21 · La campana muestra el indicador con alertas nuevas (HU-095)
+**Dado** el `CampanaDeAlertas`, **cuando** hay alguna alerta `NUEVA`, **entonces** muestra un
+punto (`Key('campana-indicador')`) (criterio 4). Al abrir el centro, las nuevas del usuario
+pasan a `VISTA` (`POST /api/alertas/mias/vistas`) y el punto se apaga; el cliente lo apaga de
+una y el backend confirma.
 
 ## Qué NO debe pasar
 
