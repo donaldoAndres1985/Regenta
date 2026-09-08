@@ -26,4 +26,16 @@ public interface MovimientoDeCajaRepositorio extends JpaRepository<MovimientoDeC
               and m.metodoPago = com.regenta.caja.domain.MetodoPagoCaja.EFECTIVO
             """)
     BigDecimal efectivoEsperado(@Param("sesionId") UUID sesionId);
+
+    /** Totales de una sesión agrupados por método de pago (HU-063 criterio 1). */
+    @Query("""
+            select new com.regenta.caja.aplicacion.TotalPorMetodo(
+                m.metodoPago, sum(m.monto * m.signo), sum(m.propina), count(m))
+            from MovimientoDeCaja m
+            where m.sesionId = :sesionId
+            group by m.metodoPago
+            order by m.metodoPago
+            """)
+    List<com.regenta.caja.aplicacion.TotalPorMetodo> totalesPorMetodo(
+            @Param("sesionId") UUID sesionId);
 }

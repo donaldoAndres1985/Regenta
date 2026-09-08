@@ -10,7 +10,7 @@
 | Paquete Flutter | `packages/ventas` (pantalla pendiente) |
 | Microservicio | `servicio-caja` |
 | Tablas | `caja.cajas` · `sesiones_caja` · `movimientos_caja` · `caja.consecutivos` |
-| Historias | HU-059 (Abrir y cerrar sesión de caja) · HU-060 (Movimientos desde los tres patrones) · HU-061 (Ingresos, retiros y gastos) · HU-062 (Arqueo por denominaciones) |
+| Historias | HU-059 (Abrir y cerrar sesión de caja) · HU-060 (Movimientos desde los tres patrones) · HU-061 (Ingresos, retiros y gastos) · HU-062 (Arqueo por denominaciones) · HU-063 (Reporte de cierre) |
 
 Apertura, arqueo y cierre. Caja no vive dentro de Ventas: en Comanda también recibe pagos de
 comandas y en Reserva anticipos. Plan Empresarial.
@@ -114,6 +114,18 @@ acumula. En una sesión cerrada, **409**.
 **Dado** un arqueo guardado, **cuando** cierro sin `montoDeclarado` explícito (`POST
 /{id}/cierre` con `montoDeclarado` nulo), **entonces** se usa el `totalContado` del arqueo como
 lo declarado (R3). Sin arqueo ni `montoDeclarado`, **422**.
+
+### R18 · El reporte del turno (HU-063)
+**Dado** una sesión, **cuando** el gerente pide su reporte (`GET
+/api/caja/reportes/sesiones/{id}`), **entonces** ve la cabecera del arqueo, los totales por
+método de pago (`sum(monto·signo)` y propina agrupados) y todos los movimientos (criterio 1).
+
+### R19 · Listado de turnos por rango, con la descuadrada destacada (HU-063)
+**Dado** un rango de fechas, **cuando** consulto `GET /api/caja/reportes/sesiones?desde=&hasta=`
+(opcional `estado`, `cajaId`), **entonces** vienen las sesiones abiertas en ese rango, la más
+reciente primero, cada una con su `estado` y una marca `descuadrada` (criterio 2). El listado
+de `packages/reportes` pinta las descuadradas con fondo y etiqueta de alerta frente a las
+cuadradas (criterio 3). Un rango invertido responde **422**.
 
 ## Qué NO debe pasar
 
