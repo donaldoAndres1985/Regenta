@@ -10,7 +10,7 @@
 | Paquete Flutter | `packages/ventas` (pantalla pendiente) |
 | Microservicio | `servicio-caja` |
 | Tablas | `caja.cajas` · `sesiones_caja` · `movimientos_caja` · `caja.consecutivos` |
-| Historias | HU-059 (Abrir y cerrar sesión de caja) |
+| Historias | HU-059 (Abrir y cerrar sesión de caja) · HU-060 (Movimientos desde los tres patrones) |
 
 Apertura, arqueo y cierre. Caja no vive dentro de Ventas: en Comanda también recibe pagos de
 comandas y en Reserva anticipos. Plan Empresarial.
@@ -57,7 +57,27 @@ no los ve: la RLS de `sesiones_caja` y `movimientos_caja` lo corta.
 
 ### R8 · Permisos
 `CAJA_TURNO_VER` para consultar; `CAJA_TURNO_CREAR` para registrar una caja y abrir una sesión;
-`CAJA_TURNO_EDITAR` para cerrarla. Sin el permiso, **403**. Módulo `CAJA`, plan Empresarial.
+`CAJA_TURNO_EDITAR` para cerrarla; `CAJA_MOVIMIENTO_VER` para ver los movimientos. Sin el
+permiso, **403**. Módulo `CAJA`, plan Empresarial.
+
+### R9 · Todo cobro entra a la caja, venga del patrón que venga (HU-060)
+**Dado** un evento de cobro con `sesion_caja_id` y `pagos` (`venta_completada` → origen
+`VENTA`, `pedido_completado` → `COMANDA`, `anticipo_reserva_cobrado` → `RESERVA`), **cuando**
+lo consume Caja, **entonces** registra un `movimientos_caja` por cada pago (signo `+1`, método
+mapeado, `origen_tipo`/`origen_id`/`documento_ref` del evento) en esa sesión (criterios 1-3).
+Un cobro mixto genera un movimiento por método. Un cobro sin `sesion_caja_id`, o para una
+sesión que no está abierta, no genera nada.
+
+### R10 · El cobro no entra dos veces (HU-060)
+**Dado** el mismo evento entregado dos veces, **cuando** llega el duplicado, **entonces** no se
+registra otra vez: lo corta el Inbox del consumidor y, si llegara con otro `message-id`, el
+`idempotency_key` determinista (`<origen>:<origen_id>:pago:<i>`) contra `uq_mov_caja_idem`
+(criterio 4).
+
+### R11 · El efectivo cobrado cuadra el arqueo
+**Dado** movimientos en efectivo de la sesión, **cuando** se cierra (R3), **entonces**
+`monto_esperado` los suma firmados junto con la base de apertura. Los pagos con tarjeta o
+transferencia no cuentan para el efectivo esperado.
 
 ## Qué NO debe pasar
 

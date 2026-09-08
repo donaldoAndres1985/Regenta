@@ -88,6 +88,27 @@ public class MovimientoDeCaja {
         return m;
     }
 
+    /**
+     * Criterios 1-3: un cobro de venta, comanda o reserva entra a la caja. El
+     * {@code idempotencyKey} determinista más el índice {@code uq_mov_caja_idem}
+     * impiden el doble registro (criterio 4).
+     */
+    public static MovimientoDeCaja deCobro(UUID negocioId, UUID sesionId, UUID usuarioId,
+            TipoMovimientoCaja tipo, String origenTipo, UUID origenId, String documentoRef,
+            String concepto, MetodoPagoCaja metodoPago, BigDecimal monto, BigDecimal propina,
+            String idempotencyKey) {
+        MovimientoDeCaja m = base(negocioId, sesionId, usuarioId, idempotencyKey, concepto);
+        m.tipo = tipo;
+        m.signo = 1;
+        m.metodoPago = metodoPago;
+        m.monto = monto;
+        m.propina = propina == null || propina.signum() < 0 ? BigDecimal.ZERO : propina;
+        m.origenTipo = origenTipo;
+        m.origenId = origenId;
+        m.documentoRef = documentoRef;
+        return m;
+    }
+
     private static MovimientoDeCaja base(UUID negocioId, UUID sesionId, UUID usuarioId,
             String idempotencyKey, String concepto) {
         MovimientoDeCaja m = new MovimientoDeCaja();
@@ -125,5 +146,33 @@ public class MovimientoDeCaja {
 
     public short getSigno() {
         return signo;
+    }
+
+    public BigDecimal getPropina() {
+        return propina;
+    }
+
+    public String getOrigenTipo() {
+        return origenTipo;
+    }
+
+    public UUID getOrigenId() {
+        return origenId;
+    }
+
+    public String getDocumentoRef() {
+        return documentoRef;
+    }
+
+    public String getConcepto() {
+        return concepto;
+    }
+
+    public java.time.OffsetDateTime getOcurridoEn() {
+        return ocurridoEn;
+    }
+
+    public UUID getSesionId() {
+        return sesionId;
     }
 }

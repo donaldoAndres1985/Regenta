@@ -92,6 +92,8 @@ CREATE TABLE movimientos_caja (
     CONSTRAINT uq_mov_caja_idem UNIQUE (negocio_id, idempotency_key)
 );
 CREATE INDEX ix_mov_caja_sesion ON movimientos_caja (sesion_id, ocurrido_en);
+CREATE INDEX ix_mov_caja_origen ON movimientos_caja (negocio_id, origen_tipo, origen_id)
+    WHERE origen_id IS NOT NULL;
 
 -- Conteo de billetes/monedas al cerrar
 CREATE TABLE arqueo_denominaciones (
