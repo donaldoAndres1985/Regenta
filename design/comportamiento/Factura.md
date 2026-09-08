@@ -33,6 +33,7 @@ Cuanto más aburrida y literal la frase, mejor test sale de ella. -->
 > R10–R15 son **HU-053** (emisión desde eventos; consulta en `/api/facturacion/facturas`).
 > R16–R21 son **HU-055** (firma, transmisión, certificados). Los adaptadores de DIAN, KMS y
 > storage son *stubs* con puertos; la integración real es un follow-up.
+> R22–R25 son **HU-056** (notas crédito).
 
 ### R1 · Cargar una resolución
 **Dado** que un administrador carga una resolución (`POST /api/facturacion/resoluciones` con
@@ -160,6 +161,32 @@ recibe y se guarda `referenciaKms` (la clave en el gestor de secretos) más los 
 `certificados` no tiene columna para el `.p12`: es estructural. Exige
 `FACTURACION_RESOLUCION_EDITAR`.
 
+### R22 · Una factura emitida se corrige con una nota crédito
+**Dada** una factura **aceptada**, **cuando** se emite una NC
+(`POST /api/facturacion/facturas/{id}/notas-credito`), **entonces** se crea otra factura con
+`tipo_documento = NOTA_CREDITO`, `factura_origen_id` = la factura de origen y `codigo_nota` =
+el concepto DIAN (1 devolución, 2 anulación, 4 descuento, 5 otros). Toma su consecutivo de una
+resolución `NOTA_CREDITO` (HU-054). Si no viene el detalle, la NC copia las líneas de la
+factura de origen. Sobre una factura que no está aceptada es 422. Exige
+`FACTURACION_FACTURA_ANULAR`.
+
+### R23 · Sin factura de origen no hay nota crédito
+**Dada** una NC sin `factura_origen_id`, **cuando** se intenta guardar, **entonces** el CHECK
+`ck_nota_referencia` de la base la rechaza. El servicio además valida antes (404 si la factura
+de origen no existe).
+
+### R24 · La devolución emite su nota crédito
+**Dado** un evento `devolucion_registrada` (`negocio_id`, `venta_id`, `devolucion_id`,
+`motivo`, `lineas`), **cuando** llega, **entonces** se busca la factura de venta por
+`venta_id` y se emite una NC por lo devuelto, con `origen_tipo = DEVOLUCION` y
+`origen_id = devolucion_id`. Idempotente por el Inbox y por el índice parcial
+`uq_nota_credito_origen`: una devolución reentregada no genera dos NC.
+
+### R25 · La factura de origen se ve enlazada a sus notas crédito
+**Dada** una factura con NC emitidas, **cuando** se consulta
+(`GET /api/facturacion/facturas/{id}`), **entonces** el detalle trae `notasCredito` con el
+número, el `codigo_nota`, el total y el estado de cada una.
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
@@ -224,3 +251,6 @@ que más se olvida. -->
 - **No** relanzar el fallo de red al transmitir: perdería el intento y el log; la factura queda
   `ENVIADA` y se reintenta.
 - **No** editar ni borrar una factura emitida: se corrige con una nota crédito (HU-056).
+- **No** una NC sin `factura_origen_id` (CHECK `ck_nota_referencia`), ni dos NC para la misma
+  devolución (`uq_nota_credito_origen`).
+- **No** una NC de una factura que aún no está aceptada.

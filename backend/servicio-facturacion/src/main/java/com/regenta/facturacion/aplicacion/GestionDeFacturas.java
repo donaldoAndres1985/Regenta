@@ -102,15 +102,20 @@ public class GestionDeFacturas {
                 .stream().map(FacturaEmitida::de).toList();
     }
 
-    /** Criterio 6: reimprimir muestra el snapshot congelado en la emisión. */
+    /**
+     * Criterio 6 de HU-053: reimprimir muestra el snapshot congelado. Criterio 4
+     * de HU-056: la factura de origen se ve enlazada a sus notas crédito.
+     */
     @Transactional(readOnly = true)
     @RequierePermiso("FACTURACION_FACTURA_VER")
     public FacturaDetalle ver(UUID facturaId) {
-        Factura factura = facturas
-                .findByIdAndNegocioId(facturaId, ContextoDeNegocio.negocioActual())
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        Factura factura = facturas.findByIdAndNegocioId(facturaId, negocioId)
                 .orElseThrow(() -> new NoEncontradoException("Esa factura no existe"));
         return FacturaDetalle.de(factura, lineas.findByFacturaIdOrderByLineaAsc(facturaId),
-                impuestos.findByFacturaId(facturaId));
+                impuestos.findByFacturaId(facturaId),
+                facturas.findByNegocioIdAndFacturaOrigenIdOrderByFechaEmisionAsc(
+                        negocioId, facturaId));
     }
 
     private static Map<String, Object> emitida(UUID negocioId, Factura f) {

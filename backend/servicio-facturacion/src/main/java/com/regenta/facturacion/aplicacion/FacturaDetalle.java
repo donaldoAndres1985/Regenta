@@ -33,18 +33,24 @@ public record FacturaDetalle(
         BigDecimal total,
         String formaPago,
         UUID clienteId,
+        UUID facturaOrigenId,
+        String codigoNota,
         Map<String, Object> emisor,
         Map<String, Object> cliente,
         List<LineaDeFactura> lineas,
-        List<ImpuestoDeFactura> impuestos) {
+        List<ImpuestoDeFactura> impuestos,
+        List<NotaCreditoEnlazada> notasCredito) {
 
-    static FacturaDetalle de(Factura f, List<FacturaLinea> lineas, List<FacturaImpuesto> impuestos) {
-        return new FacturaDetalle(f.getId(), f.getNumeroCompleto(), "FACTURA_VENTA",
+    static FacturaDetalle de(Factura f, List<FacturaLinea> lineas, List<FacturaImpuesto> impuestos,
+            List<Factura> notasCredito) {
+        return new FacturaDetalle(f.getId(), f.getNumeroCompleto(), f.getTipoDocumento().name(),
                 f.getOrigenTipo().name(), f.getOrigenId(), f.getEstado().name(), f.getFechaEmision(),
                 f.getMoneda(), f.getSubtotal(), f.getDescuentoTotal(), f.getBaseGravable(),
                 f.getImpuestosTotal(), f.getRetencionesTotal(), f.getPropina(), f.getTotal(),
-                f.getFormaPago().name(), f.getClienteId(), f.getEmisorSnapshot(),
-                f.getClienteSnapshot(), lineas.stream().map(LineaDeFactura::de).toList(),
-                impuestos.stream().map(ImpuestoDeFactura::de).toList());
+                f.getFormaPago().name(), f.getClienteId(), f.getFacturaOrigenId(), f.getCodigoNota(),
+                f.getEmisorSnapshot(), f.getClienteSnapshot(),
+                lineas.stream().map(LineaDeFactura::de).toList(),
+                impuestos.stream().map(ImpuestoDeFactura::de).toList(),
+                notasCredito.stream().map(NotaCreditoEnlazada::de).toList());
     }
 }
