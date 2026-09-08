@@ -109,6 +109,24 @@ public class MovimientoDeCaja {
         return m;
     }
 
+    /**
+     * Ingreso, retiro o gasto registrado a mano por el cajero (HU-061). El
+     * retiro/gasto va con {@code signo -1} (baja el efectivo esperado); el
+     * ingreso con {@code +1}. {@code autorizadoPor} queda cuando el retiro
+     * superó el umbral (criterio 2).
+     */
+    public static MovimientoDeCaja manual(UUID negocioId, UUID sesionId, UUID usuarioId,
+            TipoMovimientoCaja tipo, String concepto, BigDecimal monto, UUID autorizadoPor,
+            String idempotencyKey) {
+        MovimientoDeCaja m = base(negocioId, sesionId, usuarioId, idempotencyKey, concepto);
+        m.tipo = tipo;
+        m.signo = tipo == TipoMovimientoCaja.INGRESO ? (short) 1 : (short) -1;
+        m.metodoPago = MetodoPagoCaja.EFECTIVO;
+        m.monto = monto;
+        m.autorizadoPor = autorizadoPor;
+        return m;
+    }
+
     private static MovimientoDeCaja base(UUID negocioId, UUID sesionId, UUID usuarioId,
             String idempotencyKey, String concepto) {
         MovimientoDeCaja m = new MovimientoDeCaja();
@@ -174,5 +192,9 @@ public class MovimientoDeCaja {
 
     public UUID getSesionId() {
         return sesionId;
+    }
+
+    public UUID getAutorizadoPor() {
+        return autorizadoPor;
     }
 }

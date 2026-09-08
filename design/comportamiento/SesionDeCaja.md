@@ -10,7 +10,7 @@
 | Paquete Flutter | `packages/ventas` (pantalla pendiente) |
 | Microservicio | `servicio-caja` |
 | Tablas | `caja.cajas` · `sesiones_caja` · `movimientos_caja` · `caja.consecutivos` |
-| Historias | HU-059 (Abrir y cerrar sesión de caja) · HU-060 (Movimientos desde los tres patrones) |
+| Historias | HU-059 (Abrir y cerrar sesión de caja) · HU-060 (Movimientos desde los tres patrones) · HU-061 (Ingresos, retiros y gastos) |
 
 Apertura, arqueo y cierre. Caja no vive dentro de Ventas: en Comanda también recibe pagos de
 comandas y en Reserva anticipos. Plan Empresarial.
@@ -78,6 +78,25 @@ registra otra vez: lo corta el Inbox del consumidor y, si llegara con otro `mess
 **Dado** movimientos en efectivo de la sesión, **cuando** se cierra (R3), **entonces**
 `monto_esperado` los suma firmados junto con la base de apertura. Los pagos con tarjeta o
 transferencia no cuentan para el efectivo esperado.
+
+### R12 · Retiro: exige concepto y baja el efectivo (HU-061)
+**Dado** una sesión abierta, **cuando** registro un retiro o gasto (`POST
+/api/caja/sesiones/{id}/retiros` con `monto`, `concepto`, `tipo` = `RETIRO`/`GASTO`),
+**entonces** entra como `movimientos_caja` con `signo −1` y `metodo_pago = EFECTIVO` — baja el
+`monto_esperado` del arqueo (criterio 1). Sin `concepto` responde **422**. En una sesión
+cerrada, **409**.
+
+### R13 · Retiro sobre el umbral: exige autorización (HU-061)
+**Dado** `config_caja.retiro_max_sin_autorizacion > 0`, **cuando** el retiro lo supera,
+**entonces** exige `autorizadoPor` (un usuario distinto del cajero) y queda en
+`movimientos_caja.autorizado_por` (criterio 2). Sin autorización, o autorizado por el propio
+cajero, responde **422**. Bajo el umbral no se pide nada. El umbral se fija con `PUT
+/api/caja/config` (`CAJA_TURNO_EDITAR`) y es por negocio.
+
+### R14 · Ingreso: sube el efectivo con su concepto (HU-061)
+**Dado** una sesión abierta, **cuando** registro un ingreso (`POST
+/api/caja/sesiones/{id}/ingresos` con `monto`, `concepto`), **entonces** entra con `signo +1` y
+`EFECTIVO` — sube el `monto_esperado` (criterio 3). Sin `concepto`, **422**.
 
 ## Qué NO debe pasar
 

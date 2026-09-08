@@ -118,6 +118,15 @@ CREATE TABLE turnos (
     monto_fin   NUMERIC(16,4)
 );
 
+-- Configuracion de caja por negocio: umbral de retiro que exige autorizacion (HU-061)
+CREATE TABLE config_caja (
+    negocio_id                  UUID PRIMARY KEY,
+    retiro_max_sin_autorizacion NUMERIC(16,4) NOT NULL DEFAULT 0
+                                CHECK (retiro_max_sin_autorizacion >= 0),
+    actualizado_en              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    version                     BIGINT NOT NULL DEFAULT 0
+);
+
 -- EVENTOS PUBLICADOS: caja_abierta, caja_cerrada, caja_descuadrada,
 --                     retiro_registrado
 -- EVENTOS CONSUMIDOS: venta_completada, pedido_completado,
