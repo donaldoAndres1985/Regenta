@@ -185,6 +185,32 @@ CREATE TABLE pagos_proveedor (
 );
 CREATE INDEX ix_pagos_cuenta ON pagos_proveedor (cuenta_id);
 
+-- Sugerencia de compra: un producto bajo el mínimo espera turno para una orden (HU-050)
+CREATE TABLE sugerencias_compra (
+    id                UUID PRIMARY KEY,
+    negocio_id        UUID NOT NULL,
+    producto_id       UUID NOT NULL,
+    nombre_snapshot   VARCHAR(180) NOT NULL,
+    bodega_id         UUID,
+    existencia        NUMERIC(18,6) NOT NULL DEFAULT 0,
+    stock_minimo      NUMERIC(18,6) NOT NULL DEFAULT 0,
+    stock_objetivo    NUMERIC(18,6) NOT NULL DEFAULT 0,
+    cantidad_sugerida NUMERIC(18,6) NOT NULL CHECK (cantidad_sugerida > 0),
+    proveedor_id      UUID REFERENCES proveedores(id),
+    costo_estimado    NUMERIC(14,4),
+    estado            VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE'
+                      CHECK (estado IN ('PENDIENTE','EN_ORDEN','DESCARTADA')),
+    orden_id          UUID REFERENCES ordenes_compra(id),
+    sin_proveedor     BOOLEAN GENERATED ALWAYS AS (proveedor_id IS NULL) STORED,
+    creada_en         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    actualizada_en    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    version           BIGINT NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX uq_sugerencia_pendiente ON sugerencias_compra (negocio_id, producto_id)
+    WHERE estado = 'PENDIENTE';
+CREATE INDEX ix_sugerencias_proveedor ON sugerencias_compra (negocio_id, proveedor_id)
+    WHERE estado = 'PENDIENTE';
+
 -- EVENTOS PUBLICADOS: recepcion_registrada (Inventario da entrada),
 --                     orden_compra_aprobada, cuenta_por_pagar_creada
 -- EVENTOS CONSUMIDOS: stock_bajo_minimo (sugerencia de reposicion)
