@@ -115,6 +115,10 @@ CREATE UNIQUE INDEX uq_factura_origen
     ON facturas (negocio_id, origen_tipo, origen_id)
     WHERE origen_id IS NOT NULL AND tipo_documento IN ('FACTURA_VENTA','FACTURA_POS')
       AND estado <> 'ANULADA';
+-- Idempotencia de la nota crédito frente a devolucion_registrada repetido.
+CREATE UNIQUE INDEX uq_nota_credito_origen
+    ON facturas (negocio_id, origen_tipo, origen_id)
+    WHERE tipo_documento = 'NOTA_CREDITO' AND origen_id IS NOT NULL AND estado <> 'ANULADA';
 CREATE INDEX ix_facturas_fecha   ON facturas (negocio_id, fecha_emision DESC);
 CREATE INDEX ix_facturas_cliente ON facturas (negocio_id, cliente_id, fecha_emision DESC);
 CREATE INDEX ix_facturas_pendientes ON facturas (negocio_id, estado)

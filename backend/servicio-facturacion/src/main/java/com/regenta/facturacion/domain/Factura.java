@@ -76,6 +76,9 @@ public class Factura {
     @Column(name = "factura_origen_id")
     private UUID facturaOrigenId;
 
+    @Column(name = "codigo_nota", length = 10)
+    private String codigoNota;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "emisor_snapshot", nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> emisorSnapshot;
@@ -182,8 +185,40 @@ public class Factura {
             UUID clienteId, String moneda, BigDecimal tasaCambio, FormaPago formaPago,
             String medioPagoCodigo, LocalDate fechaVencimiento, BigDecimal propina,
             List<LineaFacturable> lineasFacturables) {
+        return armar(negocioId, sucursalId, resolucionId, tipoDocumento, prefijo, numero, origenTipo,
+                origenId, null, null, emisorSnapshot, clienteSnapshot, clienteId, moneda, tasaCambio,
+                formaPago, medioPagoCodigo, fechaVencimiento, propina, lineasFacturables);
+    }
+
+    /**
+     * Emite una nota crédito contra una factura de origen (HU-056): mismo cálculo
+     * de líneas, pero {@code tipoDocumento = NOTA_CREDITO}, con
+     * {@code facturaOrigenId} y el {@code codigoNota} de motivo DIAN.
+     */
+    public static Factura emitirNotaCredito(UUID negocioId, UUID sucursalId, UUID resolucionId,
+            String prefijo, long numero, OrigenDeFactura origenTipo, UUID origenId,
+            UUID facturaOrigenId, String codigoNota, Map<String, Object> emisorSnapshot,
+            Map<String, Object> clienteSnapshot, UUID clienteId, String moneda, FormaPago formaPago,
+            List<LineaFacturable> lineasFacturables) {
+        if (facturaOrigenId == null) {
+            throw new ReglaDeNegocioException(
+                    "Una nota crédito tiene que referenciar la factura de origen");
+        }
+        return armar(negocioId, sucursalId, resolucionId, TipoDocumento.NOTA_CREDITO, prefijo,
+                numero, origenTipo, origenId, facturaOrigenId, codigoNota, emisorSnapshot,
+                clienteSnapshot, clienteId, moneda, BigDecimal.ONE, formaPago, null, null,
+                BigDecimal.ZERO, lineasFacturables);
+    }
+
+    private static Factura armar(UUID negocioId, UUID sucursalId, UUID resolucionId,
+            TipoDocumento tipoDocumento, String prefijo, long numero, OrigenDeFactura origenTipo,
+            UUID origenId, UUID facturaOrigenId, String codigoNota,
+            Map<String, Object> emisorSnapshot, Map<String, Object> clienteSnapshot, UUID clienteId,
+            String moneda, BigDecimal tasaCambio, FormaPago formaPago, String medioPagoCodigo,
+            LocalDate fechaVencimiento, BigDecimal propina,
+            List<LineaFacturable> lineasFacturables) {
         if (lineasFacturables == null || lineasFacturables.isEmpty()) {
-            throw new ReglaDeNegocioException("El cierre no trae líneas para facturar");
+            throw new ReglaDeNegocioException("El documento no trae líneas");
         }
         Factura f = new Factura();
         f.id = UUID.randomUUID();
@@ -195,6 +230,8 @@ public class Factura {
         f.numero = numero;
         f.origenTipo = origenTipo;
         f.origenId = origenId;
+        f.facturaOrigenId = facturaOrigenId;
+        f.codigoNota = codigoNota;
         f.emisorSnapshot = emisorSnapshot == null ? new LinkedHashMap<>() : emisorSnapshot;
         f.clienteSnapshot = clienteSnapshot == null ? new LinkedHashMap<>() : clienteSnapshot;
         f.clienteId = clienteId;
@@ -345,12 +382,28 @@ public class Factura {
         return numeroCompleto != null ? numeroCompleto : prefijo + numero;
     }
 
+    public TipoDocumento getTipoDocumento() {
+        return tipoDocumento;
+    }
+
     public OrigenDeFactura getOrigenTipo() {
         return origenTipo;
     }
 
     public UUID getOrigenId() {
         return origenId;
+    }
+
+    public UUID getFacturaOrigenId() {
+        return facturaOrigenId;
+    }
+
+    public String getCodigoNota() {
+        return codigoNota;
+    }
+
+    public UUID getSucursalId() {
+        return sucursalId;
     }
 
     public Map<String, Object> getEmisorSnapshot() {
