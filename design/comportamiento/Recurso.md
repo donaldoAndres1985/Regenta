@@ -61,6 +61,27 @@ negocio, **entonces** responde **409**. El mismo nombre en otro negocio sí entr
 **Dado** un tipo o atributo de un negocio, **cuando** otro negocio consulta, **entonces** no lo
 ve: la RLS de `tipos_recurso` y `atributos_tipo_recurso` lo corta.
 
+### R7 · El código del recurso es único por negocio (HU-065)
+**Dado** un recurso `codigo` ya registrado, **cuando** creo otro con el mismo código en el
+mismo negocio (`POST /api/recursos`), **entonces** responde **409** (`uq_recurso_codigo`). El
+mismo código en otro negocio sí entra.
+
+### R8 · MANTENIMIENTO saca al recurso de los disponibles (HU-065)
+**Dado** un recurso, **cuando** cambio su `estado` a `MANTENIMIENTO` (o cualquiera que no sea
+`DISPONIBLE`, vía `PATCH /api/recursos/{id}/estado`), **entonces** deja de aparecer en `GET
+/api/recursos?soloDisponibles=true` y su `disponible` es `false`; sigue en el listado completo.
+
+### R9 · No se borra un recurso con reservas futuras (HU-065)
+**Dado** un recurso con reservas futuras (lo dice `servicio-reservas`), **cuando** intento
+eliminarlo (`DELETE /api/recursos/{id}`), **entonces** responde **409**. Sin reservas futuras
+se borra en blando (`eliminado_en`, `activo = false`) y deja de listarse.
+
+### R10 · Los atributos del recurso se validan contra su tipo (HU-065)
+**Dado** un recurso, **cuando** guardo sus `atributos`, **entonces** se validan contra los
+`atributos_tipo_recurso` de su tipo con el mismo validador de HU-064: un obligatorio ausente o
+un valor del tipo equivocado responde **422**; lo válido queda en el JSONB `recursos.atributos`.
+Editar el recurso revalida.
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
@@ -98,9 +119,11 @@ _Sin definir._
 
 ## Permisos
 
-`RECURSOS_RECURSO_VER` para listar y consultar tipos y sus atributos; `RECURSOS_RECURSO_CREAR`
-para crear un tipo; `RECURSOS_RECURSO_EDITAR` para editar el tipo, sus atributos y
-desactivarlo. Sin el permiso, **403**. Módulo `RECURSOS`, plan Básico o superior.
+`RECURSOS_RECURSO_VER` para listar y consultar tipos, atributos y recursos;
+`RECURSOS_RECURSO_CREAR` para crear un tipo o un recurso; `RECURSOS_RECURSO_EDITAR` para editar
+el tipo/recurso, sus atributos, desactivar el tipo y cambiar el estado del recurso;
+`RECURSOS_RECURSO_ELIMINAR` para eliminar un recurso. Sin el permiso, **403**. Módulo
+`RECURSOS`, plan Básico o superior.
 
 ## Qué NO debe pasar
 
