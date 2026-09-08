@@ -19,6 +19,18 @@ CREATE TABLE cajas (
     CONSTRAINT uq_caja UNIQUE (negocio_id, codigo)
 );
 
+-- Consecutivo por negocio para el `numero` de la sesión (HU-059). Como en
+-- ventas/compras: INSERT ... ON CONFLICT ... RETURNING, sin huecos.
+CREATE TABLE consecutivos (
+    negocio_id  UUID        NOT NULL,
+    sucursal_id UUID,
+    tipo        VARCHAR(20) NOT NULL,   -- 'SESION_CAJA'
+    prefijo     VARCHAR(10) NOT NULL DEFAULT '',
+    siguiente   BIGINT      NOT NULL DEFAULT 1,
+    sucursal_key UUID GENERATED ALWAYS AS (COALESCE(sucursal_id,'00000000-0000-0000-0000-000000000000'::uuid)) STORED,
+    PRIMARY KEY (negocio_id, sucursal_key, tipo)
+);
+
 CREATE TABLE sesiones_caja (
     id                 UUID PRIMARY KEY,
     negocio_id         UUID        NOT NULL,
