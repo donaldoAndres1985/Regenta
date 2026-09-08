@@ -3,9 +3,13 @@ package com.regenta.compras.domain;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
+
+import com.regenta.comun.errores.ConflictoDeEstadoException;
+import com.regenta.comun.errores.ReglaDeNegocioException;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -83,6 +87,38 @@ public class CuentaPorPagar {
         c.fechaVencimiento = fechaEmision.plusDays(Math.max(0, diasCredito));
         c.estado = EstadoCuentaPorPagar.PENDIENTE;
         return c;
+    }
+
+    /**
+     * Criterio 2 de HU-049: baja el saldo y, si queda algo, deja la cuenta en
+     * {@code PARCIAL}; si se salda, en {@code PAGADA}. Pagar de más o pagar una
+     * cuenta ya saldada/anulada se rechaza. El CHECK {@code ck_saldo_cxp} lo
+     * vuelve a cortar en la base.
+     */
+    public void registrarPago(BigDecimal monto) {
+        if (monto == null || monto.signum() <= 0) {
+            throw new ReglaDeNegocioException("El pago debe ser mayor que cero");
+        }
+        if (estado == EstadoCuentaPorPagar.PAGADA || estado == EstadoCuentaPorPagar.ANULADA) {
+            throw new ConflictoDeEstadoException("La cuenta ya está " + estado);
+        }
+        if (monto.compareTo(saldo) > 0) {
+            throw new ReglaDeNegocioException(
+                    "El pago " + monto + " supera el saldo pendiente " + saldo);
+        }
+        this.saldo = saldo.subtract(monto);
+        this.estado = saldo.signum() == 0
+                ? EstadoCuentaPorPagar.PAGADA : EstadoCuentaPorPagar.PARCIAL;
+    }
+
+    /** Criterio 3: vencida = tiene saldo y su vencimiento ya pasó. */
+    public boolean estaVencida(LocalDate hoy) {
+        return saldo.signum() > 0 && estado != EstadoCuentaPorPagar.ANULADA
+                && fechaVencimiento.isBefore(hoy);
+    }
+
+    public long diasDeMora(LocalDate hoy) {
+        return estaVencida(hoy) ? ChronoUnit.DAYS.between(fechaVencimiento, hoy) : 0;
     }
 
     public UUID getId() {
