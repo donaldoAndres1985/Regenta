@@ -94,6 +94,42 @@ resuelva (criterio 4).
 > lotes (en `servicio-inventario`) quedan como seguimiento, igual que el consumidor de
 > `recepcion_registrada`.
 
+### R13 · Push a los dispositivos activos del usuario (HU-094)
+**Dado** un usuario con al menos un `dispositivos_push` activo de plataforma `ANDROID`/`IOS`
+(`POST /api/alertas/dispositivos` con `tokenFcm`), **cuando** se genera una alerta con canal
+`PUSH` para él, **entonces** el despacho llama a la pasarela FCM por cada token y la entrega
+queda `ENVIADA` si alguno acepta (criterio 1). Registrar el mismo token otra vez no duplica la
+fila. Sin dispositivo activo, la entrega queda `FALLIDA` con el motivo.
+
+### R14 · In-app queda en el centro del usuario (HU-094)
+**Dado** una alerta con canal `IN_APP`, **cuando** se genera, **entonces** la entrega queda
+`ENTREGADA` (no hay envío externo: la alerta ya está en la base) y aparece en `GET
+/api/alertas/mias` del usuario, con las nuevas primero y por severidad (criterio 2).
+
+### R15 · Reintento con backoff (HU-094)
+**Dado** una entrega cuyo envío falla, **cuando** ocurre, **entonces** queda `FALLIDA` con el
+`error`, `intentos` sube y `proximo_intento` se agenda con espera creciente (2, 4, 8, 16 min).
+`POST /api/alertas/entregas/reintento` reprocesa las que ya cumplieron su hora; tras
+`MAX_INTENTOS` (5) la entrega se da por perdida (criterio 3). El `@Scheduled` multi-negocio
+queda diferido.
+
+### R16 · "No molestar" retiene, salvo CRÍTICA (HU-094)
+**Dado** una `preferencias_notificacion` del usuario con franja `no_molestar_desde/hasta`
+(`PUT /api/alertas/preferencias`), **cuando** la alerta cae en esa franja y su severidad no es
+`CRITICA`, **entonces** la entrega se retiene (`retenida_hasta` = fin de la franja, estado
+sigue `PENDIENTE`) y el reintento la toma al terminar; una alerta `CRITICA` se envía igual
+(criterio 4). Si la preferencia no acepta el canal, la entrega queda registrada como `FALLIDA`
+sin enviarse.
+
+### R17 · Token FCM inválido desactiva el dispositivo (HU-094)
+**Dado** que la pasarela responde que el token no está registrado, **cuando** ocurre,
+**entonces** ese `dispositivos_push` queda `activo = false` y no se le vuelve a intentar
+(criterio 5).
+
+> FCM y SMTP reales, y el cliente Flutter en `core` que registra el token al arrancar, quedan
+> como seguimiento (parte del cableado de E16). El `@Scheduled` que recorre todos los negocios
+> necesita el rol privilegiado que está diferido en el proyecto.
+
 ## Qué NO debe pasar
 
 - **No** una regla con un tipo que no está en `tipos_alerta`.
