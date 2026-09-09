@@ -1,8 +1,10 @@
 package com.regenta.reservas.infra;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,6 +17,7 @@ import com.regenta.reservas.aplicacion.AnticipoRequerido;
 import com.regenta.reservas.aplicacion.CatalogoDeRecursos;
 import com.regenta.reservas.aplicacion.CotizacionDeEstadia;
 import com.regenta.reservas.aplicacion.CotizacionDeEstadia.NocheCotizada;
+import com.regenta.reservas.aplicacion.PenalizacionDeCancelacion;
 import com.regenta.reservas.aplicacion.RecursoReservable;
 
 /**
@@ -33,6 +36,8 @@ public class CatalogoDeRecursosStub implements CatalogoDeRecursos {
     private final Map<UUID, CotizacionDeEstadia> cotizaciones = new LinkedHashMap<>();
     private BigDecimal anticipoPct = BigDecimal.ZERO;
     private UUID politicaPorDefecto;
+    private BigDecimal penalizacionPct = BigDecimal.ZERO;
+    private int horasAntesPolitica = 0;
 
     private record Bloqueo(UUID recursoId, OffsetDateTime desde, OffsetDateTime hasta) {
         boolean choca(OffsetDateTime d, OffsetDateTime h) {
@@ -61,12 +66,21 @@ public class CatalogoDeRecursosStub implements CatalogoDeRecursos {
         this.politicaPorDefecto = politicaId;
     }
 
+    public void politicaDeCancelacion(BigDecimal penalizacionFraccion, int horasAntes,
+            UUID politicaId) {
+        this.penalizacionPct = penalizacionFraccion;
+        this.horasAntesPolitica = horasAntes;
+        this.politicaPorDefecto = politicaId;
+    }
+
     public void reiniciar() {
         recursos.clear();
         bloqueos.clear();
         cotizaciones.clear();
         anticipoPct = BigDecimal.ZERO;
         politicaPorDefecto = null;
+        penalizacionPct = BigDecimal.ZERO;
+        horasAntesPolitica = 0;
     }
 
     @Override
@@ -110,5 +124,19 @@ public class CatalogoDeRecursosStub implements CatalogoDeRecursos {
         BigDecimal anticipo = total.multiply(anticipoPct)
                 .setScale(4, java.math.RoundingMode.HALF_UP);
         return new AnticipoRequerido(politica, anticipo);
+    }
+
+    @Override
+    public PenalizacionDeCancelacion penalizacionPorCancelar(UUID negocioId,
+            UUID politicaCancelacionId, BigDecimal total, OffsetDateTime entrada) {
+        long horas = Duration.between(OffsetDateTime.now(ZoneOffset.UTC),
+                entrada.withOffsetSameInstant(ZoneOffset.UTC)).toHours();
+        boolean dentroDePlazo = horas >= horasAntesPolitica;
+        if (dentroDePlazo) {
+            return PenalizacionDeCancelacion.sinCosto();
+        }
+        BigDecimal penalizacion = total.multiply(penalizacionPct)
+                .setScale(4, java.math.RoundingMode.HALF_UP);
+        return new PenalizacionDeCancelacion(penalizacion, false);
     }
 }

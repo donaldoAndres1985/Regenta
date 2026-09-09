@@ -1,5 +1,8 @@
 package com.regenta.reservas.aplicacion;
 
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -15,17 +18,21 @@ import com.regenta.comun.eventos.RegistroDeEventos;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.RequierePermiso;
 import com.regenta.reservas.domain.CanalReserva;
+import com.regenta.reservas.domain.EstadoReserva;
+import com.regenta.reservas.domain.MetodoDePago;
+import com.regenta.reservas.domain.PagoDeReserva;
 import com.regenta.reservas.domain.Reserva;
+import com.regenta.reservas.domain.TipoDePagoReserva;
 import com.regenta.reservas.infra.AsignadorDeConsecutivos;
+import com.regenta.reservas.infra.RepositorioDePagosDeReserva;
 import com.regenta.reservas.infra.RepositorioDeReservas;
 
 /**
- * Crear reservas sin overbooking (HU-070). El anti-overbooking NO se comprueba
- * en Java —un "¿está libre?" seguido de un INSERT tiene ventana de carrera—: lo
- * garantiza el {@code EXCLUDE USING gist} sobre {@code periodo} de la tabla, y
- * aquí solo se traduce el choque a un 409 (criterios 1 y 2). La cotización noche
- * por noche y el anticipo requerido los resuelve servicio-recursos (criterios 4
- * y 5).
+ * El ciclo de vida de una reserva: crearla sin overbooking (HU-070) y moverla
+ * por sus estados (HU-071). El anti-overbooking lo garantiza el
+ * {@code EXCLUDE USING gist} de la tabla, no un chequeo en Java; aquí solo se
+ * traduce el choque a un 409. La cotización, el anticipo y la penalización los
+ * resuelve servicio-recursos por el puerto {@link CatalogoDeRecursos}.
  */
 @Service
 public class GestionDeReservas {
@@ -33,13 +40,16 @@ public class GestionDeReservas {
     private static final String TIPO_CONSECUTIVO = "RESERVA";
 
     private final RepositorioDeReservas reservas;
+    private final RepositorioDePagosDeReserva pagos;
     private final AsignadorDeConsecutivos consecutivos;
     private final CatalogoDeRecursos recursos;
     private final RegistroDeEventos eventos;
 
-    public GestionDeReservas(RepositorioDeReservas reservas, AsignadorDeConsecutivos consecutivos,
-            CatalogoDeRecursos recursos, RegistroDeEventos eventos) {
+    public GestionDeReservas(RepositorioDeReservas reservas, RepositorioDePagosDeReserva pagos,
+            AsignadorDeConsecutivos consecutivos, CatalogoDeRecursos recursos,
+            RegistroDeEventos eventos) {
         this.reservas = reservas;
+        this.pagos = pagos;
         this.consecutivos = consecutivos;
         this.recursos = recursos;
         this.eventos = eventos;
@@ -83,16 +93,88 @@ public class GestionDeReservas {
             throw choca;
         }
 
-        publicarReservaCreada(reserva);
-        return ReservaDelNegocio.de(reserva, cotizacion);
+        reservas.registrarEvento(negocioId, reserva.getId(), null, EstadoReserva.PENDIENTE,
+                ContextoDeNegocio.usuarioActual(), "Reserva creada");
+        publicar(reserva, "reserva_creada");
+        return ReservaDelNegocio.de(reserva, BigDecimal.ZERO, cotizacion);
+    }
+
+    @Transactional
+    @RequierePermiso("RESERVAS_RESERVA_EDITAR")
+    public ReservaDelNegocio registrarPago(UUID reservaId, SolicitudDePagoDeReserva solicitud) {
+        Reserva reserva = delNegocio(reservaId);
+        PagoDeReserva pago = PagoDeReserva.nuevo(reserva.getNegocioId(), reserva.getId(),
+                TipoDePagoReserva.desde(solicitud.tipo()), MetodoDePago.desde(solicitud.metodo()),
+                solicitud.monto(), solicitud.referencia(), solicitud.cajaSesionId(),
+                ContextoDeNegocio.usuarioActual());
+        pagos.registrar(pago);
+        return ReservaDelNegocio.de(reserva, pagos.abonadoA(reserva.getId()), null);
+    }
+
+    @Transactional
+    @RequierePermiso("RESERVAS_RESERVA_EDITAR")
+    public ReservaDelNegocio confirmar(UUID reservaId) {
+        Reserva reserva = delNegocio(reservaId);
+        BigDecimal abonado = pagos.abonadoA(reserva.getId());
+        if (abonado.compareTo(reserva.getAnticipoRequerido()) < 0) {
+            throw new ConflictoDeEstadoException(
+                    "Falta cobrar el anticipo antes de confirmar (van " + abonado + " de "
+                            + reserva.getAnticipoRequerido() + ")");
+        }
+        Reserva confirmada = reserva.confirmar(OffsetDateTime.now(ZoneOffset.UTC));
+        guardarTransicion(reserva, confirmada, "Confirmada");
+        publicar(confirmada, "reserva_confirmada");
+        return ReservaDelNegocio.de(confirmada, abonado, null);
+    }
+
+    @Transactional
+    @RequierePermiso("RESERVAS_RESERVA_ANULAR")
+    public ReservaDelNegocio cancelar(UUID reservaId, SolicitudDeCancelacion solicitud) {
+        Reserva reserva = delNegocio(reservaId);
+        PenalizacionDeCancelacion calculo = recursos.penalizacionPorCancelar(
+                reserva.getNegocioId(), reserva.getPoliticaCancelacionId(), reserva.getTotal(),
+                reserva.getDesde());
+        String motivo = solicitud == null ? null : solicitud.motivo();
+        Reserva cancelada = reserva.cancelar(calculo.penalizacion(), motivo,
+                OffsetDateTime.now(ZoneOffset.UTC));
+        guardarTransicion(reserva, cancelada,
+                "Cancelada" + (motivo == null ? "" : ": " + motivo)
+                        + " (penalización " + cancelada.getPenalizacion() + ", "
+                        + (calculo.dentroDePlazo() ? "dentro de plazo" : "fuera de plazo") + ")");
+        publicar(cancelada, "reserva_cancelada");
+        return ReservaDelNegocio.de(cancelada, pagos.abonadoA(reserva.getId()), null);
+    }
+
+    @Transactional
+    @RequierePermiso("RESERVAS_RESERVA_EDITAR")
+    public ReservaDelNegocio marcarNoShow(UUID reservaId) {
+        Reserva reserva = delNegocio(reservaId);
+        Reserva noShow = reserva.marcarNoShow(OffsetDateTime.now(ZoneOffset.UTC));
+        guardarTransicion(reserva, noShow, "No-show");
+        publicar(noShow, "reserva_no_show");
+        return ReservaDelNegocio.de(noShow, pagos.abonadoA(reserva.getId()), null);
     }
 
     @Transactional(readOnly = true)
     @RequierePermiso("RESERVAS_RESERVA_VER")
     public ReservaDelNegocio ver(UUID reservaId) {
-        return ReservaDelNegocio.de(reservas.buscar(reservaId)
+        Reserva reserva = delNegocio(reservaId);
+        return ReservaDelNegocio.de(reserva, pagos.abonadoA(reserva.getId()), null);
+    }
+
+    private void guardarTransicion(Reserva antes, Reserva despues, String detalle) {
+        if (!reservas.actualizarEstado(despues, antes.getVersion())) {
+            throw new ConflictoDeEstadoException(
+                    "La reserva cambió mientras se procesaba; volvé a intentarlo");
+        }
+        reservas.registrarEvento(antes.getNegocioId(), antes.getId(), antes.getEstado(),
+                despues.getEstado(), ContextoDeNegocio.usuarioActual(), detalle);
+    }
+
+    private Reserva delNegocio(UUID reservaId) {
+        return reservas.buscar(reservaId)
                 .filter(r -> r.getNegocioId().equals(ContextoDeNegocio.negocioActual()))
-                .orElseThrow(() -> new NoEncontradoException("Esa reserva no existe")));
+                .orElseThrow(() -> new NoEncontradoException("Esa reserva no existe"));
     }
 
     private static boolean esSolapeDeRecurso(DataIntegrityViolationException e) {
@@ -100,11 +182,12 @@ public class GestionDeReservas {
         return mensaje != null && mensaje.contains(RepositorioDeReservas.CONSTRAINT_SOLAPE);
     }
 
-    private void publicarReservaCreada(Reserva r) {
+    private void publicar(Reserva r, String tipoEvento) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("negocio_id", r.getNegocioId().toString());
         payload.put("reserva_id", r.getId().toString());
         payload.put("numero", r.getNumero());
+        payload.put("estado", r.getEstado().name());
         payload.put("tipo_recurso_id", r.getTipoRecursoId().toString());
         payload.put("recurso_id", r.getRecursoId().toString());
         payload.put("cliente_id", r.getClienteId() == null ? null : r.getClienteId().toString());
@@ -114,7 +197,8 @@ public class GestionDeReservas {
         payload.put("total", r.getTotal());
         payload.put("anticipo_requerido", r.getAnticipoRequerido());
         payload.put("saldo", r.getSaldo());
+        payload.put("penalizacion", r.getPenalizacion());
         payload.put("moneda", r.getMoneda());
-        eventos.registrar(r.getNegocioId(), "Reserva", r.getId(), "reserva_creada", payload);
+        eventos.registrar(r.getNegocioId(), "Reserva", r.getId(), tipoEvento, payload);
     }
 }

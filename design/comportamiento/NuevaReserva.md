@@ -13,7 +13,7 @@
 | Paquete Flutter | `packages/reservas` |
 | Microservicio | `servicio-reservas` |
 | Tablas | `reservas` · `tarifas` · `servicios_adicionales` · `politicas_cancelacion` · `cupos_tipo_recurso` |
-| Historias | HU-070 (Crear una reserva sin posibilidad de overbooking) |
+| Historias | HU-070 (Crear una reserva sin posibilidad de overbooking) · HU-071 (Confirmar, cancelar y marcar no-show) |
 
 El periodo es semiabierto: la salida de las 11:00 no choca con una entrada a las 11:00 del mismo día. Eso lo da el tipo de rango, no una regla escrita a mano.
 
@@ -69,6 +69,37 @@ referenciada en `politica_cancelacion_id`.
 `RES-2`, … asignado con un consecutivo transaccional (`INSERT … ON CONFLICT … RETURNING`) que
 no repite número entre reservas concurrentes. Cada negocio lleva su propia serie.
 
+### R8 · Confirmar exige el anticipo cobrado (HU-071)
+**Dado** una reserva `PENDIENTE` cuyo anticipo requerido es mayor que cero, **cuando** se
+intenta confirmar sin que los pagos (`ANTICIPO`, `SALDO`, `DEPOSITO`, `CONSUMO` de
+`pagos_reserva`) cubran ese monto, **entonces** responde **409** "Falta cobrar el anticipo". Con
+el anticipo cubierto, pasa a `CONFIRMADA`, se guarda `confirmada_en` y se publica
+`reserva_confirmada`. Si el anticipo requerido es cero, se confirma sin pagos.
+
+### R9 · Cancelar dentro del plazo no penaliza; fuera de plazo, penaliza sobre el total (HU-071)
+**Dado** una reserva `PENDIENTE` o `CONFIRMADA` y su política de cancelación, **cuando** se
+cancela con al menos las horas de antelación que pide la política, **entonces** la penalización
+es **cero**. **Cuando** se cancela con menos antelación, **entonces** la penalización es la
+fracción del `total` que fija la política. En ambos casos la reserva pasa a `CANCELADA`, se
+guardan `cancelada_en`, `motivo_cancelacion` y `penalizacion`, y se publica `reserva_cancelada`.
+El cálculo lo hace servicio-recursos (política de HU-068).
+
+### R10 · Cancelar no borra la reserva, pero libera el recurso de inmediato (HU-071)
+**Dado** una reserva que ocupa un recurso, **cuando** se cancela, **entonces** el registro
+sigue existiendo (consultable, con estado `CANCELADA`) y el recurso queda libre en ese periodo
+al instante: `CANCELADA` y `NO_SHOW` no están entre los estados del `EXCLUDE`, así que otra
+reserva del mismo recurso y periodo ya se puede crear.
+
+### R11 · No-show solo desde CONFIRMADA (HU-071)
+**Dado** una reserva `CONFIRMADA`, **cuando** el huésped no llega, **entonces** se marca
+`NO_SHOW`, lo que también libera el recurso. Desde cualquier otro estado responde **409**.
+
+### R12 · Cada cambio de estado queda auditado (HU-071)
+**Dado** cualquier transición (creación incluida), **cuando** ocurre, **entonces** se inserta
+una fila en `reserva_eventos` con `estado_anterior`, `estado_nuevo`, el `usuario_id` que la
+hizo y `ocurrido_en`. Las transiciones inválidas (confirmar algo que no está pendiente,
+cancelar algo ya cancelado) responden **409** y no dejan evento.
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
@@ -109,9 +140,11 @@ _Sin definir._
 <!-- Qué ve y qué puede hacer cada rol en esta pantalla, y qué pasa exactamente cuando no
 tiene el permiso: no se ve, se ve deshabilitado, o falla al intentar. -->
 
-`RESERVAS_RESERVA_CREAR` para crear la reserva; `RESERVAS_RESERVA_VER` para consultarla. Sin el
-permiso, la llamada falla en el backend con `403`. Módulo `RESERVAS`, patrón Reserva, plan
-Básico o superior. La plantilla de rol `RECEPCIONISTA` los trae.
+`RESERVAS_RESERVA_CREAR` para crear la reserva; `RESERVAS_RESERVA_VER` para consultarla;
+`RESERVAS_RESERVA_EDITAR` para registrar pagos, confirmar y marcar no-show;
+`RESERVAS_RESERVA_ANULAR` para cancelar. Sin el permiso, la llamada falla en el backend con
+`403`. Módulo `RESERVAS`, patrón Reserva, plan Básico o superior. La plantilla de rol
+`RECEPCIONISTA` los trae.
 
 ## Qué NO debe pasar
 
@@ -127,3 +160,10 @@ que más se olvida. -->
   por un puerto con stub; la integración real es un pendiente.
 - Que una reserva de un negocio sea visible o modificable desde otro: `reservas` va con RLS y
   `ver` comprueba el `negocio_id`.
+- Que se borre una reserva para "liberar" el recurso: nunca se borra; se cancela o se marca
+  no-show y el `EXCLUDE` deja de contarla.
+- Que confirmar una reserva sin el anticipo cobrado pase: **409** hasta que los pagos lo
+  cubran.
+- Que el cálculo de la penalización viva en `servicio-reservas`: lo hace servicio-recursos con
+  la política de HU-068.
+- Que un cambio de estado no quede en `reserva_eventos`.
