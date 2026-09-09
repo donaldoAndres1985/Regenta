@@ -39,7 +39,8 @@ public class CatalogoDeRecursosStub implements CatalogoDeRecursos {
     private BigDecimal penalizacionPct = BigDecimal.ZERO;
     private int horasAntesPolitica = 0;
 
-    private record Bloqueo(UUID recursoId, OffsetDateTime desde, OffsetDateTime hasta) {
+    private record Bloqueo(UUID recursoId, OffsetDateTime desde, OffsetDateTime hasta,
+            String motivo) {
         boolean choca(OffsetDateTime d, OffsetDateTime h) {
             return desde.isBefore(h) && hasta.isAfter(d);
         }
@@ -54,7 +55,12 @@ public class CatalogoDeRecursosStub implements CatalogoDeRecursos {
     }
 
     public void bloquear(UUID recursoId, OffsetDateTime desde, OffsetDateTime hasta) {
-        bloqueos.add(new Bloqueo(recursoId, desde, hasta));
+        bloquear(recursoId, desde, hasta, "MANTENIMIENTO");
+    }
+
+    public void bloquear(UUID recursoId, OffsetDateTime desde, OffsetDateTime hasta,
+            String motivo) {
+        bloqueos.add(new Bloqueo(recursoId, desde, hasta, motivo));
     }
 
     public void cotizacion(UUID recursoId, CotizacionDeEstadia cotizacion) {
@@ -95,6 +101,15 @@ public class CatalogoDeRecursosStub implements CatalogoDeRecursos {
             OffsetDateTime hasta) {
         return bloqueos.stream().filter(b -> b.choca(desde, hasta)).map(Bloqueo::recursoId)
                 .distinct().toList();
+    }
+
+    @Override
+    public List<com.regenta.reservas.aplicacion.BloqueoEnCalendario> bloqueosEnPeriodo(
+            UUID negocioId, OffsetDateTime desde, OffsetDateTime hasta) {
+        return bloqueos.stream().filter(b -> b.choca(desde, hasta))
+                .map(b -> new com.regenta.reservas.aplicacion.BloqueoEnCalendario(b.recursoId(),
+                        b.desde(), b.hasta(), b.motivo()))
+                .toList();
     }
 
     @Override
