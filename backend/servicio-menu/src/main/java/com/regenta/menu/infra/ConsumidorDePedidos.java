@@ -2,7 +2,9 @@ package com.regenta.menu.infra;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,6 +24,7 @@ import com.regenta.comun.eventos.RegistroDeEventos;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.DatosDelNegocio;
 import com.regenta.menu.aplicacion.ExplosionDeRecetas;
+import com.regenta.menu.aplicacion.GestionDeDisponibilidad;
 import com.regenta.menu.aplicacion.InsumoAConsumir;
 import com.regenta.menu.aplicacion.LineaAExplotar;
 
@@ -33,19 +36,24 @@ import com.regenta.menu.aplicacion.LineaAExplotar;
  *
  * <p>Payload esperado de {@code pedido_completado}:
  * {@code {negocio_id, comanda_id, lineas:[{item_menu_id, cantidad, modificador_ids:[...]}]}}.
+ *
+ * <p>El mismo cierre suma las líneas al cupo diario de cada ítem (HU-080
+ * criterio 4): una comanda, un evento, una transacción.
  */
 @Component
 public class ConsumidorDePedidos {
 
     private final InboxIdempotente inbox;
     private final ExplosionDeRecetas explosion;
+    private final GestionDeDisponibilidad disponibilidad;
     private final RegistroDeEventos eventos;
     private final ObjectMapper json;
 
     public ConsumidorDePedidos(InboxIdempotente inbox, ExplosionDeRecetas explosion,
-            RegistroDeEventos eventos, ObjectMapper json) {
+            GestionDeDisponibilidad disponibilidad, RegistroDeEventos eventos, ObjectMapper json) {
         this.inbox = inbox;
         this.explosion = explosion;
+        this.disponibilidad = disponibilidad;
         this.eventos = eventos;
         this.json = json;
     }
@@ -80,10 +88,13 @@ public class ConsumidorDePedidos {
         List<Map<String, Object>> lineasCrudas =
                 (List<Map<String, Object>>) datos.getOrDefault("lineas", List.of());
         List<LineaAExplotar> lineas = new ArrayList<>();
+        Map<UUID, Integer> vendidasPorItem = new LinkedHashMap<>();
         for (Map<String, Object> l : lineasCrudas) {
             if (l.get("item_menu_id") == null) {
                 continue;
             }
+            UUID itemId = UUID.fromString(l.get("item_menu_id").toString());
+            BigDecimal cantidad = new BigDecimal(l.getOrDefault("cantidad", 1).toString());
             List<UUID> mods = new ArrayList<>();
             Object crudos = l.get("modificador_ids");
             if (crudos instanceof List<?> lista) {
@@ -91,9 +102,11 @@ public class ConsumidorDePedidos {
                     mods.add(UUID.fromString(o.toString()));
                 }
             }
-            lineas.add(new LineaAExplotar(UUID.fromString(l.get("item_menu_id").toString()),
-                    new BigDecimal(l.getOrDefault("cantidad", 1).toString()), mods));
+            lineas.add(new LineaAExplotar(itemId, cantidad, mods));
+            vendidasPorItem.merge(itemId, Math.max(cantidad.intValue(), 0), Integer::sum);
         }
+
+        disponibilidad.registrarVentas(negocioId, vendidasPorItem, LocalDate.now());
 
         List<InsumoAConsumir> insumos = explosion.explotarPara(negocioId, lineas);
         if (insumos.isEmpty()) {
