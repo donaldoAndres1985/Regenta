@@ -1,5 +1,9 @@
 package com.regenta.reservas.aplicacion;
 
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,23 +22,23 @@ import com.regenta.reservas.domain.ConsumoDeEstancia;
 import com.regenta.reservas.domain.EstadoEstancia;
 import com.regenta.reservas.domain.EstadoReserva;
 import com.regenta.reservas.domain.Estancia;
+import com.regenta.reservas.domain.MetodoDePago;
 import com.regenta.reservas.domain.Ocupante;
 import com.regenta.reservas.domain.OrigenConsumo;
+import com.regenta.reservas.domain.PagoDeReserva;
 import com.regenta.reservas.domain.Reserva;
+import com.regenta.reservas.domain.TipoDePagoReserva;
 import com.regenta.reservas.infra.RepositorioDeConsumos;
 import com.regenta.reservas.infra.RepositorioDeEstancias;
 import com.regenta.reservas.infra.RepositorioDeOcupantes;
+import com.regenta.reservas.infra.RepositorioDePagosDeReserva;
 import com.regenta.reservas.infra.RepositorioDeReservas;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-
 /**
- * Check-in, ocupantes y consumos de la estancia (HU-072/HU-073). Al llegar el
- * huésped se asigna la habitación concreta y se abre la estancia; durante la
- * estancia se le cargan el minibar, el restaurante y demás. Que el recurso no
- * esté ya ocupado lo comprueba el {@code EXCLUDE} de la tabla, no un chequeo en
- * Java (HU-072 criterio 2).
+ * El ciclo de la estancia (HU-072 a HU-074): check-in con asignación de
+ * habitación, consumos cargados a la habitación y check-out con liquidación y
+ * cierre. Que el recurso no esté ya ocupado lo comprueba el {@code EXCLUDE} de
+ * la tabla, no un chequeo en Java.
  */
 @Service
 public class GestionDeEstancias {
@@ -43,16 +47,19 @@ public class GestionDeEstancias {
     private final RepositorioDeEstancias estancias;
     private final RepositorioDeOcupantes ocupantes;
     private final RepositorioDeConsumos consumos;
+    private final RepositorioDePagosDeReserva pagos;
     private final ConsultaDeDisponibilidad disponibilidad;
     private final RegistroDeEventos eventos;
 
     public GestionDeEstancias(RepositorioDeReservas reservas, RepositorioDeEstancias estancias,
             RepositorioDeOcupantes ocupantes, RepositorioDeConsumos consumos,
-            ConsultaDeDisponibilidad disponibilidad, RegistroDeEventos eventos) {
+            RepositorioDePagosDeReserva pagos, ConsultaDeDisponibilidad disponibilidad,
+            RegistroDeEventos eventos) {
         this.reservas = reservas;
         this.estancias = estancias;
         this.ocupantes = ocupantes;
         this.consumos = consumos;
+        this.pagos = pagos;
         this.disponibilidad = disponibilidad;
         this.eventos = eventos;
     }
@@ -110,16 +117,11 @@ public class GestionDeEstancias {
         return OcupanteDelNegocio.de(ocupante);
     }
 
-    /**
-     * Carga un consumo a la habitación (HU-073). Suma al total de la estancia
-     * (criterio 1); si la estancia ya está cerrada, responde 409 (criterio 4).
-     */
     @Transactional
     @RequierePermiso("RESERVAS_RESERVA_EDITAR")
     public EstanciaDelNegocio cargarConsumo(UUID reservaId, SolicitudDeConsumo solicitud) {
         Reserva reserva = delNegocio(reservaId);
-        Estancia estancia = estancias.porReserva(reservaId)
-                .orElseThrow(() -> new NoEncontradoException("Esa reserva no tiene estancia"));
+        Estancia estancia = estanciaDe(reservaId);
         if (estancia.getEstado() != EstadoEstancia.EN_CURSO) {
             throw new ConflictoDeEstadoException(
                     "La estancia ya está cerrada; no se le pueden cargar consumos");
@@ -142,10 +144,91 @@ public class GestionDeEstancias {
     @RequierePermiso("RESERVAS_RESERVA_VER")
     public EstanciaDelNegocio verEstancia(UUID reservaId) {
         Reserva reserva = delNegocio(reservaId);
-        Estancia estancia = estancias.porReserva(reservaId)
-                .orElseThrow(() -> new NoEncontradoException("Esa reserva no tiene estancia"));
+        Estancia estancia = estanciaDe(reservaId);
         return EstanciaDelNegocio.de(estancia, reserva.getSaldo(),
                 ocupantes.porReserva(reservaId), consumos.porEstancia(estancia.getId()));
+    }
+
+    /** La cuenta de la estancia sin cerrarla, para revisarla antes del check-out (HU-074). */
+    @Transactional(readOnly = true)
+    @RequierePermiso("RESERVAS_RESERVA_VER")
+    public LiquidacionDeEstancia verLiquidacion(UUID reservaId) {
+        Reserva reserva = delNegocio(reservaId);
+        return liquidar(reserva, estanciaDe(reservaId));
+    }
+
+    /**
+     * Check-out: liquida la cuenta, cierra la estancia y pasa la reserva a
+     * {@code CHECK_OUT} (HU-074). Si hay saldo pendiente y no se confirma
+     * explícitamente, responde 409 (criterio 5). Publica {@code estancia_finalizada}
+     * (criterio 2) y {@code check_out_registrado} para que el recurso pase a
+     * {@code LIMPIEZA} (criterio 4).
+     */
+    @Transactional
+    @RequierePermiso("RESERVAS_RESERVA_EDITAR")
+    public LiquidacionDeEstancia checkOut(UUID reservaId, SolicitudDeCheckOut solicitud) {
+        Reserva reserva = delNegocio(reservaId);
+        Estancia estancia = estanciaDe(reservaId);
+        if (estancia.getEstado() != EstadoEstancia.EN_CURSO) {
+            throw new ConflictoDeEstadoException("La estancia ya está cerrada");
+        }
+        if (reserva.getEstado() != EstadoReserva.CHECK_IN) {
+            throw new ConflictoDeEstadoException(
+                    "La reserva no tiene el check-in hecho (está " + reserva.getEstado() + ")");
+        }
+        UUID usuarioId = ContextoDeNegocio.usuarioActual();
+
+        if (solicitud != null && solicitud.pago() != null) {
+            SolicitudDePagoDeReserva p = solicitud.pago();
+            pagos.registrar(PagoDeReserva.nuevo(reserva.getNegocioId(), reservaId,
+                    TipoDePagoReserva.desde(p.tipo()), MetodoDePago.desde(p.metodo()), p.monto(),
+                    p.referencia(), p.cajaSesionId(), usuarioId));
+        }
+
+        LiquidacionDeEstancia liq = liquidar(reserva, estancias.buscar(estancia.getId())
+                .orElseThrow());
+        boolean confirmar = solicitud != null && solicitud.confirmarConSaldo();
+        if (liq.saldoPendiente().signum() > 0 && !confirmar) {
+            throw new ConflictoDeEstadoException(
+                    "Hay un saldo pendiente de " + liq.saldoPendiente() + " " + liq.moneda()
+                            + "; confirmá el check-out con saldo");
+        }
+
+        Estancia cerrada = estancia.cerrar(OffsetDateTime.now(ZoneOffset.UTC), usuarioId);
+        if (!estancias.cerrar(cerrada, estancia.getVersion())) {
+            throw new ConflictoDeEstadoException(
+                    "La estancia cambió mientras se procesaba; volvé a intentarlo");
+        }
+        Reserva salida = reserva.checkOut();
+        if (!reservas.actualizarEstado(salida, reserva.getVersion())) {
+            throw new ConflictoDeEstadoException(
+                    "La reserva cambió mientras se procesaba; volvé a intentarlo");
+        }
+        reservas.registrarEvento(reserva.getNegocioId(), reservaId, EstadoReserva.CHECK_IN,
+                EstadoReserva.CHECK_OUT, usuarioId,
+                "Check-out, saldo pendiente " + liq.saldoPendiente());
+
+        List<ConsumoDeEstancia> consumosDe = consumos.porEstancia(estancia.getId());
+        publicarEstanciaFinalizada(reserva, cerrada, liq, consumosDe);
+        publicarCheckOut(reserva, cerrada);
+        publicarInsumosConsumidos(reserva, cerrada, consumosDe);
+
+        return liquidar(salida, cerrada);
+    }
+
+    // ---- privados -------------------------------------------------------------
+
+    private LiquidacionDeEstancia liquidar(Reserva reserva, Estancia estancia) {
+        BigDecimal alojamiento = reserva.getTotal();
+        BigDecimal servicios = reservas.serviciosTotalDe(reserva.getId());
+        BigDecimal consumosTotal = estancia.getConsumoTotal();
+        BigDecimal anticipo = pagos.abonadoA(reserva.getId());
+        BigDecimal subtotal = alojamiento.add(servicios).add(consumosTotal);
+        BigDecimal saldo = subtotal.subtract(anticipo);
+        return new LiquidacionDeEstancia(reserva.getId(), estancia.getId(), reserva.getNumero(),
+                alojamiento, servicios, consumosTotal, subtotal, anticipo, saldo,
+                reserva.getMoneda(), reserva.getEstado().name(), estancia.getEstado().name(),
+                estancia.getCheckOutEn());
     }
 
     private UUID resolverRecurso(Reserva reserva, UUID pedido) {
@@ -187,6 +270,11 @@ public class GestionDeEstancias {
                 .orElseThrow(() -> new NoEncontradoException("Esa reserva no existe"));
     }
 
+    private Estancia estanciaDe(UUID reservaId) {
+        return estancias.porReserva(reservaId)
+                .orElseThrow(() -> new NoEncontradoException("Esa reserva no tiene estancia"));
+    }
+
     private static boolean esSolapeDeRecurso(DataIntegrityViolationException e) {
         String mensaje = e.getMostSpecificCause().getMessage();
         return mensaje != null && mensaje.contains(RepositorioDeReservas.CONSTRAINT_SOLAPE);
@@ -203,5 +291,104 @@ public class GestionDeEstancias {
         payload.put("check_out_previsto", estancia.getCheckOutPrevisto().toString());
         eventos.registrar(reserva.getNegocioId(), "Reserva", reserva.getId(),
                 "check_in_registrado", payload);
+    }
+
+    private void publicarEstanciaFinalizada(Reserva reserva, Estancia estancia,
+            LiquidacionDeEstancia liq, List<ConsumoDeEstancia> consumosDe) {
+        List<Map<String, Object>> lineas = new ArrayList<>();
+        lineas.add(lineaAlojamiento(reserva));
+        for (ConsumoDeEstancia c : consumosDe) {
+            lineas.add(lineaConsumo(c));
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("negocio_id", reserva.getNegocioId().toString());
+        payload.put("reserva_id", reserva.getId().toString());
+        payload.put("estancia_id", estancia.getId().toString());
+        payload.put("numero", reserva.getNumero());
+        payload.put("origen_tipo", "RESERVA");
+        payload.put("cliente_id",
+                reserva.getClienteId() == null ? null : reserva.getClienteId().toString());
+        payload.put("recurso_id", estancia.getRecursoAsignadoId().toString());
+        payload.put("tipo_recurso_id", reserva.getTipoRecursoId().toString());
+        payload.put("desde", reserva.getDesde().toString());
+        payload.put("hasta", reserva.getHasta().toString());
+        payload.put("noches", reserva.getNoches());
+        payload.put("moneda", reserva.getMoneda());
+        payload.put("alojamiento", liq.alojamiento());
+        payload.put("servicios", liq.servicios());
+        payload.put("consumos", liq.consumos());
+        payload.put("subtotal", liq.subtotal());
+        payload.put("total", liq.subtotal());
+        payload.put("anticipo", liq.anticipo());
+        payload.put("saldo_pendiente", liq.saldoPendiente());
+        payload.put("check_out_en", estancia.getCheckOutEn().toString());
+        payload.put("lineas", lineas);
+        payload.put("pagos", pagos.porReserva(reserva.getId()));
+        eventos.registrar(reserva.getNegocioId(), "Reserva", reserva.getId(),
+                "estancia_finalizada", payload);
+    }
+
+    private static Map<String, Object> lineaAlojamiento(Reserva reserva) {
+        Map<String, Object> l = new LinkedHashMap<>();
+        l.put("origen", "ALOJAMIENTO");
+        l.put("descripcion", "Alojamiento " + reserva.getNumero() + " (" + reserva.getNoches()
+                + " noches)");
+        l.put("cantidad", reserva.getNoches());
+        l.put("precio_unitario", reserva.getNoches() == 0 ? reserva.getTotal()
+                : reserva.getTotal().divide(BigDecimal.valueOf(reserva.getNoches()), 4,
+                        java.math.RoundingMode.HALF_UP));
+        l.put("impuesto_pct", BigDecimal.ZERO);
+        l.put("total", reserva.getTotal());
+        return l;
+    }
+
+    private static Map<String, Object> lineaConsumo(ConsumoDeEstancia c) {
+        Map<String, Object> l = new LinkedHashMap<>();
+        l.put("origen", c.getOrigen().name());
+        l.put("descripcion", c.getDescripcion());
+        l.put("cantidad", c.getCantidad());
+        l.put("precio_unitario", c.getPrecioUnitario());
+        l.put("impuesto_pct", c.getImpuestoPct());
+        l.put("total", c.getTotal());
+        l.put("producto_id", c.getProductoId() == null ? null : c.getProductoId().toString());
+        return l;
+    }
+
+    private void publicarCheckOut(Reserva reserva, Estancia estancia) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("negocio_id", reserva.getNegocioId().toString());
+        payload.put("reserva_id", reserva.getId().toString());
+        payload.put("estancia_id", estancia.getId().toString());
+        payload.put("recurso_id", estancia.getRecursoAsignadoId().toString());
+        payload.put("tipo_recurso_id", reserva.getTipoRecursoId().toString());
+        payload.put("check_out_en", estancia.getCheckOutEn().toString());
+        payload.put("estado_recurso_sugerido", "LIMPIEZA");
+        eventos.registrar(reserva.getNegocioId(), "Reserva", reserva.getId(),
+                "check_out_registrado", payload);
+    }
+
+    private void publicarInsumosConsumidos(Reserva reserva, Estancia estancia,
+            List<ConsumoDeEstancia> consumosDe) {
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (ConsumoDeEstancia c : consumosDe) {
+            if (c.descuentaInventario()) {
+                Map<String, Object> it = new LinkedHashMap<>();
+                it.put("producto_id", c.getProductoId().toString());
+                it.put("cantidad", c.getCantidad());
+                it.put("descripcion", c.getDescripcion());
+                items.add(it);
+            }
+        }
+        if (items.isEmpty()) {
+            return;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("negocio_id", reserva.getNegocioId().toString());
+        payload.put("reserva_id", reserva.getId().toString());
+        payload.put("estancia_id", estancia.getId().toString());
+        payload.put("items", items);
+        eventos.registrar(reserva.getNegocioId(), "Reserva", reserva.getId(),
+                "insumos_consumidos", payload);
     }
 }

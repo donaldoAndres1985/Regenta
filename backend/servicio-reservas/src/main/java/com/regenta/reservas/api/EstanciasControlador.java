@@ -13,8 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.reservas.aplicacion.EstanciaDelNegocio;
 import com.regenta.reservas.aplicacion.GestionDeEstancias;
+import com.regenta.reservas.aplicacion.LiquidacionDeEstancia;
 import com.regenta.reservas.aplicacion.OcupanteDelNegocio;
 import com.regenta.reservas.aplicacion.SolicitudDeCheckIn;
+import com.regenta.reservas.aplicacion.SolicitudDeCheckOut;
 import com.regenta.reservas.aplicacion.SolicitudDeConsumo;
 import com.regenta.reservas.aplicacion.SolicitudDeOcupante;
 
@@ -68,5 +70,20 @@ public class EstanciasControlador {
     public EstanciaDelNegocio cargarConsumo(@PathVariable UUID reservaId,
             @Valid @RequestBody SolicitudDeConsumo solicitud) {
         return estancias.cargarConsumo(reservaId, solicitud);
+    }
+
+    @GetMapping("/{reservaId}/liquidacion")
+    @Operation(summary = "La cuenta de la estancia: alojamiento + servicios + consumos - anticipo")
+    public LiquidacionDeEstancia verLiquidacion(@PathVariable UUID reservaId) {
+        return estancias.verLiquidacion(reservaId);
+    }
+
+    @PostMapping("/{reservaId}/check-out")
+    @Operation(summary = "Liquida y cierra la estancia; publica estancia_finalizada")
+    @ApiResponse(responseCode = "409", description = "La estancia ya está cerrada, o hay saldo "
+            + "pendiente sin confirmar")
+    public LiquidacionDeEstancia checkOut(@PathVariable UUID reservaId,
+            @RequestBody(required = false) @Valid SolicitudDeCheckOut solicitud) {
+        return estancias.checkOut(reservaId, solicitud);
     }
 }

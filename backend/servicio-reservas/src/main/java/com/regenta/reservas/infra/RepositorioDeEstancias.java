@@ -16,8 +16,8 @@ import com.regenta.reservas.domain.EstadoEstancia;
 public class RepositorioDeEstancias {
 
     private static final String COLUMNAS = "id, negocio_id, reserva_id, recurso_asignado_id, "
-            + "check_in_en, check_in_usuario_id, check_out_previsto, estado, consumo_total, "
-            + "deposito, observaciones_entrada, version";
+            + "check_in_en, check_in_usuario_id, check_out_en, check_out_usuario_id, "
+            + "check_out_previsto, estado, consumo_total, deposito, observaciones_entrada, version";
 
     private static final RowMapper<Estancia> A_ESTANCIA = (rs, fila) -> Estancia.rehidratar(
             rs.getObject("id", UUID.class),
@@ -26,6 +26,8 @@ public class RepositorioDeEstancias {
             rs.getObject("recurso_asignado_id", UUID.class),
             rs.getObject("check_in_en", OffsetDateTime.class),
             rs.getObject("check_in_usuario_id", UUID.class),
+            rs.getObject("check_out_en", OffsetDateTime.class),
+            rs.getObject("check_out_usuario_id", UUID.class),
             rs.getObject("check_out_previsto", OffsetDateTime.class),
             EstadoEstancia.valueOf(rs.getString("estado")),
             rs.getBigDecimal("consumo_total"),
@@ -54,6 +56,20 @@ public class RepositorioDeEstancias {
     public void sumarConsumo(UUID estanciaId, java.math.BigDecimal monto) {
         jdbc.update("UPDATE reservas.estancias SET consumo_total = consumo_total + ? WHERE id = ?",
                 monto, estanciaId);
+    }
+
+    /**
+     * Cierra la estancia en el check-out (HU-074), con control de versión
+     * optimista. Devuelve false si la fila cambió por debajo.
+     */
+    public boolean cerrar(Estancia e, long versionEsperada) {
+        int filas = jdbc.update(
+                "UPDATE reservas.estancias SET estado = ?, check_out_en = ?, "
+                        + " check_out_usuario_id = ?, version = version + 1 "
+                        + "WHERE id = ? AND version = ?",
+                e.getEstado().name(), e.getCheckOutEn(), e.getCheckOutUsuarioId(), e.getId(),
+                versionEsperada);
+        return filas == 1;
     }
 
     public Optional<Estancia> porReserva(UUID reservaId) {

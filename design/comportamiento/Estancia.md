@@ -14,7 +14,7 @@
 | Microservicio | `servicio-reservas` |
 | Tablas | `estancias` · `consumos_estancia` · `ocupantes` · `pagos_reserva` |
 | Historias | HU-072 (Check-in con asignación de recurso) · HU-073 (Cargar consumos a la estancia) · HU-074 (Check-out, liquidación y cierre de estancia) |
-| Estado historias | HU-072 ✅ · HU-073 ✅ · HU-074 pendiente |
+| Estado historias | HU-072 ✅ · HU-073 ✅ · HU-074 ✅ |
 
 Al cerrar se publica estancia_finalizada: el equivalente exacto de venta_completada. Facturación, Reportes, CRM y Caja lo consumen igual.
 
@@ -81,6 +81,37 @@ consumo guarda su `comanda_id`, de modo que se puede rastrear de qué comanda vi
 **Dado** una estancia que ya no está `EN_CURSO` (`FINALIZADA` o `EXTENDIDA`), **cuando** se
 intenta cargar un consumo, **entonces** responde **409**.
 
+### R10 · La liquidación suma alojamiento, servicios y consumos, menos el anticipo (HU-074)
+**Dado** una estancia, **cuando** se calcula la liquidación, **entonces**
+`subtotal = total de la reserva (alojamiento) + servicios adicionales + consumos de la
+estancia` y `saldo_pendiente = subtotal − lo abonado` (pagos de tipo `ANTICIPO`, `SALDO`,
+`DEPOSITO`, `CONSUMO`). Se puede consultar sin cerrar la estancia (`GET .../liquidacion`).
+
+### R11 · El check-out cierra la estancia y pasa la reserva a CHECK_OUT (HU-074)
+**Dado** una estancia `EN_CURSO` de una reserva en `CHECK_IN`, **cuando** se confirma el
+check-out, **entonces** la estancia pasa a `FINALIZADA` (con `check_out_en` y
+`check_out_usuario_id`) y la reserva a `CHECK_OUT`. El evento `CHECK_IN → CHECK_OUT` queda en
+`reserva_eventos`. Segundo check-out o check-out de una reserva sin check-in → **409**.
+
+### R12 · Al cerrar se publica `estancia_finalizada` (HU-074)
+**Dado** el check-out completo, **cuando** se registra, **entonces** se publica
+`estancia_finalizada` —el equivalente de `venta_completada`— con `origen_tipo = RESERVA`, el
+desglose en `lineas` (una de `ALOJAMIENTO` más una por cada consumo, con su `producto_id`
+cuando lo tiene), los totales y los `pagos`. Facturación lo consume y emite el documento con
+origen `RESERVA` (HU-053).
+
+### R13 · Al cerrar, el recurso pasa a LIMPIEZA, no directo a disponible (HU-074)
+**Dado** el check-out, **cuando** se completa, **entonces** se publica `check_out_registrado`
+con `recurso_id` y `estado_recurso_sugerido = LIMPIEZA` para que servicio-recursos ponga la
+habitación en `LIMPIEZA`. No queda disponible hasta que alguien la marque limpia.
+
+### R14 · Un saldo pendiente exige confirmación explícita (HU-074)
+**Dado** una liquidación con `saldo_pendiente > 0`, **cuando** se intenta cerrar sin
+`confirmarConSaldo = true` y sin un pago que lo cubra, **entonces** responde **409** avisando
+del monto. Con la confirmación, o con un pago final que deje el saldo en cero, el check-out
+procede. Si el consumo tenía `producto_id`, además se publica `insumos_consumidos` para que
+Inventario descuente stock.
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
@@ -121,10 +152,10 @@ _Sin definir._
 <!-- Qué ve y qué puede hacer cada rol en esta pantalla, y qué pasa exactamente cuando no
 tiene el permiso: no se ve, se ve deshabilitado, o falla al intentar. -->
 
-`RESERVAS_RESERVA_EDITAR` para hacer check-in, registrar ocupantes y cargar consumos;
-`RESERVAS_RESERVA_VER` para consultar la estancia. Sin el permiso, la llamada falla en el
-backend con `403`. Módulo `RESERVAS`, patrón Reserva. La plantilla de rol `RECEPCIONISTA` los
-trae.
+`RESERVAS_RESERVA_EDITAR` para hacer check-in, registrar ocupantes, cargar consumos y hacer el
+check-out; `RESERVAS_RESERVA_VER` para consultar la estancia y la liquidación. Sin el permiso,
+la llamada falla en el backend con `403`. Módulo `RESERVAS`, patrón Reserva. La plantilla de rol
+`RECEPCIONISTA` los trae.
 
 ## Qué NO debe pasar
 
@@ -136,8 +167,12 @@ trae.
   al consumir `check_in_registrado`.
 - Que se carguen consumos a una estancia cerrada.
 - Que el descuento de stock de un consumo con producto lo haga servicio-reservas: solo guarda
-  el `producto_id`; el descuento lo dispara el cierre de la estancia (HU-074) y lo aplica
-  Inventario.
+  el `producto_id`; el descuento lo dispara el cierre de la estancia (HU-074, evento
+  `insumos_consumidos`) y lo aplica Inventario.
+- Que se borre una estancia o una reserva para "liberar" la habitación: se cierra y el
+  `EXCLUDE` deja de contarla; el registro queda.
+- Que el check-out ponga el recurso directamente en `DISPONIBLE`: siempre pasa por `LIMPIEZA`.
+- Que se cierre una estancia con saldo pendiente sin que alguien lo confirme a propósito.
 
 <!-- Los casos que hay que impedir a propósito. Esta sección es la que más bugs evita y la
 que más se olvida. -->
