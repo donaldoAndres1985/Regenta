@@ -19,9 +19,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.menu.aplicacion.CartaConCategorias;
+import com.regenta.menu.aplicacion.CartaDeMenu;
 import com.regenta.menu.aplicacion.CartaDelNegocio;
 import com.regenta.menu.aplicacion.CategoriaDelNegocio;
 import com.regenta.menu.aplicacion.GestionDeCartas;
+import com.regenta.menu.aplicacion.GestionDeItemsDeMenu;
 import com.regenta.menu.aplicacion.SolicitudDeCarta;
 import com.regenta.menu.aplicacion.SolicitudDeCategoria;
 
@@ -37,9 +39,11 @@ import jakarta.validation.Valid;
 public class CartasControlador {
 
     private final GestionDeCartas cartas;
+    private final GestionDeItemsDeMenu items;
 
-    public CartasControlador(GestionDeCartas cartas) {
+    public CartasControlador(GestionDeCartas cartas, GestionDeItemsDeMenu items) {
         this.cartas = cartas;
+        this.items = items;
     }
 
     @GetMapping
@@ -61,6 +65,12 @@ public class CartasControlador {
     @ApiResponse(responseCode = "404", description = "No existe en este negocio")
     public CartaConCategorias ver(@PathVariable UUID cartaId) {
         return cartas.ver(cartaId);
+    }
+
+    @GetMapping("/{cartaId}/menu")
+    @Operation(summary = "La carta como la ve el mesero: categorías con sus ítems (agotados incluidos)")
+    public CartaDeMenu menu(@PathVariable UUID cartaId) {
+        return items.menuDeCarta(cartaId);
     }
 
     @PostMapping
