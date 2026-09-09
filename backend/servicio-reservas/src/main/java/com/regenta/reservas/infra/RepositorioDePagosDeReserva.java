@@ -1,6 +1,8 @@
 package com.regenta.reservas.infra;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -35,5 +37,15 @@ public class RepositorioDePagosDeReserva {
                         + "WHERE reserva_id = ? AND tipo IN ('ANTICIPO','SALDO','DEPOSITO','CONSUMO')",
                 BigDecimal.class, reservaId);
         return suma == null ? BigDecimal.ZERO : suma;
+    }
+
+    /** Los pagos de una reserva, en formato para el payload de un evento (HU-074). */
+    public List<Map<String, Object>> porReserva(UUID reservaId) {
+        return jdbc.query(
+                "SELECT tipo, metodo, monto FROM reservas.pagos_reserva "
+                        + "WHERE reserva_id = ? ORDER BY fecha",
+                (rs, fila) -> Map.of("tipo", rs.getString("tipo"), "metodo", rs.getString("metodo"),
+                        "monto", rs.getBigDecimal("monto")),
+                reservaId);
     }
 }

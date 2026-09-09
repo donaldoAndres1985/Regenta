@@ -133,4 +133,12 @@ public class RepositorioDeReservas {
         return jdbc.query("SELECT " + COLUMNAS + " FROM reservas.reservas WHERE id = ?",
                 A_RESERVA, id).stream().findFirst();
     }
+
+    /** Lo cargado en servicios adicionales de la reserva (HU-074). Hoy 0 hasta que una HU los enlace. */
+    public java.math.BigDecimal serviciosTotalDe(UUID reservaId) {
+        java.math.BigDecimal suma = jdbc.queryForObject(
+                "SELECT coalesce(sum(total), 0) FROM reservas.reserva_servicios WHERE reserva_id = ?",
+                java.math.BigDecimal.class, reservaId);
+        return suma == null ? java.math.BigDecimal.ZERO : suma;
+    }
 }

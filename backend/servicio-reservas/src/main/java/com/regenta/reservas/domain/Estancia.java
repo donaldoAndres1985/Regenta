@@ -4,10 +4,12 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import com.regenta.comun.errores.ConflictoDeEstadoException;
+
 /**
  * El alojamiento de un huésped entre el check-in y el check-out (HU-072). Se
- * abre al hacer check-in y queda ligada 1:1 a la reserva
- * ({@code estancias.reserva_id UNIQUE}).
+ * abre al hacer check-in, acumula consumos (HU-073) y se cierra en el check-out
+ * (HU-074). Va ligada 1:1 a la reserva ({@code estancias.reserva_id UNIQUE}).
  */
 public final class Estancia {
 
@@ -17,6 +19,8 @@ public final class Estancia {
     private final UUID recursoAsignadoId;
     private final OffsetDateTime checkInEn;
     private final UUID checkInUsuarioId;
+    private final OffsetDateTime checkOutEn;
+    private final UUID checkOutUsuarioId;
     private final OffsetDateTime checkOutPrevisto;
     private final EstadoEstancia estado;
     private final BigDecimal consumoTotal;
@@ -25,15 +29,18 @@ public final class Estancia {
     private final long version;
 
     private Estancia(UUID id, UUID negocioId, UUID reservaId, UUID recursoAsignadoId,
-            OffsetDateTime checkInEn, UUID checkInUsuarioId, OffsetDateTime checkOutPrevisto,
-            EstadoEstancia estado, BigDecimal consumoTotal, BigDecimal deposito,
-            String observacionesEntrada, long version) {
+            OffsetDateTime checkInEn, UUID checkInUsuarioId, OffsetDateTime checkOutEn,
+            UUID checkOutUsuarioId, OffsetDateTime checkOutPrevisto, EstadoEstancia estado,
+            BigDecimal consumoTotal, BigDecimal deposito, String observacionesEntrada,
+            long version) {
         this.id = id;
         this.negocioId = negocioId;
         this.reservaId = reservaId;
         this.recursoAsignadoId = recursoAsignadoId;
         this.checkInEn = checkInEn;
         this.checkInUsuarioId = checkInUsuarioId;
+        this.checkOutEn = checkOutEn;
+        this.checkOutUsuarioId = checkOutUsuarioId;
         this.checkOutPrevisto = checkOutPrevisto;
         this.estado = estado;
         this.consumoTotal = consumoTotal;
@@ -48,18 +55,31 @@ public final class Estancia {
             BigDecimal deposito, String observacionesEntrada) {
         BigDecimal dep = deposito == null || deposito.signum() < 0 ? BigDecimal.ZERO : deposito;
         return new Estancia(UUID.randomUUID(), negocioId, reservaId, recursoAsignadoId, checkInEn,
-                checkInUsuarioId, checkOutPrevisto, EstadoEstancia.EN_CURSO, BigDecimal.ZERO,
-                dep.setScale(4, java.math.RoundingMode.HALF_UP),
+                checkInUsuarioId, null, null, checkOutPrevisto, EstadoEstancia.EN_CURSO,
+                BigDecimal.ZERO, dep.setScale(4, java.math.RoundingMode.HALF_UP),
                 observacionesEntrada == null || observacionesEntrada.isBlank() ? null
                         : observacionesEntrada.trim(), 0L);
     }
 
     public static Estancia rehidratar(UUID id, UUID negocioId, UUID reservaId,
             UUID recursoAsignadoId, OffsetDateTime checkInEn, UUID checkInUsuarioId,
-            OffsetDateTime checkOutPrevisto, EstadoEstancia estado, BigDecimal consumoTotal,
-            BigDecimal deposito, String observacionesEntrada, long version) {
+            OffsetDateTime checkOutEn, UUID checkOutUsuarioId, OffsetDateTime checkOutPrevisto,
+            EstadoEstancia estado, BigDecimal consumoTotal, BigDecimal deposito,
+            String observacionesEntrada, long version) {
         return new Estancia(id, negocioId, reservaId, recursoAsignadoId, checkInEn, checkInUsuarioId,
-                checkOutPrevisto, estado, consumoTotal, deposito, observacionesEntrada, version);
+                checkOutEn, checkOutUsuarioId, checkOutPrevisto, estado, consumoTotal, deposito,
+                observacionesEntrada, version);
+    }
+
+    /** Cierra la estancia en el check-out (HU-074). */
+    public Estancia cerrar(OffsetDateTime ahora, UUID usuarioId) {
+        if (estado != EstadoEstancia.EN_CURSO) {
+            throw new ConflictoDeEstadoException(
+                    "La estancia ya está cerrada (está " + estado + ")");
+        }
+        return new Estancia(id, negocioId, reservaId, recursoAsignadoId, checkInEn, checkInUsuarioId,
+                ahora, usuarioId, checkOutPrevisto, EstadoEstancia.FINALIZADA, consumoTotal,
+                deposito, observacionesEntrada, version);
     }
 
     public UUID getId() {
@@ -84,6 +104,14 @@ public final class Estancia {
 
     public UUID getCheckInUsuarioId() {
         return checkInUsuarioId;
+    }
+
+    public OffsetDateTime getCheckOutEn() {
+        return checkOutEn;
+    }
+
+    public UUID getCheckOutUsuarioId() {
+        return checkOutUsuarioId;
     }
 
     public OffsetDateTime getCheckOutPrevisto() {

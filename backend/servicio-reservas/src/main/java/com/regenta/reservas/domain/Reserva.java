@@ -208,6 +208,17 @@ public final class Reserva {
                 motivoCancelacion, creadoEn, version);
     }
 
+    /** Cierra la estancia: {@code CHECK_IN → CHECK_OUT} (HU-074). */
+    public Reserva checkOut() {
+        if (estado != EstadoReserva.CHECK_IN) {
+            throw new ConflictoDeEstadoException(
+                    "Solo se hace check-out de una reserva con check-in hecho (está " + estado
+                            + ")");
+        }
+        return copiaCon(EstadoReserva.CHECK_OUT, penalizacion, confirmadaEn, canceladaEn,
+                motivoCancelacion);
+    }
+
     private Reserva copiaCon(EstadoReserva nuevoEstado, BigDecimal nuevaPenalizacion,
             OffsetDateTime nuevaConfirmadaEn, OffsetDateTime nuevaCanceladaEn, String nuevoMotivo) {
         return new Reserva(id, negocioId, sucursalId, numero, clienteId, tipoRecursoId, recursoId,
