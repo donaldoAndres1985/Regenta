@@ -50,10 +50,11 @@ class ReservaTest {
     }
 
     @Test
-    @DisplayName("Una reserva sin recurso asignado se rechaza")
-    void sinRecurso() {
-        assertThatThrownBy(() -> nueva(D1_15, D3_11, null, "100", "0"))
-                .isInstanceOf(ReglaDeNegocioException.class);
+    @DisplayName("Una reserva puede nacer sin recurso: se vende por tipo y se asigna en el check-in")
+    void sinRecursoSeVendePorTipo() {
+        Reserva r = nueva(D1_15, D3_11, null, "100000", "0");
+        assertThat(r.getRecursoId()).isNull();
+        assertThat(r.getTipoRecursoId()).isNotNull();
     }
 
     @Test
