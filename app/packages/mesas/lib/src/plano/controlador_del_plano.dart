@@ -106,6 +106,11 @@ class ControladorDelPlano extends StateNotifier<EstadoDelPlano> {
     await _accion(() => _repo.pedirCuenta(sesionId));
   }
 
+  /// HU-083 criterio 1: une una mesa libre a la sesión. En 409 deja el mensaje.
+  Future<void> unirMesa(String sesionId, String mesaId) async {
+    await _accion(() => _repo.unirMesa(sesionId, mesaId));
+  }
+
   /// Criterio 3: cierra la sesión; la mesa queda «por limpiar».
   Future<void> cerrarSesion(String sesionId) async {
     await _accion(() => _repo.cerrarSesion(sesionId));

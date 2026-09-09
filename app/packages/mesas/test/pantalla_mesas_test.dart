@@ -13,6 +13,7 @@ class _RepoFake implements RepositorioDeMesas {
   ErrorDeApi? errorAlCrear;
   ErrorDeApi? errorAlEliminar;
   ErrorDeApi? errorAlAbrir;
+  ErrorDeApi? errorAlUnir;
 
   final List<({String id, int x, int y})> movimientos = [];
   final List<String> eliminadas = [];
@@ -21,6 +22,7 @@ class _RepoFake implements RepositorioDeMesas {
   final List<String> cuentasPedidas = [];
   final List<String> sesionesCerradas = [];
   final List<String> limpiadas = [];
+  final List<({String sesionId, String mesaId})> uniones = [];
   final Map<String, SesionDeMesa> _sesionPorMesa = {};
 
   @override
@@ -114,6 +116,13 @@ class _RepoFake implements RepositorioDeMesas {
   }
 
   @override
+  Future<void> unirMesa(String sesionId, String mesaId) async {
+    if (errorAlUnir != null) throw errorAlUnir!;
+    uniones.add((sesionId: sesionId, mesaId: mesaId));
+    _cambiarEstado(mesaId, 'OCUPADA', sesionId: sesionId);
+  }
+
+  @override
   Future<void> cerrarSesion(String sesionId) async {
     sesionesCerradas.add(sesionId);
     String? mesaId;
@@ -132,7 +141,7 @@ class _RepoFake implements RepositorioDeMesas {
     _cambiarEstado(mesaId, 'LIBRE');
   }
 
-  void _cambiarEstado(String mesaId, String estado) {
+  void _cambiarEstado(String mesaId, String estado, {String? sesionId}) {
     MesaEnPlano mapear(MesaEnPlano m) => m.id != mesaId
         ? m
         : MesaEnPlano(
@@ -147,6 +156,7 @@ class _RepoFake implements RepositorioDeMesas {
             posY: m.posY,
             ancho: m.ancho,
             alto: m.alto,
+            sesionId: sesionId ?? m.sesionId,
           );
     _plano = PlanoDelSalon(
       zonas: [
@@ -174,6 +184,7 @@ MesaEnPlano _m({
   int capacidad = 4,
   int posX = 0,
   int posY = 0,
+  String? sesionId,
 }) =>
     MesaEnPlano(
       id: id,
@@ -186,6 +197,7 @@ MesaEnPlano _m({
       posY: posY,
       ancho: 80,
       alto: 80,
+      sesionId: sesionId,
     );
 
 PlanoDelSalon _planoCon(List<MesaEnPlano> sinZona, {List<ZonaConMesas> zonas = const []}) =>
@@ -467,5 +479,74 @@ void main() {
 
     expect(find.byKey(const Key('hoja-abrir')), findsNothing);
     expect(repo.aperturas, isEmpty);
+  });
+
+  // ---- HU-083 ----
+
+  testWidgets('Criterio 4: las mesas unidas llevan el marcador de grupo; una libre no',
+      (tester) async {
+    final repo = _RepoFake(plano: _planoCon([
+      _m(id: 'a', codigo: 'M1', estado: 'OCUPADA', sesionId: 's1'),
+      _m(id: 'b', codigo: 'M2', estado: 'OCUPADA', sesionId: 's1'),
+      _m(id: 'libre', codigo: 'M3'),
+    ]));
+    await _montar(tester, repo);
+
+    expect(find.byKey(const Key('mesa-unida-a')), findsOneWidget);
+    expect(find.byKey(const Key('mesa-unida-b')), findsOneWidget);
+    expect(find.byKey(const Key('mesa-unida-libre')), findsNothing);
+  });
+
+  testWidgets('Criterio 1: desde una mesa ocupada se une otra mesa libre a la sesión',
+      (tester) async {
+    final repo = _RepoFake(plano: _planoCon([
+      _m(id: 'a', codigo: 'M1', estado: 'OCUPADA', sesionId: 's-a'),
+      _m(id: 'b', codigo: 'M2'),
+    ]));
+    repo._sesionPorMesa['a'] = const SesionDeMesa(
+      id: 's-a',
+      mesaPrincipalId: 'a',
+      estado: 'ABIERTA',
+      numComensales: 4,
+      minutosAbierta: 10,
+    );
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('mesa-a')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('hoja-unir')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('unir-opcion-b')));
+    await tester.pumpAndSettle();
+
+    expect(repo.uniones, [(sesionId: 's-a', mesaId: 'b')]);
+    expect(find.byKey(const Key('mesa-unida-b')), findsOneWidget);
+  });
+
+  testWidgets('Criterio 2: si la mesa a unir ya está ocupada, el 409 se muestra en el aviso',
+      (tester) async {
+    final repo = _RepoFake(plano: _planoCon([
+      _m(id: 'a', codigo: 'M1', estado: 'OCUPADA', sesionId: 's-a'),
+      _m(id: 'b', codigo: 'M2'),
+    ]))
+      ..errorAlUnir = const RecursoDuplicado('Esa mesa ya está ocupada');
+    repo._sesionPorMesa['a'] = const SesionDeMesa(
+      id: 's-a',
+      mesaPrincipalId: 'a',
+      estado: 'ABIERTA',
+      numComensales: 4,
+      minutosAbierta: 10,
+    );
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('mesa-a')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('hoja-unir')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('unir-opcion-b')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('mesas-aviso')), findsOneWidget);
+    expect(find.text('Esa mesa ya está ocupada'), findsOneWidget);
   });
 }

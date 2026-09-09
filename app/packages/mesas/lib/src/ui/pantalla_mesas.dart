@@ -112,15 +112,23 @@ class _PantallaMesasState extends ConsumerState<PantallaMesas> {
   Future<void> _abrirHojaDeMesa(BuildContext context, MesaEnPlano mesa) async {
     final ctrl = ref.read(controladorDelPlanoProvider.notifier);
     final repo = ref.read(repositorioDeMesasProvider);
+    final libres = ref
+        .read(controladorDelPlanoProvider)
+        .plano
+        .todas
+        .where((m) => m.estado == 'LIBRE' && m.id != mesa.id)
+        .toList();
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: RegentaColors.surface,
       builder: (_) => _HojaDeMesa(
         mesa: mesa,
+        mesasLibres: libres,
         cargarSesion: () => repo.sesionDe(mesa.id),
         onAbrir: (n) => ctrl.abrirSesion(mesa.id, n),
         onPedirCuenta: ctrl.pedirCuenta,
         onCerrar: ctrl.cerrarSesion,
+        onUnir: ctrl.unirMesa,
         onLimpiar: () => ctrl.marcarLimpia(mesa.id),
       ),
     );
@@ -447,6 +455,15 @@ class _TarjetaMesaState extends State<_TarjetaMesa> {
               ],
             ),
           ),
+          if (widget.mesa.sesionId != null && !widget.modoEdicion)
+            Positioned(
+              top: 0,
+              left: 0,
+              child: Icon(Icons.link,
+                  key: Key('mesa-unida-${widget.mesa.id}'),
+                  size: 13,
+                  color: estilo.borde),
+            ),
           if (widget.modoEdicion)
             Positioned(
               top: -2,
@@ -661,18 +678,22 @@ class _FormularioMesaState extends State<_FormularioMesa> {
 class _HojaDeMesa extends StatefulWidget {
   const _HojaDeMesa({
     required this.mesa,
+    required this.mesasLibres,
     required this.cargarSesion,
     required this.onAbrir,
     required this.onPedirCuenta,
     required this.onCerrar,
+    required this.onUnir,
     required this.onLimpiar,
   });
 
   final MesaEnPlano mesa;
+  final List<MesaEnPlano> mesasLibres;
   final Future<SesionDeMesa?> Function() cargarSesion;
   final Future<String?> Function(int numComensales) onAbrir;
   final Future<void> Function(String sesionId) onPedirCuenta;
   final Future<void> Function(String sesionId) onCerrar;
+  final Future<void> Function(String sesionId, String mesaId) onUnir;
   final Future<void> Function() onLimpiar;
 
   @override
@@ -728,6 +749,27 @@ class _HojaDeMesaState extends State<_HojaDeMesa> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  Future<void> _elegirMesaParaUnir(String sesionId) async {
+    final elegida = await showDialog<String>(
+      context: context,
+      builder: (_) => SimpleDialog(
+        title: Text('Unir una mesa libre',
+            style: RegentaType.seccion.copyWith(fontSize: 15)),
+        children: [
+          for (final m in widget.mesasLibres)
+            SimpleDialogOption(
+              key: Key('unir-opcion-${m.id}'),
+              onPressed: () => Navigator.of(context).pop(m.id),
+              child: Text('${m.codigo} · ${m.capacidad} pax'),
+            ),
+        ],
+      ),
+    );
+    if (elegida != null) {
+      await _hacer(() => widget.onUnir(sesionId, elegida));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -778,6 +820,13 @@ class _HojaDeMesaState extends State<_HojaDeMesa> {
           style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
         ),
         const SizedBox(height: 12),
+        if (s != null && widget.mesasLibres.isNotEmpty)
+          OutlinedButton(
+            key: const Key('hoja-unir'),
+            onPressed: () => _elegirMesaParaUnir(s.id),
+            child: const Text('Unir mesa'),
+          ),
+        const SizedBox(height: 8),
         if (s != null && s.estado == 'ABIERTA')
           OutlinedButton(
             key: const Key('hoja-pedir-cuenta'),

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -58,6 +59,19 @@ public class SesionesDeMesaControlador {
     @Operation(summary = "Una sesión: cuánto duró y cuántos comensales tuvo")
     public SesionDelNegocio ver(@PathVariable UUID sesionId) {
         return sesiones.ver(sesionId);
+    }
+
+    @PostMapping("/sesiones/{sesionId}/mesas/{mesaId}")
+    @Operation(summary = "Une una mesa libre a la sesión (grupo grande)")
+    @ApiResponse(responseCode = "409", description = "Esa mesa ya está ocupada")
+    public SesionDelNegocio unir(@PathVariable UUID sesionId, @PathVariable UUID mesaId) {
+        return sesiones.unir(sesionId, mesaId);
+    }
+
+    @DeleteMapping("/sesiones/{sesionId}/mesas/{mesaId}")
+    @Operation(summary = "Saca una mesa unida del grupo; queda por limpiar")
+    public SesionDelNegocio separar(@PathVariable UUID sesionId, @PathVariable UUID mesaId) {
+        return sesiones.separar(sesionId, mesaId);
     }
 
     @PostMapping("/sesiones/{sesionId}/cuenta")
