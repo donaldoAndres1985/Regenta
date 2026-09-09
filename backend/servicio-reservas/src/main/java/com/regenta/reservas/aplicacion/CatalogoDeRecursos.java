@@ -36,4 +36,13 @@ public interface CatalogoDeRecursos {
      */
     AnticipoRequerido anticipo(UUID negocioId, UUID politicaCancelacionId, BigDecimal total,
             OffsetDateTime entrada);
+
+    /**
+     * Lo que retiene la política de cancelación si la reserva se cancela ahora
+     * (HU-071 criterios 2 y 3): cero si se cancela con la antelación que pide la
+     * política, si no una fracción del total. Sin {@code politicaCancelacionId}
+     * usa la política por defecto del negocio.
+     */
+    PenalizacionDeCancelacion penalizacionPorCancelar(UUID negocioId, UUID politicaCancelacionId,
+            BigDecimal total, OffsetDateTime entrada);
 }

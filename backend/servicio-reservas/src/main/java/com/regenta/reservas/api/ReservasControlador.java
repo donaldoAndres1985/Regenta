@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.reservas.aplicacion.GestionDeReservas;
 import com.regenta.reservas.aplicacion.ReservaDelNegocio;
+import com.regenta.reservas.aplicacion.SolicitudDeCancelacion;
+import com.regenta.reservas.aplicacion.SolicitudDePagoDeReserva;
 import com.regenta.reservas.aplicacion.SolicitudDeReserva;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,10 +22,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
-/** Reservas de recursos. HU-070. */
+/** Reservas de recursos y su ciclo de estados. HU-070 · HU-071. */
 @RestController
 @RequestMapping("/api/reservas")
-@Tag(name = "Reservas", description = "Apartar un recurso para un periodo, sin overbooking")
+@Tag(name = "Reservas", description = "Apartar un recurso para un periodo y moverlo por sus estados")
 public class ReservasControlador {
 
     private final GestionDeReservas reservas;
@@ -46,5 +48,35 @@ public class ReservasControlador {
     @ApiResponse(responseCode = "404", description = "No existe en este negocio")
     public ReservaDelNegocio ver(@PathVariable UUID reservaId) {
         return reservas.ver(reservaId);
+    }
+
+    @PostMapping("/{reservaId}/pagos")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Registra un pago sobre la reserva (anticipo, saldo, depósito…)")
+    public ReservaDelNegocio registrarPago(@PathVariable UUID reservaId,
+            @Valid @RequestBody SolicitudDePagoDeReserva solicitud) {
+        return reservas.registrarPago(reservaId, solicitud);
+    }
+
+    @PostMapping("/{reservaId}/confirmacion")
+    @Operation(summary = "Confirma la reserva pendiente; exige el anticipo cobrado")
+    @ApiResponse(responseCode = "409", description = "No está pendiente o falta el anticipo")
+    public ReservaDelNegocio confirmar(@PathVariable UUID reservaId) {
+        return reservas.confirmar(reservaId);
+    }
+
+    @PostMapping("/{reservaId}/cancelacion")
+    @Operation(summary = "Cancela la reserva y calcula la penalización de la política")
+    @ApiResponse(responseCode = "409", description = "La reserva no se puede cancelar en su estado")
+    public ReservaDelNegocio cancelar(@PathVariable UUID reservaId,
+            @RequestBody(required = false) @Valid SolicitudDeCancelacion solicitud) {
+        return reservas.cancelar(reservaId, solicitud);
+    }
+
+    @PostMapping("/{reservaId}/no-show")
+    @Operation(summary = "Marca como no-show una reserva confirmada")
+    @ApiResponse(responseCode = "409", description = "Solo una reserva confirmada puede ser no-show")
+    public ReservaDelNegocio marcarNoShow(@PathVariable UUID reservaId) {
+        return reservas.marcarNoShow(reservaId);
     }
 }

@@ -13,8 +13,8 @@ import com.regenta.reservas.domain.EstadoReserva;
 import com.regenta.reservas.domain.Reserva;
 
 /**
- * Persistencia de {@link Reserva} (HU-070). Va por {@link JdbcTemplate} porque
- * {@code reservas.periodo} es un {@code tstzrange}: se escribe con
+ * Persistencia de {@link Reserva} (HU-070/HU-071). Va por {@link JdbcTemplate}
+ * porque {@code reservas.periodo} es un {@code tstzrange}: se escribe con
  * {@code tstzrange(?, ?, '[)')} y se lee con {@code lower()}/{@code upper()}. El
  * {@code EXCLUDE USING gist} de la tabla rechaza los solapes; un insert que
  * choca sale como {@code DataIntegrityViolationException}. La RLS acota todo al
@@ -29,7 +29,8 @@ public class RepositorioDeReservas {
     private static final String COLUMNAS = "id, negocio_id, sucursal_id, numero, cliente_id, "
             + "tipo_recurso_id, recurso_id, lower(periodo) AS desde, upper(periodo) AS hasta, "
             + "noches, num_adultos, num_ninos, estado, canal, tarifa_id, politica_cancelacion_id, "
-            + "subtotal, total, anticipo, saldo, moneda, usuario_id, notas, creado_en, version";
+            + "subtotal, total, anticipo, saldo, penalizacion, moneda, usuario_id, notas, "
+            + "confirmada_en, cancelada_en, motivo_cancelacion, creado_en, version";
 
     private static final RowMapper<Reserva> A_RESERVA = (rs, fila) -> Reserva.rehidratar(
             rs.getObject("id", UUID.class),
@@ -52,9 +53,13 @@ public class RepositorioDeReservas {
             rs.getBigDecimal("total"),
             rs.getBigDecimal("anticipo"),
             rs.getBigDecimal("saldo"),
+            rs.getBigDecimal("penalizacion"),
             rs.getString("moneda"),
             rs.getObject("usuario_id", UUID.class),
             rs.getString("notas"),
+            rs.getObject("confirmada_en", OffsetDateTime.class),
+            rs.getObject("cancelada_en", OffsetDateTime.class),
+            rs.getString("motivo_cancelacion"),
             rs.getObject("creado_en", OffsetDateTime.class),
             rs.getLong("version"));
 
@@ -80,6 +85,32 @@ public class RepositorioDeReservas {
                 r.getCanal().name(), r.getTarifaId(), r.getPoliticaCancelacionId(), r.getSubtotal(),
                 r.getTotal(), r.getAnticipoRequerido(), r.getSaldo(), r.getMoneda(),
                 r.getUsuarioId(), r.getNotas());
+    }
+
+    /**
+     * Guarda una transición de estado con control de versión optimista. Devuelve
+     * false si la fila cambió por debajo (otra transacción se adelantó).
+     */
+    public boolean actualizarEstado(Reserva r, long versionEsperada) {
+        int filas = jdbc.update(
+                "UPDATE reservas.reservas SET estado = ?, penalizacion = ?, confirmada_en = ?, "
+                        + " cancelada_en = ?, motivo_cancelacion = ?, actualizado_en = now(), "
+                        + " version = version + 1 "
+                        + "WHERE id = ? AND version = ?",
+                r.getEstado().name(), r.getPenalizacion(), r.getConfirmadaEn(), r.getCanceladaEn(),
+                r.getMotivoCancelacion(), r.getId(), versionEsperada);
+        return filas == 1;
+    }
+
+    /** Deja el cambio de estado en el historial de auditoría (HU-071 criterio 5). */
+    public void registrarEvento(UUID negocioId, UUID reservaId, EstadoReserva anterior,
+            EstadoReserva nuevo, UUID usuarioId, String detalle) {
+        jdbc.update(
+                "INSERT INTO reservas.reserva_eventos "
+                        + "(id, negocio_id, reserva_id, estado_anterior, estado_nuevo, usuario_id, detalle) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID(), negocioId, reservaId, anterior == null ? null : anterior.name(),
+                nuevo.name(), usuarioId, detalle);
     }
 
     public Optional<Reserva> buscar(UUID id) {

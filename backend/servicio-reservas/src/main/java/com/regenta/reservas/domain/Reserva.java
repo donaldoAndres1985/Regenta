@@ -3,19 +3,23 @@ package com.regenta.reservas.domain;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
+import com.regenta.comun.errores.ConflictoDeEstadoException;
 import com.regenta.comun.errores.ReglaDeNegocioException;
 
 /**
  * Una reserva de un recurso para un periodo (HU-070). El anti-overbooking no
  * vive aquí: lo garantiza el {@code EXCLUDE USING gist} sobre {@code periodo} en
  * la tabla. Esta clase valida lo que sí es responsabilidad del dominio —que el
- * periodo tenga sentido— y guarda el desglose de dinero que trae la cotización.
+ * periodo tenga sentido— y lleva el ciclo de estados de HU-071
+ * ({@code confirmar}, {@code cancelar}, {@code marcarNoShow}).
  *
- * <p>No es una entidad JPA: {@code periodo} es un {@code tstzrange} y se maneja
- * con {@code JdbcTemplate} (igual que los bloqueos de recurso).
+ * <p>Es inmutable: cada transición devuelve una instancia nueva. No es una
+ * entidad JPA: {@code periodo} es un {@code tstzrange} y se maneja con
+ * {@code JdbcTemplate}.
  */
 public final class Reserva {
 
@@ -39,9 +43,13 @@ public final class Reserva {
     private final BigDecimal total;
     private final BigDecimal anticipoRequerido;
     private final BigDecimal saldo;
+    private final BigDecimal penalizacion;
     private final String moneda;
     private final UUID usuarioId;
     private final String notas;
+    private final OffsetDateTime confirmadaEn;
+    private final OffsetDateTime canceladaEn;
+    private final String motivoCancelacion;
     private final OffsetDateTime creadoEn;
     private final long version;
 
@@ -49,8 +57,9 @@ public final class Reserva {
             UUID tipoRecursoId, UUID recursoId, OffsetDateTime desde, OffsetDateTime hasta,
             int noches, int numAdultos, int numNinos, EstadoReserva estado, CanalReserva canal,
             UUID tarifaId, UUID politicaCancelacionId, BigDecimal subtotal, BigDecimal total,
-            BigDecimal anticipoRequerido, BigDecimal saldo, String moneda, UUID usuarioId,
-            String notas, OffsetDateTime creadoEn, long version) {
+            BigDecimal anticipoRequerido, BigDecimal saldo, BigDecimal penalizacion, String moneda,
+            UUID usuarioId, String notas, OffsetDateTime confirmadaEn, OffsetDateTime canceladaEn,
+            String motivoCancelacion, OffsetDateTime creadoEn, long version) {
         this.id = id;
         this.negocioId = negocioId;
         this.sucursalId = sucursalId;
@@ -71,9 +80,13 @@ public final class Reserva {
         this.total = total;
         this.anticipoRequerido = anticipoRequerido;
         this.saldo = saldo;
+        this.penalizacion = penalizacion;
         this.moneda = moneda;
         this.usuarioId = usuarioId;
         this.notas = notas;
+        this.confirmadaEn = confirmadaEn;
+        this.canceladaEn = canceladaEn;
+        this.motivoCancelacion = motivoCancelacion;
         this.creadoEn = creadoEn;
         this.version = version;
     }
@@ -84,10 +97,7 @@ public final class Reserva {
         return (int) Math.max(1, dias);
     }
 
-    /**
-     * Una reserva nueva, sin persistir. Nace {@code PENDIENTE}; la confirmación y
-     * la cancelación son de HU-071.
-     */
+    /** Una reserva nueva, sin persistir. Nace {@code PENDIENTE}. */
     public static Reserva nueva(UUID negocioId, String numero, UUID tipoRecursoId, UUID recursoId,
             OffsetDateTime desde, OffsetDateTime hasta, int numAdultos, int numNinos,
             CanalReserva canal, UUID clienteId, UUID sucursalId, UUID tarifaId,
@@ -116,8 +126,9 @@ public final class Reserva {
                 totalSeguro.setScale(4, RoundingMode.HALF_UP),
                 anticipoSeguro.setScale(4, RoundingMode.HALF_UP),
                 totalSeguro.subtract(anticipoSeguro).setScale(4, RoundingMode.HALF_UP),
-                moneda == null || moneda.isBlank() ? "COP" : moneda, usuarioId,
-                notas == null || notas.isBlank() ? null : notas.trim(), null, 0L);
+                BigDecimal.ZERO.setScale(4), moneda == null || moneda.isBlank() ? "COP" : moneda,
+                usuarioId, notas == null || notas.isBlank() ? null : notas.trim(),
+                null, null, null, null, 0L);
     }
 
     /** Reconstruye una reserva leída de la base. */
@@ -125,12 +136,69 @@ public final class Reserva {
             UUID clienteId, UUID tipoRecursoId, UUID recursoId, OffsetDateTime desde,
             OffsetDateTime hasta, int noches, int numAdultos, int numNinos, EstadoReserva estado,
             CanalReserva canal, UUID tarifaId, UUID politicaCancelacionId, BigDecimal subtotal,
-            BigDecimal total, BigDecimal anticipoRequerido, BigDecimal saldo, String moneda,
-            UUID usuarioId, String notas, OffsetDateTime creadoEn, long version) {
+            BigDecimal total, BigDecimal anticipoRequerido, BigDecimal saldo, BigDecimal penalizacion,
+            String moneda, UUID usuarioId, String notas, OffsetDateTime confirmadaEn,
+            OffsetDateTime canceladaEn, String motivoCancelacion, OffsetDateTime creadoEn,
+            long version) {
         return new Reserva(id, negocioId, sucursalId, numero, clienteId, tipoRecursoId, recursoId,
                 desde, hasta, noches, numAdultos, numNinos, estado, canal, tarifaId,
-                politicaCancelacionId, subtotal, total, anticipoRequerido, saldo, moneda, usuarioId,
-                notas, creadoEn, version);
+                politicaCancelacionId, subtotal, total, anticipoRequerido, saldo, penalizacion,
+                moneda, usuarioId, notas, confirmadaEn, canceladaEn, motivoCancelacion, creadoEn,
+                version);
+    }
+
+    /**
+     * Pasa de {@code PENDIENTE} a {@code CONFIRMADA} (HU-071 criterio 1). Que el
+     * anticipo esté pagado lo comprueba el servicio contra {@code pagos_reserva}.
+     */
+    public Reserva confirmar(OffsetDateTime ahora) {
+        if (estado != EstadoReserva.PENDIENTE) {
+            throw new ConflictoDeEstadoException(
+                    "Solo se puede confirmar una reserva pendiente (está " + estado + ")");
+        }
+        return copiaCon(EstadoReserva.CONFIRMADA, penalizacion, ahora, null, null);
+    }
+
+    /**
+     * Cancela la reserva y fija la penalización que calculó la política (HU-071
+     * criterios 2 y 3). El recurso queda libre sin borrar el registro (criterio
+     * 4): {@code CANCELADA} no está entre los estados que ocupan.
+     */
+    public Reserva cancelar(BigDecimal penalizacionCalculada, String motivo, OffsetDateTime ahora) {
+        if (estado != EstadoReserva.PENDIENTE && estado != EstadoReserva.CONFIRMADA) {
+            throw new ConflictoDeEstadoException(
+                    "No se puede cancelar una reserva en estado " + estado);
+        }
+        BigDecimal pen = penalizacionCalculada == null || penalizacionCalculada.signum() < 0
+                ? BigDecimal.ZERO
+                : penalizacionCalculada.min(total);
+        return copiaCon(EstadoReserva.CANCELADA, pen.setScale(4, RoundingMode.HALF_UP), confirmadaEn,
+                ahora, motivo == null || motivo.isBlank() ? null : motivo.trim());
+    }
+
+    /** Marca la reserva confirmada como {@code NO_SHOW} (HU-071). También libera el recurso. */
+    public Reserva marcarNoShow(OffsetDateTime ahora) {
+        if (estado != EstadoReserva.CONFIRMADA) {
+            throw new ConflictoDeEstadoException(
+                    "Solo una reserva confirmada puede marcarse no-show (está " + estado + ")");
+        }
+        return copiaCon(EstadoReserva.NO_SHOW, penalizacion, confirmadaEn, ahora,
+                motivoCancelacion);
+    }
+
+    private Reserva copiaCon(EstadoReserva nuevoEstado, BigDecimal nuevaPenalizacion,
+            OffsetDateTime nuevaConfirmadaEn, OffsetDateTime nuevaCanceladaEn, String nuevoMotivo) {
+        return new Reserva(id, negocioId, sucursalId, numero, clienteId, tipoRecursoId, recursoId,
+                desde, hasta, noches, numAdultos, numNinos, nuevoEstado, canal, tarifaId,
+                politicaCancelacionId, subtotal, total, anticipoRequerido, saldo, nuevaPenalizacion,
+                moneda, usuarioId, notas, nuevaConfirmadaEn, nuevaCanceladaEn, nuevoMotivo, creadoEn,
+                version);
+    }
+
+    /** Horas de antelación entre {@code ahora} y la entrada; negativa si ya empezó. */
+    public long horasHastaLaEntrada(OffsetDateTime ahora) {
+        return ChronoUnit.HOURS.between(ahora.withOffsetSameInstant(ZoneOffset.UTC),
+                desde.withOffsetSameInstant(ZoneOffset.UTC));
     }
 
     public int numPersonas() {
@@ -217,6 +285,10 @@ public final class Reserva {
         return saldo;
     }
 
+    public BigDecimal getPenalizacion() {
+        return penalizacion;
+    }
+
     public String getMoneda() {
         return moneda;
     }
@@ -227,6 +299,18 @@ public final class Reserva {
 
     public String getNotas() {
         return notas;
+    }
+
+    public OffsetDateTime getConfirmadaEn() {
+        return confirmadaEn;
+    }
+
+    public OffsetDateTime getCanceladaEn() {
+        return canceladaEn;
+    }
+
+    public String getMotivoCancelacion() {
+        return motivoCancelacion;
     }
 
     public OffsetDateTime getCreadoEn() {
