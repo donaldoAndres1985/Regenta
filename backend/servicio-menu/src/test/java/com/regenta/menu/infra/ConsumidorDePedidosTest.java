@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.regenta.menu.BaseDeMenu;
 import com.regenta.menu.aplicacion.GestionDeCartas;
+import com.regenta.menu.aplicacion.GestionDeDisponibilidad;
 import com.regenta.menu.aplicacion.GestionDeItemsDeMenu;
 import com.regenta.menu.aplicacion.GestionDeRecetas;
 import com.regenta.menu.aplicacion.SolicitudDeCarta;
@@ -39,6 +40,8 @@ class ConsumidorDePedidosTest extends BaseDeMenu {
     private GestionDeCartas cartas;
     @Autowired
     private GestionDeItemsDeMenu items;
+    @Autowired
+    private GestionDeDisponibilidad disponibilidad;
     @Autowired
     private ObjectMapper json;
 
@@ -121,5 +124,17 @@ class ConsumidorDePedidosTest extends BaseDeMenu {
         consumidor.recibir(pedido(UUID.randomUUID().toString(), comanda, it, 2));
 
         assertThat(insumosDe(comanda)).isZero();
+    }
+
+    @Test
+    @DisplayName("HU-080: cerrar una comanda descuenta el cupo diario del ítem y lo agota solo")
+    void descuentaCupoDiario() {
+        UUID it = itemConReceta(false);
+        enContexto(negocioA, admin, ADMIN, () -> disponibilidad.fijarCupo(it, 3));
+
+        consumidor.recibir(pedido(UUID.randomUUID().toString(), UUID.randomUUID(), it, 3));
+
+        assertThat(enContexto(negocioA, admin, ADMIN,
+                () -> disponibilidad.delDia(it, java.time.LocalDate.now())).agotado()).isTrue();
     }
 }

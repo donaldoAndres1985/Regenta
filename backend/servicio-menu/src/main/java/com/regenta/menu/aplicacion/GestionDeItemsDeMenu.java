@@ -1,8 +1,10 @@
 package com.regenta.menu.aplicacion;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -18,10 +20,12 @@ import com.regenta.menu.aplicacion.CartaDeMenu.CategoriaConItems;
 import com.regenta.menu.domain.Carta;
 import com.regenta.menu.domain.CategoriaMenu;
 import com.regenta.menu.domain.CursoDeMenu;
+import com.regenta.menu.domain.DisponibilidadDiaria;
 import com.regenta.menu.domain.ItemDeMenu;
 import com.regenta.menu.domain.TipoDeItem;
 import com.regenta.menu.infra.CartaRepositorio;
 import com.regenta.menu.infra.CategoriaMenuRepositorio;
+import com.regenta.menu.infra.DisponibilidadDiariaRepositorio;
 import com.regenta.menu.infra.EstacionDeCocinaRepositorio;
 import com.regenta.menu.infra.ItemDeMenuRepositorio;
 
@@ -39,13 +43,16 @@ public class GestionDeItemsDeMenu {
     private final CategoriaMenuRepositorio categorias;
     private final EstacionDeCocinaRepositorio estaciones;
     private final CartaRepositorio cartas;
+    private final DisponibilidadDiariaRepositorio disponibilidad;
 
     public GestionDeItemsDeMenu(ItemDeMenuRepositorio items, CategoriaMenuRepositorio categorias,
-            EstacionDeCocinaRepositorio estaciones, CartaRepositorio cartas) {
+            EstacionDeCocinaRepositorio estaciones, CartaRepositorio cartas,
+            DisponibilidadDiariaRepositorio disponibilidad) {
         this.items = items;
         this.categorias = categorias;
         this.estaciones = estaciones;
         this.cartas = cartas;
+        this.disponibilidad = disponibilidad;
     }
 
     @Transactional(readOnly = true)
@@ -69,15 +76,22 @@ public class GestionDeItemsDeMenu {
         Carta carta = cartas.findByIdAndNegocioId(cartaId, ContextoDeNegocio.negocioActual())
                 .orElseThrow(() -> new NoEncontradoException("Esa carta no existe"));
         List<CategoriaMenu> cats = categorias.findByCartaIdOrderByOrdenAscNombreAsc(cartaId);
-        Map<UUID, List<ItemDeMenu>> porCategoria = cats.isEmpty() ? Map.of()
+        List<ItemDeMenu> todos = cats.isEmpty() ? List.of()
                 : items.findByCategoriaMenuIdInAndEliminadoEnIsNullOrderByOrdenAscNombreAsc(
-                                cats.stream().map(CategoriaMenu::getId).toList())
-                        .stream().collect(Collectors.groupingBy(ItemDeMenu::getCategoriaMenuId));
+                        cats.stream().map(CategoriaMenu::getId).toList());
+        Map<UUID, List<ItemDeMenu>> porCategoria = todos.stream()
+                .collect(Collectors.groupingBy(ItemDeMenu::getCategoriaMenuId));
+        Set<UUID> agotadosHoy = todos.isEmpty() ? Set.of()
+                : disponibilidad.findByFechaAndItemIdIn(LocalDate.now(),
+                                todos.stream().map(ItemDeMenu::getId).toList())
+                        .stream().filter(DisponibilidadDiaria::estaAgotado)
+                        .map(DisponibilidadDiaria::getItemId).collect(Collectors.toSet());
 
         List<CategoriaConItems> bloques = cats.stream()
                 .map(c -> new CategoriaConItems(CategoriaDelNegocio.de(c),
                         porCategoria.getOrDefault(c.getId(), List.of()).stream()
-                                .map(ItemEnCarta::de).toList()))
+                                .map(i -> ItemEnCarta.de(i, agotadosHoy.contains(i.getId())))
+                                .toList()))
                 .toList();
         return new CartaDeMenu(CartaDelNegocio.de(carta), bloques);
     }
