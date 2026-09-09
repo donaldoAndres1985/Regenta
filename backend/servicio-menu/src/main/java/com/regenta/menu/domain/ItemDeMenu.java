@@ -157,6 +157,12 @@ public class ItemDeMenu {
         this.disponible = disponible;
     }
 
+    /** Lo fija el cálculo de la receta (HU-079 criterios 1 y 2). */
+    public void fijarCostoEstimado(BigDecimal costo) {
+        this.costoEstimado = costo == null || costo.signum() < 0 ? BigDecimal.ZERO
+                : costo.setScale(4, java.math.RoundingMode.HALF_UP);
+    }
+
     public void eliminar(OffsetDateTime cuando) {
         this.activo = false;
         this.eliminadoEn = cuando;
