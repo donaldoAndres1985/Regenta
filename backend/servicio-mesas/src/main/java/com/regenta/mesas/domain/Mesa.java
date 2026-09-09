@@ -145,6 +145,30 @@ public class Mesa {
         this.activa = false;
     }
 
+    /** Al abrir una sesión (HU-082 criterio 1). Desde libre o reservada. */
+    public void ocupar() {
+        this.estado = EstadoDeMesa.OCUPADA;
+    }
+
+    /** El comensal pide la cuenta (HU-082): sigue ocupada pero ya no admite más. */
+    public void pedirCuenta() {
+        this.estado = EstadoDeMesa.CUENTA_PEDIDA;
+    }
+
+    /** Al cerrar la comanda, la mesa queda «por limpiar», no libre (HU-082 criterio 3). */
+    public void ensuciar() {
+        this.estado = EstadoDeMesa.SUCIA;
+    }
+
+    /** El mesero la marca limpia (HU-082 criterio 4). Solo desde «por limpiar». */
+    public void limpiar() {
+        if (estado != EstadoDeMesa.SUCIA) {
+            throw new ReglaDeNegocioException(
+                    "Solo se marca limpia una mesa que está por limpiar");
+        }
+        this.estado = EstadoDeMesa.LIBRE;
+    }
+
     private static String exigirCodigo(String codigo) {
         if (codigo == null || codigo.isBlank()) {
             throw new ReglaDeNegocioException("La mesa necesita un código");

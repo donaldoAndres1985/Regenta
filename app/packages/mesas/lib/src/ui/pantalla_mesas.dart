@@ -4,13 +4,15 @@ import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/mesa_en_plano.dart';
 import '../datos/plano_del_salon.dart';
+import '../datos/sesion_de_mesa.dart';
 import '../plano/estado_del_plano.dart';
 import '../plano/proveedores.dart';
 import 'formato.dart';
 
-/// El plano del salón en móvil y en web (HU-081). **Un solo widget** que se
-/// adapta con `LayoutBuilder` en [kBreakpointEscritorio]. En modo lectura solo
-/// se ve; en modo edición se crean, mueven y borran mesas.
+/// El plano del salón en móvil y en web (HU-081 / HU-082). **Un solo widget**
+/// que se adapta con `LayoutBuilder` en [kBreakpointEscritorio]. En modo lectura
+/// se toca una mesa para abrir su sesión, pedir la cuenta, cerrarla o marcarla
+/// limpia; en modo edición se crean, mueven y borran mesas.
 class PantallaMesas extends ConsumerStatefulWidget {
   const PantallaMesas({super.key, this.puedeEditar = true});
 
@@ -65,6 +67,7 @@ class _PantallaMesasState extends ConsumerState<PantallaMesas> {
             anchoTarjeta: escritorio ? 150 : (restricciones.maxWidth - 28 - 18) / 3,
             onMover: ctrl.moverMesa,
             onEliminar: (mesa) => _confirmarEliminar(context, ctrl, mesa),
+            onTocarMesa: (mesa) => _abrirHojaDeMesa(context, mesa),
             onCerrarMensaje: ctrl.limpiarMensaje,
           );
           return KeyedSubtree(
@@ -106,6 +109,23 @@ class _PantallaMesasState extends ConsumerState<PantallaMesas> {
     );
   }
 
+  Future<void> _abrirHojaDeMesa(BuildContext context, MesaEnPlano mesa) async {
+    final ctrl = ref.read(controladorDelPlanoProvider.notifier);
+    final repo = ref.read(repositorioDeMesasProvider);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: RegentaColors.surface,
+      builder: (_) => _HojaDeMesa(
+        mesa: mesa,
+        cargarSesion: () => repo.sesionDe(mesa.id),
+        onAbrir: (n) => ctrl.abrirSesion(mesa.id, n),
+        onPedirCuenta: ctrl.pedirCuenta,
+        onCerrar: ctrl.cerrarSesion,
+        onLimpiar: () => ctrl.marcarLimpia(mesa.id),
+      ),
+    );
+  }
+
   Future<void> _confirmarEliminar(
       BuildContext context, dynamic ctrl, MesaEnPlano mesa) async {
     final ok = await showDialog<bool>(
@@ -138,6 +158,7 @@ class _Cuerpo extends StatelessWidget {
     required this.anchoTarjeta,
     required this.onMover,
     required this.onEliminar,
+    required this.onTocarMesa,
     required this.onCerrarMensaje,
   });
 
@@ -145,6 +166,7 @@ class _Cuerpo extends StatelessWidget {
   final double anchoTarjeta;
   final void Function(String mesaId, int posX, int posY) onMover;
   final void Function(MesaEnPlano mesa) onEliminar;
+  final void Function(MesaEnPlano mesa) onTocarMesa;
   final VoidCallback onCerrarMensaje;
 
   @override
@@ -204,9 +226,6 @@ class _Cuerpo extends StatelessWidget {
     final bloques = <Widget>[];
 
     void seccion(String titulo, List<MesaEnPlano> mesas) {
-      if (filtro != null) {
-        // Con filtro puesto, solo la sección elegida.
-      }
       bloques.add(_Seccion(
         titulo: titulo,
         mesas: mesas,
@@ -214,6 +233,7 @@ class _Cuerpo extends StatelessWidget {
         modoEdicion: estado.modoEdicion,
         onMover: onMover,
         onEliminar: onEliminar,
+        onTocarMesa: onTocarMesa,
       ));
     }
 
@@ -327,6 +347,7 @@ class _Seccion extends StatelessWidget {
     required this.modoEdicion,
     required this.onMover,
     required this.onEliminar,
+    required this.onTocarMesa,
   });
 
   final String titulo;
@@ -335,6 +356,7 @@ class _Seccion extends StatelessWidget {
   final bool modoEdicion;
   final void Function(String mesaId, int posX, int posY) onMover;
   final void Function(MesaEnPlano mesa) onEliminar;
+  final void Function(MesaEnPlano mesa) onTocarMesa;
 
   @override
   Widget build(BuildContext context) {
@@ -358,6 +380,7 @@ class _Seccion extends StatelessWidget {
                   modoEdicion: modoEdicion,
                   onMover: onMover,
                   onEliminar: () => onEliminar(m),
+                  onTocar: () => onTocarMesa(m),
                 ),
               ),
           ],
@@ -373,12 +396,14 @@ class _TarjetaMesa extends StatefulWidget {
     required this.modoEdicion,
     required this.onMover,
     required this.onEliminar,
+    required this.onTocar,
   });
 
   final MesaEnPlano mesa;
   final bool modoEdicion;
   final void Function(String mesaId, int posX, int posY) onMover;
   final VoidCallback onEliminar;
+  final VoidCallback onTocar;
 
   @override
   State<_TarjetaMesa> createState() => _TarjetaMesaState();
@@ -442,7 +467,9 @@ class _TarjetaMesaState extends State<_TarjetaMesa> {
       ),
     );
 
-    if (!widget.modoEdicion) return tarjeta;
+    if (!widget.modoEdicion) {
+      return GestureDetector(onTap: widget.onTocar, child: tarjeta);
+    }
 
     return GestureDetector(
       onPanStart: (_) => _arrastre = Offset.zero,
@@ -626,5 +653,159 @@ class _FormularioMesaState extends State<_FormularioMesa> {
         ),
       ],
     );
+  }
+}
+
+/// La hoja de acciones de una mesa (HU-082): abrir con comensales, pedir la
+/// cuenta, cerrar (deja «por limpiar») o marcar limpia.
+class _HojaDeMesa extends StatefulWidget {
+  const _HojaDeMesa({
+    required this.mesa,
+    required this.cargarSesion,
+    required this.onAbrir,
+    required this.onPedirCuenta,
+    required this.onCerrar,
+    required this.onLimpiar,
+  });
+
+  final MesaEnPlano mesa;
+  final Future<SesionDeMesa?> Function() cargarSesion;
+  final Future<String?> Function(int numComensales) onAbrir;
+  final Future<void> Function(String sesionId) onPedirCuenta;
+  final Future<void> Function(String sesionId) onCerrar;
+  final Future<void> Function() onLimpiar;
+
+  @override
+  State<_HojaDeMesa> createState() => _HojaDeMesaState();
+}
+
+class _HojaDeMesaState extends State<_HojaDeMesa> {
+  final _comensales = TextEditingController(text: '2');
+  SesionDeMesa? _sesion;
+  bool _cargando = false;
+  bool _ocupada = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _ocupada = widget.mesa.estado == 'OCUPADA' || widget.mesa.estado == 'CUENTA_PEDIDA';
+    if (_ocupada) {
+      _cargando = true;
+      widget.cargarSesion().then((s) {
+        if (!mounted) return;
+        setState(() {
+          _sesion = s;
+          _cargando = false;
+        });
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _comensales.dispose();
+    super.dispose();
+  }
+
+  Future<void> _abrir() async {
+    final n = int.tryParse(_comensales.text.trim());
+    if (n == null || n < 1) {
+      setState(() => _error = 'La sesión necesita al menos un comensal');
+      return;
+    }
+    final err = await widget.onAbrir(n);
+    if (!mounted) return;
+    if (err == null) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _error = err);
+    }
+  }
+
+  Future<void> _hacer(Future<void> Function() accion) async {
+    await accion();
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Mesa ${widget.mesa.codigo}',
+                style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
+            const SizedBox(height: 2),
+            Text(estiloDeEstado(widget.mesa.estado).etiqueta.toUpperCase(),
+                style: RegentaType.etiqueta.copyWith(fontSize: 9.5)),
+            const SizedBox(height: 14),
+            ..._contenido(),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(_error!,
+                  key: const Key('hoja-error'),
+                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.crit)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _contenido() {
+    if (widget.mesa.estado == 'SUCIA') {
+      return [
+        FilledButton(
+          key: const Key('hoja-limpiar'),
+          onPressed: () => _hacer(widget.onLimpiar),
+          child: const Text('Marcar limpia'),
+        ),
+      ];
+    }
+    if (_ocupada) {
+      if (_cargando) return const [Center(child: CircularProgressIndicator())];
+      final s = _sesion;
+      return [
+        Text(
+          s == null
+              ? 'Sesión abierta'
+              : '${s.numComensales} comensales · abierta hace ${s.minutosAbierta} min',
+          key: const Key('hoja-sesion'),
+          style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+        ),
+        const SizedBox(height: 12),
+        if (s != null && s.estado == 'ABIERTA')
+          OutlinedButton(
+            key: const Key('hoja-pedir-cuenta'),
+            onPressed: () => _hacer(() => widget.onPedirCuenta(s.id)),
+            child: const Text('Pedir la cuenta'),
+          ),
+        const SizedBox(height: 8),
+        FilledButton(
+          key: const Key('hoja-cerrar'),
+          onPressed: s == null ? null : () => _hacer(() => widget.onCerrar(s.id)),
+          child: const Text('Cerrar mesa'),
+        ),
+      ];
+    }
+    // LIBRE (o RESERVADA / BLOQUEADA -> también se puede sentar).
+    return [
+      TextField(
+        key: const Key('hoja-comensales'),
+        controller: _comensales,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(labelText: 'Comensales'),
+      ),
+      const SizedBox(height: 12),
+      FilledButton(
+        key: const Key('hoja-abrir'),
+        onPressed: _abrir,
+        child: const Text('Abrir mesa'),
+      ),
+    ];
   }
 }
