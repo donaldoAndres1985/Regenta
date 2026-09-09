@@ -110,9 +110,8 @@ public final class Reserva {
             throw new ReglaDeNegocioException(
                     "La salida de la reserva debe ser posterior a la entrada");
         }
-        if (recursoId == null) {
-            throw new ReglaDeNegocioException("La reserva necesita un recurso asignado");
-        }
+        // recursoId puede ser null: la reserva se vende por tipo y la habitación
+        // concreta se asigna en el check-in (HU-072).
         int adultos = Math.max(1, numAdultos);
         int ninos = Math.max(0, numNinos);
         BigDecimal totalSeguro = total == null || total.signum() < 0 ? BigDecimal.ZERO : total;
@@ -184,6 +183,29 @@ public final class Reserva {
         }
         return copiaCon(EstadoReserva.NO_SHOW, penalizacion, confirmadaEn, ahora,
                 motivoCancelacion);
+    }
+
+    /**
+     * Registra el check-in (HU-072): {@code CONFIRMADA → CHECK_IN} y fija el
+     * recurso concreto si la reserva se vendió por tipo. El anti-overbooking del
+     * recurso recién asignado lo comprueba el {@code EXCLUDE} de la tabla al
+     * persistir, no este método (criterio 2).
+     */
+    public Reserva checkIn(UUID recursoAsignadoId) {
+        if (estado != EstadoReserva.CONFIRMADA) {
+            throw new ConflictoDeEstadoException(
+                    "Solo se hace check-in de una reserva confirmada (está " + estado + ")");
+        }
+        UUID recursoFinal = recursoAsignadoId != null ? recursoAsignadoId : recursoId;
+        if (recursoFinal == null) {
+            throw new ReglaDeNegocioException(
+                    "El check-in necesita un recurso concreto asignado");
+        }
+        return new Reserva(id, negocioId, sucursalId, numero, clienteId, tipoRecursoId,
+                recursoFinal, desde, hasta, noches, numAdultos, numNinos, EstadoReserva.CHECK_IN,
+                canal, tarifaId, politicaCancelacionId, subtotal, total, anticipoRequerido, saldo,
+                penalizacion, moneda, usuarioId, notas, confirmadaEn, canceladaEn,
+                motivoCancelacion, creadoEn, version);
     }
 
     private Reserva copiaCon(EstadoReserva nuevoEstado, BigDecimal nuevaPenalizacion,

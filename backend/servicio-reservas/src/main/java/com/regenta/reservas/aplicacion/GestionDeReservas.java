@@ -189,7 +189,7 @@ public class GestionDeReservas {
         payload.put("numero", r.getNumero());
         payload.put("estado", r.getEstado().name());
         payload.put("tipo_recurso_id", r.getTipoRecursoId().toString());
-        payload.put("recurso_id", r.getRecursoId().toString());
+        payload.put("recurso_id", r.getRecursoId() == null ? null : r.getRecursoId().toString());
         payload.put("cliente_id", r.getClienteId() == null ? null : r.getClienteId().toString());
         payload.put("desde", r.getDesde().toString());
         payload.put("hasta", r.getHasta().toString());

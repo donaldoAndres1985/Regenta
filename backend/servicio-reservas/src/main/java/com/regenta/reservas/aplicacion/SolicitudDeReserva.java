@@ -16,7 +16,7 @@ public record SolicitudDeReserva(
         @NotNull OffsetDateTime desde,
         @NotNull OffsetDateTime hasta,
         @NotNull UUID tipoRecursoId,
-        @NotNull UUID recursoId,
+        UUID recursoId,
         UUID clienteId,
         UUID sucursalId,
         @PositiveOrZero Integer numAdultos,

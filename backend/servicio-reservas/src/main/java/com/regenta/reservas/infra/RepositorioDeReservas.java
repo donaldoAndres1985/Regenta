@@ -102,6 +102,22 @@ public class RepositorioDeReservas {
         return filas == 1;
     }
 
+    /**
+     * Guarda el check-in: fija el {@code recurso_id} concreto y pasa a
+     * {@code CHECK_IN} (HU-072). Si el recurso ya está tomado por otra reserva
+     * que ocupa, el {@code EXCLUDE} de la tabla lo rechaza con
+     * {@code DataIntegrityViolationException} (criterio 2). Devuelve false si la
+     * fila cambió por debajo.
+     */
+    public boolean actualizarCheckIn(Reserva r, long versionEsperada) {
+        int filas = jdbc.update(
+                "UPDATE reservas.reservas SET estado = ?, recurso_id = ?, actualizado_en = now(), "
+                        + " version = version + 1 "
+                        + "WHERE id = ? AND version = ?",
+                r.getEstado().name(), r.getRecursoId(), r.getId(), versionEsperada);
+        return filas == 1;
+    }
+
     /** Deja el cambio de estado en el historial de auditoría (HU-071 criterio 5). */
     public void registrarEvento(UUID negocioId, UUID reservaId, EstadoReserva anterior,
             EstadoReserva nuevo, UUID usuarioId, String detalle) {

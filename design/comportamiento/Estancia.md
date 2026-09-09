@@ -28,7 +28,35 @@ venta, la línea queda con el fondo de error y el botón *Cobrar* se deshabilita
 
 Cuanto más aburrida y literal la frase, mejor test sale de ella. -->
 
-_Sin definir._
+### R1 · El check-in asigna la habitación concreta (HU-072)
+**Dado** una reserva `CONFIRMADA` vendida por tipo (sin `recurso_id`), **cuando** se hace el
+check-in sin indicar recurso, **entonces** se le asigna uno libre de ese tipo para el periodo
+de la reserva. Si la recepción indica un recurso, se usa ese. Si la reserva ya traía recurso y
+no se indica otro, se conserva. Sin recursos libres del tipo, responde **409**.
+
+### R2 · El anti-overbooking del recurso asignado lo hace la base (HU-072)
+**Dado** un recurso ya tomado por otra reserva que ocupa (`PENDIENTE`/`CONFIRMADA`/`CHECK_IN`)
+en un periodo que se solapa, **cuando** se intenta asignarlo en el check-in, **entonces** el
+`EXCLUDE USING gist` de `reservas` lo rechaza y la API responde **409**. No hay un "¿está
+libre?" en Java: la asignación es un `UPDATE reservas SET recurso_id = …, estado = 'CHECK_IN'` y
+el constraint decide.
+
+### R3 · El check-in abre la estancia y mueve la reserva a CHECK_IN (HU-072)
+**Dado** una reserva `CONFIRMADA` sin estancia, **cuando** se registra el check-in, **entonces**
+se crea la fila en `estancias` (`estado = EN_CURSO`, `check_out_previsto` = fin de la reserva,
+`deposito` el que se indique) y la reserva pasa a `CHECK_IN`. Solo se hace check-in desde
+`CONFIRMADA` y una sola vez (segundo intento → **409**).
+
+### R4 · El titular queda identificado con su documento (HU-072)
+**Dado** los ocupantes que se registran en el check-in, **cuando** alguno es titular
+(`es_titular = true`), **entonces** tiene que traer `tipo_documento` y `numero_documento`; si
+faltan, responde **422**. Un acompañante puede ir sin documento. La `nacionalidad`, si viene,
+es el código ISO de dos letras.
+
+### R5 · Al completar el check-in, el recurso pasa a OCUPADO (HU-072)
+**Dado** el check-in completo, **cuando** se registra, **entonces** se publica
+`check_in_registrado` (con `recurso_id`) para que servicio-recursos ponga la habitación en
+estado `OCUPADO`. El cambio de estado del recurso vive en servicio-recursos, no aquí.
 
 ## Al abrir
 
@@ -70,9 +98,18 @@ _Sin definir._
 <!-- Qué ve y qué puede hacer cada rol en esta pantalla, y qué pasa exactamente cuando no
 tiene el permiso: no se ve, se ve deshabilitado, o falla al intentar. -->
 
-_Sin definir._
+`RESERVAS_RESERVA_EDITAR` para hacer check-in y registrar ocupantes; `RESERVAS_RESERVA_VER`
+para consultar la estancia. Sin el permiso, la llamada falla en el backend con `403`. Módulo
+`RESERVAS`, patrón Reserva. La plantilla de rol `RECEPCIONISTA` los trae.
 
 ## Qué NO debe pasar
+
+- Que el check-in compruebe la disponibilidad del recurso con un `SELECT` y luego lo asigne:
+  la asignación va contra el `EXCLUDE` de la tabla, que gana la carrera.
+- Que se abra una segunda estancia para la misma reserva (`estancias.reserva_id` es único).
+- Que un titular quede sin documento.
+- Que servicio-reservas ponga el recurso en `OCUPADO` por su cuenta: lo hace servicio-recursos
+  al consumir `check_in_registrado`.
 
 <!-- Los casos que hay que impedir a propósito. Esta sección es la que más bugs evita y la
 que más se olvida. -->
