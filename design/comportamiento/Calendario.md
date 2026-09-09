@@ -57,12 +57,44 @@ disponibilidad de un mes, **entonces** responde en menos de 500 ms. La consulta 
 `reservas.reservas` se apoya en el índice GiST sobre `periodo` y en el filtro por `negocio_id`
 de la RLS.
 
+### R6 · El calendario es una rejilla: una fila por recurso, una columna por día (HU-075)
+**Dado** el calendario abierto sobre una semana, **cuando** lo miro, **entonces** hay una fila
+por cada recurso reservable y una columna por cada día de la ventana; las reservas se dibujan
+como barras que arrancan en su día de entrada y terminan en el de salida. El backend
+(`GET /api/reservas/calendario?desde=&hasta=`) devuelve `recursos`, `reservas` (con
+`recurso_id` asignado y estado `PENDIENTE`/`CONFIRMADA`/`CHECK_IN`/`CHECK_OUT`) y `bloqueos`
+por separado. Rango invertido o de más de 62 días → **422**.
+
+### R7 · El color de la barra indica el estado de la reserva (HU-075)
+**Dado** una barra de reserva, **cuando** la miro, **entonces** su color sale del estado:
+`PENDIENTE` ámbar (`warnSoft`/`warn`), `CONFIRMADA` teal (`reservaSoft`/`reserva`), `CHECK_IN`
+verde (`okSoft`/`ok`), `CHECK_OUT` gris (`sunken`/`muted`). El filo izquierdo de 3 px lleva el
+tono fuerte; el fondo, el suave. Los mismos hex que el mockup y `RegentaColors`.
+
+### R8 · Un bloqueo se distingue de una reserva (HU-075)
+**Dado** un bloqueo de recurso en la ventana, **cuando** lo miro, **entonces** aparece como una
+barra roja (`critSoft` con filo `crit`) rotulada `Bloqueo · <motivo>`, sin color de estado y
+sin acción al tocarla. Nunca se confunde con una reserva.
+
+### R9 · En móvil se ven tres días y se desplaza en horizontal (HU-075)
+**Dado** el calendario en una pantalla angosta (`< kBreakpointEscritorio`), **cuando** lo abro,
+**entonces** entran tres columnas de día a la vez y la rejilla se desplaza en horizontal para
+alcanzar el resto de la semana. En escritorio entran los siete días sin desplazamiento. Los
+botones ‹ / › llevan a la semana anterior y a la siguiente (vuelven a pedir los datos).
+
+### R10 · Tocar una barra de reserva abre esa reserva (HU-075)
+**Dado** una barra de reserva, **cuando** la toco, **entonces** se abre esa reserva (la
+navegación la resuelve el shell con el `id` de la reserva). Las barras de bloqueo no son
+tocables.
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
 recuerda de la última vez (filtros, sucursal, orden de la tabla). -->
 
-_Sin definir._
+Se carga la semana que arranca hoy (o la `desdeInicial` que pase el shell). Mientras llega la
+respuesta se muestra un indicador de carga; si falla, el mensaje de error del backend. Si el
+negocio no tiene recursos, un estado vacío ("No hay recursos que mostrar en esta semana.").
 
 ## Validaciones
 
@@ -90,15 +122,19 @@ _Sin definir._
 <!-- Dónde el comportamiento se separa: atajos de teclado, orden de tabulación, columnas que
 se ocultan en móvil, acciones que solo tienen sentido con teclado o solo con el dedo. -->
 
-_Sin definir._
+Un solo `LayoutBuilder` cortando en `kBreakpointEscritorio` (900). Móvil: tres columnas de día
+visibles, la rejilla dentro de un `SingleChildScrollView` horizontal. Escritorio: las siete
+columnas caben sin desplazamiento. La columna de la izquierda (código y nombre del recurso) es
+más angosta en móvil.
 
 ## Permisos
 
 <!-- Qué ve y qué puede hacer cada rol en esta pantalla, y qué pasa exactamente cuando no
 tiene el permiso: no se ve, se ve deshabilitado, o falla al intentar. -->
 
-`RESERVAS_RESERVA_VER` para consultar disponibilidad. Sin el permiso, la llamada falla en el
-backend con `403`. Módulo `RESERVAS`, patrón Reserva, plan Básico o superior.
+`RESERVAS_RESERVA_VER` para consultar disponibilidad y el calendario de ocupación. Sin el
+permiso, la llamada falla en el backend con `403`. Módulo `RESERVAS`, patrón Reserva, plan
+Básico o superior.
 
 ## Qué NO debe pasar
 
@@ -113,3 +149,9 @@ que más se olvida. -->
   con RLS y filtra por `negocio_id`.
 - Que una reserva sin `recurso_id` asignado (solo cupo de tipo) excluya un recurso concreto —
   esas se gestionan por cupo, no por recurso.
+- Que el calendario muestre reservas `CANCELADA`, `NO_SHOW` o `EXPIRADA`: no ocupan, no se
+  pintan.
+- Que una barra de bloqueo abra algo al tocarla, o se pinte con el color de un estado de
+  reserva.
+- Que el cálculo de posiciones de las barras viva en el backend: el servicio devuelve los
+  tramos; el cliente los traduce a píxeles.

@@ -1,5 +1,6 @@
 package com.regenta.reservas.api;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -9,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.regenta.reservas.aplicacion.CalendarioDeOcupacion;
+import com.regenta.reservas.aplicacion.ConsultaDeCalendario;
 import com.regenta.reservas.aplicacion.ConsultaDeDisponibilidad;
 import com.regenta.reservas.aplicacion.DisponibilidadEnPeriodo;
 import com.regenta.reservas.aplicacion.SolicitudDeDisponibilidad;
@@ -23,9 +26,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class DisponibilidadControlador {
 
     private final ConsultaDeDisponibilidad disponibilidad;
+    private final ConsultaDeCalendario calendario;
 
-    public DisponibilidadControlador(ConsultaDeDisponibilidad disponibilidad) {
+    public DisponibilidadControlador(ConsultaDeDisponibilidad disponibilidad,
+            ConsultaDeCalendario calendario) {
         this.disponibilidad = disponibilidad;
+        this.calendario = calendario;
     }
 
     @GetMapping("/disponibilidad")
@@ -37,5 +43,14 @@ public class DisponibilidadControlador {
             @RequestParam(required = false) Integer personas) {
         return disponibilidad.consultar(
                 new SolicitudDeDisponibilidad(desde, hasta, tipoRecursoId, personas));
+    }
+
+    @GetMapping("/calendario")
+    @Operation(summary = "Ocupación de todos los recursos día a día: reservas como barras y bloqueos")
+    public CalendarioDeOcupacion calendario(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(required = false) UUID tipoRecursoId) {
+        return calendario.calendario(desde, hasta, tipoRecursoId);
     }
 }

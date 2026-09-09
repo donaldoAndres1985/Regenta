@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
+import com.regenta.reservas.aplicacion.ReservaEnCalendario;
 import com.regenta.reservas.domain.VentanaOcupada;
 
 /**
@@ -51,5 +52,31 @@ public class ConsultaDeOcupacion {
         }
         return jdbc.query(BASE + " AND tipo_recurso_id = ?", A_VENTANA, desde, hasta,
                 tipoRecursoId);
+    }
+
+    private static final RowMapper<ReservaEnCalendario> A_BARRA = (rs, fila) ->
+            new ReservaEnCalendario(
+                    rs.getObject("id", UUID.class),
+                    rs.getObject("recurso_id", UUID.class),
+                    rs.getString("numero"),
+                    rs.getString("estado"),
+                    rs.getObject("desde", OffsetDateTime.class),
+                    rs.getObject("hasta", OffsetDateTime.class));
+
+    private static final String CALENDARIO =
+            "SELECT id, recurso_id, numero, estado, lower(periodo) AS desde, upper(periodo) AS hasta "
+                    + "FROM reservas.reservas "
+                    + "WHERE recurso_id IS NOT NULL "
+                    + "  AND estado IN ('PENDIENTE','CONFIRMADA','CHECK_IN','CHECK_OUT') "
+                    + "  AND periodo && tstzrange(?, ?, '[)')";
+
+    /** Las reservas con recurso asignado que caen en {@code [desde, hasta)}, para el calendario (HU-075). */
+    public List<ReservaEnCalendario> reservasEnCalendario(UUID negocioId, OffsetDateTime desde,
+            OffsetDateTime hasta, UUID tipoRecursoId) {
+        if (tipoRecursoId == null) {
+            return jdbc.query(CALENDARIO + " ORDER BY lower(periodo)", A_BARRA, desde, hasta);
+        }
+        return jdbc.query(CALENDARIO + " AND tipo_recurso_id = ? ORDER BY lower(periodo)", A_BARRA,
+                desde, hasta, tipoRecursoId);
     }
 }

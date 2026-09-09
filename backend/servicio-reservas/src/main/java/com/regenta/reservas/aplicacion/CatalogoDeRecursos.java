@@ -21,6 +21,10 @@ public interface CatalogoDeRecursos {
     /** Ids de recursos con un bloqueo que pisa {@code [desde, hasta)}. */
     List<UUID> recursosBloqueados(UUID negocioId, OffsetDateTime desde, OffsetDateTime hasta);
 
+    /** Los bloqueos que pisan {@code [desde, hasta)}, con su tramo y su motivo (HU-075). */
+    List<BloqueoEnCalendario> bloqueosEnPeriodo(UUID negocioId, OffsetDateTime desde,
+            OffsetDateTime hasta);
+
     /**
      * Cotiza una estadía noche por noche: cada noche toma la tarifa de mayor
      * prioridad que le aplique (HU-070 criterio 4, delegado en HU-066).
