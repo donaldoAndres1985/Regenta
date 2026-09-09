@@ -50,6 +50,12 @@ public class RepositorioDeEstancias {
                 e.getEstado().name(), e.getDeposito(), e.getObservacionesEntrada());
     }
 
+    /** Suma un consumo al total de la estancia (HU-073). Atómico a nivel de fila. */
+    public void sumarConsumo(UUID estanciaId, java.math.BigDecimal monto) {
+        jdbc.update("UPDATE reservas.estancias SET consumo_total = consumo_total + ? WHERE id = ?",
+                monto, estanciaId);
+    }
+
     public Optional<Estancia> porReserva(UUID reservaId) {
         return jdbc.query("SELECT " + COLUMNAS + " FROM reservas.estancias WHERE reserva_id = ?",
                 A_ESTANCIA, reservaId).stream().findFirst();
