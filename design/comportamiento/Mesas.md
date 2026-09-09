@@ -69,6 +69,33 @@ elimina (soft-delete: `activa = false`) y desaparece del plano; su código queda
 **entonces** responde 409 y se muestra «La zona tiene mesas; muévelas a otra zona antes de
 borrarla».
 
+### R8 · Tocar una mesa libre la abre con el número de comensales (HU-082)
+**Dado** el modo lectura, **cuando** toco una mesa `LIBRE` y confirmo con el número de
+comensales, **entonces** se llama `POST /api/mesas/{id}/sesiones`, la mesa pasa a `OCUPADA` y
+arranca el cronómetro (`abierta_en`). Comensales por defecto: 2; menor que 1 → «La sesión
+necesita al menos un comensal».
+
+### R9 · Una mesa solo tiene una sesión viva a la vez (HU-082)
+**Dado** una mesa ya `OCUPADA` o `CUENTA_PEDIDA`, **cuando** intento abrir otra sesión,
+**entonces** el backend responde 409 «Esa mesa ya tiene una sesión abierta» y la hoja no se
+cierra. En la base lo respalda `uq_sesion_abierta`.
+
+### R10 · Al cerrar la comanda la mesa queda «por limpiar», no libre (HU-082)
+**Dado** una mesa con sesión, **cuando** llega `comanda_cerrada` (o el mesero pulsa «Cerrar
+mesa»), **entonces** la sesión pasa a `CERRADA` con su hora de fin y la mesa a `SUCIA`. No
+salta directamente a `LIBRE`.
+
+### R11 · Marcar limpia devuelve la mesa a libre (HU-082)
+**Dado** una mesa `SUCIA`, **cuando** el mesero pulsa «Marcar limpia», **entonces** se llama
+`POST /api/mesas/{id}/limpieza` y la mesa pasa a `LIBRE`. Desde cualquier otro estado la
+acción no se ofrece, y el backend la rechaza («Solo se marca limpia una mesa que está por
+limpiar»).
+
+### R12 · Una sesión cerrada guarda su duración y sus comensales (HU-082)
+**Dado** `GET /api/mesas/sesiones/{id}` de una sesión `CERRADA`, **entonces** trae
+`duracionMin` (columna generada por la base a partir de `abierta_en` y `cerrada_en`) y
+`numComensales`. Para una sesión abierta, `minutosAbierta` es el cronómetro en curso.
+
 ## Al abrir
 
 - Se llama `GET /api/mesas/plano` una sola vez. Mientras responde, un spinner centrado.

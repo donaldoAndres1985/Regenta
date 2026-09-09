@@ -12,10 +12,16 @@ class _RepoFake implements RepositorioDeMesas {
   ErrorDeApi? errorAlCargar;
   ErrorDeApi? errorAlCrear;
   ErrorDeApi? errorAlEliminar;
+  ErrorDeApi? errorAlAbrir;
 
   final List<({String id, int x, int y})> movimientos = [];
   final List<String> eliminadas = [];
   final List<String> creadas = [];
+  final List<({String mesaId, int comensales})> aperturas = [];
+  final List<String> cuentasPedidas = [];
+  final List<String> sesionesCerradas = [];
+  final List<String> limpiadas = [];
+  final Map<String, SesionDeMesa> _sesionPorMesa = {};
 
   @override
   Future<PlanoDelSalon> plano() async {
@@ -82,6 +88,80 @@ class _RepoFake implements RepositorioDeMesas {
 
   @override
   Future<void> crearZona({required String nombre, int? orden, String? color}) async {}
+
+  @override
+  Future<SesionDeMesa?> sesionDe(String mesaId) async => _sesionPorMesa[mesaId];
+
+  @override
+  Future<SesionDeMesa> abrirSesion(String mesaId, int numComensales) async {
+    if (errorAlAbrir != null) throw errorAlAbrir!;
+    aperturas.add((mesaId: mesaId, comensales: numComensales));
+    final s = SesionDeMesa(
+      id: 'ses-$mesaId',
+      mesaPrincipalId: mesaId,
+      estado: 'ABIERTA',
+      numComensales: numComensales,
+      minutosAbierta: 0,
+    );
+    _sesionPorMesa[mesaId] = s;
+    _cambiarEstado(mesaId, 'OCUPADA');
+    return s;
+  }
+
+  @override
+  Future<void> pedirCuenta(String sesionId) async {
+    cuentasPedidas.add(sesionId);
+  }
+
+  @override
+  Future<void> cerrarSesion(String sesionId) async {
+    sesionesCerradas.add(sesionId);
+    String? mesaId;
+    _sesionPorMesa.forEach((k, v) {
+      if (v.id == sesionId) mesaId = k;
+    });
+    if (mesaId != null) {
+      _sesionPorMesa.remove(mesaId);
+      _cambiarEstado(mesaId!, 'SUCIA');
+    }
+  }
+
+  @override
+  Future<void> marcarLimpia(String mesaId) async {
+    limpiadas.add(mesaId);
+    _cambiarEstado(mesaId, 'LIBRE');
+  }
+
+  void _cambiarEstado(String mesaId, String estado) {
+    MesaEnPlano mapear(MesaEnPlano m) => m.id != mesaId
+        ? m
+        : MesaEnPlano(
+            id: m.id,
+            zonaId: m.zonaId,
+            codigo: m.codigo,
+            nombre: m.nombre,
+            capacidad: m.capacidad,
+            forma: m.forma,
+            estado: estado,
+            posX: m.posX,
+            posY: m.posY,
+            ancho: m.ancho,
+            alto: m.alto,
+          );
+    _plano = PlanoDelSalon(
+      zonas: [
+        for (final z in _plano.zonas)
+          ZonaConMesas(
+            id: z.id,
+            nombre: z.nombre,
+            orden: z.orden,
+            color: z.color,
+            mesas: z.mesas.map(mapear).toList(),
+          ),
+      ],
+      sinZona: _plano.sinZona.map(mapear).toList(),
+    );
+  }
 
   MesaEnPlano _mesa(String id) => _plano.todas.firstWhere((m) => m.id == id);
 }
@@ -298,5 +378,94 @@ void main() {
     await _montar(tester, repo);
     expect(tester.getSize(find.bySemanticsLabel('Todas')).height,
         greaterThanOrEqualTo(44));
+  });
+
+  // ---- HU-082 ----
+
+  testWidgets('Criterio 1: tocar una mesa libre la abre con N comensales y queda OCUPADA',
+      (tester) async {
+    final repo = _RepoFake(plano: _planoCon([_m(id: 'm1', codigo: 'M1')]));
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('mesa-m1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('hoja-comensales')), '3');
+    await tester.tap(find.byKey(const Key('hoja-abrir')));
+    await tester.pumpAndSettle();
+
+    expect(repo.aperturas, [(mesaId: 'm1', comensales: 3)]);
+    // La hoja se cerró y la mesa se repintó como ocupada.
+    expect(find.byKey(const Key('hoja-abrir')), findsNothing);
+    expect(find.descendant(
+            of: find.byKey(const Key('mesa-m1')), matching: find.text('Ocupada')),
+        findsOneWidget);
+  });
+
+  testWidgets('Criterio 2: si la mesa ya tiene sesión, el 409 se muestra y la hoja no se cierra',
+      (tester) async {
+    final repo = _RepoFake(plano: _planoCon([_m(id: 'm1')]))
+      ..errorAlAbrir = const RecursoDuplicado('Esa mesa ya tiene una sesión abierta');
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('mesa-m1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('hoja-abrir')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('hoja-abrir')), findsOneWidget);
+    expect(find.text('Esa mesa ya tiene una sesión abierta'), findsOneWidget);
+  });
+
+  testWidgets('Criterio 3: cerrar la sesión desde la hoja deja la mesa por limpiar (SUCIA)',
+      (tester) async {
+    final repo = _RepoFake(plano: _planoCon([_m(id: 'm1', codigo: 'M1', estado: 'OCUPADA')]));
+    repo._sesionPorMesa['m1'] = const SesionDeMesa(
+      id: 'ses-m1',
+      mesaPrincipalId: 'm1',
+      estado: 'ABIERTA',
+      numComensales: 4,
+      minutosAbierta: 52,
+    );
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('mesa-m1')));
+    await tester.pumpAndSettle();
+    expect(find.text('4 comensales · abierta hace 52 min'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('hoja-cerrar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.sesionesCerradas, ['ses-m1']);
+    expect(find.descendant(
+            of: find.byKey(const Key('mesa-m1')), matching: find.text('Por limpiar')),
+        findsOneWidget);
+  });
+
+  testWidgets('Criterio 4: marcar limpia devuelve la mesa a LIBRE', (tester) async {
+    final repo = _RepoFake(plano: _planoCon([_m(id: 'm1', codigo: 'M1', estado: 'SUCIA')]));
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('mesa-m1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('hoja-limpiar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.limpiadas, ['m1']);
+    expect(find.descendant(
+            of: find.byKey(const Key('mesa-m1')), matching: find.text('Libre')),
+        findsOneWidget);
+  });
+
+  testWidgets('En modo edición tocar una mesa no abre la hoja de sesión', (tester) async {
+    final repo = _RepoFake(plano: _planoCon([_m(id: 'm1')]));
+    await _montar(tester, repo);
+    await tester.tap(find.byKey(const Key('mesas-toggle-edicion')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('mesa-m1')), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('hoja-abrir')), findsNothing);
+    expect(repo.aperturas, isEmpty);
   });
 }

@@ -7,7 +7,8 @@ import '../datos/repositorio_de_mesas.dart';
 import 'estado_del_plano.dart';
 
 /// Maneja el plano del salón (HU-081): lo carga, filtra por zona sin volver a
-/// pedir, y en modo edición crea, mueve y borra mesas.
+/// pedir, y en modo edición crea, mueve y borra mesas. En modo lectura abre,
+/// cierra y libera sesiones de mesa (HU-082).
 class ControladorDelPlano extends StateNotifier<EstadoDelPlano> {
   ControladorDelPlano(this._repo) : super(const EstadoDelPlano()) {
     cargar();
@@ -84,6 +85,43 @@ class ControladorDelPlano extends StateNotifier<EstadoDelPlano> {
     } on ErrorDeApi catch (e) {
       state = state.copiar(mensaje: e.mensaje);
       return false;
+    }
+  }
+
+  // ---- Sesiones de mesa (HU-082) ----
+
+  /// Criterio 1: abre la mesa con N comensales; pasa a OCUPADA. Devuelve `null`
+  /// si salió bien, o el mensaje del 409 si la mesa ya tenía sesión (criterio 2).
+  Future<String?> abrirSesion(String mesaId, int numComensales) async {
+    try {
+      await _repo.abrirSesion(mesaId, numComensales);
+      await cargar();
+      return null;
+    } on ErrorDeApi catch (e) {
+      return e.mensaje;
+    }
+  }
+
+  Future<void> pedirCuenta(String sesionId) async {
+    await _accion(() => _repo.pedirCuenta(sesionId));
+  }
+
+  /// Criterio 3: cierra la sesión; la mesa queda «por limpiar».
+  Future<void> cerrarSesion(String sesionId) async {
+    await _accion(() => _repo.cerrarSesion(sesionId));
+  }
+
+  /// Criterio 4: marca la mesa limpia; vuelve a LIBRE.
+  Future<void> marcarLimpia(String mesaId) async {
+    await _accion(() => _repo.marcarLimpia(mesaId));
+  }
+
+  Future<void> _accion(Future<void> Function() peticion) async {
+    try {
+      await peticion();
+      await cargar();
+    } on ErrorDeApi catch (e) {
+      state = state.copiar(mensaje: e.mensaje);
     }
   }
 
