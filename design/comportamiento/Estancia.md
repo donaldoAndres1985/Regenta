@@ -14,6 +14,7 @@
 | Microservicio | `servicio-reservas` |
 | Tablas | `estancias` · `consumos_estancia` · `ocupantes` · `pagos_reserva` |
 | Historias | HU-072 (Check-in con asignación de recurso) · HU-073 (Cargar consumos a la estancia) · HU-074 (Check-out, liquidación y cierre de estancia) |
+| Estado historias | HU-072 ✅ · HU-073 ✅ · HU-074 pendiente |
 
 Al cerrar se publica estancia_finalizada: el equivalente exacto de venta_completada. Facturación, Reportes, CRM y Caja lo consumen igual.
 
@@ -58,6 +59,28 @@ es el código ISO de dos letras.
 `check_in_registrado` (con `recurso_id`) para que servicio-recursos ponga la habitación en
 estado `OCUPADO`. El cambio de estado del recurso vive en servicio-recursos, no aquí.
 
+### R6 · Cargar un consumo suma al total de la estancia (HU-073)
+**Dado** una estancia `EN_CURSO`, **cuando** se carga un consumo (`descripcion`, `cantidad`,
+`precio_unitario`, `impuesto_pct` como fracción), **entonces** se guarda en `consumos_estancia`
+con su `origen` (`MINIBAR`/`RESTAURANTE`/`SPA`/`LAVANDERIA`/`TELEFONO`/`OTRO`) y su
+`cargado_en`, el `total` del cargo es `cantidad × precio_unitario × (1 + impuesto_pct)`, y
+`estancias.consumo_total` sube en ese importe. La respuesta trae `saldoConConsumos` = saldo de
+la reserva + total de la estancia. `cantidad` debe ser mayor que cero y `descripcion` no puede
+ir vacía (**422**).
+
+### R7 · Un consumo enlazado a un producto queda listo para descontar stock (HU-073)
+**Dado** un consumo con `producto_id`, **cuando** se carga, **entonces** se guarda ese
+`producto_id`; al cerrar la estancia (HU-074) se publica el evento que Inventario consume para
+descontar stock. Un consumo sin `producto_id` no mueve inventario.
+
+### R8 · Una comanda de restaurante cargada a la habitación queda enlazada (HU-073)
+**Dado** una comanda de restaurante, **cuando** se carga a la habitación, **entonces** el
+consumo guarda su `comanda_id`, de modo que se puede rastrear de qué comanda vino.
+
+### R9 · A una estancia cerrada no se le cargan consumos (HU-073)
+**Dado** una estancia que ya no está `EN_CURSO` (`FINALIZADA` o `EXTENDIDA`), **cuando** se
+intenta cargar un consumo, **entonces** responde **409**.
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
@@ -98,9 +121,10 @@ _Sin definir._
 <!-- Qué ve y qué puede hacer cada rol en esta pantalla, y qué pasa exactamente cuando no
 tiene el permiso: no se ve, se ve deshabilitado, o falla al intentar. -->
 
-`RESERVAS_RESERVA_EDITAR` para hacer check-in y registrar ocupantes; `RESERVAS_RESERVA_VER`
-para consultar la estancia. Sin el permiso, la llamada falla en el backend con `403`. Módulo
-`RESERVAS`, patrón Reserva. La plantilla de rol `RECEPCIONISTA` los trae.
+`RESERVAS_RESERVA_EDITAR` para hacer check-in, registrar ocupantes y cargar consumos;
+`RESERVAS_RESERVA_VER` para consultar la estancia. Sin el permiso, la llamada falla en el
+backend con `403`. Módulo `RESERVAS`, patrón Reserva. La plantilla de rol `RECEPCIONISTA` los
+trae.
 
 ## Qué NO debe pasar
 
@@ -110,6 +134,10 @@ para consultar la estancia. Sin el permiso, la llamada falla en el backend con `
 - Que un titular quede sin documento.
 - Que servicio-reservas ponga el recurso en `OCUPADO` por su cuenta: lo hace servicio-recursos
   al consumir `check_in_registrado`.
+- Que se carguen consumos a una estancia cerrada.
+- Que el descuento de stock de un consumo con producto lo haga servicio-reservas: solo guarda
+  el `producto_id`; el descuento lo dispara el cierre de la estancia (HU-074) y lo aplica
+  Inventario.
 
 <!-- Los casos que hay que impedir a propósito. Esta sección es la que más bugs evita y la
 que más se olvida. -->

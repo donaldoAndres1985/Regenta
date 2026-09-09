@@ -15,6 +15,7 @@ import com.regenta.reservas.aplicacion.EstanciaDelNegocio;
 import com.regenta.reservas.aplicacion.GestionDeEstancias;
 import com.regenta.reservas.aplicacion.OcupanteDelNegocio;
 import com.regenta.reservas.aplicacion.SolicitudDeCheckIn;
+import com.regenta.reservas.aplicacion.SolicitudDeConsumo;
 import com.regenta.reservas.aplicacion.SolicitudDeOcupante;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,5 +59,14 @@ public class EstanciasControlador {
     public OcupanteDelNegocio agregarOcupante(@PathVariable UUID reservaId,
             @Valid @RequestBody SolicitudDeOcupante solicitud) {
         return estancias.agregarOcupante(reservaId, solicitud);
+    }
+
+    @PostMapping("/{reservaId}/consumos")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Carga un consumo a la habitación (minibar, restaurante, spa…)")
+    @ApiResponse(responseCode = "409", description = "La estancia ya está cerrada")
+    public EstanciaDelNegocio cargarConsumo(@PathVariable UUID reservaId,
+            @Valid @RequestBody SolicitudDeConsumo solicitud) {
+        return estancias.cargarConsumo(reservaId, solicitud);
     }
 }

@@ -1,7 +1,5 @@
 package com.regenta.reservas.aplicacion;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,20 +14,27 @@ import com.regenta.comun.errores.NoEncontradoException;
 import com.regenta.comun.eventos.RegistroDeEventos;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.RequierePermiso;
+import com.regenta.reservas.domain.ConsumoDeEstancia;
+import com.regenta.reservas.domain.EstadoEstancia;
 import com.regenta.reservas.domain.EstadoReserva;
 import com.regenta.reservas.domain.Estancia;
 import com.regenta.reservas.domain.Ocupante;
+import com.regenta.reservas.domain.OrigenConsumo;
 import com.regenta.reservas.domain.Reserva;
+import com.regenta.reservas.infra.RepositorioDeConsumos;
 import com.regenta.reservas.infra.RepositorioDeEstancias;
 import com.regenta.reservas.infra.RepositorioDeOcupantes;
 import com.regenta.reservas.infra.RepositorioDeReservas;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+
 /**
- * Check-in y estancia (HU-072). Al llegar el huésped se asigna la habitación
- * concreta —la que pida la recepción o una libre de ese tipo—, la reserva pasa a
- * {@code CHECK_IN}, se abre la estancia y se registran los ocupantes. Que el
- * recurso no esté ya ocupado lo comprueba el {@code EXCLUDE} de la tabla, no un
- * chequeo en Java (criterio 2).
+ * Check-in, ocupantes y consumos de la estancia (HU-072/HU-073). Al llegar el
+ * huésped se asigna la habitación concreta y se abre la estancia; durante la
+ * estancia se le cargan el minibar, el restaurante y demás. Que el recurso no
+ * esté ya ocupado lo comprueba el {@code EXCLUDE} de la tabla, no un chequeo en
+ * Java (HU-072 criterio 2).
  */
 @Service
 public class GestionDeEstancias {
@@ -37,15 +42,17 @@ public class GestionDeEstancias {
     private final RepositorioDeReservas reservas;
     private final RepositorioDeEstancias estancias;
     private final RepositorioDeOcupantes ocupantes;
+    private final RepositorioDeConsumos consumos;
     private final ConsultaDeDisponibilidad disponibilidad;
     private final RegistroDeEventos eventos;
 
     public GestionDeEstancias(RepositorioDeReservas reservas, RepositorioDeEstancias estancias,
-            RepositorioDeOcupantes ocupantes, ConsultaDeDisponibilidad disponibilidad,
-            RegistroDeEventos eventos) {
+            RepositorioDeOcupantes ocupantes, RepositorioDeConsumos consumos,
+            ConsultaDeDisponibilidad disponibilidad, RegistroDeEventos eventos) {
         this.reservas = reservas;
         this.estancias = estancias;
         this.ocupantes = ocupantes;
+        this.consumos = consumos;
         this.disponibilidad = disponibilidad;
         this.eventos = eventos;
     }
@@ -90,7 +97,8 @@ public class GestionDeEstancias {
                 EstadoReserva.CHECK_IN, usuarioId, "Check-in en el recurso " + recurso);
         publicarCheckIn(reserva, estancia, recurso);
 
-        return EstanciaDelNegocio.de(estancia, ocupantes.porReserva(reservaId));
+        return EstanciaDelNegocio.de(estancia, reserva.getSaldo(),
+                ocupantes.porReserva(reservaId), List.of());
     }
 
     @Transactional
@@ -102,13 +110,42 @@ public class GestionDeEstancias {
         return OcupanteDelNegocio.de(ocupante);
     }
 
+    /**
+     * Carga un consumo a la habitación (HU-073). Suma al total de la estancia
+     * (criterio 1); si la estancia ya está cerrada, responde 409 (criterio 4).
+     */
+    @Transactional
+    @RequierePermiso("RESERVAS_RESERVA_EDITAR")
+    public EstanciaDelNegocio cargarConsumo(UUID reservaId, SolicitudDeConsumo solicitud) {
+        Reserva reserva = delNegocio(reservaId);
+        Estancia estancia = estancias.porReserva(reservaId)
+                .orElseThrow(() -> new NoEncontradoException("Esa reserva no tiene estancia"));
+        if (estancia.getEstado() != EstadoEstancia.EN_CURSO) {
+            throw new ConflictoDeEstadoException(
+                    "La estancia ya está cerrada; no se le pueden cargar consumos");
+        }
+
+        ConsumoDeEstancia consumo = ConsumoDeEstancia.nuevo(reserva.getNegocioId(),
+                estancia.getId(), OrigenConsumo.desde(solicitud.origen()), solicitud.productoId(),
+                solicitud.comandaId(), solicitud.descripcion(), solicitud.cantidad(),
+                solicitud.precioUnitario(), solicitud.impuestoPct(),
+                ContextoDeNegocio.usuarioActual());
+        consumos.agregar(consumo);
+        estancias.sumarConsumo(estancia.getId(), consumo.getTotal());
+
+        Estancia actualizada = estancias.buscar(estancia.getId()).orElseThrow();
+        return EstanciaDelNegocio.de(actualizada, reserva.getSaldo(),
+                ocupantes.porReserva(reservaId), consumos.porEstancia(estancia.getId()));
+    }
+
     @Transactional(readOnly = true)
     @RequierePermiso("RESERVAS_RESERVA_VER")
     public EstanciaDelNegocio verEstancia(UUID reservaId) {
-        delNegocio(reservaId);
+        Reserva reserva = delNegocio(reservaId);
         Estancia estancia = estancias.porReserva(reservaId)
                 .orElseThrow(() -> new NoEncontradoException("Esa reserva no tiene estancia"));
-        return EstanciaDelNegocio.de(estancia, ocupantes.porReserva(reservaId));
+        return EstanciaDelNegocio.de(estancia, reserva.getSaldo(),
+                ocupantes.porReserva(reservaId), consumos.porEstancia(estancia.getId()));
     }
 
     private UUID resolverRecurso(Reserva reserva, UUID pedido) {
