@@ -58,6 +58,29 @@ rechaza. La validación la hace `servicio-menu` (HU-078); `servicio-comandas` la
 `EN_COCINA` (la primera vez) y se publica `comanda_enviada_cocina`. Las líneas que ya se
 habían enviado no se tocan.
 
+### R7 · Cada línea avanza por su propio ciclo (HU-086)
+**Dado** una línea, **cuando** la toco y confirmo, **entonces** avanza al siguiente estado:
+`PENDIENTE → ENVIADA → EN_PREPARACION → LISTA → ENTREGADA`. No se puede avanzar una línea
+`ANULADA` ni pasar de `ENTREGADA` (422). Cada transacción guarda su marca de tiempo
+(`enviada_en`, `lista_en`, `entregada_en`) y publica `linea_estado_cambiado`.
+
+### R8 · La comanda muestra el estado por línea, no uno solo (HU-086 criterio 2)
+**Dado** que consulto la comanda, **entonces** cada línea muestra su propio estado en su
+propio chip. Dos líneas de la misma comanda pueden estar en estados distintos a la vez.
+
+### R9 · La demora se mide entre ENVIADA y LISTA (HU-086 criterio 3)
+**Dado** una línea que pasó por `ENVIADA` y llegó a `LISTA`, **entonces** su `demoraMin` es
+la diferencia en minutos entre esas dos marcas, y la pantalla la muestra en la línea.
+
+### R10 · El curso y la secuencia marcan el orden en cocina (HU-086 criterio 4)
+**Dado** una línea de curso `POSTRE` con `secuencia_envio` 2, **entonces** la comanda la
+lleva así y la pantalla lo indica («postre · va #2»). El curso y la secuencia solo se
+ajustan mientras la línea sigue `PENDIENTE`.
+
+### R11 · Cuando todas las líneas quedan entregadas, la comanda pasa a SERVIDA (HU-086)
+**Dado** una comanda `EN_COCINA`, **cuando** su última línea viva pasa a `ENTREGADA`,
+**entonces** la comanda pasa a `SERVIDA`.
+
 ## Al abrir
 
 - Se llama `GET /api/comandas/{id}` una vez. Mientras responde, un spinner centrado.

@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.comandas.aplicacion.ComandaDetallada;
 import com.regenta.comandas.aplicacion.GestionDeComandas;
+import com.regenta.comandas.aplicacion.SolicitudDeAjusteDeLinea;
 import com.regenta.comandas.aplicacion.SolicitudDeAperturaComanda;
 import com.regenta.comandas.aplicacion.SolicitudDeLinea;
 
@@ -67,5 +69,19 @@ public class ComandasControlador {
     @Operation(summary = "Envía a cocina las líneas pendientes")
     public ComandaDetallada enviarACocina(@PathVariable UUID comandaId) {
         return comandas.enviarACocina(comandaId);
+    }
+
+    @PostMapping("/{comandaId}/lineas/{lineaId}/avance")
+    @Operation(summary = "Avanza el estado de la línea (PENDIENTE → ENVIADA → … → ENTREGADA)")
+    public ComandaDetallada avanzarLinea(@PathVariable UUID comandaId,
+            @PathVariable UUID lineaId) {
+        return comandas.avanzarLinea(comandaId, lineaId);
+    }
+
+    @PutMapping("/{comandaId}/lineas/{lineaId}")
+    @Operation(summary = "Ajusta el curso y la secuencia de envío de una línea pendiente")
+    public ComandaDetallada ajustarLinea(@PathVariable UUID comandaId, @PathVariable UUID lineaId,
+            @RequestBody SolicitudDeAjusteDeLinea solicitud) {
+        return comandas.ajustarLinea(comandaId, lineaId, solicitud);
     }
 }

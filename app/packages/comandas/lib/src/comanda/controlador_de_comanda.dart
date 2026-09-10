@@ -58,4 +58,13 @@ class ControladorDeComanda extends StateNotifier<EstadoDeComanda> {
       state = state.copiar(mensaje: e.mensaje);
     }
   }
+
+  /// HU-086 criterio 1: avanza el estado de una línea.
+  Future<void> avanzarLinea(String lineaId) async {
+    try {
+      state = state.copiar(comanda: await _repo.avanzarLinea(_comandaId, lineaId));
+    } on ErrorDeApi catch (e) {
+      state = state.copiar(mensaje: e.mensaje);
+    }
+  }
 }

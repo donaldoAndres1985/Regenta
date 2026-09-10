@@ -14,6 +14,7 @@ class _RepoFake implements RepositorioDeComandas {
   ErrorDeApi? errorAlAgregar;
   int llamadasAComanda = 0;
   final List<({String itemId, num cantidad, List<String> mods})> agregadas = [];
+  final List<String> avanzadas = [];
 
   static ComandaVista _comandaVacia() => const ComandaVista(
         id: 'c1',
@@ -56,6 +57,7 @@ class _RepoFake implements RepositorioDeComandas {
       nombre: item.nombre,
       estado: 'PENDIENTE',
       curso: 'FUERTE',
+      secuenciaEnvio: 1,
       cantidad: cantidad,
       total: item.precio * cantidad,
       notas: notas,
@@ -90,22 +92,45 @@ class _RepoFake implements RepositorioDeComandas {
       total: _comanda.total,
       lineas: [
         for (final l in _comanda.lineas)
-          l.estado == 'PENDIENTE'
-              ? LineaVista(
-                  id: l.id,
-                  linea: l.linea,
-                  nombre: l.nombre,
-                  estado: 'ENVIADA',
-                  curso: l.curso,
-                  cantidad: l.cantidad,
-                  total: l.total,
-                  notas: l.notas,
-                  modificadores: l.modificadores)
-              : l,
+          l.estado == 'PENDIENTE' ? _conEstado(l, 'ENVIADA') : l,
       ],
     );
     return _comanda;
   }
+
+  @override
+  Future<ComandaVista> avanzarLinea(String comandaId, String lineaId) async {
+    avanzadas.add(lineaId);
+    _comanda = ComandaVista(
+      id: _comanda.id,
+      numero: _comanda.numero,
+      estado: _comanda.estado,
+      numComensales: _comanda.numComensales,
+      subtotal: _comanda.subtotal,
+      impuestoTotal: 0,
+      propinaSugerida: _comanda.propinaSugerida,
+      total: _comanda.total,
+      lineas: [
+        for (final l in _comanda.lineas)
+          l.id == lineaId ? _conEstado(l, l.siguienteEstado ?? l.estado) : l,
+      ],
+    );
+    return _comanda;
+  }
+
+  LineaVista _conEstado(LineaVista l, String estado) => LineaVista(
+        id: l.id,
+        linea: l.linea,
+        nombre: l.nombre,
+        estado: estado,
+        curso: l.curso,
+        secuenciaEnvio: l.secuenciaEnvio,
+        cantidad: l.cantidad,
+        total: l.total,
+        notas: l.notas,
+        demoraMin: l.demoraMin,
+        modificadores: l.modificadores,
+      );
 }
 
 ItemDeCarta _it(String id, String nombre, num precio) =>
@@ -241,5 +266,86 @@ void main() {
     await _montar(tester, repo, cartaId: null);
     final boton = tester.widget<OutlinedButton>(find.byKey(const Key('comanda-anadir')));
     expect(boton.onPressed, isNull);
+  });
+
+  // ---- HU-086 ----
+
+  LineaVista lineaVista({
+    String id = 'la',
+    String nombre = 'Bandeja paisa',
+    String estado = 'PENDIENTE',
+    String curso = 'FUERTE',
+    int secuencia = 1,
+    int? demora,
+  }) =>
+      LineaVista(
+        id: id,
+        linea: 1,
+        nombre: nombre,
+        estado: estado,
+        curso: curso,
+        secuenciaEnvio: secuencia,
+        cantidad: 1,
+        total: 32000,
+        modificadores: const [],
+        demoraMin: demora,
+      );
+
+  ComandaVista comandaCon(List<LineaVista> lineas, {String estado = 'EN_COCINA'}) => ComandaVista(
+        id: 'c1',
+        numero: 'CMD-0001',
+        estado: estado,
+        numComensales: 4,
+        subtotal: 0,
+        impuestoTotal: 0,
+        propinaSugerida: 0,
+        total: lineas.fold<num>(0, (s, l) => s + l.total),
+        lineas: lineas,
+      );
+
+  testWidgets('Criterio 1: tocar una línea la avanza al siguiente estado', (tester) async {
+    final repo = _RepoFake(comanda: comandaCon([lineaVista(id: 'la', estado: 'PENDIENTE')]));
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('linea-la')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('linea-avanzar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.avanzadas, ['la']);
+    expect(find.descendant(
+            of: find.byKey(const Key('linea-la')), matching: find.text('ENVIADA')),
+        findsOneWidget);
+  });
+
+  testWidgets('Criterio 2: cada línea muestra su propio estado', (tester) async {
+    final repo = _RepoFake(comanda: comandaCon([
+      lineaVista(id: 'la', estado: 'LISTA'),
+      lineaVista(id: 'lb', estado: 'PENDIENTE'),
+    ]));
+    await _montar(tester, repo);
+
+    expect(find.descendant(
+            of: find.byKey(const Key('linea-la')), matching: find.text('LISTA')),
+        findsOneWidget);
+    expect(find.descendant(
+            of: find.byKey(const Key('linea-lb')), matching: find.text('PENDIENTE')),
+        findsOneWidget);
+  });
+
+  testWidgets('Criterio 3: la demora en cocina se ve en la línea', (tester) async {
+    final repo = _RepoFake(comanda: comandaCon([lineaVista(id: 'la', estado: 'LISTA', demora: 25)]));
+    await _montar(tester, repo);
+    expect(find.byKey(const Key('linea-demora-la')), findsOneWidget);
+    expect(find.text('25 min'), findsOneWidget);
+  });
+
+  testWidgets('Criterio 4: una línea de curso POSTRE con secuencia 2 lo indica', (tester) async {
+    final repo = _RepoFake(comanda: comandaCon([
+      lineaVista(id: 'la', nombre: 'Postre de natas', curso: 'POSTRE', secuencia: 2),
+    ]));
+    await _montar(tester, repo);
+    expect(find.byKey(const Key('linea-curso-la')), findsOneWidget);
+    expect(find.textContaining('va #2'), findsOneWidget);
   });
 }

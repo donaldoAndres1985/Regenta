@@ -70,4 +70,40 @@ class ComandaLineaTest {
         assertThatThrownBy(EstadoDeLinea.ENTREGADA::siguiente)
                 .isInstanceOf(ReglaDeNegocioException.class);
     }
+
+    @Test
+    @DisplayName("HU-086 criterio 1 y 3: avanzar recorre los estados y deja marca de tiempo")
+    void avanzarConMarcaDeTiempo() {
+        ComandaLinea l = linea("1", "0");
+        assertThat(l.demoraPreparacionMin()).isNull();
+
+        l.avanzar(); // ENVIADA
+        assertThat(l.getEstado()).isEqualTo(EstadoDeLinea.ENVIADA);
+        assertThat(l.getEnviadaEn()).isNotNull();
+
+        l.avanzar(); // EN_PREPARACION
+        assertThat(l.getEstado()).isEqualTo(EstadoDeLinea.EN_PREPARACION);
+
+        l.avanzar(); // LISTA
+        assertThat(l.getEstado()).isEqualTo(EstadoDeLinea.LISTA);
+        assertThat(l.getListaEn()).isNotNull();
+        assertThat(l.demoraPreparacionMin()).isNotNull().isGreaterThanOrEqualTo(0);
+
+        l.avanzar(); // ENTREGADA
+        assertThat(l.getEntregadaEn()).isNotNull();
+        assertThatThrownBy(l::avanzar).isInstanceOf(ReglaDeNegocioException.class);
+    }
+
+    @Test
+    @DisplayName("HU-086 criterio 4: el curso y la secuencia se ajustan solo antes de enviar")
+    void ajustarEnvio() {
+        ComandaLinea l = linea("1", "0");
+        l.ajustarEnvio(CursoDeComanda.POSTRE, 2);
+        assertThat(l.getCurso()).isEqualTo(CursoDeComanda.POSTRE);
+        assertThat(l.getSecuenciaEnvio()).isEqualTo((short) 2);
+
+        l.enviar();
+        assertThatThrownBy(() -> l.ajustarEnvio(CursoDeComanda.ENTRADA, 1))
+                .isInstanceOf(ReglaDeNegocioException.class);
+    }
 }

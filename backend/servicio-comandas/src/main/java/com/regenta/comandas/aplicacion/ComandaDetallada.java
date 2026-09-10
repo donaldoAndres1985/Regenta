@@ -42,6 +42,10 @@ public record ComandaDetallada(
             BigDecimal total,
             String notas,
             Short comensalNumero,
+            OffsetDateTime enviadaEn,
+            OffsetDateTime listaEn,
+            OffsetDateTime entregadaEn,
+            Integer demoraMin,
             List<ModificadorDeLinea> modificadores) {
     }
 
@@ -56,7 +60,8 @@ public record ComandaDetallada(
                         l.getNombreSnapshot(), l.getEstado().name(), l.getCurso().name(),
                         l.getSecuenciaEnvio(), l.getCantidad(), l.getPrecioUnitario(),
                         l.getModificadoresValor(), l.getSubtotal(), l.getTotal(), l.getNotas(),
-                        l.getComensalNumero(),
+                        l.getComensalNumero(), l.getEnviadaEn(), l.getListaEn(), l.getEntregadaEn(),
+                        l.demoraPreparacionMin(),
                         modsPorLinea.getOrDefault(l.getId(), List.of()).stream()
                                 .map(m -> new ModificadorDeLinea(m.getId(), m.getModificadorId(),
                                         m.getNombreSnapshot(), m.getPrecioExtra()))

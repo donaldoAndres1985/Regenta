@@ -169,6 +169,13 @@ public class Comanda {
         }
     }
 
+    /** Cuando todas las líneas vivas quedaron entregadas (HU-086). */
+    public void marcarServida() {
+        if (estado == EstadoDeComanda.EN_COCINA || estado == EstadoDeComanda.ABIERTA) {
+            this.estado = EstadoDeComanda.SERVIDA;
+        }
+    }
+
     private static BigDecimal escala4(BigDecimal v) {
         return (v == null ? BigDecimal.ZERO : v).setScale(4, RoundingMode.HALF_UP);
     }

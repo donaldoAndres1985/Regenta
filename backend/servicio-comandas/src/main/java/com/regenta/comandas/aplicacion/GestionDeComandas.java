@@ -125,9 +125,11 @@ public class GestionDeComandas {
                 + 1);
         BigDecimal modificadoresValor = cot.extraPorUnidad().multiply(solicitud.cantidad());
 
+        String cursoTexto = solicitud.curso() != null && !solicitud.curso().isBlank()
+                ? solicitud.curso() : item.curso();
         ComandaLinea linea = ComandaLinea.crear(comanda.getNegocioId(), comandaId, numero,
                 solicitud.itemMenuId(), item.nombre(), item.precio(), item.estacionId(),
-                CursoDeComanda.desde(item.curso()), item.costoEstimado(), solicitud.cantidad(),
+                CursoDeComanda.desde(cursoTexto), item.costoEstimado(), solicitud.cantidad(),
                 modificadoresValor, solicitud.descuentoValor(), solicitud.impuestoPct(),
                 solicitud.notas(), solicitud.comensalNumero(), solicitud.secuenciaEnvio());
         lineas.save(linea);
@@ -165,6 +167,56 @@ public class GestionDeComandas {
         payload.put("linea_ids", aEnviar.stream().map(l -> l.getId().toString()).toList());
         eventos.registrar(comanda.getNegocioId(), "Comanda", comanda.getId(),
                 "comanda_enviada_cocina", payload);
+        return detalle(comanda, lineas.findByComandaIdOrderByLineaAsc(comandaId));
+    }
+
+    /**
+     * Avanza el estado de una línea (HU-086 criterio 1) y publica el cambio con su
+     * marca de tiempo (criterio 3). Si todas las líneas vivas quedaron entregadas,
+     * la comanda pasa a SERVIDA.
+     */
+    @Transactional
+    @RequierePermiso("COMANDAS_COMANDA_EDITAR")
+    public ComandaDetallada avanzarLinea(UUID comandaId, UUID lineaId) {
+        Comanda comanda = delNegocio(comandaId);
+        List<ComandaLinea> deLaComanda = lineas.findByComandaIdOrderByLineaAsc(comandaId);
+        ComandaLinea linea = deLaComanda.stream().filter(l -> l.getId().equals(lineaId)).findFirst()
+                .orElseThrow(() -> new NoEncontradoException("Esa línea no existe en la comanda"));
+        linea.avanzar();
+        lineas.save(linea);
+
+        boolean todasEntregadas = deLaComanda.stream()
+                .filter(l -> l.getEstado() != EstadoDeLinea.ANULADA)
+                .allMatch(l -> l.getEstado() == EstadoDeLinea.ENTREGADA);
+        if (todasEntregadas) {
+            comanda.marcarServida();
+            comandas.save(comanda);
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("negocio_id", comanda.getNegocioId().toString());
+        payload.put("comanda_id", comanda.getId().toString());
+        payload.put("linea_id", linea.getId().toString());
+        payload.put("estado", linea.getEstado().name());
+        eventos.registrar(comanda.getNegocioId(), "ComandaLinea", linea.getId(),
+                "linea_estado_cambiado", payload);
+        return detalle(comanda, lineas.findByComandaIdOrderByLineaAsc(comandaId));
+    }
+
+    /** Ajusta curso y secuencia de envío de una línea aún pendiente (HU-086 criterio 4). */
+    @Transactional
+    @RequierePermiso("COMANDAS_COMANDA_EDITAR")
+    public ComandaDetallada ajustarLinea(UUID comandaId, UUID lineaId,
+            SolicitudDeAjusteDeLinea solicitud) {
+        Comanda comanda = delNegocio(comandaId);
+        ComandaLinea linea = lineas.findByComandaIdOrderByLineaAsc(comandaId).stream()
+                .filter(l -> l.getId().equals(lineaId)).findFirst()
+                .orElseThrow(() -> new NoEncontradoException("Esa línea no existe en la comanda"));
+        linea.ajustarEnvio(
+                solicitud.curso() == null || solicitud.curso().isBlank() ? null
+                        : CursoDeComanda.desde(solicitud.curso()),
+                solicitud.secuenciaEnvio());
+        lineas.save(linea);
         return detalle(comanda, lineas.findByComandaIdOrderByLineaAsc(comandaId));
     }
 

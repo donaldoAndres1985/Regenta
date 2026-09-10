@@ -50,10 +50,12 @@ class LineaVista {
     required this.nombre,
     required this.estado,
     required this.curso,
+    required this.secuenciaEnvio,
     required this.cantidad,
     required this.total,
     required this.modificadores,
     this.notas,
+    this.demoraMin,
   });
 
   final String id;
@@ -61,10 +63,23 @@ class LineaVista {
   final String nombre;
   final String estado;
   final String curso;
+  final int secuenciaEnvio;
   final num cantidad;
   final num total;
   final String? notas;
+
+  /// Minutos entre ENVIADA y LISTA (HU-086 criterio 3). `null` si no aplica.
+  final int? demoraMin;
   final List<String> modificadores;
+
+  /// El siguiente estado del ciclo, o `null` si ya está en el final.
+  String? get siguienteEstado => switch (estado) {
+        'PENDIENTE' => 'ENVIADA',
+        'ENVIADA' => 'EN_PREPARACION',
+        'EN_PREPARACION' => 'LISTA',
+        'LISTA' => 'ENTREGADA',
+        _ => null,
+      };
 
   factory LineaVista.desdeJson(Map<String, dynamic> json) => LineaVista(
         id: json['id'] as String,
@@ -72,9 +87,11 @@ class LineaVista {
         nombre: (json['nombre'] ?? '') as String,
         estado: (json['estado'] ?? 'PENDIENTE') as String,
         curso: (json['curso'] ?? 'FUERTE') as String,
+        secuenciaEnvio: (json['secuenciaEnvio'] as num?)?.toInt() ?? 1,
         cantidad: (json['cantidad'] as num?) ?? 1,
         total: (json['total'] as num?) ?? 0,
         notas: json['notas'] as String?,
+        demoraMin: (json['demoraMin'] as num?)?.toInt(),
         modificadores: (json['modificadores'] as List<dynamic>? ?? const [])
             .map((m) => ((m as Map)['nombre'] ?? '').toString())
             .toList(),
