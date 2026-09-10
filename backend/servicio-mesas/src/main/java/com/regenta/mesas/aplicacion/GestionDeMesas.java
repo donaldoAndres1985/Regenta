@@ -19,6 +19,7 @@ import com.regenta.mesas.domain.FormaDeMesa;
 import com.regenta.mesas.domain.Mesa;
 import com.regenta.mesas.domain.Zona;
 import com.regenta.mesas.infra.ConteoDeSesionesAbiertas;
+import com.regenta.mesas.infra.MapaDeSesionesVivas;
 import com.regenta.mesas.infra.MesaRepositorio;
 import com.regenta.mesas.infra.ZonaRepositorio;
 
@@ -34,12 +35,14 @@ public class GestionDeMesas {
     private final MesaRepositorio mesas;
     private final ZonaRepositorio zonas;
     private final ConteoDeSesionesAbiertas sesiones;
+    private final MapaDeSesionesVivas sesionesVivas;
 
     public GestionDeMesas(MesaRepositorio mesas, ZonaRepositorio zonas,
-            ConteoDeSesionesAbiertas sesiones) {
+            ConteoDeSesionesAbiertas sesiones, MapaDeSesionesVivas sesionesVivas) {
         this.mesas = mesas;
         this.zonas = zonas;
         this.sesiones = sesiones;
+        this.sesionesVivas = sesionesVivas;
     }
 
     @Transactional(readOnly = true)
@@ -64,9 +67,10 @@ public class GestionDeMesas {
     public PlanoDelSalon plano() {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         List<Zona> zs = zonas.findByNegocioIdOrderByOrdenAscNombreAsc(negocioId);
+        Map<UUID, UUID> sesionPorMesa = sesionesVivas.porMesa();
         Map<UUID, List<MesaDelNegocio>> porZona = mesas
                 .findByNegocioIdAndActivaTrueOrderByCodigoAsc(negocioId).stream()
-                .map(MesaDelNegocio::de)
+                .map(m -> MesaDelNegocio.de(m, sesionPorMesa.get(m.getId())))
                 .collect(Collectors.groupingBy(
                         m -> m.zonaId() == null ? SIN_ZONA : m.zonaId()));
         List<ZonaConMesas> bloques = zs.stream()

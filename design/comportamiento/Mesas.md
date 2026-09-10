@@ -96,6 +96,27 @@ limpiar»).
 `duracionMin` (columna generada por la base a partir de `abierta_en` y `cerrada_en`) y
 `numComensales`. Para una sesión abierta, `minutosAbierta` es el cronómetro en curso.
 
+### R13 · Unir una mesa libre a una sesión (HU-083)
+**Dado** una mesa con sesión, **cuando** desde su hoja elijo «Unir mesa» y pico una mesa
+`LIBRE`, **entonces** se llama `POST /api/mesas/sesiones/{sesionId}/mesas/{mesaId}`, la mesa
+elegida pasa a `OCUPADA` y queda en el mismo grupo: una sola sesión, una sola comanda
+(`sesiones_mesa.comanda_id`). La respuesta trae `mesaIds` con la principal primero.
+
+### R14 · Una mesa ocupada no se une a otra sesión (HU-083)
+**Dado** una mesa que ya está `OCUPADA` (por su propia sesión o unida a otro grupo), **cuando**
+intento unirla, **entonces** el backend responde 409 «Esa mesa ya está ocupada» y el aviso lo
+muestra. Unir la misma mesa dos veces al mismo grupo no la agrega dos veces.
+
+### R15 · Al cerrar la cuenta todo el grupo queda «por limpiar» (HU-083)
+**Dado** un grupo de mesas unidas, **cuando** se cierra la sesión (`comanda_cerrada` o a mano),
+**entonces** **todas** —principal y unidas— pasan a `SUCIA`, no solo la principal. Sacar una
+mesa del grupo antes de cerrar (`DELETE .../sesiones/{sesionId}/mesas/{mesaId}`) también la
+deja `SUCIA`; la principal no se separa.
+
+### R16 · El plano marca las mesas unidas (HU-083 criterio 4)
+**Dado** el plano, **cuando** dos o más mesas comparten `sesionId`, **entonces** cada una
+lleva un icono de enlace. Dos mesas con el mismo `sesionId` son del mismo grupo.
+
 ## Al abrir
 
 - Se llama `GET /api/mesas/plano` una sola vez. Mientras responde, un spinner centrado.

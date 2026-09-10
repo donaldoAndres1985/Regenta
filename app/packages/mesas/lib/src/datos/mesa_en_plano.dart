@@ -1,5 +1,6 @@
-/// Una mesa tal como la pinta el plano del salón (HU-081). Los campos de sesión
-/// —tiempo abierto, consumo— los añade HU-082; aquí no vienen.
+/// Una mesa tal como la pinta el plano del salón (HU-081). Si está en una sesión
+/// viva, [sesionId] dice cuál — dos mesas con el mismo [sesionId] están unidas
+/// (HU-083 criterio 4). El tiempo abierto y el consumo los añade HU-084.
 class MesaEnPlano {
   const MesaEnPlano({
     required this.id,
@@ -13,6 +14,7 @@ class MesaEnPlano {
     required this.alto,
     this.zonaId,
     this.nombre,
+    this.sesionId,
   });
 
   final String id;
@@ -26,6 +28,7 @@ class MesaEnPlano {
   final int posY;
   final int ancho;
   final int alto;
+  final String? sesionId;
 
   factory MesaEnPlano.desdeJson(Map<String, dynamic> json) => MesaEnPlano(
         id: json['id'] as String,
@@ -39,6 +42,7 @@ class MesaEnPlano {
         posY: (json['posY'] as num?)?.toInt() ?? 0,
         ancho: (json['ancho'] as num?)?.toInt() ?? 80,
         alto: (json['alto'] as num?)?.toInt() ?? 80,
+        sesionId: json['sesionId'] as String?,
       );
 
   MesaEnPlano conPosicion(int x, int y) => MesaEnPlano(
@@ -53,5 +57,6 @@ class MesaEnPlano {
         posY: y < 0 ? 0 : y,
         ancho: ancho,
         alto: alto,
+        sesionId: sesionId,
       );
 }

@@ -85,6 +85,12 @@ class RepositorioDeMesas {
     await _http.post<Map<String, dynamic>>('/api/mesas/sesiones/$sesionId/cuenta');
   }
 
+  /// Une una mesa libre a la sesión (HU-083 criterio 1). Propaga el 409 si la
+  /// mesa ya está ocupada (criterio 2).
+  Future<void> unirMesa(String sesionId, String mesaId) async {
+    await _http.post<Map<String, dynamic>>('/api/mesas/sesiones/$sesionId/mesas/$mesaId');
+  }
+
   /// Cierra la sesión; la mesa queda «por limpiar» (criterio 3).
   Future<void> cerrarSesion(String sesionId) async {
     await _http.post<Map<String, dynamic>>('/api/mesas/sesiones/$sesionId/cierre');
