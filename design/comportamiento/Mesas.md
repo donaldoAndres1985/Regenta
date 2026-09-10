@@ -117,6 +117,25 @@ deja `SUCIA`; la principal no se separa.
 **Dado** el plano, **cuando** dos o más mesas comparten `sesionId`, **entonces** cada una
 lleva un icono de enlace. Dos mesas con el mismo `sesionId` son del mismo grupo.
 
+### R17 · Cada mesa muestra su estado por color, su tiempo y sus comensales (HU-084 criterio 1)
+**Dado** el plano, **cuando** lo miro, **entonces** una mesa ocupada muestra `${minutosAbierta} min`
+en lugar de la etiqueta de estado y `${numComensales} pax` (los trae `GET /api/mesas/plano`
+desde la sesión viva). El **consumo** por mesa (`$…`) llega con E12; hasta entonces no se
+pinta. Una mesa libre muestra «Libre» y su capacidad.
+
+### R18 · El plano se refresca solo (HU-084 criterio 2)
+**Dado** el plano abierto, **cuando** pasan 15 s (o lo que diga
+`intervaloRefrescoDelPlanoProvider`), **entonces** se vuelve a pedir `GET /api/mesas/plano` en
+segundo plano —sin spinner y sin pisar un aviso abierto— para reflejar lo que hicieron otros
+meseros. Un fallo de red en ese latido no rompe la pantalla. (Polling; SSE/websocket queda
+para cuando exista esa infraestructura.)
+
+### R19 · Tocar una mesa abre su sesión o su comanda (HU-084 criterio 4)
+**Dado** una mesa `LIBRE`, **cuando** la toco, **entonces** abro su sesión (R8). **Dado** una
+mesa ocupada, **cuando** la toco y pulso «Ver comanda», **entonces** la app navega a la
+comanda de esa mesa (`onAbrirComanda(mesaId, sesionId)`; la ruta la cablea `apps/regenta`
+con E12). Sin ese callback, «Ver comanda» no aparece.
+
 ## Al abrir
 
 - Se llama `GET /api/mesas/plano` una sola vez. Mientras responde, un spinner centrado.

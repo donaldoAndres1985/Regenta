@@ -24,9 +24,11 @@ class _RepoFake implements RepositorioDeMesas {
   final List<String> limpiadas = [];
   final List<({String sesionId, String mesaId})> uniones = [];
   final Map<String, SesionDeMesa> _sesionPorMesa = {};
+  int llamadasAlPlano = 0;
 
   @override
   Future<PlanoDelSalon> plano() async {
+    llamadasAlPlano++;
     if (errorAlCargar != null) throw errorAlCargar!;
     return _plano;
   }
@@ -185,6 +187,8 @@ MesaEnPlano _m({
   int posX = 0,
   int posY = 0,
   String? sesionId,
+  int? minutosAbierta,
+  int? numComensales,
 }) =>
     MesaEnPlano(
       id: id,
@@ -198,18 +202,30 @@ MesaEnPlano _m({
       ancho: 80,
       alto: 80,
       sesionId: sesionId,
+      minutosAbierta: minutosAbierta,
+      numComensales: numComensales,
     );
 
 PlanoDelSalon _planoCon(List<MesaEnPlano> sinZona, {List<ZonaConMesas> zonas = const []}) =>
     PlanoDelSalon(zonas: zonas, sinZona: sinZona);
 
 Future<void> _montar(WidgetTester tester, _RepoFake repo,
-    {Size size = const Size(390, 844), bool puedeEditar = true}) async {
+    {Size size = const Size(390, 844),
+    bool puedeEditar = true,
+    Duration refresco = Duration.zero,
+    void Function(String mesaId, String? sesionId)? onAbrirComanda}) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
+  // Desmonta el ProviderScope para que el StateNotifier cancele su Timer.
+  addTearDown(() => tester.pumpWidget(const SizedBox()));
   await tester.pumpWidget(ProviderScope(
-    overrides: [repositorioDeMesasProvider.overrideWithValue(repo)],
-    child: MaterialApp(home: PantallaMesas(puedeEditar: puedeEditar)),
+    overrides: [
+      repositorioDeMesasProvider.overrideWithValue(repo),
+      intervaloRefrescoDelPlanoProvider.overrideWithValue(refresco),
+    ],
+    child: MaterialApp(
+      home: PantallaMesas(puedeEditar: puedeEditar, onAbrirComanda: onAbrirComanda),
+    ),
   ));
   await tester.pumpAndSettle();
 }
@@ -548,5 +564,99 @@ void main() {
 
     expect(find.byKey(const Key('mesas-aviso')), findsOneWidget);
     expect(find.text('Esa mesa ya está ocupada'), findsOneWidget);
+  });
+
+  // ---- HU-084 ----
+
+  testWidgets('Criterio 1: la tarjeta de una mesa ocupada muestra el tiempo y los comensales',
+      (tester) async {
+    final repo = _RepoFake(plano: _planoCon([
+      _m(id: 'm1', codigo: 'M1', estado: 'OCUPADA', minutosAbierta: 52, numComensales: 4),
+      _m(id: 'm2', codigo: 'M2'),
+    ]));
+    await _montar(tester, repo);
+
+    expect(find.byKey(const Key('mesa-tiempo-m1')), findsOneWidget);
+    expect(find.descendant(
+            of: find.byKey(const Key('mesa-m1')), matching: find.text('52 min')),
+        findsOneWidget);
+    expect(find.descendant(
+            of: find.byKey(const Key('mesa-m1')), matching: find.text('4 pax')),
+        findsOneWidget);
+    // Una mesa libre no muestra cronómetro.
+    expect(find.byKey(const Key('mesa-tiempo-m2')), findsNothing);
+  });
+
+  testWidgets('Criterio 2: el plano se refresca solo cada intervalo sin recargar',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    addTearDown(() => tester.pumpWidget(const SizedBox()));
+    final repo = _RepoFake(plano: _planoCon([_m(id: 'm1')]));
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        repositorioDeMesasProvider.overrideWithValue(repo),
+        intervaloRefrescoDelPlanoProvider
+            .overrideWithValue(const Duration(milliseconds: 200)),
+      ],
+      child: const MaterialApp(home: PantallaMesas()),
+    ));
+    await tester.pump(); // primera carga
+    await tester.pump();
+    expect(repo.llamadasAlPlano, 1);
+
+    await tester.pump(const Duration(milliseconds: 220));
+    expect(repo.llamadasAlPlano, 2);
+    await tester.pump(const Duration(milliseconds: 220));
+    expect(repo.llamadasAlPlano, 3);
+
+    // Sin spinner: el refresco es silencioso.
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('Criterio 4: tocar una mesa ocupada lleva a su comanda', (tester) async {
+    String? mesaVista;
+    String? sesionVista;
+    final repo = _RepoFake(plano: _planoCon([
+      _m(id: 'm1', codigo: 'M1', estado: 'OCUPADA', sesionId: 's1', minutosAbierta: 8),
+    ]));
+    repo._sesionPorMesa['m1'] = const SesionDeMesa(
+      id: 's1',
+      mesaPrincipalId: 'm1',
+      estado: 'ABIERTA',
+      numComensales: 2,
+      minutosAbierta: 8,
+    );
+    await _montar(tester, repo, onAbrirComanda: (m, s) {
+      mesaVista = m;
+      sesionVista = s;
+    });
+
+    await tester.tap(find.byKey(const Key('mesa-m1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('hoja-ver-comanda')));
+    await tester.pumpAndSettle();
+
+    expect(mesaVista, 'm1');
+    expect(sesionVista, 's1');
+  });
+
+  testWidgets('Criterio 3: en móvil las mesas se agrupan por zona en una rejilla',
+      (tester) async {
+    final repo = _RepoFake(
+      plano: _planoCon(const [], zonas: [
+        ZonaConMesas(id: 'z1', nombre: 'Salón', orden: 0, mesas: [_m(id: 's1', codigo: 'S1')]),
+      ]),
+    );
+    await _montar(tester, repo);
+
+    expect(find.byKey(const Key('mesas-movil')), findsOneWidget);
+    expect(find.text('SALÓN'), findsWidgets); // título de zona + chip
+    expect(find.descendant(
+            of: find.byKey(const Key('mesas-plano')),
+            matching: find.byKey(const Key('mesa-s1'))),
+        findsOneWidget);
+    expect(tester.getSize(find.byKey(const Key('mesa-s1'))).height,
+        greaterThanOrEqualTo(44));
   });
 }

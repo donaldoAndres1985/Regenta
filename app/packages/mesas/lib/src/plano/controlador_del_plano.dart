@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
@@ -8,20 +10,41 @@ import 'estado_del_plano.dart';
 
 /// Maneja el plano del salón (HU-081): lo carga, filtra por zona sin volver a
 /// pedir, y en modo edición crea, mueve y borra mesas. En modo lectura abre,
-/// cierra y libera sesiones de mesa (HU-082).
+/// cierra y libera sesiones de mesa (HU-082). Refresca solo cada
+/// [intervaloRefresco] para que el plano siga a lo que hacen otros meseros
+/// (HU-084 criterio 2).
 class ControladorDelPlano extends StateNotifier<EstadoDelPlano> {
-  ControladorDelPlano(this._repo) : super(const EstadoDelPlano()) {
+  ControladorDelPlano(
+    this._repo, {
+    this.intervaloRefresco = const Duration(seconds: 15),
+  }) : super(const EstadoDelPlano()) {
     cargar();
+    if (intervaloRefresco > Duration.zero) {
+      _latido = Timer.periodic(intervaloRefresco, (_) => cargar(silencioso: true));
+    }
   }
 
   final RepositorioDeMesas _repo;
+  final Duration intervaloRefresco;
+  Timer? _latido;
 
-  Future<void> cargar() async {
-    state = state.copiar(cargando: true, errorAlCargar: false, mensaje: null);
+  @override
+  void dispose() {
+    _latido?.cancel();
+    super.dispose();
+  }
+
+  /// [silencioso] = refresco en segundo plano: no enciende el spinner ni pisa un
+  /// aviso abierto.
+  Future<void> cargar({bool silencioso = false}) async {
+    if (!silencioso) {
+      state = state.copiar(cargando: true, errorAlCargar: false, mensaje: null);
+    }
     try {
       final plano = await _repo.plano();
-      state = state.copiar(plano: plano, cargando: false);
+      state = state.copiar(plano: plano, cargando: false, errorAlCargar: false);
     } on ErrorDeApi catch (e) {
+      if (silencioso) return; // un fallo de red en el latido no rompe la pantalla
       state = state.copiar(cargando: false, errorAlCargar: true, mensaje: e.mensaje);
     }
   }

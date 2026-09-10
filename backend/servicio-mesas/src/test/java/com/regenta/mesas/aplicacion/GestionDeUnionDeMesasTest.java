@@ -149,6 +149,24 @@ class GestionDeUnionDeMesasTest extends BaseDeMesas {
     }
 
     @Test
+    @DisplayName("HU-084: el plano trae los minutos abiertos y los comensales de la mesa ocupada")
+    void planoConCronometro() {
+        UUID a = mesa(negocioA, "M1");
+        UUID libre = mesa(negocioA, "M2");
+        UUID s = abrir(negocioA, a, 5);
+        ejecutarComoElServicio(negocioA, "UPDATE sesiones_mesa "
+                + "SET abierta_en = now() - interval '40 minutes' WHERE id = '" + s + "'");
+
+        var porId = enContexto(negocioA, mesero, ADMIN, () -> mesas.plano()).sinZona().stream()
+                .collect(java.util.stream.Collectors.toMap(MesaDelNegocio::id, m -> m));
+
+        assertThat(porId.get(a).minutosAbierta()).isEqualTo(40);
+        assertThat(porId.get(a).numComensales()).isEqualTo(5);
+        assertThat(porId.get(libre).minutosAbierta()).isNull();
+        assertThat(porId.get(libre).numComensales()).isNull();
+    }
+
+    @Test
     @DisplayName("El segundo negocio no puede unir a una sesión del primero")
     void aislamiento() {
         UUID a = mesa(negocioA, "M1");

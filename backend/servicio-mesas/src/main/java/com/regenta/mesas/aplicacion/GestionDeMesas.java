@@ -1,5 +1,7 @@
 package com.regenta.mesas.aplicacion;
 
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -66,11 +68,12 @@ public class GestionDeMesas {
     @RequierePermiso("MESAS_MESA_VER")
     public PlanoDelSalon plano() {
         UUID negocioId = ContextoDeNegocio.negocioActual();
+        OffsetDateTime ahora = OffsetDateTime.now();
         List<Zona> zs = zonas.findByNegocioIdOrderByOrdenAscNombreAsc(negocioId);
-        Map<UUID, UUID> sesionPorMesa = sesionesVivas.porMesa();
+        Map<UUID, MapaDeSesionesVivas.SesionEnMesa> sesionPorMesa = sesionesVivas.porMesa();
         Map<UUID, List<MesaDelNegocio>> porZona = mesas
                 .findByNegocioIdAndActivaTrueOrderByCodigoAsc(negocioId).stream()
-                .map(m -> MesaDelNegocio.de(m, sesionPorMesa.get(m.getId())))
+                .map(m -> aDto(m, sesionPorMesa.get(m.getId()), ahora))
                 .collect(Collectors.groupingBy(
                         m -> m.zonaId() == null ? SIN_ZONA : m.zonaId()));
         List<ZonaConMesas> bloques = zs.stream()
@@ -78,6 +81,16 @@ public class GestionDeMesas {
                         porZona.getOrDefault(z.getId(), List.of())))
                 .toList();
         return new PlanoDelSalon(bloques, porZona.getOrDefault(SIN_ZONA, List.of()));
+    }
+
+    private static MesaDelNegocio aDto(Mesa mesa, MapaDeSesionesVivas.SesionEnMesa sesion,
+            OffsetDateTime ahora) {
+        if (sesion == null) {
+            return MesaDelNegocio.de(mesa);
+        }
+        int minutos = sesion.abiertaEn() == null ? 0
+                : (int) Math.max(0, ChronoUnit.MINUTES.between(sesion.abiertaEn(), ahora));
+        return MesaDelNegocio.de(mesa, sesion.sesionId(), minutos, sesion.numComensales());
     }
 
     @Transactional

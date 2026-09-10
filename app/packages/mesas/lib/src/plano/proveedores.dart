@@ -12,7 +12,16 @@ final repositorioDeMesasProvider = Provider<RepositorioDeMesas>((ref) {
   );
 });
 
+/// Cada cuánto el plano se refresca solo (HU-084 criterio 2). `Duration.zero`
+/// lo apaga; los tests lo bajan a milisegundos o lo apagan.
+final intervaloRefrescoDelPlanoProvider = Provider<Duration>((ref) {
+  return const Duration(seconds: 15);
+});
+
 final controladorDelPlanoProvider =
     StateNotifierProvider<ControladorDelPlano, EstadoDelPlano>(
-  (ref) => ControladorDelPlano(ref.watch(repositorioDeMesasProvider)),
+  (ref) => ControladorDelPlano(
+    ref.watch(repositorioDeMesasProvider),
+    intervaloRefresco: ref.watch(intervaloRefrescoDelPlanoProvider),
+  ),
 );

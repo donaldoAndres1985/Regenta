@@ -14,11 +14,15 @@ import 'formato.dart';
 /// se toca una mesa para abrir su sesión, pedir la cuenta, cerrarla o marcarla
 /// limpia; en modo edición se crean, mueven y borran mesas.
 class PantallaMesas extends ConsumerStatefulWidget {
-  const PantallaMesas({super.key, this.puedeEditar = true});
+  const PantallaMesas({super.key, this.puedeEditar = true, this.onAbrirComanda});
 
   /// Si `false`, no se ve el botón de editar (equivale a no tener
   /// `MESAS_MESA_EDITAR`).
   final bool puedeEditar;
+
+  /// La app lo cablea a la ruta de la comanda (E12). Al tocar una mesa ocupada,
+  /// «Ver comanda» lo llama con la mesa y su sesión (HU-084 criterio 4).
+  final void Function(String mesaId, String? sesionId)? onAbrirComanda;
 
   @override
   ConsumerState<PantallaMesas> createState() => _PantallaMesasState();
@@ -130,6 +134,9 @@ class _PantallaMesasState extends ConsumerState<PantallaMesas> {
         onCerrar: ctrl.cerrarSesion,
         onUnir: ctrl.unirMesa,
         onLimpiar: () => ctrl.marcarLimpia(mesa.id),
+        onVerComanda: widget.onAbrirComanda == null
+            ? null
+            : () => widget.onAbrirComanda!(mesa.id, mesa.sesionId),
       ),
     );
   }
@@ -446,12 +453,19 @@ class _TarjetaMesaState extends State<_TarjetaMesa> {
                         fontWeight: FontWeight.w700,
                         color: RegentaColors.ink)),
                 const SizedBox(height: 1),
-                Text('${widget.mesa.capacidad} pax',
+                Text('${widget.mesa.numComensales ?? widget.mesa.capacidad} pax',
                     style: RegentaType.codigo
                         .copyWith(fontSize: 9.5, color: RegentaColors.muted)),
                 const SizedBox(height: 5),
-                Text(estilo.etiqueta,
-                    style: RegentaType.codigo.copyWith(fontSize: 10, color: estilo.borde)),
+                Text(
+                  widget.mesa.ocupada && widget.mesa.minutosAbierta != null
+                      ? '${widget.mesa.minutosAbierta} min'
+                      : estilo.etiqueta,
+                  key: widget.mesa.ocupada && widget.mesa.minutosAbierta != null
+                      ? Key('mesa-tiempo-${widget.mesa.id}')
+                      : null,
+                  style: RegentaType.codigo.copyWith(fontSize: 10, color: estilo.borde),
+                ),
               ],
             ),
           ),
@@ -685,6 +699,7 @@ class _HojaDeMesa extends StatefulWidget {
     required this.onCerrar,
     required this.onUnir,
     required this.onLimpiar,
+    required this.onVerComanda,
   });
 
   final MesaEnPlano mesa;
@@ -695,6 +710,7 @@ class _HojaDeMesa extends StatefulWidget {
   final Future<void> Function(String sesionId) onCerrar;
   final Future<void> Function(String sesionId, String mesaId) onUnir;
   final Future<void> Function() onLimpiar;
+  final VoidCallback? onVerComanda;
 
   @override
   State<_HojaDeMesa> createState() => _HojaDeMesaState();
@@ -820,6 +836,16 @@ class _HojaDeMesaState extends State<_HojaDeMesa> {
           style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
         ),
         const SizedBox(height: 12),
+        if (widget.onVerComanda != null)
+          FilledButton(
+            key: const Key('hoja-ver-comanda'),
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onVerComanda!();
+            },
+            child: const Text('Ver comanda'),
+          ),
+        const SizedBox(height: 8),
         if (s != null && widget.mesasLibres.isNotEmpty)
           OutlinedButton(
             key: const Key('hoja-unir'),
