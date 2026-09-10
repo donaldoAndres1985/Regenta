@@ -1,6 +1,8 @@
 /// Una mesa tal como la pinta el plano del salón (HU-081). Si está en una sesión
 /// viva, [sesionId] dice cuál — dos mesas con el mismo [sesionId] están unidas
-/// (HU-083 criterio 4). El tiempo abierto y el consumo los añade HU-084.
+/// (HU-083 criterio 4) — y [minutosAbierta] / [numComensales] alimentan el
+/// cronómetro y el nº de comensales de la tarjeta (HU-084 criterio 1). El
+/// consumo por mesa llega con E12.
 class MesaEnPlano {
   const MesaEnPlano({
     required this.id,
@@ -15,6 +17,8 @@ class MesaEnPlano {
     this.zonaId,
     this.nombre,
     this.sesionId,
+    this.minutosAbierta,
+    this.numComensales,
   });
 
   final String id;
@@ -29,6 +33,10 @@ class MesaEnPlano {
   final int ancho;
   final int alto;
   final String? sesionId;
+  final int? minutosAbierta;
+  final int? numComensales;
+
+  bool get ocupada => estado == 'OCUPADA' || estado == 'CUENTA_PEDIDA';
 
   factory MesaEnPlano.desdeJson(Map<String, dynamic> json) => MesaEnPlano(
         id: json['id'] as String,
@@ -43,6 +51,8 @@ class MesaEnPlano {
         ancho: (json['ancho'] as num?)?.toInt() ?? 80,
         alto: (json['alto'] as num?)?.toInt() ?? 80,
         sesionId: json['sesionId'] as String?,
+        minutosAbierta: (json['minutosAbierta'] as num?)?.toInt(),
+        numComensales: (json['numComensales'] as num?)?.toInt(),
       );
 
   MesaEnPlano conPosicion(int x, int y) => MesaEnPlano(
@@ -58,5 +68,7 @@ class MesaEnPlano {
         ancho: ancho,
         alto: alto,
         sesionId: sesionId,
+        minutosAbierta: minutosAbierta,
+        numComensales: numComensales,
       );
 }
