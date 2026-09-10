@@ -58,7 +58,12 @@ class PantallaComanda extends ConsumerWidget {
                     _Encabezado(comanda: comanda),
                     if (estado.mensaje != null)
                       _Aviso(mensaje: estado.mensaje!, onCerrar: ctrl.limpiarMensaje),
-                    Expanded(child: _Lineas(comanda: comanda)),
+                    Expanded(
+                      child: _Lineas(
+                        comanda: comanda,
+                        onTocarLinea: (l) => _abrirLinea(context, ctrl, l),
+                      ),
+                    ),
                     _BarraInferior(
                       comanda: comanda,
                       puedeAnadir: cartaId != null,
@@ -72,6 +77,20 @@ class PantallaComanda extends ConsumerWidget {
           );
         });
       }),
+    );
+  }
+
+  Future<void> _abrirLinea(BuildContext context, dynamic ctrl, LineaVista linea) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: RegentaColors.surface,
+      builder: (_) => _HojaLinea(
+        linea: linea,
+        onAvanzar: () async {
+          Navigator.of(context).pop();
+          await ctrl.avanzarLinea(linea.id);
+        },
+      ),
     );
   }
 
@@ -187,8 +206,9 @@ class _ChipEstadoComanda extends StatelessWidget {
 }
 
 class _Lineas extends StatelessWidget {
-  const _Lineas({required this.comanda});
+  const _Lineas({required this.comanda, required this.onTocarLinea});
   final ComandaVista comanda;
+  final void Function(LineaVista linea) onTocarLinea;
 
   @override
   Widget build(BuildContext context) {
@@ -206,19 +226,25 @@ class _Lineas extends StatelessWidget {
       key: const Key('comanda-lineas'),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       itemCount: comanda.lineas.length,
-      itemBuilder: (context, i) => _FilaLinea(linea: comanda.lineas[i]),
+      itemBuilder: (context, i) => _FilaLinea(
+        linea: comanda.lineas[i],
+        onTocar: () => onTocarLinea(comanda.lineas[i]),
+      ),
     );
   }
 }
 
 class _FilaLinea extends StatelessWidget {
-  const _FilaLinea({required this.linea});
+  const _FilaLinea({required this.linea, required this.onTocar});
   final LineaVista linea;
+  final VoidCallback onTocar;
 
   @override
   Widget build(BuildContext context) {
     final estilo = estiloDeLinea(linea.estado);
-    return Container(
+    return InkWell(
+      onTap: onTocar,
+      child: Container(
       key: Key('linea-${linea.id}'),
       constraints: const BoxConstraints(minHeight: RegentaSpacing.hitTarget),
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -261,6 +287,20 @@ class _FilaLinea extends StatelessWidget {
                       child: Text(estilo.etiqueta.toUpperCase(),
                           style: RegentaType.etiqueta.copyWith(fontSize: 9.5, color: estilo.tinta)),
                     ),
+                    if (linea.curso != 'FUERTE')
+                      Text(
+                        linea.secuenciaEnvio > 1
+                            ? '${linea.curso.toLowerCase()} · va #${linea.secuenciaEnvio}'
+                            : linea.curso.toLowerCase(),
+                        key: Key('linea-curso-${linea.id}'),
+                        style: RegentaType.codigo
+                            .copyWith(fontSize: 10, color: RegentaColors.accent),
+                      ),
+                    if (linea.demoraMin != null)
+                      Text('${linea.demoraMin} min',
+                          key: Key('linea-demora-${linea.id}'),
+                          style: RegentaType.codigo
+                              .copyWith(fontSize: 10, color: RegentaColors.muted)),
                     for (final m in linea.modificadores)
                       Text(m,
                           style: RegentaType.codigo
@@ -279,6 +319,57 @@ class _FilaLinea extends StatelessWidget {
               style: RegentaType.codigo.copyWith(
                   fontSize: 13, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
         ],
+      ),
+      ),
+    );
+  }
+}
+
+class _HojaLinea extends StatelessWidget {
+  const _HojaLinea({required this.linea, required this.onAvanzar});
+  final LineaVista linea;
+  final Future<void> Function() onAvanzar;
+
+  static const _texto = {
+    'ENVIADA': 'Marcar enviada',
+    'EN_PREPARACION': 'Marcar en preparación',
+    'LISTA': 'Marcar lista',
+    'ENTREGADA': 'Marcar entregada',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final estilo = estiloDeLinea(linea.estado);
+    final siguiente = linea.siguienteEstado;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(linea.nombre,
+                style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
+            const SizedBox(height: 4),
+            Text(estilo.etiqueta.toUpperCase(),
+                style: RegentaType.etiqueta.copyWith(fontSize: 9.5, color: estilo.tinta)),
+            if (linea.demoraMin != null) ...[
+              const SizedBox(height: 6),
+              Text('Demora en cocina: ${linea.demoraMin} min',
+                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2)),
+            ],
+            const SizedBox(height: 14),
+            if (siguiente != null)
+              FilledButton(
+                key: const Key('linea-avanzar'),
+                onPressed: () => onAvanzar(),
+                child: Text(_texto[siguiente] ?? 'Avanzar'),
+              )
+            else
+              Text('La línea ya está entregada.',
+                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.muted)),
+          ],
+        ),
       ),
     );
   }

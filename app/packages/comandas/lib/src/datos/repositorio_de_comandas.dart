@@ -63,4 +63,11 @@ class RepositorioDeComandas {
         .post<Map<String, dynamic>>('/api/comandas/$comandaId/envio') as Map<String, dynamic>;
     return ComandaVista.desdeJson(cuerpo);
   }
+
+  /// Avanza el estado de una línea (HU-086 criterio 1).
+  Future<ComandaVista> avanzarLinea(String comandaId, String lineaId) async {
+    final cuerpo = await _http.post<Map<String, dynamic>>(
+        '/api/comandas/$comandaId/lineas/$lineaId/avance') as Map<String, dynamic>;
+    return ComandaVista.desdeJson(cuerpo);
+  }
 }

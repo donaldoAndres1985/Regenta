@@ -169,6 +169,50 @@ public class ComandaLinea {
         this.enviadaEn = OffsetDateTime.now();
     }
 
+    /**
+     * Avanza al siguiente estado del ciclo (HU-086 criterio 1) y deja su marca de
+     * tiempo para medir la demora (criterio 3). No se avanza una línea anulada ni
+     * más allá de ENTREGADA.
+     */
+    public void avanzar() {
+        if (estado == EstadoDeLinea.ANULADA) {
+            throw new ReglaDeNegocioException("Una línea anulada no avanza");
+        }
+        EstadoDeLinea siguiente = estado.siguiente();
+        this.estado = siguiente;
+        OffsetDateTime ahora = OffsetDateTime.now();
+        switch (siguiente) {
+            case ENVIADA -> this.enviadaEn = ahora;
+            case LISTA -> this.listaEn = ahora;
+            case ENTREGADA -> this.entregadaEn = ahora;
+            default -> {
+                // EN_PREPARACION no tiene columna propia de tiempo.
+            }
+        }
+    }
+
+    /** Cambia el curso y la secuencia de envío antes de mandar la línea (HU-086 criterio 4). */
+    public void ajustarEnvio(CursoDeComanda curso, Integer secuenciaEnvio) {
+        if (estado != EstadoDeLinea.PENDIENTE) {
+            throw new ReglaDeNegocioException(
+                    "La línea ya se envió a cocina: no se cambia el curso");
+        }
+        if (curso != null) {
+            this.curso = curso;
+        }
+        if (secuenciaEnvio != null) {
+            this.secuenciaEnvio = (short) Math.max(1, secuenciaEnvio);
+        }
+    }
+
+    /** Minutos entre que se envió y que quedó lista (HU-086 criterio 3). {@code null} si no aplica. */
+    public Integer demoraPreparacionMin() {
+        if (enviadaEn == null || listaEn == null) {
+            return null;
+        }
+        return (int) Math.max(0, java.time.temporal.ChronoUnit.MINUTES.between(enviadaEn, listaEn));
+    }
+
     private void recomputar() {
         BigDecimal base = precioUnitario.multiply(cantidad).add(modificadoresValor);
         this.subtotal = escala4(base.subtract(descuentoValor));
@@ -270,5 +314,13 @@ public class ComandaLinea {
 
     public OffsetDateTime getEnviadaEn() {
         return enviadaEn;
+    }
+
+    public OffsetDateTime getListaEn() {
+        return listaEn;
+    }
+
+    public OffsetDateTime getEntregadaEn() {
+        return entregadaEn;
     }
 }

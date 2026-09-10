@@ -16,6 +16,7 @@ public record SolicitudDeLinea(
         @Size(max = 200) String notas,
         Short comensalNumero,
         Integer secuenciaEnvio,
+        String curso,
         BigDecimal descuentoValor,
         BigDecimal impuestoPct) {
 }

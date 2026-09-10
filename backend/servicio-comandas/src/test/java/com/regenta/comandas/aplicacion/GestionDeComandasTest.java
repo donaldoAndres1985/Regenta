@@ -56,7 +56,7 @@ class GestionDeComandasTest extends BaseDeComandas {
             List<UUID> mods) {
         return enContexto(negocio, mesero, ADMIN, () -> comandas.agregarLinea(comandaId,
                 new SolicitudDeLinea(item, new BigDecimal(cantidad), mods, null, null, null, null,
-                        null)));
+                        null, null)));
     }
 
     @Test
