@@ -176,6 +176,13 @@ public class Comanda {
         }
     }
 
+    /** Cuando la última cuenta queda pagada, la comanda se cierra sola (HU-089 criterio 5). */
+    public void cerrar() {
+        if (estado != EstadoDeComanda.ANULADA) {
+            this.estado = EstadoDeComanda.CERRADA;
+        }
+    }
+
     private static BigDecimal escala4(BigDecimal v) {
         return (v == null ? BigDecimal.ZERO : v).setScale(4, RoundingMode.HALF_UP);
     }
