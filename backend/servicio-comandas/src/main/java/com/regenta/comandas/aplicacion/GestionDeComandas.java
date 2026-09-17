@@ -50,16 +50,18 @@ public class GestionDeComandas {
     private final ComandaLineaModificadorRepositorio lineaMods;
     private final AsignadorDeConsecutivos consecutivos;
     private final CatalogoDeMenu catalogo;
+    private final GestionDeCocina cocina;
     private final RegistroDeEventos eventos;
 
     public GestionDeComandas(ComandaRepositorio comandas, ComandaLineaRepositorio lineas,
             ComandaLineaModificadorRepositorio lineaMods, AsignadorDeConsecutivos consecutivos,
-            CatalogoDeMenu catalogo, RegistroDeEventos eventos) {
+            CatalogoDeMenu catalogo, GestionDeCocina cocina, RegistroDeEventos eventos) {
         this.comandas = comandas;
         this.lineas = lineas;
         this.lineaMods = lineaMods;
         this.consecutivos = consecutivos;
         this.catalogo = catalogo;
+        this.cocina = cocina;
         this.eventos = eventos;
     }
 
@@ -160,6 +162,7 @@ public class GestionDeComandas {
         lineas.saveAll(aEnviar);
         comanda.marcarEnCocina();
         comandas.save(comanda);
+        cocina.generarTickets(comanda, aEnviar);
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("negocio_id", comanda.getNegocioId().toString());

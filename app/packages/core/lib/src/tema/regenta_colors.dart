@@ -38,4 +38,17 @@ abstract final class RegentaColors {
   static const critSoft = Color(0xFFF9E7E4);
   static const info = Color(0xFF0C6473);
   static const infoSoft = Color(0xFFDFEFF2);
+
+  // KDS (HU-088): la unica pantalla de fondo oscuro a proposito, se mira de
+  // lejos en una cocina. No son parte del tema claro general.
+  static const kdsFondo = Color(0xFF1B1916);
+  static const kdsBarra = Color(0xFF22201C);
+  static const kdsBorde = Color(0xFF33302B);
+  static const kdsPestanaInactiva = Color(0xFF2C2925);
+  static const kdsPestanaInactivaTexto = Color(0xFFB9B3A6);
+  static const kdsTexto = Color(0xFFF2EFE9);
+  static const kdsNota = Color(0xFFE8A08F);
+  static const kdsVacioBorde = Color(0xFF3A362F);
+  static const kdsDivisor = Color(0x14FFFFFF);
+  static const kdsBotonNeutral = Color(0x17FFFFFF);
 }
