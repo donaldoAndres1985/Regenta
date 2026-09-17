@@ -220,6 +220,59 @@ public class GestionDeComandas {
         return detalle(comanda, lineas.findByComandaIdOrderByLineaAsc(comandaId));
     }
 
+    /**
+     * Elimina una línea aún {@code PENDIENTE}: desaparece y no deja rastro contable
+     * (HU-087 criterio 1).
+     */
+    @Transactional
+    @RequierePermiso("COMANDAS_COMANDA_EDITAR")
+    public ComandaDetallada eliminarLinea(UUID comandaId, UUID lineaId) {
+        Comanda comanda = delNegocio(comandaId);
+        ComandaLinea linea = lineaDe(comanda, lineaId);
+        if (!linea.esEliminable()) {
+            throw new ConflictoDeEstadoException(
+                    "La línea ya se envió a cocina: se anula, no se elimina");
+        }
+        lineas.delete(linea);
+        recalcular(comanda);
+        return detalle(comanda, lineas.findByComandaIdOrderByLineaAsc(comandaId));
+    }
+
+    /**
+     * Anula una línea ya enviada a cocina: queda {@code ANULADA} con {@code genera_merma}
+     * (HU-087 criterio 2), exige motivo y deja quién la autorizó (criterio 4), y publica
+     * {@code merma_registrada} para que el insumo se descuente igual (criterio 3).
+     */
+    @Transactional
+    @RequierePermiso("COMANDAS_COMANDA_ANULAR")
+    public ComandaDetallada anularLinea(UUID comandaId, UUID lineaId,
+            SolicitudDeAnulacionDeLinea solicitud) {
+        Comanda comanda = delNegocio(comandaId);
+        ComandaLinea linea = lineaDe(comanda, lineaId);
+        linea.anular(ContextoDeNegocio.usuarioActual(), solicitud.motivo());
+        lineas.save(linea);
+        recalcular(comanda);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("negocio_id", comanda.getNegocioId().toString());
+        payload.put("comanda_id", comanda.getId().toString());
+        payload.put("linea_id", linea.getId().toString());
+        payload.put("item_menu_id", linea.getItemMenuId().toString());
+        payload.put("cantidad", linea.getCantidad());
+        payload.put("motivo", linea.getMotivoAnulacion());
+        payload.put("anulada_por", linea.getAnuladaPor().toString());
+        eventos.registrar(comanda.getNegocioId(), "ComandaLinea", linea.getId(),
+                "merma_registrada", payload);
+
+        return detalle(comanda, lineas.findByComandaIdOrderByLineaAsc(comandaId));
+    }
+
+    private ComandaLinea lineaDe(Comanda comanda, UUID lineaId) {
+        return lineas.findByComandaIdOrderByLineaAsc(comanda.getId()).stream()
+                .filter(l -> l.getId().equals(lineaId)).findFirst()
+                .orElseThrow(() -> new NoEncontradoException("Esa línea no existe en la comanda"));
+    }
+
     private void recalcular(Comanda comanda) {
         comanda.recalcular(lineas.findByComandaIdOrderByLineaAsc(comanda.getId()));
         comandas.save(comanda);

@@ -106,4 +106,55 @@ class ComandaLineaTest {
         assertThatThrownBy(() -> l.ajustarEnvio(CursoDeComanda.ENTRADA, 1))
                 .isInstanceOf(ReglaDeNegocioException.class);
     }
+
+    @Test
+    @DisplayName("HU-087 criterio 1: una línea PENDIENTE es eliminable; una ya enviada no")
+    void esEliminable() {
+        ComandaLinea l = linea("1", "0");
+        assertThat(l.esEliminable()).isTrue();
+
+        l.enviar();
+        assertThat(l.esEliminable()).isFalse();
+    }
+
+    @Test
+    @DisplayName("HU-087 criterio 2 y 4: anular una línea enviada exige motivo y deja quién la autorizó")
+    void anularConMotivo() {
+        ComandaLinea l = linea("1", "0");
+        l.enviar();
+        UUID autoriza = UUID.randomUUID();
+
+        l.anular(autoriza, "Se cayó al piso");
+
+        assertThat(l.getEstado()).isEqualTo(EstadoDeLinea.ANULADA);
+        assertThat(l.isGeneraMerma()).isTrue();
+        assertThat(l.getAnuladaPor()).isEqualTo(autoriza);
+        assertThat(l.getMotivoAnulacion()).isEqualTo("Se cayó al piso");
+        assertThat(l.getAnuladaEn()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("HU-087: anular sin motivo se rechaza")
+    void anularSinMotivoSeRechaza() {
+        ComandaLinea l = linea("1", "0");
+        l.enviar();
+
+        assertThatThrownBy(() -> l.anular(UUID.randomUUID(), "   "))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessageContaining("motivo");
+    }
+
+    @Test
+    @DisplayName("HU-087: una línea PENDIENTE no se anula (se elimina) y una ya ANULADA no se vuelve a anular")
+    void anularEstadosInvalidos() {
+        ComandaLinea pendiente = linea("1", "0");
+        assertThatThrownBy(() -> pendiente.anular(UUID.randomUUID(), "x"))
+                .isInstanceOf(ReglaDeNegocioException.class);
+
+        ComandaLinea l = linea("1", "0");
+        l.enviar();
+        l.anular(UUID.randomUUID(), "primera");
+        assertThatThrownBy(() -> l.anular(UUID.randomUUID(), "otra vez"))
+                .isInstanceOf(ReglaDeNegocioException.class);
+    }
 }
