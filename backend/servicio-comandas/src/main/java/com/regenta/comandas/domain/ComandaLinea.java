@@ -205,6 +205,33 @@ public class ComandaLinea {
         }
     }
 
+    /** Una línea aún PENDIENTE se elimina; una ya enviada se anula (HU-087 criterio 1). */
+    public boolean esEliminable() {
+        return estado == EstadoDeLinea.PENDIENTE;
+    }
+
+    /**
+     * Anula una línea ya enviada a cocina: queda {@code ANULADA} con {@code genera_merma}
+     * en verdadero (HU-087 criterio 2), exige motivo y deja quién la autorizó (criterio 4).
+     */
+    public void anular(UUID autorizaId, String motivo) {
+        if (estado == EstadoDeLinea.PENDIENTE) {
+            throw new ReglaDeNegocioException("Una línea pendiente se elimina, no se anula");
+        }
+        if (estado == EstadoDeLinea.ANULADA) {
+            throw new ReglaDeNegocioException("La línea ya está anulada");
+        }
+        if (motivo == null || motivo.isBlank()) {
+            throw new ReglaDeNegocioException(
+                    "La anulación después de enviada a cocina exige un motivo");
+        }
+        this.estado = EstadoDeLinea.ANULADA;
+        this.anuladaEn = OffsetDateTime.now();
+        this.anuladaPor = autorizaId;
+        this.motivoAnulacion = motivo.trim();
+        this.generaMerma = true;
+    }
+
     /** Minutos entre que se envió y que quedó lista (HU-086 criterio 3). {@code null} si no aplica. */
     public Integer demoraPreparacionMin() {
         if (enviadaEn == null || listaEn == null) {
@@ -322,5 +349,21 @@ public class ComandaLinea {
 
     public OffsetDateTime getEntregadaEn() {
         return entregadaEn;
+    }
+
+    public OffsetDateTime getAnuladaEn() {
+        return anuladaEn;
+    }
+
+    public UUID getAnuladaPor() {
+        return anuladaPor;
+    }
+
+    public String getMotivoAnulacion() {
+        return motivoAnulacion;
+    }
+
+    public boolean isGeneraMerma() {
+        return generaMerma;
     }
 }

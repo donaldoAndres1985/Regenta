@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.regenta.comandas.aplicacion.ComandaDetallada;
 import com.regenta.comandas.aplicacion.GestionDeComandas;
 import com.regenta.comandas.aplicacion.SolicitudDeAjusteDeLinea;
+import com.regenta.comandas.aplicacion.SolicitudDeAnulacionDeLinea;
 import com.regenta.comandas.aplicacion.SolicitudDeAperturaComanda;
 import com.regenta.comandas.aplicacion.SolicitudDeLinea;
 
@@ -83,5 +85,20 @@ public class ComandasControlador {
     public ComandaDetallada ajustarLinea(@PathVariable UUID comandaId, @PathVariable UUID lineaId,
             @RequestBody SolicitudDeAjusteDeLinea solicitud) {
         return comandas.ajustarLinea(comandaId, lineaId, solicitud);
+    }
+
+    @DeleteMapping("/{comandaId}/lineas/{lineaId}")
+    @Operation(summary = "Elimina una línea aún PENDIENTE: no deja rastro contable")
+    @ApiResponse(responseCode = "409", description = "La línea ya se envió a cocina: se anula")
+    public ComandaDetallada eliminarLinea(@PathVariable UUID comandaId,
+            @PathVariable UUID lineaId) {
+        return comandas.eliminarLinea(comandaId, lineaId);
+    }
+
+    @PostMapping("/{comandaId}/lineas/{lineaId}/anulacion")
+    @Operation(summary = "Anula una línea ya enviada a cocina: exige motivo y genera merma")
+    public ComandaDetallada anularLinea(@PathVariable UUID comandaId, @PathVariable UUID lineaId,
+            @RequestBody SolicitudDeAnulacionDeLinea solicitud) {
+        return comandas.anularLinea(comandaId, lineaId, solicitud);
     }
 }
