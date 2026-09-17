@@ -73,6 +73,34 @@ class CuentaTest {
     }
 
     @Test
+    @DisplayName("HU-090 criterio 2: la propina sugerida es el 10% del subtotal, y se suma al total al registrarla")
+    void propina() {
+        Cuenta c = Cuenta.crear(UUID.randomUUID(), UUID.randomUUID(), (short) 1, null, null);
+        ComandaLinea l = linea(new BigDecimal("47000"));
+        CuentaLinea cl = CuentaLinea.de(c.getNegocioId(), c.getId(), l.getId());
+        cl.fijarReparto(BigDecimal.ONE, l.getTotal());
+        c.recalcular(List.of(cl), Map.of(l.getId(), l));
+
+        assertThat(c.propinaSugerida()).isEqualByComparingTo("4700");
+
+        c.registrarPropina(new BigDecimal("4700"));
+        assertThat(c.getPropina()).isEqualByComparingTo("4700");
+        assertThat(c.getTotal()).isEqualByComparingTo("51700"); // 47000 + 4700
+
+        c.registrarPropina(new BigDecimal("6000")); // el cliente la cambia
+        assertThat(c.getTotal()).isEqualByComparingTo("53000");
+    }
+
+    @Test
+    @DisplayName("La propina no se ajusta una vez cobrada la cuenta")
+    void propinaSoloAntesDeCobrar() {
+        Cuenta c = Cuenta.crear(UUID.randomUUID(), UUID.randomUUID(), (short) 1, null, null);
+        c.marcarPagada();
+        assertThatThrownBy(() -> c.registrarPropina(new BigDecimal("1000")))
+                .isInstanceOf(ReglaDeNegocioException.class);
+    }
+
+    @Test
     @DisplayName("ModoDeDivision.desde cae a POR_ITEM si el texto no existe o viene vacío")
     void modoDeDivisionDesde() {
         assertThat(ModoDeDivision.desde(null)).isEqualTo(ModoDeDivision.POR_ITEM);

@@ -44,6 +44,7 @@ class _RepoCuentasFake implements RepositorioDeCuentas {
   List<CuentaVista> cuentasFijas;
   ErrorDeApi? errorAlCargar;
   final List<String> pagadas = [];
+  final List<({String cuentaId, String metodo, num? propina, num? montoRecibido})> llamadasPago = [];
 
   @override
   Future<List<CuentaVista>> listar(String comandaId) async {
@@ -136,8 +137,16 @@ class _RepoCuentasFake implements RepositorioDeCuentas {
   }
 
   @override
-  Future<CuentaVista> marcarPagada(String comandaId, String cuentaId) async {
+  Future<CuentaVista> registrarPago(
+    String comandaId,
+    String cuentaId, {
+    required String metodo,
+    num? montoRecibido,
+    num? propina,
+    String? referencia,
+  }) async {
     pagadas.add(cuentaId);
+    llamadasPago.add((cuentaId: cuentaId, metodo: metodo, propina: propina, montoRecibido: montoRecibido));
     cuentasFijas = [
       for (final c in cuentasFijas)
         if (c.id == cuentaId)
@@ -379,9 +388,44 @@ void main() {
 
     await tester.tap(find.byKey(const Key('dividir-cobrar-c1')));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('cobrar-confirmar')));
+    await tester.pumpAndSettle();
 
     expect(repoCuentas.pagadas, ['c1']);
     expect(find.byKey(const Key('dividir-cobrar-c1')), findsNothing);
+  });
+
+  testWidgets('HU-090 criterio 2: el diálogo de cobro prellena la propina sugerida y se puede cambiar',
+      (tester) async {
+    final repoCuentas = _RepoCuentasFake(cuentasFijas: [
+      const CuentaVista(
+          id: 'c1',
+          comandaId: 'c1',
+          numeroDivision: 1,
+          modoDivision: 'POR_ITEM',
+          subtotal: 40000,
+          impuestoTotal: 0,
+          propina: 0,
+          propinaSugerida: 4000,
+          total: 40000,
+          pagado: 0,
+          estado: 'ABIERTA',
+          lineas: [LineaDeCuentaVista(lineaId: 'l1', proporcion: 1, monto: 40000)]),
+    ]);
+    await _montar(tester, _RepoComandasFake(_comandaDePrueba()), repoCuentas);
+
+    await tester.tap(find.byKey(const Key('dividir-cobrar-c1')));
+    await tester.pumpAndSettle();
+
+    final campoPropina = tester.widget<TextField>(find.byKey(const Key('cobrar-propina')));
+    expect(campoPropina.controller!.text, '4000');
+
+    await tester.enterText(find.byKey(const Key('cobrar-propina')), '6000');
+    await tester.enterText(find.byKey(const Key('cobrar-monto-recibido')), '50000');
+    await tester.tap(find.byKey(const Key('cobrar-confirmar')));
+    await tester.pumpAndSettle();
+
+    expect(repoCuentas.llamadasPago, [(cuentaId: 'c1', metodo: 'EFECTIVO', propina: 6000, montoRecibido: 50000)]);
   });
 
   testWidgets('en móvil no hay rejilla de casillas; hay barra de cobro fija', (tester) async {

@@ -126,6 +126,92 @@ class PantallaDividirCuenta extends ConsumerWidget {
   }
 }
 
+const _metodosDePago = {
+  'EFECTIVO': 'Efectivo',
+  'TARJETA_DEBITO': 'Tarjeta débito',
+  'TARJETA_CREDITO': 'Tarjeta crédito',
+  'TRANSFERENCIA': 'Transferencia',
+  'QR': 'QR',
+  'OTRO': 'Otro',
+};
+
+/// HU-090 criterio 2: pide método y propina —prellenada con el 10% sugerido,
+/// que se acepta o se cambia— antes de cobrar la cuenta.
+Future<void> _cobrar(BuildContext context, ControladorDeDivision ctrl, CuentaVista cuenta) async {
+  String metodo = 'EFECTIVO';
+  final propinaCtrl = TextEditingController(text: cuenta.propinaSugerida.round().toString());
+  final montoCtrl = TextEditingController();
+  final referenciaCtrl = TextEditingController();
+
+  final confirmo = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(builder: (dialogContext, setState) {
+      return AlertDialog(
+        title: Text('Cobrar ${cuenta.nombre}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DropdownButtonFormField<String>(
+                key: const Key('cobrar-metodo'),
+                initialValue: metodo,
+                decoration: const InputDecoration(labelText: 'Método'),
+                items: [
+                  for (final entrada in _metodosDePago.entries)
+                    DropdownMenuItem(value: entrada.key, child: Text(entrada.value)),
+                ],
+                onChanged: (v) => setState(() => metodo = v ?? metodo),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                key: const Key('cobrar-propina'),
+                controller: propinaCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Propina'),
+              ),
+              if (metodo == 'EFECTIVO') ...[
+                const SizedBox(height: 10),
+                TextField(
+                  key: const Key('cobrar-monto-recibido'),
+                  controller: montoCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Monto recibido (opcional)'),
+                ),
+              ],
+              const SizedBox(height: 10),
+              TextField(
+                key: const Key('cobrar-referencia'),
+                controller: referenciaCtrl,
+                decoration: const InputDecoration(labelText: 'Referencia (opcional)'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancelar')),
+          FilledButton(
+            key: const Key('cobrar-confirmar'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Cobrar'),
+          ),
+        ],
+      );
+    }),
+  );
+
+  if (confirmo == true) {
+    await ctrl.cobrar(
+      cuenta.id,
+      metodo: metodo,
+      propina: num.tryParse(propinaCtrl.text.trim()),
+      montoRecibido: montoCtrl.text.trim().isEmpty ? null : num.tryParse(montoCtrl.text.trim()),
+      referencia: referenciaCtrl.text.trim().isEmpty ? null : referenciaCtrl.text.trim(),
+    );
+  }
+}
+
 class _CentroConReintento extends StatelessWidget {
   const _CentroConReintento({required this.onReintentar});
   final VoidCallback onReintentar;
@@ -284,7 +370,7 @@ class _LayoutEscritorio extends StatelessWidget {
               child: Column(
                 children: [
                   for (final c in estado.cuentas)
-                    _TarjetaCuenta(cuenta: c, mostrarBotonCobrar: true, onCobrar: () => ctrl.cobrar(c.id)),
+                    _TarjetaCuenta(cuenta: c, mostrarBotonCobrar: true, ctrl: ctrl),
                   _ResumenFaltaPorCobrar(estado: estado),
                 ],
               ),
@@ -313,7 +399,7 @@ class _LayoutMovil extends StatelessWidget {
                   padding: const EdgeInsets.all(RegentaSpacing.md),
                   children: [
                     for (final c in estado.cuentas)
-                      _TarjetaCuenta(cuenta: c, mostrarBotonCobrar: false, onCobrar: () => ctrl.cobrar(c.id)),
+                      _TarjetaCuenta(cuenta: c, mostrarBotonCobrar: false, ctrl: ctrl),
                   ],
                 ),
         ),
@@ -348,7 +434,7 @@ class _LayoutMovil extends StatelessWidget {
                 const SizedBox(height: 10),
                 FilledButton(
                   key: Key('dividir-cobrar-movil-${pendientes.first.id}'),
-                  onPressed: () => ctrl.cobrar(pendientes.first.id),
+                  onPressed: () => _cobrar(context, ctrl, pendientes.first),
                   child: Text('Cobrar ${pendientes.first.nombre.toLowerCase()}'),
                 ),
               ],
@@ -480,11 +566,11 @@ class _ChipEstadoCuenta extends StatelessWidget {
 }
 
 class _TarjetaCuenta extends StatelessWidget {
-  const _TarjetaCuenta({required this.cuenta, required this.mostrarBotonCobrar, required this.onCobrar});
+  const _TarjetaCuenta({required this.cuenta, required this.mostrarBotonCobrar, required this.ctrl});
 
   final CuentaVista cuenta;
   final bool mostrarBotonCobrar;
-  final VoidCallback onCobrar;
+  final ControladorDeDivision ctrl;
 
   @override
   Widget build(BuildContext context) {
@@ -541,8 +627,8 @@ class _TarjetaCuenta extends StatelessWidget {
             const SizedBox(height: 12),
             FilledButton(
               key: Key('dividir-cobrar-${cuenta.id}'),
-              onPressed: onCobrar,
-              child: Text('Cobrar'),
+              onPressed: () => _cobrar(context, ctrl, cuenta),
+              child: const Text('Cobrar'),
             ),
           ],
         ],

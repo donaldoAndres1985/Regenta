@@ -2,6 +2,7 @@ package com.regenta.comandas.aplicacion;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -12,17 +13,24 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.regenta.comandas.domain.Comanda;
 import com.regenta.comandas.domain.ComandaLinea;
+import com.regenta.comandas.domain.ComandaLineaModificador;
 import com.regenta.comandas.domain.Cuenta;
 import com.regenta.comandas.domain.CuentaLinea;
 import com.regenta.comandas.domain.EstadoDeCuenta;
+import com.regenta.comandas.domain.EstadoDeLinea;
+import com.regenta.comandas.domain.MetodoDePago;
 import com.regenta.comandas.domain.ModoDeDivision;
+import com.regenta.comandas.domain.PagoComanda;
+import com.regenta.comandas.infra.ComandaLineaModificadorRepositorio;
 import com.regenta.comandas.infra.ComandaLineaRepositorio;
 import com.regenta.comandas.infra.ComandaRepositorio;
 import com.regenta.comandas.infra.CuentaLineaRepositorio;
 import com.regenta.comandas.infra.CuentaRepositorio;
+import com.regenta.comandas.infra.PagoComandaRepositorio;
 import com.regenta.comun.errores.ConflictoDeEstadoException;
 import com.regenta.comun.errores.NoEncontradoException;
 import com.regenta.comun.errores.ReglaDeNegocioException;
+import com.regenta.comun.eventos.RegistroDeEventos;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.RequierePermiso;
 
@@ -40,13 +48,21 @@ public class GestionDeCuentas {
     private final CuentaLineaRepositorio cuentaLineas;
     private final ComandaRepositorio comandas;
     private final ComandaLineaRepositorio lineas;
+    private final ComandaLineaModificadorRepositorio lineaMods;
+    private final PagoComandaRepositorio pagos;
+    private final RegistroDeEventos eventos;
 
     public GestionDeCuentas(CuentaRepositorio cuentas, CuentaLineaRepositorio cuentaLineas,
-            ComandaRepositorio comandas, ComandaLineaRepositorio lineas) {
+            ComandaRepositorio comandas, ComandaLineaRepositorio lineas,
+            ComandaLineaModificadorRepositorio lineaMods, PagoComandaRepositorio pagos,
+            RegistroDeEventos eventos) {
         this.cuentas = cuentas;
         this.cuentaLineas = cuentaLineas;
         this.comandas = comandas;
         this.lineas = lineas;
+        this.lineaMods = lineaMods;
+        this.pagos = pagos;
+        this.eventos = eventos;
     }
 
     @Transactional
@@ -134,26 +150,86 @@ public class GestionDeCuentas {
     }
 
     /**
-     * Cobra la cuenta entera (HU-089 criterio 5; propina y método de pago son de
-     * HU-090). Si con esta ya no queda ninguna cuenta abierta, la comanda se
-     * cierra sola.
+     * Cobra la cuenta entera (HU-089 criterio 5; HU-090 criterios 2 y 5): la
+     * propina se suma aparte del total y el pago queda registrado con su
+     * método. Si con esta ya no queda ninguna cuenta abierta, se intenta cerrar
+     * la comanda (criterios 1, 3 y 5 de HU-090); si hay líneas sin enviar a
+     * cocina, se rechaza y este pago tampoco queda (se revierte con él).
      */
     @Transactional
     @RequierePermiso("COMANDAS_COMANDA_EDITAR")
-    public CuentaDetallada marcarPagada(UUID comandaId, UUID cuentaId) {
+    public CuentaDetallada registrarPago(UUID comandaId, UUID cuentaId, SolicitudDePago solicitud) {
         Comanda comanda = delNegocio(comandaId);
         Cuenta cuenta = cuentaDe(comanda, cuentaId);
+        MetodoDePago metodo = MetodoDePago.desde(solicitud.metodo());
+
+        cuenta.registrarPropina(solicitud.propina());
         cuenta.marcarPagada();
         cuentas.save(cuenta);
+
+        PagoComanda pago = PagoComanda.registrar(comanda.getNegocioId(), comandaId, cuentaId, metodo,
+                cuenta.getTotal(), cuenta.getPropina(), solicitud.montoRecibido(), solicitud.referencia(),
+                ContextoDeNegocio.usuarioActual());
+        pagos.save(pago);
 
         List<Cuenta> todas = cuentas.findByComandaIdOrderByNumeroDivisionAsc(comandaId);
         boolean todasResueltas =
                 !todas.isEmpty() && todas.stream().allMatch(c -> c.getEstado() != EstadoDeCuenta.ABIERTA);
         if (todasResueltas) {
-            comanda.cerrar();
-            comandas.save(comanda);
+            cerrarComanda(comanda);
         }
         return detalle(cuenta);
+    }
+
+    /**
+     * HU-090 criterio 1: una línea todavía `PENDIENTE` (nunca se envió a
+     * cocina) bloquea el cierre. Criterio 3: publica `pedido_completado` (que
+     * servicio-menu explota contra las recetas y de ahí sale
+     * `insumos_consumidos`, HU-079) y `comanda_cerrada` (que servicio-mesas
+     * usa para dejar la mesa `SUCIA`, HU-082).
+     */
+    private void cerrarComanda(Comanda comanda) {
+        List<ComandaLinea> vivas =
+                lineas.findByComandaIdOrderByLineaAsc(comanda.getId()).stream().filter(ComandaLinea::cuenta).toList();
+        boolean hayPendientes = vivas.stream().anyMatch(l -> l.getEstado() == EstadoDeLinea.PENDIENTE);
+        if (hayPendientes) {
+            throw new ConflictoDeEstadoException(
+                    "Hay líneas sin enviar a cocina: no se puede cerrar la comanda");
+        }
+        comanda.cerrar();
+        comandas.save(comanda);
+        publicarPedidoCompletado(comanda, vivas);
+        publicarComandaCerrada(comanda);
+    }
+
+    private void publicarPedidoCompletado(Comanda comanda, List<ComandaLinea> vivas) {
+        Map<UUID, List<ComandaLineaModificador>> modsPorLinea = vivas.isEmpty()
+                ? Map.of()
+                : lineaMods.findByLineaIdIn(vivas.stream().map(ComandaLinea::getId).toList()).stream()
+                        .collect(Collectors.groupingBy(ComandaLineaModificador::getLineaId));
+        List<Map<String, Object>> lineasPayload = vivas.stream().map(l -> {
+            Map<String, Object> lm = new LinkedHashMap<>();
+            lm.put("item_menu_id", l.getItemMenuId().toString());
+            lm.put("cantidad", l.getCantidad());
+            lm.put("modificador_ids", modsPorLinea.getOrDefault(l.getId(), List.of()).stream()
+                    .map(m -> m.getModificadorId().toString()).toList());
+            return lm;
+        }).toList();
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("negocio_id", comanda.getNegocioId().toString());
+        payload.put("comanda_id", comanda.getId().toString());
+        payload.put("lineas", lineasPayload);
+        eventos.registrar(comanda.getNegocioId(), "Comanda", comanda.getId(), "pedido_completado", payload);
+    }
+
+    private void publicarComandaCerrada(Comanda comanda) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("negocio_id", comanda.getNegocioId().toString());
+        payload.put("comanda_id", comanda.getId().toString());
+        payload.put("mesa_id", comanda.getMesaId() == null ? null : comanda.getMesaId().toString());
+        payload.put("sesion_id", comanda.getSesionMesaId() == null ? null : comanda.getSesionMesaId().toString());
+        eventos.registrar(comanda.getNegocioId(), "Comanda", comanda.getId(), "comanda_cerrada", payload);
     }
 
     /** El reparto de una línea entre las cuentas que la marcan siempre es igual entre todas ellas. */

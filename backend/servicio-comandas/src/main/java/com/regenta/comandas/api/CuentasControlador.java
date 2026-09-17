@@ -18,6 +18,7 @@ import com.regenta.comandas.aplicacion.CuentaDetallada;
 import com.regenta.comandas.aplicacion.GestionDeCuentas;
 import com.regenta.comandas.aplicacion.SolicitudDeCuenta;
 import com.regenta.comandas.aplicacion.SolicitudDeDivisionIgual;
+import com.regenta.comandas.aplicacion.SolicitudDePago;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -73,8 +74,12 @@ public class CuentasControlador {
     }
 
     @PostMapping("/{cuentaId}/pago")
-    @Operation(summary = "Cobra la cuenta entera; si era la última abierta, la comanda se cierra sola")
-    public CuentaDetallada marcarPagada(@PathVariable UUID comandaId, @PathVariable UUID cuentaId) {
-        return cuentas.marcarPagada(comandaId, cuentaId);
+    @Operation(summary = "Cobra la cuenta entera con su método y su propina; si era la última "
+            + "abierta, intenta cerrar la comanda")
+    @ApiResponse(responseCode = "409",
+            description = "Hay líneas sin enviar a cocina: no se puede cerrar la comanda")
+    public CuentaDetallada registrarPago(@PathVariable UUID comandaId, @PathVariable UUID cuentaId,
+            @Valid @RequestBody SolicitudDePago solicitud) {
+        return cuentas.registrarPago(comandaId, cuentaId, solicitud);
     }
 }
