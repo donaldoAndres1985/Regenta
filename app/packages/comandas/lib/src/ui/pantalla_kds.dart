@@ -6,22 +6,6 @@ import '../cocina/estado_de_cocina.dart';
 import '../cocina/proveedores.dart';
 import '../datos/ticket_de_cocina.dart';
 
-/// Colores propios del KDS: fondo oscuro a propósito, se mira de lejos en una
-/// cocina. No son del tema general (`regenta_theme.dart`), que es siempre
-/// claro; son literales del mockup (`design/pantallas/KDSWeb.html`).
-abstract final class _Kds {
-  static const fondo = Color(0xFF1B1916);
-  static const barra = Color(0xFF22201C);
-  static const borde = Color(0xFF33302B);
-  static const pestanaInactiva = Color(0xFF2C2925);
-  static const pestanaInactivaTexto = Color(0xFFB9B3A6);
-  static const texto = Color(0xFFF2EFE9);
-  static const nota = Color(0xFFE8A08F);
-  static const vacioBorde = Color(0xFF3A362F);
-  static const divisor = Color(0x14FFFFFF);
-  static const botonNeutral = Color(0x17FFFFFF);
-}
-
 /// El KDS (HU-088): los tickets de cocina de una estación, en tres columnas
 /// (Nuevos, en preparación, listos). **Un solo widget** que se adapta con
 /// `LayoutBuilder` en [kBreakpointEscritorio]: en escritorio, tres columnas
@@ -36,12 +20,12 @@ class PantallaKds extends ConsumerWidget {
     final ctrl = ref.read(controladorDeCocinaProvider.notifier);
 
     return Scaffold(
-      backgroundColor: _Kds.fondo,
+      backgroundColor: RegentaColors.kdsFondo,
       body: SafeArea(
         child: Builder(builder: (context) {
           if (estado.cargando && estado.estaciones.isEmpty) {
             return const Center(
-                child: CircularProgressIndicator(color: _Kds.texto));
+                child: CircularProgressIndicator(color: RegentaColors.kdsTexto));
           }
           if (estado.errorAlCargar && estado.estaciones.isEmpty) {
             return _CentroConReintento(onReintentar: ctrl.cargar);
@@ -154,12 +138,12 @@ class _Encabezado extends StatelessWidget {
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: RegentaSpacing.xl),
       decoration: const BoxDecoration(
-        color: _Kds.barra,
-        border: Border(bottom: BorderSide(color: _Kds.borde)),
+        color: RegentaColors.kdsBarra,
+        border: Border(bottom: BorderSide(color: RegentaColors.kdsBorde)),
       ),
       child: Row(
         children: [
-          Text('Cocina', style: RegentaType.seccion.copyWith(fontSize: 16, color: _Kds.texto)),
+          Text('Cocina', style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.kdsTexto)),
           const SizedBox(width: RegentaSpacing.lg),
           Expanded(
             child: SingleChildScrollView(
@@ -212,13 +196,13 @@ class _PestanaEstacion extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: activa ? RegentaColors.comanda : _Kds.pestanaInactiva,
+          color: activa ? RegentaColors.comanda : RegentaColors.kdsPestanaInactiva,
           borderRadius: BorderRadius.circular(3),
         ),
         child: Text(estacion.nombre.toUpperCase(),
             style: RegentaType.etiqueta.copyWith(
                 fontSize: 9.5,
-                color: activa ? Colors.white : _Kds.pestanaInactivaTexto)),
+                color: activa ? Colors.white : RegentaColors.kdsPestanaInactivaTexto)),
       ),
     );
   }
@@ -244,7 +228,7 @@ class _Stat extends StatelessWidget {
                 fontFamily: RegentaType.mono,
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
-                color: destacar ? RegentaColors.crit : _Kds.texto)),
+                color: destacar ? RegentaColors.crit : RegentaColors.kdsTexto)),
       ],
     );
   }
@@ -343,7 +327,7 @@ class _Columna extends StatelessWidget {
               ),
               const SizedBox(width: 9),
               Text(titulo,
-                  style: RegentaType.item.copyWith(fontSize: 14.5, color: _Kds.texto)),
+                  style: RegentaType.item.copyWith(fontSize: 14.5, color: RegentaColors.kdsTexto)),
               const SizedBox(width: 6),
               Text('${tickets.length}',
                   style: TextStyle(
@@ -410,7 +394,7 @@ class _ColumnaVacia extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(26),
       decoration: BoxDecoration(
-        border: Border.all(color: _Kds.vacioBorde, width: 1.5),
+        border: Border.all(color: RegentaColors.kdsVacioBorde, width: 1.5),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(texto,
@@ -451,7 +435,7 @@ class _TarjetaTicket extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: _Kds.barra,
+        color: RegentaColors.kdsBarra,
         border: Border.all(color: color, width: 1.5),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -494,7 +478,7 @@ class _TarjetaTicket extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration:
-                        const BoxDecoration(border: Border(bottom: BorderSide(color: _Kds.divisor))),
+                        const BoxDecoration(border: Border(bottom: BorderSide(color: RegentaColors.kdsDivisor))),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -517,7 +501,7 @@ class _TarjetaTicket extends StatelessWidget {
                                       fontFamily: RegentaType.ui,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: _Kds.texto,
+                                      color: RegentaColors.kdsTexto,
                                       height: 1.25)),
                               if (l.notas != null)
                                 Padding(
@@ -526,7 +510,7 @@ class _TarjetaTicket extends StatelessWidget {
                                       style: const TextStyle(
                                           fontFamily: RegentaType.mono,
                                           fontSize: 11,
-                                          color: _Kds.nota)),
+                                          color: RegentaColors.kdsNota)),
                                 ),
                             ],
                           ),
@@ -554,8 +538,8 @@ class _TarjetaTicket extends StatelessWidget {
             child: _Boton(
               key: Key('ticket-empezar-${ticket.id}'),
               texto: 'Empezar',
-              bg: _Kds.botonNeutral,
-              fg: _Kds.texto,
+              bg: RegentaColors.kdsBotonNeutral,
+              fg: RegentaColors.kdsTexto,
               onTap: () => onEmpezar(ticket.id),
             ),
           ),
@@ -634,8 +618,8 @@ class _PieInformativo extends StatelessWidget {
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: RegentaSpacing.xl),
       decoration: const BoxDecoration(
-        color: _Kds.barra,
-        border: Border(top: BorderSide(color: _Kds.borde)),
+        color: RegentaColors.kdsBarra,
+        border: Border(top: BorderSide(color: RegentaColors.kdsBorde)),
       ),
       child: Row(
         children: [
