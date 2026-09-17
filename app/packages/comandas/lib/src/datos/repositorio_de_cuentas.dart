@@ -44,10 +44,25 @@ class RepositorioDeCuentas {
     return _lista(cuerpo);
   }
 
-  /// Cobra la cuenta entera; si era la última abierta, la comanda se cierra sola.
-  Future<CuentaVista> marcarPagada(String comandaId, String cuentaId) async {
-    final cuerpo = await _http.post<Map<String, dynamic>>('/api/comandas/$comandaId/cuentas/$cuentaId/pago')
-        as Map<String, dynamic>;
+  /// Cobra la cuenta entera con su método y su propina (HU-090 criterio 2); si
+  /// era la última abierta, intenta cerrar la comanda (criterios 1, 3 y 5).
+  Future<CuentaVista> registrarPago(
+    String comandaId,
+    String cuentaId, {
+    required String metodo,
+    num? montoRecibido,
+    num? propina,
+    String? referencia,
+  }) async {
+    final cuerpo = await _http.post<Map<String, dynamic>>(
+      '/api/comandas/$comandaId/cuentas/$cuentaId/pago',
+      datos: {
+        'metodo': metodo,
+        'montoRecibido': montoRecibido,
+        'propina': propina,
+        'referencia': referencia,
+      },
+    ) as Map<String, dynamic>;
     return CuentaVista.desdeJson(cuerpo);
   }
 

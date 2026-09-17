@@ -13,6 +13,7 @@ class CuentaVista {
     required this.estado,
     required this.lineas,
     this.etiqueta,
+    this.propinaSugerida = 0,
   });
 
   final String id;
@@ -23,6 +24,10 @@ class CuentaVista {
   final num subtotal;
   final num impuestoTotal;
   final num propina;
+
+  /// El 10% del subtotal (HU-090 criterio 2): el punto de partida que el
+  /// cliente acepta o cambia al cobrar.
+  final num propinaSugerida;
   final num total;
   final num pagado;
   final String estado;
@@ -51,6 +56,7 @@ class CuentaVista {
         subtotal: (json['subtotal'] as num?) ?? 0,
         impuestoTotal: (json['impuestoTotal'] as num?) ?? 0,
         propina: (json['propina'] as num?) ?? 0,
+        propinaSugerida: (json['propinaSugerida'] as num?) ?? 0,
         total: (json['total'] as num?) ?? 0,
         pagado: (json['pagado'] as num?) ?? 0,
         estado: (json['estado'] ?? 'ABIERTA') as String,

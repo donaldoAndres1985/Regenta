@@ -63,11 +63,20 @@ class ControladorDeDivision extends StateNotifier<EstadoDeDivision> {
     }
   }
 
-  /// Criterios 4 y 5: cobra la cuenta; si era la última abierta, la comanda se
-  /// cierra sola (se refleja recargando la comanda).
-  Future<void> cobrar(String cuentaId) async {
+  /// Criterios 2, 4 y 5 (HU-089/HU-090): cobra la cuenta con su método y su
+  /// propina; si era la última abierta, intenta cerrar la comanda (se refleja
+  /// recargando la comanda). Si hay líneas sin enviar a cocina (criterio 1 de
+  /// HU-090), el backend rechaza el cobro y `mensaje` lo muestra.
+  Future<void> cobrar(
+    String cuentaId, {
+    required String metodo,
+    num? montoRecibido,
+    num? propina,
+    String? referencia,
+  }) async {
     try {
-      final actualizada = await _cuentas.marcarPagada(_comandaId, cuentaId);
+      final actualizada = await _cuentas.registrarPago(_comandaId, cuentaId,
+          metodo: metodo, montoRecibido: montoRecibido, propina: propina, referencia: referencia);
       state = state.copiar(
         cuentas: [for (final c in state.cuentas) c.id == cuentaId ? actualizada : c],
       );

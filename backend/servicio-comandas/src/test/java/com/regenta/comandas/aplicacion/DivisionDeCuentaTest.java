@@ -71,6 +71,12 @@ class DivisionDeCuentaTest extends BaseDeComandas {
         return enContexto(negocio, mesero, MESERO, () -> cuentasSvc.marcarLinea(comandaId, cuentaId, lineaId));
     }
 
+    /** Pago mínimo (HU-089 no probaba propina ni método; eso es HU-090). */
+    private CuentaDetallada cobrar(UUID negocio, UUID comandaId, UUID cuentaId) {
+        return enContexto(negocio, mesero, MESERO,
+                () -> cuentasSvc.registrarPago(comandaId, cuentaId, new SolicitudDePago("EFECTIVO", null, null, null)));
+    }
+
     @Test
     @DisplayName("Criterio 1: dividir por ítem asigna cada línea a una cuenta y los totales cuadran")
     void dividirPorItem() {
@@ -135,9 +141,10 @@ class DivisionDeCuentaTest extends BaseDeComandas {
         UUID c = comanda(negocioA);
         UUID l1 = agregar(negocioA, c, bandeja, "1");
         UUID l2 = agregar(negocioA, c, limonada, "1");
+        enContexto(negocioA, mesero, MESERO, () -> comandas.enviarACocina(c)); // HU-090 criterio 1
         UUID cuentaId = crearCuenta(negocioA, c, null).id();
         marcar(negocioA, c, cuentaId, l1);
-        enContexto(negocioA, mesero, MESERO, () -> cuentasSvc.marcarPagada(c, cuentaId));
+        cobrar(negocioA, c, cuentaId);
 
         assertThatThrownBy(() -> marcar(negocioA, c, cuentaId, l2))
                 .isInstanceOf(ConflictoDeEstadoException.class);
@@ -152,16 +159,17 @@ class DivisionDeCuentaTest extends BaseDeComandas {
         UUID c = comanda(negocioA);
         UUID l1 = agregar(negocioA, c, bandeja, "1");
         UUID l2 = agregar(negocioA, c, limonada, "1");
+        enContexto(negocioA, mesero, MESERO, () -> comandas.enviarACocina(c)); // HU-090 criterio 1
         UUID cuentaA = crearCuenta(negocioA, c, null).id();
         UUID cuentaB = crearCuenta(negocioA, c, null).id();
         marcar(negocioA, c, cuentaA, l1);
         marcar(negocioA, c, cuentaB, l2);
 
-        enContexto(negocioA, mesero, MESERO, () -> cuentasSvc.marcarPagada(c, cuentaA));
+        cobrar(negocioA, c, cuentaA);
         assertThat(enContexto(negocioA, mesero, MESERO, () -> comandas.ver(c)).estado())
                 .isNotEqualTo("CERRADA");
 
-        enContexto(negocioA, mesero, MESERO, () -> cuentasSvc.marcarPagada(c, cuentaB));
+        cobrar(negocioA, c, cuentaB);
         assertThat(enContexto(negocioA, mesero, MESERO, () -> comandas.ver(c)).estado())
                 .isEqualTo("CERRADA");
     }

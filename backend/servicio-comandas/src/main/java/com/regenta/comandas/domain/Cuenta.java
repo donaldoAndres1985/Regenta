@@ -107,7 +107,25 @@ public class Cuenta {
         this.total = escala4(sub.add(imp).add(propina));
     }
 
-    /** Cobra la cuenta entera (HU-089 criterio 5; la propina y el método de pago son de HU-090). */
+    /**
+     * Fija la propina antes de cobrar (HU-090 criterio 2): se suma al total,
+     * aparte del subtotal y del impuesto — en Colombia es voluntaria y no hace
+     * parte de la base gravable. Solo se ajusta mientras la cuenta sigue abierta.
+     */
+    public void registrarPropina(BigDecimal propina) {
+        if (estado != EstadoDeCuenta.ABIERTA) {
+            throw new ReglaDeNegocioException("La propina solo se ajusta antes de cobrar");
+        }
+        this.propina = propina == null || propina.signum() < 0 ? BigDecimal.ZERO : escala4(propina);
+        this.total = escala4(subtotal.add(impuestoTotal).add(this.propina));
+    }
+
+    /** El 10% del subtotal, como punto de partida que el cliente acepta o cambia. */
+    public BigDecimal propinaSugerida() {
+        return escala4(subtotal.multiply(new BigDecimal("0.10")));
+    }
+
+    /** Cobra la cuenta entera (HU-089 criterio 5). */
     public void marcarPagada() {
         if (estado == EstadoDeCuenta.PAGADA) {
             throw new ReglaDeNegocioException("Esa cuenta ya está pagada");

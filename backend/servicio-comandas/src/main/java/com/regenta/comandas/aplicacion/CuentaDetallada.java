@@ -19,6 +19,7 @@ public record CuentaDetallada(
         BigDecimal subtotal,
         BigDecimal impuestoTotal,
         BigDecimal propina,
+        BigDecimal propinaSugerida,
         BigDecimal total,
         BigDecimal pagado,
         String estado,
@@ -36,7 +37,7 @@ public record CuentaDetallada(
                 })
                 .toList();
         return new CuentaDetallada(c.getId(), c.getComandaId(), c.getNumeroDivision(), c.getEtiqueta(),
-                c.getModoDivision().name(), c.getSubtotal(), c.getImpuestoTotal(), c.getPropina(), c.getTotal(),
-                c.getPagado(), c.getEstado().name(), lineas);
+                c.getModoDivision().name(), c.getSubtotal(), c.getImpuestoTotal(), c.getPropina(),
+                c.propinaSugerida(), c.getTotal(), c.getPagado(), c.getEstado().name(), lineas);
     }
 }
