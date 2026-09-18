@@ -37,7 +37,7 @@ Future<void> registrarSincronizacionEnSegundoPlano({
     tareaDeSincronizacion,
     frequency: frecuencia,
     constraints: Constraints(networkType: NetworkType.connected),
-    existingWorkPolicy: ExistingWorkPolicy.keep,
+    existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
     backoffPolicy: BackoffPolicy.exponential,
     backoffPolicyDelay: const Duration(seconds: 30),
   );
