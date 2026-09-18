@@ -79,6 +79,19 @@ public abstract class BaseDeFacturacion {
         });
     }
 
+    /**
+     * HU-115: sin datos fiscales del negocio no se emite. Todo test que emita
+     * una factura necesita esta fila, igual que necesita una resolucion.
+     */
+    protected static void conDatosFiscales(UUID negocio) {
+        ejecutarComoElServicio(negocio, "insert into emisor_negocio (negocio_id, nombre_comercial, "
+                + "razon_social, tipo_documento, numero_documento, digito_verificacion, direccion, "
+                + "ciudad, departamento, pais, regimen_fiscal, responsabilidades_fiscales) values ('"
+                + negocio + "', 'Mi Negocio', 'Mi Negocio SAS', 'NIT', '900111222', '3', "
+                + "'Calle 1 # 2-3', 'Medellin', 'Antioquia', 'CO', 'RESPONSABLE_IVA', "
+                + "'[\"O-13\"]'::jsonb) on conflict (negocio_id) do nothing");
+    }
+
     /** Conexion sin RLS, para comprobar lo que quedo escrito de verdad. */
     protected static void comoSuperusuario(String sentencia) {
         try (Connection conexion = DriverManager.getConnection(

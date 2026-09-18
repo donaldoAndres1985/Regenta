@@ -93,9 +93,22 @@ public class GestionDeConfiguracion {
         }
         configuraciones.save(configuracion);
 
+        // HU-115: con esto Facturacion arma el emisor de la factura. Va la
+        // identidad completa y no solo lo que cambio: el consumidor guarda una
+        // foto, no aplica un parche, y asi no depende de haber visto los
+        // eventos anteriores.
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("negocio_id", negocioId.toString());
         payload.put("nombre_comercial", negocio.getNombreComercial());
+        payload.put("razon_social", negocio.getRazonSocial());
+        payload.put("tipo_documento", negocio.getTipoDocumento());
+        payload.put("numero_documento", negocio.getNumeroDocumento());
+        payload.put("digito_verificacion", negocio.getDigitoVerificacion());
+        payload.put("direccion", configuracion.getDireccion());
+        payload.put("ciudad", configuracion.getCiudad());
+        payload.put("departamento", configuracion.getDepartamento());
+        payload.put("codigo_postal", configuracion.getCodigoPostal());
+        payload.put("pais", negocio.getPais());
         payload.put("regimen_fiscal", configuracion.getRegimenFiscal());
         payload.put("responsabilidades_fiscales", configuracion.getResponsabilidadesFiscales());
         payload.put("precios_incluyen_impuesto", configuracion.isPreciosIncluyenImpuesto());

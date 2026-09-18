@@ -56,6 +56,7 @@ class GestionDeContingenciaTest extends BaseDeFacturacion {
     }
 
     private void prepararNegocio(UUID negocio) {
+        conDatosFiscales(negocio);
         enContexto(negocio, admin, ADMIN, () -> resoluciones.cargar(new SolicitudDeResolucion(null,
                 "FACTURA_VENTA", "FV-" + negocio, "FE", 1, 100000, "clave",
                 LocalDate.parse("2026-01-01"), LocalDate.parse("2030-01-01"), "PRODUCCION")));
