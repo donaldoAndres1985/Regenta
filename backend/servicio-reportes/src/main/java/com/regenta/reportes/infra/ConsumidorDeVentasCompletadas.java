@@ -20,6 +20,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.regenta.comun.eventos.InboxIdempotente;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.DatosDelNegocio;
+import com.regenta.reportes.aplicacion.AgregadorDiario;
+import com.regenta.reportes.aplicacion.FechaLocalDelNegocio;
 import com.regenta.reportes.aplicacion.ResolverDeDimensiones;
 
 /**
@@ -39,13 +41,18 @@ public class ConsumidorDeVentasCompletadas {
     private final InboxIdempotente inbox;
     private final ResolverDeDimensiones dimensiones;
     private final EscritorDeHechos hechos;
+    private final AgregadorDiario agregador;
+    private final FechaLocalDelNegocio fechaLocal;
     private final ObjectMapper json;
 
     public ConsumidorDeVentasCompletadas(InboxIdempotente inbox, ResolverDeDimensiones dimensiones,
-            EscritorDeHechos hechos, ObjectMapper json) {
+            EscritorDeHechos hechos, AgregadorDiario agregador, FechaLocalDelNegocio fechaLocal,
+            ObjectMapper json) {
         this.inbox = inbox;
         this.dimensiones = dimensiones;
         this.hechos = hechos;
+        this.agregador = agregador;
+        this.fechaLocal = fechaLocal;
         this.json = json;
     }
 
@@ -86,6 +93,12 @@ public class ConsumidorDeVentasCompletadas {
         Long usuarioSk = dimensiones.usuarioSk(negocioId, usuarioId);
 
         List<Map<String, Object>> lineas = (List<Map<String, Object>>) datos.getOrDefault("lineas", List.of());
+        BigDecimal totalUnidades = BigDecimal.ZERO;
+        BigDecimal totalBruto = BigDecimal.ZERO;
+        BigDecimal totalDescuento = BigDecimal.ZERO;
+        BigDecimal totalImpuesto = BigDecimal.ZERO;
+        BigDecimal totalNeto = BigDecimal.ZERO;
+        BigDecimal totalCosto = BigDecimal.ZERO;
         for (Map<String, Object> l : lineas) {
             UUID productoId = uuid(l.get("producto_id"));
             String sku = (String) l.get("sku");
@@ -104,7 +117,20 @@ public class ConsumidorDeVentasCompletadas {
 
             hechos.insertarVenta(negocioId, fechaId, ocurridoEn, sucursalSk, productoSk, clienteSk,
                     usuarioSk, ventaId, canal, cantidad, montoBruto, descuento, impuesto, montoNeto, costo);
+
+            totalUnidades = totalUnidades.add(cantidad);
+            totalBruto = totalBruto.add(montoBruto);
+            totalDescuento = totalDescuento.add(descuento);
+            totalImpuesto = totalImpuesto.add(impuesto);
+            totalNeto = totalNeto.add(montoNeto);
+            totalCosto = totalCosto.add(costo);
         }
+
+        // HU-097 criterio 1: el agregado del día se actualiza con el mismo cierre,
+        // en la misma transacción del Inbox que ya protege hechos_venta.
+        agregador.aplicar(negocioId, "VENTA", ventaId, bodegaId, fechaLocal.de(negocioId, ocurridoEn),
+                "VENTA_DIRECTA", totalUnidades, totalBruto, totalDescuento, totalImpuesto, totalNeto,
+                totalCosto, clienteId);
     }
 
     private static BigDecimal numero(Object valor) {

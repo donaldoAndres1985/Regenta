@@ -105,6 +105,20 @@ class ConsumidorDeVentasCompletadasTest extends BaseDeReportes {
     }
 
     @Test
+    @DisplayName("HU-097 criterio 1: también actualiza el agregado diario de la venta")
+    void actualizaElAgregadoDiario() {
+        UUID ventaId = UUID.randomUUID();
+        consumidor.recibir(ventaCompletada(UUID.randomUUID().toString(), negocioA, ventaId));
+
+        assertThat(consultar("select num_documentos::text from agregados_diarios "
+                + "where negocio_id = '" + negocioA + "' and patron = 'VENTA_DIRECTA'"))
+                .containsExactly("1");
+        assertThat(consultar("select monto_neto::text from agregados_diarios "
+                + "where negocio_id = '" + negocioA + "' and patron = 'VENTA_DIRECTA'"))
+                .containsExactly("64000.0000");
+    }
+
+    @Test
     @DisplayName("El segundo negocio no ve los hechos ni las dimensiones del primero")
     void aislamiento() {
         UUID ventaId = UUID.randomUUID();

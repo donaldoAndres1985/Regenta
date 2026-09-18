@@ -67,4 +67,18 @@ class ConsumidorDePedidosCompletadosTest extends BaseDeReportes {
         assertThat(comoElServicio(negocioB, "select count(*) from hechos_comanda where comanda_id = '"
                 + comandaId + "'")).containsExactly("0");
     }
+
+    @Test
+    @DisplayName("HU-097 criterio 1: también actualiza el agregado diario del pedido")
+    void actualizaElAgregadoDiario() {
+        UUID comandaId = UUID.randomUUID();
+        consumidor.recibir(pedidoCompletado(negocioA, comandaId));
+
+        assertThat(consultar("select num_documentos::text from agregados_diarios "
+                + "where negocio_id = '" + negocioA + "' and patron = 'COMANDA'"))
+                .containsExactly("1");
+        assertThat(consultar("select monto_neto::text from agregados_diarios "
+                + "where negocio_id = '" + negocioA + "' and patron = 'COMANDA'"))
+                .containsExactly("38000.0000");
+    }
 }
