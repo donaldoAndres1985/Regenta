@@ -49,6 +49,8 @@ class VersionesGestionadasTest {
             "org.assertj",
             "org.mockito",
             "org.aspectj",
+            "org.apache.poi",
+            "org.apache.pdfbox",
             "io.projectreactor",
             "com.fasterxml.jackson.core",
             "com.fasterxml.jackson.dataformat",
