@@ -134,6 +134,27 @@ class CierreDeComandaTest extends BaseDeComandas {
     }
 
     @Test
+    @DisplayName("HU-099: el pedido viaja con sus comensales y su mesa, que es lo que hace un ticket por comensal")
+    void elPedidoViajaConSusComensalesYSuMesa() {
+        UUID c = comanda(negocioA);   // se abre con 2 comensales
+        UUID l = agregar(negocioA, c);
+        enContexto(negocioA, mesero, MESERO, () -> comandas.enviarACocina(c));
+        UUID cuentaId = cuentaConTodo(negocioA, c, l);
+
+        enContexto(negocioA, mesero, MESERO, () -> cuentasSvc.registrarPago(c, cuentaId,
+                new SolicitudDePago("EFECTIVO", null, new BigDecimal("4700"), null)));
+
+        String payload = comoElServicio(negocioA, "select payload::text from outbox_eventos "
+                + "where negocio_id = '" + negocioA + "' and agregado_id = '" + c
+                + "' and tipo_evento = 'pedido_completado'").get(0);
+        assertThat(payload)
+                .as("sin comensales no hay ticket por comensal, y el dato solo lo tiene esta comanda")
+                .contains("\"num_comensales\": 2")
+                .contains("\"mesa_id\": \"" + mesaId + "\"")
+                .contains("\"sesion_mesa_id\": \"" + sesionId + "\"");
+    }
+
+    @Test
     @DisplayName("El segundo negocio no puede cobrar una cuenta del primero")
     void aislamiento() {
         UUID c = comanda(negocioA);
