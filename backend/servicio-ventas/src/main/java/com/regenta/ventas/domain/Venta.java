@@ -106,6 +106,17 @@ public class Venta {
     @Column(name = "motivo_anulacion", columnDefinition = "text")
     private String motivoAnulacion;
 
+    // HU-043. El id con que el celular la creó sin señal: es lo que hace
+    // idempotente la subida, con el índice único (negocio_id, origen_offline_id).
+    @Column(name = "origen_offline_id", updatable = false)
+    private UUID origenOfflineId;
+
+    @Column(name = "dispositivo_id", length = 80, updatable = false)
+    private String dispositivoId;
+
+    @Column(name = "sincronizado_en")
+    private OffsetDateTime sincronizadoEn;
+
     @Column(columnDefinition = "text")
     private String nota;
 
@@ -148,6 +159,26 @@ public class Venta {
         v.saldoPendiente = BigDecimal.ZERO;
         v.estadoFactura = "NO_APLICA";
         return v;
+    }
+
+    /**
+     * HU-043: la venta se registró en un dispositivo sin señal y subió después.
+     * La fecha que queda es la del momento en que se hizo la venta, no la de la
+     * subida: si no, todo lo que se vendió en ruta aparecería amontonado en el
+     * minuto en que el vendedor recuperó la señal.
+     */
+    public void marcarOrigenOffline(UUID origenOfflineId, String dispositivoId,
+            OffsetDateTime ocurridoEn, OffsetDateTime sincronizadoEn) {
+        this.origenOfflineId = origenOfflineId;
+        this.dispositivoId = dispositivoId;
+        this.sincronizadoEn = sincronizadoEn;
+        if (ocurridoEn != null) {
+            this.fecha = ocurridoEn;
+        }
+    }
+
+    public boolean vinoDeLaColaOffline() {
+        return origenOfflineId != null;
     }
 
     public void exigirBorrador(String accion) {
@@ -257,6 +288,14 @@ public class Venta {
 
     public UUID getNegocioId() {
         return negocioId;
+    }
+
+    public UUID getOrigenOfflineId() {
+        return origenOfflineId;
+    }
+
+    public String getDispositivoId() {
+        return dispositivoId;
     }
 
     public UUID getBodegaId() {
