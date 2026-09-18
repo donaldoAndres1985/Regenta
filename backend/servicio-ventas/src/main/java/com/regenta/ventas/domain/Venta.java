@@ -47,6 +47,14 @@ public class Venta {
     @Column(name = "cliente_id")
     private UUID clienteId;
 
+    /**
+     * Quién compró, congelado (HU-113). Es lo que evita que el histórico se
+     * corrompa: {@code crm.clientes} cambia, esta venta no.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "cliente_snapshot", columnDefinition = "jsonb")
+    private String clienteSnapshot;
+
     @Column(name = "usuario_id", nullable = false, updatable = false)
     private UUID usuarioId;
 
@@ -240,6 +248,35 @@ public class Venta {
         if (fechaVencimiento != null) {
             this.fechaVencimiento = fechaVencimiento;
         }
+    }
+
+    /**
+     * HU-113 criterio 2: el id y el snapshot van juntos siempre. Guardar solo
+     * el id dejaría la factura atada a un dato que puede cambiar mañana.
+     */
+    public void asignarCliente(UUID clienteId, String snapshot) {
+        exigirBorrador("cambiar el cliente");
+        this.clienteId = clienteId;
+        this.clienteSnapshot = snapshot;
+    }
+
+    /**
+     * HU-113 criterio 4. Se limpia también el crédito: es del cliente, y sin
+     * cliente no hay a quién cobrarle después.
+     */
+    public void quitarCliente() {
+        exigirBorrador("quitar el cliente");
+        this.clienteId = null;
+        this.clienteSnapshot = null;
+        if (esACredito()) {
+            this.formaPago = "CONTADO";
+            this.saldoPendiente = BigDecimal.ZERO;
+            this.fechaVencimiento = null;
+        }
+    }
+
+    public String getClienteSnapshot() {
+        return clienteSnapshot;
     }
 
     /** HU-040: la venta se va a plazo, con su saldo y su fecha de vencimiento. */
