@@ -61,7 +61,7 @@ class OutboxTest extends BaseConPostgres {
     private PublicadorDeOutbox publicadorCon(RabbitTemplate plantilla, int maximoIntentos) {
         PropiedadesEventos p = new PropiedadesEventos();
         p.setMaximoIntentos(maximoIntentos);
-        return new PublicadorDeOutbox(outbox, plantilla, p);
+        return new PublicadorDeOutbox(outbox, plantilla, p, "servicio-prueba");
     }
 
     @Test

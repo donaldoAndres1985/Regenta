@@ -7,6 +7,7 @@ import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -72,8 +73,8 @@ public class EventosAutoConfiguracion {
 
     @Bean
     public PublicadorDeOutbox publicadorDeOutbox(OutboxRepositorio outbox, RabbitTemplate rabbit,
-                                                 PropiedadesEventos propiedades) {
-        return new PublicadorDeOutbox(outbox, rabbit, propiedades);
+            PropiedadesEventos propiedades, @Value("${spring.application.name:}") String servicioOrigen) {
+        return new PublicadorDeOutbox(outbox, rabbit, propiedades, servicioOrigen);
     }
 
     /**

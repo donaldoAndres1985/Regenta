@@ -29,12 +29,14 @@ public class PublicadorDeOutbox {
     private final OutboxRepositorio outbox;
     private final RabbitTemplate rabbit;
     private final PropiedadesEventos propiedades;
+    private final String servicioOrigen;
 
     public PublicadorDeOutbox(OutboxRepositorio outbox, RabbitTemplate rabbit,
-                              PropiedadesEventos propiedades) {
+                              PropiedadesEventos propiedades, String servicioOrigen) {
         this.outbox = outbox;
         this.rabbit = rabbit;
         this.propiedades = propiedades;
+        this.servicioOrigen = servicioOrigen;
     }
 
     /** Devuelve cuantos publico. Se llama sola por schedule, y a mano en los tests. */
@@ -88,6 +90,11 @@ public class PublicadorDeOutbox {
         propiedades.setHeader("agregado_id", evento.getAgregadoId().toString());
         if (evento.getTraceId() != null) {
             propiedades.setHeader("trace_id", evento.getTraceId());
+        }
+        // HU-101: quien escucha "#" para auditar todo (servicio-auditoria) no tiene de
+        // donde mas sacar que servicio publico el evento; ningun payload de negocio lo dice.
+        if (servicioOrigen != null && !servicioOrigen.isBlank()) {
+            propiedades.setHeader("servicio_origen", servicioOrigen);
         }
         return new Message(evento.getPayload().getBytes(StandardCharsets.UTF_8), propiedades);
     }
