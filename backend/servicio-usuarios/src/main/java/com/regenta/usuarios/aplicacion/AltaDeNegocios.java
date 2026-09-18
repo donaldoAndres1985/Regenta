@@ -216,6 +216,10 @@ public class AltaDeNegocios {
         datos.put("estado", negocio.getEstado());
         datos.put("pais", negocio.getPais());
         datos.put("moneda", negocio.getMoneda());
+        // HU-097 criterio 3: servicio-reportes no consulta esta base, así que la
+        // zona horaria del negocio viaja en el mismo evento con el que arma su
+        // propio read model.
+        datos.put("zona_horaria", negocio.getZonaHoraria());
         datos.put("modulos", modulosActivos);
         datos.put("administrador_id", administrador.getId().toString());
         return datos;

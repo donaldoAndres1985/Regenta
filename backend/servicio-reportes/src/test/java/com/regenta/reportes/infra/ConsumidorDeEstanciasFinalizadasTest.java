@@ -68,4 +68,18 @@ class ConsumidorDeEstanciasFinalizadasTest extends BaseDeReportes {
         assertThat(comoElServicio(negocioB, "select count(*) from hechos_reserva where reserva_id = '"
                 + reservaId + "'")).containsExactly("0");
     }
+
+    @Test
+    @DisplayName("HU-097 criterio 1: también actualiza el agregado diario de la estancia")
+    void actualizaElAgregadoDiario() {
+        UUID reservaId = UUID.randomUUID();
+        consumidor.recibir(estanciaFinalizada(negocioA, reservaId));
+
+        assertThat(consultar("select num_documentos::text from agregados_diarios "
+                + "where negocio_id = '" + negocioA + "' and patron = 'RESERVA'"))
+                .containsExactly("1");
+        assertThat(consultar("select monto_neto::text from agregados_diarios "
+                + "where negocio_id = '" + negocioA + "' and patron = 'RESERVA'"))
+                .containsExactly("400000.0000");
+    }
 }

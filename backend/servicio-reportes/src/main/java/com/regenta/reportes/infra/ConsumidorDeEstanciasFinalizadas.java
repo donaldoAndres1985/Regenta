@@ -20,6 +20,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.regenta.comun.eventos.InboxIdempotente;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.DatosDelNegocio;
+import com.regenta.reportes.aplicacion.AgregadorDiario;
+import com.regenta.reportes.aplicacion.FechaLocalDelNegocio;
 import com.regenta.reportes.aplicacion.ResolverDeDimensiones;
 
 /**
@@ -36,13 +38,18 @@ public class ConsumidorDeEstanciasFinalizadas {
     private final InboxIdempotente inbox;
     private final ResolverDeDimensiones dimensiones;
     private final EscritorDeHechos hechos;
+    private final AgregadorDiario agregador;
+    private final FechaLocalDelNegocio fechaLocal;
     private final ObjectMapper json;
 
     public ConsumidorDeEstanciasFinalizadas(InboxIdempotente inbox, ResolverDeDimensiones dimensiones,
-            EscritorDeHechos hechos, ObjectMapper json) {
+            EscritorDeHechos hechos, AgregadorDiario agregador, FechaLocalDelNegocio fechaLocal,
+            ObjectMapper json) {
         this.inbox = inbox;
         this.dimensiones = dimensiones;
         this.hechos = hechos;
+        this.agregador = agregador;
+        this.fechaLocal = fechaLocal;
         this.json = json;
     }
 
@@ -85,6 +92,12 @@ public class ConsumidorDeEstanciasFinalizadas {
 
         hechos.insertarReserva(negocioId, fechaId, ocurridoEn, null, clienteSk, reservaId, tipoRecursoId,
                 recursoId, "FINALIZADA", noches, total, consumos, BigDecimal.ZERO, adr);
+
+        // HU-097 criterio 1. "Unidades" en el patrón Reserva son noches; el
+        // patrón no trae bruto/descuento/impuesto por separado a este nivel.
+        agregador.aplicar(negocioId, "RESERVA", reservaId, null, fechaLocal.de(negocioId, ocurridoEn),
+                "RESERVA", BigDecimal.valueOf(noches), total, BigDecimal.ZERO, BigDecimal.ZERO, total,
+                BigDecimal.ZERO, clienteId);
     }
 
     private static BigDecimal numero(Object valor) {

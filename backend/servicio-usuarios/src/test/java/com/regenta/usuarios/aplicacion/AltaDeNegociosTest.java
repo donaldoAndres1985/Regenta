@@ -113,6 +113,10 @@ class AltaDeNegociosTest extends BaseDeUsuarios {
         String payload = consultar("select payload from outbox_eventos where negocio_id = '"
                 + creado.negocioId() + "'").get(0);
         assertThat(payload)
+                // HU-097 criterio 3: servicio-reportes necesita la zona horaria del
+                // negocio para cortar los agregados diarios a su medianoche, no a la
+                // del servidor. La toma de este mismo evento, no consulta esta base.
+                .contains("America/Bogota")
                 .contains(creado.negocioId().toString())
                 .contains("PROFESIONAL")
                 .contains("RESERVA");

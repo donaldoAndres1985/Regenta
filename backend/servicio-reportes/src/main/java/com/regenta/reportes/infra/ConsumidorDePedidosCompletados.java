@@ -20,6 +20,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.regenta.comun.eventos.InboxIdempotente;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.DatosDelNegocio;
+import com.regenta.reportes.aplicacion.AgregadorDiario;
+import com.regenta.reportes.aplicacion.FechaLocalDelNegocio;
 import com.regenta.reportes.aplicacion.ResolverDeDimensiones;
 
 /**
@@ -37,13 +39,18 @@ public class ConsumidorDePedidosCompletados {
     private final InboxIdempotente inbox;
     private final ResolverDeDimensiones dimensiones;
     private final EscritorDeHechos hechos;
+    private final AgregadorDiario agregador;
+    private final FechaLocalDelNegocio fechaLocal;
     private final ObjectMapper json;
 
     public ConsumidorDePedidosCompletados(InboxIdempotente inbox, ResolverDeDimensiones dimensiones,
-            EscritorDeHechos hechos, ObjectMapper json) {
+            EscritorDeHechos hechos, AgregadorDiario agregador, FechaLocalDelNegocio fechaLocal,
+            ObjectMapper json) {
         this.inbox = inbox;
         this.dimensiones = dimensiones;
         this.hechos = hechos;
+        this.agregador = agregador;
+        this.fechaLocal = fechaLocal;
         this.json = json;
     }
 
@@ -80,6 +87,9 @@ public class ConsumidorDePedidosCompletados {
         Long usuarioSk = dimensiones.usuarioSk(negocioId, usuarioId);
 
         List<Map<String, Object>> lineas = (List<Map<String, Object>>) datos.getOrDefault("lineas", List.of());
+        BigDecimal totalUnidades = BigDecimal.ZERO;
+        BigDecimal totalNeto = BigDecimal.ZERO;
+        BigDecimal totalCosto = BigDecimal.ZERO;
         for (Map<String, Object> l : lineas) {
             UUID itemMenuId = uuid(l.get("item_menu_id"));
             String nombre = (String) l.get("nombre");
@@ -90,7 +100,18 @@ public class ConsumidorDePedidosCompletados {
 
             hechos.insertarComanda(negocioId, fechaId, ocurridoEn, null, usuarioSk, comandaId, itemMenuId,
                     nombre, cantidad, montoNeto, costo, propina, tiempoPreparacionMin, tiempoMesaMin);
+
+            totalUnidades = totalUnidades.add(cantidad);
+            totalNeto = totalNeto.add(montoNeto);
+            totalCosto = totalCosto.add(costo);
         }
+
+        // HU-097 criterio 1. El patrón Comanda no trae bruto/descuento/impuesto
+        // por separado a este nivel (ni hechos_comanda los guarda): el bruto del
+        // agregado es el neto, sin descuentos ni impuestos que restar.
+        agregador.aplicar(negocioId, "COMANDA", comandaId, null, fechaLocal.de(negocioId, ocurridoEn),
+                "COMANDA", totalUnidades, totalNeto, BigDecimal.ZERO, BigDecimal.ZERO, totalNeto, totalCosto,
+                null);
     }
 
     private static BigDecimal numero(Object valor) {
