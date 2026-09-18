@@ -33,17 +33,23 @@ import com.regenta.comun.negocio.DatosDelNegocio;
  * <p>Límite conocido (criterio 3): sin tocar cada servicio para que declare
  * un diff campo a campo, esta bitácora guarda el payload resultante del
  * evento como {@code datos_despues}, no un {@code cambios} antes/después.
+ *
+ * <p>El mismo evento también alimenta {@code cambios_servidor} (HU-104): el
+ * watermark del que sale la descarga incremental de la app.
  */
 @Component
 public class AuditorDeEventos {
 
     private final InboxIdempotente inbox;
     private final EscritorDeAuditoria escritor;
+    private final EscritorDeCambios cambios;
     private final ObjectMapper json;
 
-    public AuditorDeEventos(InboxIdempotente inbox, EscritorDeAuditoria escritor, ObjectMapper json) {
+    public AuditorDeEventos(InboxIdempotente inbox, EscritorDeAuditoria escritor, EscritorDeCambios cambios,
+            ObjectMapper json) {
         this.inbox = inbox;
         this.escritor = escritor;
+        this.cambios = cambios;
         this.json = json;
     }
 
@@ -77,11 +83,28 @@ public class AuditorDeEventos {
         String traceId = texto(headers.get("trace_id"));
         UUID usuarioId = usuarioDesdePayload(cuerpo);
         String accion = AccionDeAuditoria.desde(tipoEvento);
+        OffsetDateTime ahora = OffsetDateTime.now();
 
         escritor.insertar(mensajeId, negocioId, usuarioId,
                 servicio == null || servicio.isBlank() ? "desconocido" : servicio,
                 entidadTipo == null || entidadTipo.isBlank() ? "Desconocida" : entidadTipo, entidadId,
-                accion, cuerpo, traceId, OffsetDateTime.now());
+                accion, cuerpo, traceId, ahora);
+
+        // HU-104: el mismo evento alimenta el watermark de descarga incremental. Va en
+        // la misma transacción del Inbox de arriba: un segundo @RabbitListener con
+        // "#" en este servicio chocaría por el mismo mensaje contra el mismo Inbox.
+        if (entidadId != null) {
+            cambios.insertar(negocioId, entidadTipo == null || entidadTipo.isBlank() ? "Desconocida"
+                    : entidadTipo, entidadId, operacionDeCambio(accion), cuerpo, ahora);
+        }
+    }
+
+    private static String operacionDeCambio(String accion) {
+        return switch (accion) {
+            case "CREAR" -> "CREAR";
+            case "ELIMINAR" -> "ELIMINAR";
+            default -> "ACTUALIZAR";
+        };
     }
 
     private UUID usuarioDesdePayload(String cuerpo) {
