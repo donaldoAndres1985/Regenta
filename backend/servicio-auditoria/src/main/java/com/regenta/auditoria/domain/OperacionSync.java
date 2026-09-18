@@ -122,6 +122,14 @@ public class OperacionSync {
         return id;
     }
 
+    public String getEntidadTipo() {
+        return entidadTipo;
+    }
+
+    public UUID getEntidadId() {
+        return entidadId;
+    }
+
     public long getSecuenciaLocal() {
         return secuenciaLocal;
     }
