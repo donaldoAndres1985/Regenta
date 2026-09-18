@@ -40,4 +40,10 @@ public class ConflictosControlador {
     public void resolver(@PathVariable UUID id, @RequestBody Map<String, String> cuerpo) {
         gestion.resolver(id, cuerpo.get("resolucion"));
     }
+
+    @PostMapping("/barrido")
+    @Operation(summary = "Publica conflicto_sync_vencido por cada conflicto sin resolver hace más de un día")
+    public Map<String, Integer> barrerSinResolver() {
+        return Map.of("conflictosPublicados", gestion.barrerSinResolver());
+    }
 }
