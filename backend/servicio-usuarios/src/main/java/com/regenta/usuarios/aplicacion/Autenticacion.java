@@ -60,12 +60,14 @@ public class Autenticacion {
     private final RevocadorDeSesiones revocador;
     private final FijadorDeNegocio fijador;
     private final Clock reloj;
+    private final RegistradorDeLoginFallido auditoria;
 
     public Autenticacion(AccesoPorCorreoRepositorio accesos, UsuarioRepositorio usuarios,
             NegocioRepositorio negocios, PlanRepositorio planes, RolRepositorio roles,
             NegocioModuloRepositorio negocioModulos, RefreshTokenRepositorio refrescos,
             PasswordEncoder claves, EmisorDeTokens emisor, RegistroDeIntentos intentos,
-            RevocadorDeSesiones revocador, FijadorDeNegocio fijador, Clock reloj) {
+            RevocadorDeSesiones revocador, FijadorDeNegocio fijador, Clock reloj,
+            RegistradorDeLoginFallido auditoria) {
         this.accesos = accesos;
         this.usuarios = usuarios;
         this.negocios = negocios;
@@ -79,6 +81,7 @@ public class Autenticacion {
         this.revocador = revocador;
         this.fijador = fijador;
         this.reloj = reloj;
+        this.auditoria = auditoria;
     }
 
     @Transactional
@@ -107,6 +110,10 @@ public class Autenticacion {
                     "Demasiados intentos fallidos. La cuenta se libera sola en un rato");
         }
         if (!claves.matches(credenciales.password(), usuario.getPasswordHash())) {
+            // HU-101: la bitácora de auditoría se alimenta de eventos, y sin este no
+            // hay forma de reconstruir un login fallido —el intento nunca llega a
+            // "usuario.entro()", que es lo único que hoy deja rastro.
+            auditoria.registrar(negocioId, usuario.getId(), email);
             if (intentos.fallo(negocioId, usuario.getId())) {
                 throw new CuentaBloqueadaException(
                         "Demasiados intentos fallidos. La cuenta se libera sola en un rato");

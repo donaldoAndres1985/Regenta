@@ -117,6 +117,22 @@ class AutenticacionTest extends BaseDeUsuarios {
     }
 
     @Test
+    @DisplayName("HU-101: una clave incorrecta publica login_fallido para la bitácora de auditoría")
+    void publicaLoginFallido() {
+        String correo = correoNuevo();
+        NegocioCreado negocio = negocioNuevo(correo, Patrones.VENTA_DIRECTA);
+        CredencialesDeAcceso malas = new CredencialesDeAcceso(correo, "no-es-la-clave", null, null, null);
+
+        assertThatThrownBy(() -> autenticacion.entrar(malas)).isInstanceOf(NoAutenticadoException.class);
+
+        List<String> eventos = consultar("select tipo_evento from outbox_eventos where negocio_id = '"
+                + negocio.negocioId() + "' and tipo_evento = 'login_fallido'");
+        assertThat(eventos).hasSize(1);
+        assertThat(consultar("select payload from outbox_eventos where negocio_id = '" + negocio.negocioId()
+                + "' and tipo_evento = 'login_fallido'").get(0)).contains(correo);
+    }
+
+    @Test
     @DisplayName("Criterio 4: un usuario INACTIVO no entra, y no se le dice por que")
     void elInactivoNoEntraYNoSeLeDicePorQue() {
         String correo = correoNuevo();
