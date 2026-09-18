@@ -110,6 +110,20 @@ class AuditorDeEventosTest extends BaseDeAuditoria {
     }
 
     @Test
+    @DisplayName("HU-104: el mismo evento alimenta cambios_servidor, el watermark de descarga incremental")
+    void alimentaCambiosServidor() {
+        String mensajeId = UUID.randomUUID().toString();
+        consumidor.recibir(evento(mensajeId, negocioA, "venta_completada",
+                Map.of("trace_id", "trace-abc-123"),
+                Map.of("negocio_id", negocioA.toString(), "usuario_id", usuario.toString(), "venta_id",
+                        venta.toString())));
+
+        assertThat(comoElServicio(negocioA,
+                "select operacion from cambios_servidor where entidad_id = '" + venta + "'"))
+                .containsExactly("ACTUALIZAR");
+    }
+
+    @Test
     @DisplayName("El segundo negocio no ve el evento del primero")
     void aislamiento() {
         String mensajeId = UUID.randomUUID().toString();

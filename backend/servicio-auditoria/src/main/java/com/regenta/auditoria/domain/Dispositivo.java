@@ -74,6 +74,12 @@ public class Dispositivo {
         this.ultimoSyncEn = ahora;
     }
 
+    /** HU-104 criterio 2: solo avanza cuando la descarga terminó bien, no en cada pedido. */
+    public void avanzarCursor(String cursor, OffsetDateTime ahora) {
+        this.cursorSync = cursor;
+        this.ultimoSyncEn = ahora;
+    }
+
     public UUID getId() {
         return id;
     }
@@ -88,5 +94,9 @@ public class Dispositivo {
 
     public OffsetDateTime getUltimoSyncEn() {
         return ultimoSyncEn;
+    }
+
+    public String getCursorSync() {
+        return cursorSync;
     }
 }
