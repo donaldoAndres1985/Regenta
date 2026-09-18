@@ -86,6 +86,12 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
         widget.onVentaCobrada?.call(ahora.ventaNumero!);
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Venta ${ahora.ventaNumero} cobrada')));
+      } else if (ahora.ventaEnCola && !(antes?.ventaEnCola ?? false)) {
+        // HU-043 criterio 1: sin señal la venta igual se cobró; está guardada
+        // en el celular y sube sola. Decirlo importa: el vendedor tiene que
+        // saber que no la perdió, pero también que todavía no tiene número.
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Venta guardada sin señal: sube sola cuando vuelva la conexión')));
       } else if (ahora.mensaje != null && ahora.mensaje != antes?.mensaje) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(ahora.mensaje!)));

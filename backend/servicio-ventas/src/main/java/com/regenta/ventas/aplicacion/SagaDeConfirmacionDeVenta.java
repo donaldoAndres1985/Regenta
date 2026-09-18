@@ -113,8 +113,31 @@ public class SagaDeConfirmacionDeVenta {
             if (venta.getEstado() == EstadoVenta.PENDIENTE_STOCK) {
                 venta.volverABorrador(motivo);
                 ventas.save(venta);
+                avisarSiVinoDeLaColaOffline(saga.getNegocioId(), venta, motivo);
             }
         });
+    }
+
+    /**
+     * HU-043 criterio 4: la venta se registró sin señal y, para cuando subió,
+     * el stock ya no alcanzaba. Queda en BORRADOR —no se pierde, el vendedor
+     * decide qué hacer— y se avisa: nadie está mirando la pantalla en el
+     * momento en que esto pasa, así que enterarse no puede depender de que
+     * alguien revise la lista de ventas.
+     */
+    private void avisarSiVinoDeLaColaOffline(UUID negocioId, Venta venta, String motivo) {
+        if (!venta.vinoDeLaColaOffline()) {
+            return;
+        }
+        Map<String, Object> datos = new LinkedHashMap<>();
+        datos.put("negocio_id", negocioId.toString());
+        datos.put("venta_id", venta.getId().toString());
+        datos.put("numero", venta.getNumero());
+        datos.put("origen_offline_id", venta.getOrigenOfflineId().toString());
+        datos.put("dispositivo_id", venta.getDispositivoId());
+        datos.put("usuario_id", venta.getUsuarioId() == null ? null : venta.getUsuarioId().toString());
+        datos.put("motivo", motivo);
+        eventos.registrar(negocioId, "Venta", venta.getId(), "venta_offline_en_conflicto", datos);
     }
 
     private Map<String, Object> payloadSolicitud(UUID negocioId, Venta venta, Saga saga) {

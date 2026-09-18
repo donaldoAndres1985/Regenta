@@ -1,6 +1,23 @@
 import 'package:regenta_core/regenta_core.dart';
+import 'package:uuid/uuid.dart';
 
 import 'producto_buscado.dart';
+
+/// Cómo terminó el cobro (HU-043): la venta quedó creada en el servidor, o
+/// quedó guardada en la cola del celular porque no había señal. En los dos
+/// casos la venta existe y tiene su id: lo que cambia es dónde está.
+class ResultadoDeCobro {
+  const ResultadoDeCobro({required this.origenOfflineId, this.venta});
+
+  /// El id con el que el celular creó la venta. Es lo que hace que subirla dos
+  /// veces no la duplique: el servidor la reconoce por aquí.
+  final String origenOfflineId;
+
+  /// La venta que devolvió el servidor, o null si todavía está en la cola.
+  final VentaCreada? venta;
+
+  bool get quedoEnLaCola => venta == null;
+}
 
 /// Lo que la venta guardada devuelve: su id y su número.
 class VentaCreada {
@@ -48,9 +65,10 @@ class LineaParaEnviar {
 /// Acceso a `servicio-inventario` (búsqueda) y `servicio-ventas` (armado de la
 /// venta) desde el POS. Se apoya en el [ClienteHttp] del núcleo.
 class RepositorioDeVentas {
-  RepositorioDeVentas(this._http);
+  RepositorioDeVentas(this._http, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
 
   final ClienteHttp _http;
+  final Uuid _uuid;
 
   Future<List<ProductoBuscado>> buscar(String termino) async {
     final q = termino.trim();
@@ -82,22 +100,39 @@ class RepositorioDeVentas {
     return ProductoBuscado.desdeJson((lista.first as Map).cast<String, dynamic>());
   }
 
-  /// Arma la venta de una: crea el borrador, agrega las líneas y confirma.
-  Future<VentaCreada> confirmarVenta({
+  /// Cobra la venta entera de una sola llamada (HU-043).
+  ///
+  /// Va siempre por el mismo camino, haya señal o no: el id de la venta lo
+  /// pone el celular, así que si no hay red la operación queda en la cola y
+  /// sube sola después, y si la subida se reintenta el servidor la reconoce
+  /// por ese id y devuelve la que ya creó en vez de duplicarla. Armarla en
+  /// tres llamadas —borrador, líneas, confirmación— dejaría ventas a medias
+  /// justo cuando la conexión es mala, que es cuando más importa.
+  Future<ResultadoDeCobro> confirmarVenta({
     required String bodegaId,
     required List<LineaParaEnviar> lineas,
     String? clienteId,
   }) async {
-    final cuerpo = <String, dynamic>{'bodegaId': bodegaId};
+    final origenOfflineId = _uuid.v4();
+    final cuerpo = <String, dynamic>{
+      'origenOfflineId': origenOfflineId,
+      'ocurridoEn': DateTime.now().toUtc().toIso8601String(),
+      'bodegaId': bodegaId,
+      'lineas': [for (final linea in lineas) linea.aJson()],
+    };
     if (clienteId != null) cuerpo['clienteId'] = clienteId;
-    final creada = VentaCreada.desdeJson(await _http.post<Map<String, dynamic>>(
-      '/api/ventas',
+
+    final respuesta = await _http.post<Map<String, dynamic>>(
+      '/api/ventas/offline',
       datos: cuerpo,
-    ) as Map<String, dynamic>);
-    for (final linea in lineas) {
-      await _http.post('/api/ventas/${creada.id}/lineas', datos: linea.aJson());
+      encolable: true,
+    );
+    if (respuesta is Encolado) {
+      return ResultadoDeCobro(origenOfflineId: origenOfflineId);
     }
-    await _http.post('/api/ventas/${creada.id}/confirmacion');
-    return creada;
+    return ResultadoDeCobro(
+      origenOfflineId: origenOfflineId,
+      venta: VentaCreada.desdeJson(respuesta as Map<String, dynamic>),
+    );
   }
 }
