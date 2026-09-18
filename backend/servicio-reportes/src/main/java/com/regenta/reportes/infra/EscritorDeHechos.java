@@ -67,4 +67,17 @@ public class EscritorDeHechos {
                 negocioId, fechaId, ocurridoEn, sucursalSk, clienteSk, reservaId, tipoRecursoId, recursoId,
                 estadoFinal, noches, montoNeto, consumos, penalizacion, adr);
     }
+
+    /** HU-098 criterio 3: una fila por movimiento de inventario, para calcular rotación. */
+    public void insertarInventario(UUID negocioId, int fechaId, OffsetDateTime ocurridoEn, Long productoSk,
+            UUID bodegaId, String tipoMovimiento, BigDecimal cantidad, BigDecimal valor,
+            BigDecimal saldoPosterior) {
+        jdbc.update("""
+                INSERT INTO reportes.hechos_inventario (negocio_id, fecha_id, ocurrido_en, producto_sk,
+                    bodega_id, tipo_movimiento, cantidad, valor, saldo_posterior)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                negocioId, fechaId, ocurridoEn, productoSk, bodegaId, tipoMovimiento, cantidad, valor,
+                saldoPosterior);
+    }
 }
