@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.regenta.facturacion.domain.FormaPago;
 import com.regenta.facturacion.domain.LineaFacturable;
 import com.regenta.facturacion.domain.LineaFacturable.ImpuestoFacturable;
@@ -14,8 +15,8 @@ import com.regenta.facturacion.domain.LineaFacturable.ImpuestoFacturable;
 /**
  * Lo que Facturación necesita de un evento de cierre para emitir. Se lee del
  * payload con tolerancia: distintos emisores nombran el id del origen
- * {@code origen_id}, {@code venta_id}, {@code estancia_id} o {@code pedido_id}, y
- * los importes pueden venir como número o como texto.
+ * {@code origen_id}, {@code venta_id}, {@code estancia_id}, {@code pedido_id} o
+ * {@code comanda_id}, y los importes pueden venir como número o como texto.
  */
 public record SolicitudDeFacturaDesdeEvento(
         UUID negocioId,
@@ -33,11 +34,17 @@ public record SolicitudDeFacturaDesdeEvento(
         Map<String, Object> cliente,
         List<LineaFacturable> lineas) {
 
+    /** Solo para releer un snapshot que llegó como texto; no configura nada. */
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     @SuppressWarnings("unchecked")
     public static SolicitudDeFacturaDesdeEvento desde(Map<String, Object> p) {
         return new SolicitudDeFacturaDesdeEvento(
                 uuid(p.get("negocio_id")),
-                uuid(primero(p, "origen_id", "venta_id", "estancia_id", "pedido_id")),
+                // comanda_id es la clave que publica servicio-comandas en
+                // pedido_completado; sin ella, una comanda cerrada nunca
+                // llegaba a facturarse.
+                uuid(primero(p, "origen_id", "venta_id", "estancia_id", "pedido_id", "comanda_id")),
                 texto(primero(p, "numero_origen", "numero")),
                 uuid(p.get("sucursal_id")),
                 uuid(p.get("cliente_id")),
@@ -48,7 +55,7 @@ public record SolicitudDeFacturaDesdeEvento(
                 fecha(p.get("fecha_vencimiento")),
                 decimal(p.get("propina")),
                 mapa(p.get("emisor")),
-                mapa(primero(p, "cliente", "adquiriente")),
+                mapa(primero(p, "cliente", "adquiriente", "cliente_snapshot")),
                 lineas((List<Object>) p.get("lineas")));
     }
 
@@ -118,7 +125,23 @@ public record SolicitudDeFacturaDesdeEvento(
     }
 
     @SuppressWarnings("unchecked")
+    /**
+     * El snapshot del cliente se guarda como JSONB en el servicio de origen, y
+     * segun quien lo publique puede llegar como objeto o como el texto JSON sin
+     * parsear. Se aceptan los dos: perder el adquiriente de una factura por una
+     * comilla es el peor final posible, y el fallo seria silencioso.
+     */
     private static Map<String, Object> mapa(Object v) {
-        return v instanceof Map ? (Map<String, Object>) v : Map.of();
+        if (v instanceof Map) {
+            return (Map<String, Object>) v;
+        }
+        if (v instanceof String texto && !texto.isBlank()) {
+            try {
+                return JSON.readValue(texto, Map.class);
+            } catch (Exception noEsJson) {
+                return Map.of();
+            }
+        }
+        return Map.of();
     }
 }

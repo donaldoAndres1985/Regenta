@@ -43,10 +43,12 @@ public class GestionDeFacturas {
     private final TransmisionesLog transmisiones;
     private final EnviadorDeCorreo correo;
     private final RegistroDeEventos eventos;
+    private final AdquirienteGenerico adquirienteGenerico;
 
     public GestionDeFacturas(FacturaRepositorio facturas, FacturaLineaRepositorio lineas,
             FacturaImpuestoRepositorio impuestos, AsignadorDeConsecutivos asignador,
-            TransmisionesLog transmisiones, EnviadorDeCorreo correo, RegistroDeEventos eventos) {
+            TransmisionesLog transmisiones, EnviadorDeCorreo correo, RegistroDeEventos eventos,
+            AdquirienteGenerico adquirienteGenerico) {
         this.facturas = facturas;
         this.lineas = lineas;
         this.impuestos = impuestos;
@@ -54,6 +56,20 @@ public class GestionDeFacturas {
         this.transmisiones = transmisiones;
         this.correo = correo;
         this.eventos = eventos;
+        this.adquirienteGenerico = adquirienteGenerico;
+    }
+
+    /**
+     * ClienteVenta.md R8: la venta que fue a consumidor final se factura al
+     * adquiriente genérico de la DIAN. No es un cliente y no está en
+     * {@code crm.clientes}: es lo que el anexo técnico manda escribir cuando
+     * quien compra no se identifica. Sin esto la factura sale con el
+     * adquiriente vacío y la DIAN la rechaza.
+     */
+    private Map<String, Object> adquirienteDe(SolicitudDeFacturaDesdeEvento s) {
+        return s.cliente() == null || s.cliente().isEmpty()
+                ? adquirienteGenerico.snapshot()
+                : s.cliente();
     }
 
     /**
@@ -82,7 +98,7 @@ public class GestionDeFacturas {
 
         Factura factura = Factura.emitir(negocioId, s.sucursalId(), consecutivo.resolucionId(),
                 TipoDocumento.FACTURA_VENTA, consecutivo.prefijo(), consecutivo.numero(), origen,
-                s.origenId(), s.emisor(), s.cliente(), s.clienteId(), s.moneda(), s.tasaCambio(),
+                s.origenId(), s.emisor(), adquirienteDe(s), s.clienteId(), s.moneda(), s.tasaCambio(),
                 s.formaPago(), s.medioPagoCodigo(), s.fechaVencimiento(), s.propina(), s.lineas());
         try {
             facturas.save(factura);

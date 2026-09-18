@@ -12,6 +12,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.regenta.comun.errores.NoEncontradoException;
 import com.regenta.comun.eventos.RegistroDeEventos;
 import com.regenta.comun.negocio.ContextoDeNegocio;
@@ -45,13 +46,15 @@ public class SagaDeConfirmacionDeVenta {
     private final VentaLineaRepositorio lineas;
     private final SagaRepositorio sagas;
     private final RegistroDeEventos eventos;
+    private final ObjectMapper json;
 
     public SagaDeConfirmacionDeVenta(VentaRepositorio ventas, VentaLineaRepositorio lineas,
-            SagaRepositorio sagas, RegistroDeEventos eventos) {
+            SagaRepositorio sagas, RegistroDeEventos eventos, ObjectMapper json) {
         this.ventas = ventas;
         this.lineas = lineas;
         this.sagas = sagas;
         this.eventos = eventos;
+        this.json = json;
     }
 
     /** Criterio 1. */
@@ -182,13 +185,18 @@ public class SagaDeConfirmacionDeVenta {
      * {@code hechos_venta} tiene grano de línea, y Reportes no puede consultar
      * la base de Ventas para completarlo.
      */
-    private static Map<String, Object> payloadCompletada(Venta venta, List<VentaLinea> lineas) {
+    private Map<String, Object> payloadCompletada(Venta venta, List<VentaLinea> lineas) {
         Map<String, Object> datos = new LinkedHashMap<>();
         datos.put("negocio_id", venta.getNegocioId().toString());
         datos.put("venta_id", venta.getId().toString());
         datos.put("numero", venta.getNumero());
         datos.put("bodega_id", venta.getBodegaId().toString());
         datos.put("cliente_id", venta.getClienteId() == null ? null : venta.getClienteId().toString());
+        // ClienteVenta.md R9: Facturación no puede consultar esta base ni la de
+        // Clientes. Si el snapshot no viaja aquí, la factura sale sin
+        // adquiriente. Va el que la venta congeló (HU-113), no uno recién leído:
+        // lo que se facture tiene que ser lo que se vendió.
+        datos.put("cliente_snapshot", comoObjeto(venta.getClienteSnapshot()));
         datos.put("usuario_id", venta.getUsuarioId().toString());
         datos.put("canal", venta.getCanal());
         datos.put("fecha", venta.getFecha().toString());
@@ -209,6 +217,25 @@ public class SagaDeConfirmacionDeVenta {
         }
         datos.put("lineas", lineasPayload);
         return datos;
+    }
+
+    /**
+     * El snapshot se guarda como JSONB y Hibernate lo devuelve como texto. Va
+     * al evento como objeto, no como una cadena con comillas escapadas: quien
+     * lo consume lee campos, no vuelve a parsear.
+     */
+    private Map<String, Object> comoObjeto(String snapshot) {
+        if (snapshot == null || snapshot.isBlank()) {
+            return null;
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> mapa = json.readValue(snapshot, Map.class);
+            return mapa;
+        } catch (Exception noEsJson) {
+            // Antes de perder el adquiriente de la factura, que viaje como vino.
+            return Map.of("nombre", snapshot);
+        }
     }
 
     private Saga sagaPorCorrelacion(UUID correlacionId) {

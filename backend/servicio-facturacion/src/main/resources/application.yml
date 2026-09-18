@@ -37,6 +37,25 @@ spring:
     username: ${RABBIT_USER:regenta}
     password: ${RABBIT_PASSWORD:cambiar_en_local}
 
+regenta:
+  dian:
+    # ClienteVenta.md R8: con que se factura cuando quien compra no se
+    # identifica. No es un cliente: es lo que el anexo tecnico manda escribir
+    # en el XML. Va aqui y no en el codigo para que corregirlo no cueste un
+    # despliegue con migracion.
+    #
+    # SIN CONFIRMAR: la cantidad de doses del numero. Aqui van doce, que es lo
+    # que trae el anexo tecnico de factura electronica; los nueve son los del
+    # mundo POS y de los sistemas anteriores. Confirmar contra el anexo vigente
+    # ANTES de la primera emision real: si esta mal, la DIAN rechaza.
+    adquiriente-generico:
+      nombre: Consumidor final
+      tipo-documento: "13"
+      numero-documento: "222222222222"
+      tipo-organizacion: "2"
+      responsabilidad-fiscal: R-99-PN
+      pais: CO
+
 springdoc:
   api-docs:
     path: /v3/api-docs
