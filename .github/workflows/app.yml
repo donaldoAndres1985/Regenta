@@ -36,6 +36,15 @@ jobs:
           dart pub global activate melos 6.3.2
           echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
 
+      # `melos bootstrap` lanza un `flutter pub get` por paquete en paralelo, y
+      # los 14 hacen carrera inicializando el SDK la primera vez. El que pierde
+      # lee la version del engine vacia y pide
+      # `flutter_infra_release/flutter//engine_stamp.json` -con la doble barra-,
+      # que responde 404 y tumba el bootstrap entero. Con el SDK ya listo, no
+      # hay nada que inicializar y la carrera no existe.
+      - name: calentar el SDK
+        run: flutter --version
+
       - name: bootstrap
         run: melos bootstrap
 
