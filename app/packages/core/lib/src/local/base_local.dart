@@ -26,6 +26,9 @@ class OperacionesPendientes extends Table {
   DateTimeColumn get creadoEn => dateTime()();
   IntColumn get intentos => integer().withDefault(const Constant(0))();
   TextColumn get estado => text().withDefault(const Constant('PENDIENTE'))();
+  // HU-111 criterio 2: el trabajador de fondo espera hasta esta hora antes
+  // de reintentar (backoff exponencial), en vez de machacar la red cada pasada.
+  DateTimeColumn get proximoIntentoEn => dateTime().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -53,7 +56,7 @@ class BaseLocal extends _$BaseLocal {
       BaseLocal(driftDatabase(name: 'regenta_test', native: const DriftNativeOptions()));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -63,6 +66,9 @@ class BaseLocal extends _$BaseLocal {
           // aqui solo se tocan las tablas de catalogo y de meta.
           if (from < 2) {
             await m.addColumn(catalogos, catalogos.tipo);
+          }
+          if (from < 3) {
+            await m.addColumn(operacionesPendientes, operacionesPendientes.proximoIntentoEn);
           }
         },
         beforeOpen: (details) async {

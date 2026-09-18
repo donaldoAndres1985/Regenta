@@ -19,6 +19,33 @@ void main() {
 
     expect(ops.single.estado, 'PENDIENTE');
     expect(ops.single.intentos, 0);
+    expect(ops.single.proximoIntentoEn, null,
+        reason: 'sin reintentos todavia, no hay que esperar para el primero');
+  });
+
+  test('HU-111: al migrar de v2 a v3, la cola sobrevive y la columna nueva ya existe', () async {
+    final crudo = sqlite3.openInMemory();
+    crudo.execute('''
+      CREATE TABLE operaciones_pendientes (
+        id TEXT NOT NULL PRIMARY KEY, metodo TEXT NOT NULL, ruta TEXT NOT NULL,
+        cuerpo TEXT, creado_en INTEGER NOT NULL,
+        intentos INTEGER NOT NULL DEFAULT 0, estado TEXT NOT NULL DEFAULT 'PENDIENTE');
+      CREATE TABLE catalogos (
+        clave TEXT NOT NULL PRIMARY KEY, tipo TEXT NOT NULL DEFAULT 'generico',
+        contenido TEXT NOT NULL, actualizado_en INTEGER NOT NULL);
+      CREATE TABLE meta_local (clave TEXT NOT NULL PRIMARY KEY, valor TEXT NOT NULL);
+      INSERT INTO operaciones_pendientes (id, metodo, ruta, creado_en)
+        VALUES ('venta-sin-senal', 'POST', '/api/ventas', 0);
+      PRAGMA user_version = 2;
+    ''');
+
+    final db = BaseLocal(NativeDatabase.opened(crudo));
+    addTearDown(db.close);
+
+    final ops = await db.select(db.operacionesPendientes).get();
+    expect(ops.single.id, 'venta-sin-senal',
+        reason: 'la operacion encolada no se pierde al migrar a v3');
+    expect(ops.single.proximoIntentoEn, null);
   });
 
   test('criterio 3: al migrar el esquema, la cola de sincronizacion sobrevive', () async {
