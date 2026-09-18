@@ -44,11 +44,12 @@ public class GestionDeFacturas {
     private final EnviadorDeCorreo correo;
     private final RegistroDeEventos eventos;
     private final AdquirienteGenerico adquirienteGenerico;
+    private final EmisorDeNegocios emisores;
 
     public GestionDeFacturas(FacturaRepositorio facturas, FacturaLineaRepositorio lineas,
             FacturaImpuestoRepositorio impuestos, AsignadorDeConsecutivos asignador,
             TransmisionesLog transmisiones, EnviadorDeCorreo correo, RegistroDeEventos eventos,
-            AdquirienteGenerico adquirienteGenerico) {
+            AdquirienteGenerico adquirienteGenerico, EmisorDeNegocios emisores) {
         this.facturas = facturas;
         this.lineas = lineas;
         this.impuestos = impuestos;
@@ -57,6 +58,7 @@ public class GestionDeFacturas {
         this.correo = correo;
         this.eventos = eventos;
         this.adquirienteGenerico = adquirienteGenerico;
+        this.emisores = emisores;
     }
 
     /**
@@ -66,10 +68,18 @@ public class GestionDeFacturas {
      * quien compra no se identifica. Sin esto la factura sale con el
      * adquiriente vacío y la DIAN la rechaza.
      */
-    private Map<String, Object> adquirienteDe(SolicitudDeFacturaDesdeEvento s) {
-        return s.cliente() == null || s.cliente().isEmpty()
-                ? adquirienteGenerico.snapshot()
-                : s.cliente();
+    private Map<String, Object> adquirienteDe(SolicitudDeFacturaDesdeEvento s, UUID negocioId) {
+        if (s.cliente() != null && !s.cliente().isEmpty()) {
+            return s.cliente();
+        }
+        Map<String, Object> generico = adquirienteGenerico.snapshot();
+        // HU-115 criterio 5: el anexo tecnico pide que el municipio del
+        // adquiriente no identificado sea el del emisor.
+        String municipio = emisores.municipioDe(negocioId);
+        if (municipio != null) {
+            generico.put("ciudad", municipio);
+        }
+        return generico;
     }
 
     /**
@@ -94,11 +104,16 @@ public class GestionDeFacturas {
             return FacturaEmitida.de(yaEmitida);   // criterio 4: idempotente
         }
 
+        // HU-115 criterio 4: se valida ANTES de asignar. Un consecutivo gastado
+        // en una factura que no salió es un hueco en la numeración, y ese hueco
+        // hay que explicárselo a la DIAN.
+        Map<String, Object> emisor = emisores.snapshotDe(negocioId);
+
         var consecutivo = asignador.asignar(TipoDocumento.FACTURA_VENTA, s.sucursalId());
 
         Factura factura = Factura.emitir(negocioId, s.sucursalId(), consecutivo.resolucionId(),
                 TipoDocumento.FACTURA_VENTA, consecutivo.prefijo(), consecutivo.numero(), origen,
-                s.origenId(), s.emisor(), adquirienteDe(s), s.clienteId(), s.moneda(), s.tasaCambio(),
+                s.origenId(), emisor, adquirienteDe(s, negocioId), s.clienteId(), s.moneda(), s.tasaCambio(),
                 s.formaPago(), s.medioPagoCodigo(), s.fechaVencimiento(), s.propina(), s.lineas());
         try {
             facturas.save(factura);
