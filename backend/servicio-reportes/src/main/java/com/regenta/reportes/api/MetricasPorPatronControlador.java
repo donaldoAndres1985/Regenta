@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.comun.negocio.ContextoDeNegocio;
+import com.regenta.reportes.aplicacion.CancelacionesDelPeriodo;
 import com.regenta.reportes.aplicacion.MesasDelPeriodo;
 import com.regenta.reportes.aplicacion.MetricasDeComanda;
 import com.regenta.reportes.aplicacion.MetricasDeReserva;
@@ -48,7 +49,7 @@ public class MetricasPorPatronControlador {
             return List.of();
         }
         return switch (patron.toUpperCase(java.util.Locale.ROOT)) {
-            case "RESERVA" -> List.of("ocupacion");
+            case "RESERVA" -> List.of("ocupacion", "cancelaciones");
             case "COMANDA" -> List.of("mesas", "preparacion");
             default -> List.of();
         };
@@ -61,6 +62,15 @@ public class MetricasPorPatronControlador {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
         return reserva.ocupacion(desde, hasta);
+    }
+
+    @GetMapping("/cancelaciones")
+    @Operation(summary = "Tasa de cancelación y de no-show, y la penalización cobrada")
+    @ApiResponse(responseCode = "404", description = "El negocio no es del patrón Reserva")
+    public CancelacionesDelPeriodo cancelaciones(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        return reserva.cancelaciones(desde, hasta);
     }
 
     @GetMapping("/mesas")
