@@ -113,7 +113,10 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
             ),
         ],
       );
-      state = const EstadoDelPos().copiar(ventaNumero: venta.numero);
+      state = const EstadoDelPos().copiar(
+        ventaNumero: venta.quedoEnLaCola ? null : venta.venta!.numero,
+        ventaEnCola: venta.quedoEnLaCola,
+      );
     } on ErrorDeApi catch (e) {
       state = state.copiar(cobrando: false, mensaje: e.mensaje);
     }

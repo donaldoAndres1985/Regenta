@@ -21,14 +21,20 @@ class _RepoFake implements RepositorioDeVentas {
   @override
   Future<ProductoBuscado> verProducto(String productoId) async => resultados.first;
 
+  /// Cuando es true, el cobro simula que no había señal y la venta quedó en la cola.
+  bool sinSenal = false;
+
   @override
-  Future<VentaCreada> confirmarVenta({
+  Future<ResultadoDeCobro> confirmarVenta({
     required String bodegaId,
     required List<LineaParaEnviar> lineas,
     String? clienteId,
   }) async {
     ventasConfirmadas.add(lineas);
-    return const VentaCreada(id: 'v1', numero: 'FV-1');
+    return ResultadoDeCobro(
+      origenOfflineId: 'offline-1',
+      venta: sinSenal ? null : const VentaCreada(id: 'v1', numero: 'FV-1'),
+    );
   }
 }
 
@@ -145,5 +151,23 @@ void main() {
     expect(repo.ventasConfirmadas, hasLength(1));
     expect(repo.ventasConfirmadas.single.single.cantidad, 2);
     expect(cobrada, 'FV-1');
+  });
+
+  testWidgets('HU-043 criterio 1: sin señal, cobrar avisa que la venta quedó guardada',
+      (tester) async {
+    final repo = _RepoFake()..sinSenal = true;
+    String? cobrada;
+    await _montar(tester, repo, size: const Size(390, 844), onCobrada: (n) => cobrada = n);
+
+    await _agregar(tester, repo, _prod());
+    await tester.tap(find.widgetWithText(FilledButton, 'Cobrar'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(repo.ventasConfirmadas, hasLength(1), reason: 'la venta se cobró igual');
+    expect(cobrada, isNull, reason: 'todavía no tiene número: lo asigna el servidor al subir');
+    expect(find.textContaining('sube sola cuando vuelva la conexión'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Cobrar'), findsOneWidget,
+        reason: 'el carrito quedó limpio y la pantalla lista para la siguiente venta');
   });
 }

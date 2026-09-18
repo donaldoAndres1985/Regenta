@@ -12,6 +12,7 @@ class EstadoDelPos {
     this.cobrando = false,
     this.mensaje,
     this.ventaNumero,
+    this.ventaEnCola = false,
   });
 
   final List<LineaDeCarrito> lineas;
@@ -23,6 +24,10 @@ class EstadoDelPos {
 
   /// Número de la venta creada tras un cobro exitoso.
   final String? ventaNumero;
+
+  /// HU-043 criterio 1: se cobró sin señal. La venta quedó guardada en el
+  /// celular y sube sola; todavía no tiene número, que lo asigna el servidor.
+  final bool ventaEnCola;
 
   int get unidades => lineas.fold(0, (a, l) => a + l.cantidad);
   num get subtotal => lineas.fold<num>(0, (a, l) => a + l.subtotal);
@@ -42,6 +47,7 @@ class EstadoDelPos {
     bool? cobrando,
     Object? mensaje = _sinCambio,
     Object? ventaNumero = _sinCambio,
+    bool? ventaEnCola,
   }) =>
       EstadoDelPos(
         lineas: lineas ?? this.lineas,
@@ -52,6 +58,7 @@ class EstadoDelPos {
         mensaje: mensaje == _sinCambio ? this.mensaje : mensaje as String?,
         ventaNumero:
             ventaNumero == _sinCambio ? this.ventaNumero : ventaNumero as String?,
+        ventaEnCola: ventaEnCola ?? this.ventaEnCola,
       );
 
   static const _sinCambio = Object();

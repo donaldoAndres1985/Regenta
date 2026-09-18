@@ -14,8 +14,13 @@ dependencies:
     path: ../core
   flutter_riverpod: ^2.6.1
   mobile_scanner: ^5.2.3
+  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # La cola offline vive en la base local del núcleo: los tests de HU-043 la
+  # abren en memoria para comprobar qué quedó encolado.
+  dio: ^5.7.0
+  drift: ^2.20.0
