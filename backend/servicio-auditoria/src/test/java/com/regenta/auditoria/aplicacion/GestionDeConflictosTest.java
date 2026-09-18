@@ -27,6 +27,10 @@ class GestionDeConflictosTest extends BaseDeAuditoria {
     private final UUID usuario = UUID.randomUUID();
 
     private UUID conflictoDePrueba(UUID negocio) {
+        return conflictoDePrueba(negocio, "now()");
+    }
+
+    private UUID conflictoDePrueba(UUID negocio, String detectadoEnExpr) {
         UUID dispositivoId = UUID.randomUUID();
         UUID operacionId = UUID.randomUUID();
         UUID id = UUID.randomUUID();
@@ -45,8 +49,8 @@ class GestionDeConflictosTest extends BaseDeAuditoria {
                 insert into conflictos_sync (id, negocio_id, operacion_id, entidad_tipo, entidad_id, tipo,
                     version_servidor, version_cliente, datos_servidor, datos_cliente, detectado_en)
                 values ('%s', '%s', '%s', 'Venta', '%s', 'VERSION_DESACTUALIZADA', 5, 3,
-                    '{"total":90000}', '{"total":85000}', now())
-                """.formatted(id, negocio, operacionId, UUID.randomUUID()));
+                    '{"total":90000}', '{"total":85000}', %s)
+                """.formatted(id, negocio, operacionId, UUID.randomUUID(), detectadoEnExpr));
         return id;
     }
 
@@ -120,5 +124,34 @@ class GestionDeConflictosTest extends BaseDeAuditoria {
         List<ConflictoDetalle> filas =
                 enContexto(negocioB, null, VER_AUDITORIA, () -> gestion.pendientes());
         assertThat(filas).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Criterio 5: un conflicto que lleva más del umbral sin resolver publica conflicto_sync_vencido")
+    void barrerSinResolverPublicaLosVencidos() {
+        UUID viejo = conflictoDePrueba(negocio, "now() - interval '2 days'");
+        conflictoDePrueba(negocio, "now()"); // recién detectado: no debe alertar todavía
+
+        int publicados = enContexto(negocio, usuario, VER_AUDITORIA, () -> gestion.barrerSinResolver());
+
+        assertThat(publicados).isEqualTo(1);
+        assertThat(consultar("select tipo_evento from outbox_eventos where negocio_id = '" + negocio
+                + "' and tipo_evento = 'conflicto_sync_vencido'")).hasSize(1);
+        assertThat(consultar("select payload from outbox_eventos where negocio_id = '" + negocio
+                + "' and tipo_evento = 'conflicto_sync_vencido'").get(0)).contains(viejo.toString());
+    }
+
+    @Test
+    @DisplayName("Criterio 5: un conflicto ya resuelto no se vuelve a barrer aunque sea viejo")
+    void barrerSinResolverIgnoraLosResueltos() {
+        UUID viejo = conflictoDePrueba(negocio, "now() - interval '2 days'");
+        enContexto(negocio, usuario, VER_AUDITORIA, () -> {
+            gestion.resolver(viejo, "SERVIDOR_GANA");
+            return null;
+        });
+
+        int publicados = enContexto(negocio, usuario, VER_AUDITORIA, () -> gestion.barrerSinResolver());
+
+        assertThat(publicados).isZero();
     }
 }
