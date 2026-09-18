@@ -47,6 +47,7 @@ class OutboxConBrokerTest extends BaseConPostgres {
         r.add("spring.rabbitmq.port", RABBIT::getAmqpPort);
         r.add("spring.rabbitmq.username", RABBIT::getAdminUsername);
         r.add("spring.rabbitmq.password", RABBIT::getAdminPassword);
+        r.add("spring.application.name", () -> "servicio-ventas");
     }
 
     @Autowired
@@ -97,7 +98,10 @@ class OutboxConBrokerTest extends BaseConPostgres {
                 .isEqualTo(evento.getId().toString());
         assertThat(recibido.getMessageProperties().getHeaders())
                 .containsEntry("negocio_id", NEGOCIO.toString())
-                .containsEntry("tipo_evento", "venta_completada");
+                .containsEntry("tipo_evento", "venta_completada")
+                // HU-101: servicio-auditoria escucha todos los eventos y necesita saber de
+                // qué servicio vino cada uno, algo que ningún payload de negocio declara.
+                .containsEntry("servicio_origen", "servicio-ventas");
         assertThat(new String(recibido.getBody())).contains("1984920");
     }
 }
