@@ -4,16 +4,19 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.ventas.aplicacion.GestionDeAnulaciones;
+import com.regenta.ventas.aplicacion.GestionDeClienteDeLaVenta;
 import com.regenta.ventas.aplicacion.GestionDeVentaACredito;
 import com.regenta.ventas.aplicacion.GestionDeVentas;
 import com.regenta.ventas.aplicacion.LineaDeVenta;
@@ -36,12 +39,14 @@ public class VentasControlador {
     private final GestionDeVentas ventas;
     private final GestionDeAnulaciones anulaciones;
     private final GestionDeVentaACredito credito;
+    private final GestionDeClienteDeLaVenta clienteDeLaVenta;
 
     public VentasControlador(GestionDeVentas ventas, GestionDeAnulaciones anulaciones,
-            GestionDeVentaACredito credito) {
+            GestionDeVentaACredito credito, GestionDeClienteDeLaVenta clienteDeLaVenta) {
         this.ventas = ventas;
         this.anulaciones = anulaciones;
         this.credito = credito;
+        this.clienteDeLaVenta = clienteDeLaVenta;
     }
 
     @PostMapping("/{ventaId}/credito")
@@ -53,6 +58,22 @@ public class VentasControlador {
     public VentaDelNegocio confirmarACredito(@PathVariable UUID ventaId,
             @Valid @RequestBody SolicitudDeVentaACredito solicitud) {
         return credito.confirmarACredito(ventaId, solicitud);
+    }
+
+    @PutMapping("/{ventaId}/cliente")
+    @Operation(summary = "Asigna el cliente de la venta y congela su snapshot")
+    @ApiResponse(responseCode = "404", description = "Ese cliente no existe en este negocio")
+    @ApiResponse(responseCode = "409", description = "La venta ya no está en borrador")
+    public VentaDelNegocio asignarCliente(@PathVariable UUID ventaId,
+            @RequestBody ClienteDeLaSolicitud cuerpo) {
+        return clienteDeLaVenta.asignar(ventaId, cuerpo.clienteId());
+    }
+
+    @DeleteMapping("/{ventaId}/cliente")
+    @Operation(summary = "Vuelve la venta a consumidor final y limpia el crédito si lo había")
+    @ApiResponse(responseCode = "409", description = "La venta ya no está en borrador")
+    public VentaDelNegocio quitarCliente(@PathVariable UUID ventaId) {
+        return clienteDeLaVenta.quitar(ventaId);
     }
 
     @PostMapping
@@ -105,6 +126,10 @@ public class VentasControlador {
 
     /** Cuerpo del PATCH de cantidad. */
     public record CantidadNueva(BigDecimal cantidad) {
+    }
+
+    /** Cuerpo de la asignación de cliente. */
+    public record ClienteDeLaSolicitud(UUID clienteId) {
     }
 
     /** Cuerpo de la anulación. */

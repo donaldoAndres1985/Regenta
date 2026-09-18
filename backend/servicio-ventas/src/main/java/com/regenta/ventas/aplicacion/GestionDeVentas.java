@@ -133,7 +133,7 @@ public class GestionDeVentas {
                 .toList();
         return new VentaDelNegocio(v.getId(), v.getNumero(), v.getEstado(), v.getSubtotal(),
                 v.getDescuentoTotal(), v.getBaseGravable(), v.getImpuestoTotal(), v.getTotal(),
-                v.getCostoTotal(), dto);
+                v.getCostoTotal(), v.getClienteId(), v.getClienteSnapshot(), dto);
     }
 
     private static LineaDeVenta comoDtoLinea(VentaLinea l) {
