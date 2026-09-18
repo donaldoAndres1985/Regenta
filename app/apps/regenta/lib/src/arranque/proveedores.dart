@@ -40,6 +40,22 @@ final perfilComoNotifierProvider =
 final motorComoNotifierProvider =
     ChangeNotifierProvider<MotorDeSesion>((ref) => ref.watch(motorDeSesionProvider));
 
+/// La cola de salida de este dispositivo, para mirarla sin tocarla.
+final trabajadorDeSincronizacionProvider = Provider<TrabajadorDeSincronizacion>((ref) {
+  final dependencias = ref.watch(dependenciasProvider);
+  return TrabajadorDeSincronizacion(dio: dependencias.dio, db: dependencias.base);
+});
+
+/// Cuántas operaciones faltan por subir y cuántas chocaron (HU-120 criterio 3).
+///
+/// Una lectura puntual y no el `observar()` reactivo del trabajador: ese
+/// devuelve un stream de Drift que no termina nunca, y una pantalla que lo
+/// escucha no deja de reconstruirse —en un test, `pumpAndSettle` no vuelve—.
+/// Inicio es una pantalla que se abre, no un tablero en vivo; cuando exista la
+/// pantalla de sincronización, ahí sí vale la pena el stream.
+final resumenDeColaProvider = FutureProvider<ResumenDeCola>(
+    (ref) => ref.watch(trabajadorDeSincronizacionProvider).resumen());
+
 /// La bodega desde la que se vende.
 ///
 /// Debería salir de la sucursal activa de la sesión, y todavía no viaja en el
