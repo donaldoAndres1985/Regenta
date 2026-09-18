@@ -11,13 +11,38 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.6.1
+  dio: ^5.7.0
+  # La carcasa arma las dependencias de todos los modulos y se las pasa por el
+  # ProviderScope: es el unico sitio del monorepo que puede depender de todos.
+  # `tool/check_module_deps.dart` solo vigila packages/, no apps/.
   regenta_core:
     path: ../../packages/core
+  regenta_clientes:
+    path: ../../packages/clientes
+  regenta_comandas:
+    path: ../../packages/comandas
+  regenta_compras:
+    path: ../../packages/compras
+  regenta_facturacion:
+    path: ../../packages/facturacion
+  regenta_inventario:
+    path: ../../packages/inventario
+  regenta_mesas:
+    path: ../../packages/mesas
+  regenta_reportes:
+    path: ../../packages/reportes
+  regenta_reservas:
+    path: ../../packages/reservas
+  regenta_ventas:
+    path: ../../packages/ventas
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # El test de arranque abre la base local en memoria, como hacen los de core.
+  drift: ^2.20.0
 
 flutter:
   uses-material-design: true
