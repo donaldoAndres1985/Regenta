@@ -85,6 +85,25 @@ public class SagaDeConfirmacionDeVenta {
 
         eventos.registrar(saga.getNegocioId(), "Venta", venta.getId(), "venta_completada",
                 payloadCompletada(venta, lineas.findByVentaIdOrderByLinea(venta.getId())));
+
+        if (venta.esACredito()) {
+            // HU-040 criterio 3. Va aquí y no al marcar la venta a crédito: la
+            // cuenta por cobrar solo tiene sentido si la venta llegó a existir.
+            // Si el stock no alcanza y la saga compensa, nadie le debe nada a nadie.
+            eventos.registrar(saga.getNegocioId(), "Venta", venta.getId(), "venta_a_credito",
+                    payloadACredito(saga.getNegocioId(), venta));
+        }
+    }
+
+    private Map<String, Object> payloadACredito(UUID negocioId, Venta venta) {
+        Map<String, Object> datos = new LinkedHashMap<>();
+        datos.put("negocio_id", negocioId.toString());
+        datos.put("cliente_id", venta.getClienteId().toString());
+        datos.put("venta_id", venta.getId().toString());
+        datos.put("numero", venta.getNumero());
+        datos.put("monto", venta.getTotal());
+        datos.put("fecha_vencimiento", venta.getFechaVencimiento().toString());
+        return datos;
     }
 
     /** Criterio 3. */

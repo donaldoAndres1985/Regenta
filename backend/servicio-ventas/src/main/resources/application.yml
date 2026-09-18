@@ -37,6 +37,13 @@ spring:
     username: ${RABBIT_USER:regenta}
     password: ${RABBIT_PASSWORD:cambiar_en_local}
 
+regenta:
+  clientes:
+    # HU-040: el cupo y la cartera se preguntan a servicio-clientes al confirmar
+    # una venta a credito. Es una llamada sincrona a proposito: bloquea al
+    # vendedor porque la respuesta decide si la venta se puede hacer.
+    url: ${CLIENTES_URL:http://localhost:8082}
+
 springdoc:
   api-docs:
     path: /v3/api-docs
