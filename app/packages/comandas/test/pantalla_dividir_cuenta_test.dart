@@ -19,18 +19,22 @@ class _RepoComandasFake implements RepositorioDeComandas {
   Future<List<ItemDeCarta>> itemsDeCarta(String cartaId) async => const [];
 
   @override
+  Future<List<CategoriaDeCarta>> categoriasDeCarta(String cartaId) async => const [];
+
+  @override
   Future<List<GrupoModificadores>> gruposDeItem(String itemId) async => const [];
 
   @override
-  Future<ComandaVista> agregarLinea(String comandaId,
+  Future<ResultadoDeComanda> agregarLinea(String comandaId,
           {required String itemMenuId,
           required num cantidad,
           List<String> modificadorIds = const [],
           String? notas}) async =>
-      comandaFija;
+      ResultadoDeComanda.confirmado(comandaFija);
 
   @override
-  Future<ComandaVista> enviarACocina(String comandaId) async => comandaFija;
+  Future<ResultadoDeComanda> enviarACocina(String comandaId) async =>
+      ResultadoDeComanda.confirmado(comandaFija);
 
   @override
   Future<ComandaVista> avanzarLinea(String comandaId, String lineaId) async => comandaFija;
