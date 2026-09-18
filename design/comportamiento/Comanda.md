@@ -14,6 +14,7 @@
 | Microservicio | `servicio-comandas` |
 | Tablas | `comandas.comandas` · `comanda_lineas` · `comanda_linea_modificadores` · `menu.items_menu` · `modificadores` |
 | Historias | HU-078 (Modificadores con mínimos y máximos) · HU-085 (Abrir comanda y agregar líneas mientras el servicio avanza) · HU-086 (Ciclo de vida propio de cada línea) · HU-091 (Toma de comanda desde el celular del mesero) |
+| HU-091 | `design/pantallas/ComandaMovil.html` — ese mockup es la lista de líneas ya tomadas; la hoja de «Añadir» por categorías con botones grandes que pide HU-091 criterio 1 no tiene mockup propio, se resolvió al implementar (ver R12–R15) |
 
 Aquí está la diferencia real con una venta: cada línea tiene su propio ciclo de vida, y anular una ya enviada a cocina genera merma.
 
@@ -81,6 +82,42 @@ ajustan mientras la línea sigue `PENDIENTE`.
 **Dado** una comanda `EN_COCINA`, **cuando** su última línea viva pasa a `ENTREGADA`,
 **entonces** la comanda pasa a `SERVIDA`.
 
+### R12 · La carta se navega por categorías, con botones grandes (HU-091 criterio 1)
+**Dado** que abro «Añadir» en el celular, **cuando** la hoja carga, **entonces** veo pestañas
+de categoría (las que trae `GET /api/menu/cartas/{id}/menu`) y, debajo, una rejilla de
+tarjetas grandes —una por ítem, ≥ `RegentaSpacing.hitTarget` de alto— en vez del selector de
+lista de escritorio. Un ítem agotado (`disponible = false`) se ve apagado y no se puede
+tocar.
+
+### R13 · Un toque agrega; un ítem con modificadores pide antes de sumar (HU-091 criterios 1 y 2)
+**Dado** un ítem sin grupos de modificadores, **cuando** lo toco, **entonces** se agrega de
+una vez con cantidad 1, sin abrir nada más («un toque», criterio 1). **Dado** un ítem con al
+menos un grupo de modificadores, **cuando** lo toco, **entonces** se abre la hoja de
+modificadores —igual que en escritorio— y solo se agrega al confirmarla (criterio 2); un
+grupo obligatorio sin elegir la deja abierta con el 422 del backend, como ya hacía HU-085.
+Una pulsación larga sobre cualquier ítem abre esa misma hoja aunque no tenga modificadores,
+para quien quiera agregar una nota o más de una unidad sin dos viajes.
+
+### R14 · La nota viaja con la línea hasta cocina (HU-091 criterio 3)
+**Dado** que escribo una nota (p. ej. «sin cebolla») en la hoja de modificadores o de
+pulsación larga, **cuando** agrego la línea, **entonces** la nota queda en
+`comanda_lineas.notas` y se ve en la tarjeta KDS de esa línea (HU-088) y en el ticket físico.
+Sin conexión (R15), la nota viaja igual dentro de la operación encolada.
+
+### R15 · Sin señal, la toma sigue local y sube sola al reconectar (HU-091 criterio 4)
+**Dado** que agrego una línea o envío a cocina sin señal, **cuando** ocurre, **entonces** la
+operación se encola (`ClienteHttp` con `encolable: true`, la cola de HU-112) y la pantalla
+sigue mostrando la línea agregada —con un marcador local, no el id que asignará el
+servidor— y el aviso «Sin señal: la línea se guardó y subirá sola cuando vuelva.». Se puede
+seguir agregando líneas encoladas una tras otra. Al reconectar, la cola las sube en orden;
+la próxima vez que la pantalla recarga la comanda, ve los ids reales del servidor.
+
+### R16 · Enviar a cocina confirma antes de mandar (HU-091 criterio 5)
+**Dado** que toco «Enviar a cocina» (botón ≥ `RegentaSpacing.hitTarget`, del tamaño del
+pulgar), **cuando** lo toco, **entonces** aparece un diálogo «¿Enviar a cocina?» con
+«Cancelar»/«Enviar»; solo al confirmar se llama al backend (o se encola, R15). Tocar fuera o
+«Cancelar» no manda nada.
+
 ## Al abrir
 
 - Se llama `GET /api/comandas/{id}` una vez. Mientras responde, un spinner centrado.
@@ -105,14 +142,19 @@ ajustan mientras la línea sigue `PENDIENTE`.
 
 ## Sin conexión
 
-- HU-085 no encola: sin red, la comanda no carga y se ofrece «Reintentar». La toma offline
-  con cola de salida es HU-091.
+- **Cargar la comanda** (HU-085): no encola. Sin red, la comanda no carga y se ofrece
+  «Reintentar» — no hay nada que mostrar todavía.
+- **Agregar una línea o enviar a cocina** (HU-091 criterio 4, R15): sí encola. Ver R15.
 
 ## Móvil y web
 
 - **Un solo widget** que se adapta con `LayoutBuilder` en `kBreakpointEscritorio` (900 px).
 - Móvil: la lista de líneas ocupa la pantalla, la barra de total + acciones va fija abajo.
 - Web: el mismo layout, centrado y con ancho máximo.
+- **La hoja de «Añadir» sí se separa** (HU-091 R12): en escritorio sigue siendo el selector
+  de lista de HU-085 (se elige de una vez con teclado y mouse, no hace falta una rejilla de
+  botones grandes); en móvil es la rejilla por categorías de R12–R13. Las dos llaman al
+  mismo `ControladorDeComanda.agregarLinea`.
 
 ## Permisos
 
@@ -129,3 +171,6 @@ ajustan mientras la línea sigue `PENDIENTE`.
 - Que el total mostrado no cuadre con la suma de las líneas vivas.
 - Que un cambio de precio en la carta mueva una línea ya tomada.
 - Que se pueda agregar un ítem con un grupo obligatorio de modificadores sin resolverlo.
+- Que «Enviar a cocina» mande la petición sin pasar por el diálogo de confirmación (R16).
+- Que una línea encolada sin señal se pierda o se agregue dos veces al reconectar.
+- Que un ítem agotado se pueda tocar en la rejilla de la carta (R12).

@@ -45,14 +45,13 @@ class PantallaComanda extends ConsumerWidget {
         if (comanda == null) return const SizedBox.shrink();
 
         return LayoutBuilder(builder: (context, restricciones) {
-          final ancho = restricciones.maxWidth >= kBreakpointEscritorio ? 720.0 : double.infinity;
+          final esEscritorio = restricciones.maxWidth >= kBreakpointEscritorio;
+          final ancho = esEscritorio ? 720.0 : double.infinity;
           return Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: ancho),
               child: KeyedSubtree(
-                key: Key(restricciones.maxWidth >= kBreakpointEscritorio
-                    ? 'comanda-escritorio'
-                    : 'comanda-movil'),
+                key: Key(esEscritorio ? 'comanda-escritorio' : 'comanda-movil'),
                 child: Column(
                   children: [
                     _Encabezado(comanda: comanda),
@@ -67,8 +66,8 @@ class PantallaComanda extends ConsumerWidget {
                     _BarraInferior(
                       comanda: comanda,
                       puedeAnadir: cartaId != null,
-                      onAnadir: () => _abrirAnadir(context, ref),
-                      onEnviar: ctrl.enviarACocina,
+                      onAnadir: () => _abrirAnadir(context, ref, esEscritorio),
+                      onEnviar: () => _confirmarYEnviar(context, ctrl),
                     ),
                   ],
                 ),
@@ -94,30 +93,70 @@ class PantallaComanda extends ConsumerWidget {
     );
   }
 
-  Future<void> _abrirAnadir(BuildContext context, WidgetRef ref) async {
+  Future<void> _abrirAnadir(BuildContext context, WidgetRef ref, bool esEscritorio) async {
     final repo = ref.read(repositorioDeComandasProvider);
     final ctrl = ref.read(controladorDeComandaProvider(comandaId).notifier);
+    Future<String?> onAgregar({
+      required String itemMenuId,
+      required num cantidad,
+      required List<String> modificadorIds,
+      String? notas,
+      String? nombreItem,
+      num? precioItem,
+    }) =>
+        ctrl.agregarLinea(
+          itemMenuId: itemMenuId,
+          cantidad: cantidad,
+          modificadorIds: modificadorIds,
+          notas: notas,
+          nombreItem: nombreItem,
+          precioItem: precioItem,
+        );
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: RegentaColors.surface,
-      builder: (_) => _HojaAnadir(
-        cargarItems: () => repo.itemsDeCarta(cartaId!),
-        cargarGrupos: repo.gruposDeItem,
-        onAgregar: ({
-          required String itemMenuId,
-          required num cantidad,
-          required List<String> modificadorIds,
-          String? notas,
-        }) =>
-            ctrl.agregarLinea(
-              itemMenuId: itemMenuId,
-              cantidad: cantidad,
-              modificadorIds: modificadorIds,
-              notas: notas,
+      builder: (_) => esEscritorio
+          ? _HojaAnadir(
+              cargarItems: () => repo.itemsDeCarta(cartaId!),
+              cargarGrupos: repo.gruposDeItem,
+              onAgregar: onAgregar,
+            )
+          // HU-091 criterio 1: en móvil, la carta se navega por categorías con
+          // botones grandes, no con el selector de lista de escritorio.
+          : _HojaAnadirCategorias(
+              cargarCategorias: () => repo.categoriasDeCarta(cartaId!),
+              cargarGrupos: repo.gruposDeItem,
+              onAgregar: onAgregar,
             ),
+    );
+  }
+
+  /// HU-091 criterio 5: confirma antes de mandar; el botón ya mide al menos
+  /// el objetivo de toque (tema global).
+  Future<void> _confirmarYEnviar(BuildContext context, dynamic ctrl) async {
+    final confirmo = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Enviar a cocina?'),
+        content: const Text('Las líneas pendientes se enviarán a la cocina.'),
+        actions: [
+          TextButton(
+              key: const Key('enviar-cancelar'),
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar')),
+          FilledButton(
+            key: const Key('enviar-confirmar'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Enviar'),
+          ),
+        ],
       ),
     );
+    if (confirmo == true) {
+      await ctrl.enviarACocina();
+    }
   }
 }
 
@@ -476,6 +515,8 @@ typedef _AltaDeLinea = Future<String?> Function({
   required num cantidad,
   required List<String> modificadorIds,
   String? notas,
+  String? nombreItem,
+  num? precioItem,
 });
 
 class _HojaAnadir extends StatefulWidget {
@@ -549,6 +590,8 @@ class _HojaAnadirState extends State<_HojaAnadir> {
       cantidad: cant,
       modificadorIds: _mods.toList(),
       notas: _notas.text.trim().isEmpty ? null : _notas.text.trim(),
+      nombreItem: item.nombre,
+      precioItem: item.precio,
     );
     if (!mounted) return;
     if (err == null) {
@@ -646,6 +689,311 @@ class _HojaAnadirState extends State<_HojaAnadir> {
               child: const Text('Agregar línea'),
             ),
           ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// HU-091 criterio 1: en el celular, «Añadir» se navega por categorías con
+/// botones grandes en vez del selector de lista de escritorio.
+class _HojaAnadirCategorias extends StatefulWidget {
+  const _HojaAnadirCategorias({
+    required this.cargarCategorias,
+    required this.cargarGrupos,
+    required this.onAgregar,
+  });
+
+  final Future<List<CategoriaDeCarta>> Function() cargarCategorias;
+  final Future<List<GrupoModificadores>> Function(String itemId) cargarGrupos;
+  final _AltaDeLinea onAgregar;
+
+  @override
+  State<_HojaAnadirCategorias> createState() => _HojaAnadirCategoriasState();
+}
+
+class _HojaAnadirCategoriasState extends State<_HojaAnadirCategorias> {
+  List<CategoriaDeCarta> _categorias = const [];
+  int _activa = 0;
+  bool _cargando = true;
+  String? _aviso;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.cargarCategorias().then((cats) {
+      if (!mounted) return;
+      setState(() {
+        _categorias = cats;
+        _cargando = false;
+      });
+    });
+  }
+
+  /// Criterio 1: un ítem sin modificadores se agrega de un toque. Criterio 2:
+  /// uno con modificadores (o una pulsación larga, para agregar una nota)
+  /// abre la hoja de personalizar antes de sumarlo.
+  Future<void> _tocarItem(ItemDeCarta item, {required bool personalizar}) async {
+    final grupos = await widget.cargarGrupos(item.id);
+    if (!mounted) return;
+    if (!personalizar && grupos.isEmpty) {
+      final err = await widget.onAgregar(
+        itemMenuId: item.id,
+        cantidad: 1,
+        modificadorIds: const [],
+        notas: null,
+        nombreItem: item.nombre,
+        precioItem: item.precio,
+      );
+      if (!mounted) return;
+      setState(() => _aviso = err ?? '${item.nombre} agregada');
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: RegentaColors.surface,
+      builder: (_) => _HojaPersonalizarItem(item: item, grupos: grupos, onAgregar: widget.onAgregar),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_cargando) {
+      return const SizedBox(
+          height: 220, child: Center(child: CircularProgressIndicator()));
+    }
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: Text('Añadir a la comanda',
+                  style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
+            ),
+            if (_aviso != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                child: Text(_aviso!,
+                    key: const Key('anadir-aviso'),
+                    style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.ok)),
+              ),
+            if (_categorias.isEmpty)
+              Expanded(
+                child: Center(
+                    child: Text('La carta no tiene ítems',
+                        style: RegentaType.cuerpo.copyWith(color: RegentaColors.muted))),
+              )
+            else ...[
+              SizedBox(
+                height: 44,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: _categorias.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, i) => ChoiceChip(
+                    key: Key('anadir-categoria-$i'),
+                    label: Text(_categorias[i].nombre),
+                    selected: i == _activa,
+                    onSelected: (_) => setState(() => _activa = i),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 1.3,
+                  ),
+                  itemCount: _categorias[_activa].items.length,
+                  itemBuilder: (context, i) {
+                    final item = _categorias[_activa].items[i];
+                    return _TarjetaItemGrande(
+                      item: item,
+                      onTap: item.seVeApagado ? null : () => _tocarItem(item, personalizar: false),
+                      onLongPress:
+                          item.seVeApagado ? null : () => _tocarItem(item, personalizar: true),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TarjetaItemGrande extends StatelessWidget {
+  const _TarjetaItemGrande({required this.item, this.onTap, this.onLongPress});
+
+  final ItemDeCarta item;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final apagado = item.seVeApagado;
+    return InkWell(
+      key: Key('anadir-item-${item.id}'),
+      onTap: onTap,
+      onLongPress: onLongPress,
+      borderRadius: BorderRadius.circular(RegentaSpacing.radiusCard),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: RegentaSpacing.hitTarget),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: apagado ? RegentaColors.sunken : RegentaColors.surface,
+          border: Border.all(color: RegentaColors.line),
+          borderRadius: BorderRadius.circular(RegentaSpacing.radiusCard),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(item.nombre,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: RegentaType.item
+                    .copyWith(fontSize: 13.5, color: apagado ? RegentaColors.muted : RegentaColors.ink)),
+            Text(apagado ? 'Agotado' : pesos(item.precio),
+                style: RegentaType.codigo
+                    .copyWith(fontSize: 12, color: apagado ? RegentaColors.muted : RegentaColors.accent)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// La hoja de modificadores/cantidad/notas para un ítem ya elegido (HU-091
+/// criterios 2 y 3): la abre un ítem con modificadores, o una pulsación larga
+/// sobre cualquiera.
+class _HojaPersonalizarItem extends StatefulWidget {
+  const _HojaPersonalizarItem({required this.item, required this.grupos, required this.onAgregar});
+
+  final ItemDeCarta item;
+  final List<GrupoModificadores> grupos;
+  final _AltaDeLinea onAgregar;
+
+  @override
+  State<_HojaPersonalizarItem> createState() => _HojaPersonalizarItemState();
+}
+
+class _HojaPersonalizarItemState extends State<_HojaPersonalizarItem> {
+  final _cantidad = TextEditingController(text: '1');
+  final _notas = TextEditingController();
+  final Set<String> _mods = {};
+  bool _enviando = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _cantidad.dispose();
+    _notas.dispose();
+    super.dispose();
+  }
+
+  Future<void> _agregar() async {
+    final cant = num.tryParse(_cantidad.text.trim());
+    if (cant == null || cant <= 0) {
+      setState(() => _error = 'Elige una cantidad válida');
+      return;
+    }
+    setState(() {
+      _enviando = true;
+      _error = null;
+    });
+    final err = await widget.onAgregar(
+      itemMenuId: widget.item.id,
+      cantidad: cant,
+      modificadorIds: _mods.toList(),
+      notas: _notas.text.trim().isEmpty ? null : _notas.text.trim(),
+      nombreItem: widget.item.nombre,
+      precioItem: widget.item.precio,
+    );
+    if (!mounted) return;
+    if (err == null) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() {
+        _enviando = false;
+        _error = err;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 14, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(widget.item.nombre,
+                  style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
+              const SizedBox(height: 4),
+              Text(pesos(widget.item.precio),
+                  style: RegentaType.codigo.copyWith(color: RegentaColors.muted)),
+              for (final g in widget.grupos) ...[
+                const SizedBox(height: 10),
+                Text(g.obligatorio ? '${g.nombre} · obligatorio' : g.nombre,
+                    style: RegentaType.etiqueta.copyWith(fontSize: 9.5)),
+                for (final o in g.opciones)
+                  CheckboxListTile(
+                    key: Key('personalizar-mod-${o.id}'),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: _mods.contains(o.id),
+                    title: Text(
+                        o.precioExtra > 0 ? '${o.nombre}  +${pesos(o.precioExtra)}' : o.nombre),
+                    onChanged: (v) => setState(() {
+                      if (v == true) {
+                        _mods.add(o.id);
+                      } else {
+                        _mods.remove(o.id);
+                      }
+                    }),
+                  ),
+              ],
+              const SizedBox(height: 10),
+              TextField(
+                key: const Key('personalizar-cantidad'),
+                controller: _cantidad,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Cantidad'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                key: const Key('personalizar-notas'),
+                controller: _notas,
+                decoration: const InputDecoration(labelText: 'Notas (ej. sin cebolla)'),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(_error!,
+                    key: const Key('personalizar-error'),
+                    style: RegentaType.cuerpo.copyWith(color: RegentaColors.crit)),
+              ],
+              const SizedBox(height: 14),
+              FilledButton(
+                key: const Key('personalizar-guardar'),
+                onPressed: _enviando ? null : _agregar,
+                child: const Text('Agregar línea'),
+              ),
+            ],
           ),
         ),
       ),

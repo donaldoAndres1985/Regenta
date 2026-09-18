@@ -105,6 +105,7 @@ class ItemDeCarta {
     required this.nombre,
     required this.precio,
     required this.disponible,
+    this.pedible = true,
   });
 
   final String id;
@@ -112,12 +113,38 @@ class ItemDeCarta {
   final num precio;
   final bool disponible;
 
+  /// Un ítem puede estar `disponible` (se ve en la carta) pero no ser
+  /// `pedible` directamente (p. ej. un componente de un combo).
+  final bool pedible;
+
+  bool get seVeApagado => !disponible || !pedible;
+
   factory ItemDeCarta.desdeJson(Map<String, dynamic> json) => ItemDeCarta(
         id: json['id'] as String,
         nombre: (json['nombre'] ?? '') as String,
         precio: (json['precio'] as num?) ?? 0,
         disponible: (json['disponible'] as bool?) ?? true,
+        pedible: (json['pedible'] as bool?) ?? true,
       );
+}
+
+/// Una categoría de la carta con sus ítems (HU-091 criterio 1): la carta se
+/// navega por categorías, con botones grandes, en el celular del mesero.
+class CategoriaDeCarta {
+  const CategoriaDeCarta({required this.nombre, required this.items});
+
+  final String nombre;
+  final List<ItemDeCarta> items;
+
+  factory CategoriaDeCarta.desdeJson(Map<String, dynamic> json) {
+    final categoria = (json['categoria'] as Map?)?.cast<String, dynamic>() ?? const {};
+    return CategoriaDeCarta(
+      nombre: (categoria['nombre'] ?? 'Otros') as String,
+      items: (json['items'] as List<dynamic>? ?? const [])
+          .map((e) => ItemDeCarta.desdeJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+    );
+  }
 }
 
 /// Un grupo de modificadores de un ítem, con sus opciones.

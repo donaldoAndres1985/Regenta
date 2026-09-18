@@ -11,9 +11,12 @@ class _RepoFake implements RepositorioDeComandas {
   ComandaVista _comanda;
   List<ItemDeCarta> items;
   List<GrupoModificadores> grupos;
+  List<CategoriaDeCarta> categorias = const [];
   ErrorDeApi? errorAlAgregar;
+  bool encolarAgregar = false;
+  bool encolarEnvio = false;
   int llamadasAComanda = 0;
-  final List<({String itemId, num cantidad, List<String> mods})> agregadas = [];
+  final List<({String itemId, num cantidad, List<String> mods, String? notas})> agregadas = [];
   final List<String> avanzadas = [];
 
   static ComandaVista _comandaVacia() => const ComandaVista(
@@ -38,10 +41,14 @@ class _RepoFake implements RepositorioDeComandas {
   Future<List<ItemDeCarta>> itemsDeCarta(String cartaId) async => items;
 
   @override
+  Future<List<CategoriaDeCarta>> categoriasDeCarta(String cartaId) async =>
+      categorias.isNotEmpty ? categorias : [CategoriaDeCarta(nombre: 'Todos', items: items)];
+
+  @override
   Future<List<GrupoModificadores>> gruposDeItem(String itemId) async => grupos;
 
   @override
-  Future<ComandaVista> agregarLinea(
+  Future<ResultadoDeComanda> agregarLinea(
     String comandaId, {
     required String itemMenuId,
     required num cantidad,
@@ -49,7 +56,8 @@ class _RepoFake implements RepositorioDeComandas {
     String? notas,
   }) async {
     if (errorAlAgregar != null) throw errorAlAgregar!;
-    agregadas.add((itemId: itemMenuId, cantidad: cantidad, mods: modificadorIds));
+    if (encolarAgregar) return const ResultadoDeComanda.encolado();
+    agregadas.add((itemId: itemMenuId, cantidad: cantidad, mods: modificadorIds, notas: notas));
     final item = items.firstWhere((i) => i.id == itemMenuId);
     final nueva = LineaVista(
       id: 'l${_comanda.lineas.length + 1}',
@@ -76,11 +84,12 @@ class _RepoFake implements RepositorioDeComandas {
       total: total,
       lineas: lineas,
     );
-    return _comanda;
+    return ResultadoDeComanda.confirmado(_comanda);
   }
 
   @override
-  Future<ComandaVista> enviarACocina(String comandaId) async {
+  Future<ResultadoDeComanda> enviarACocina(String comandaId) async {
+    if (encolarEnvio) return const ResultadoDeComanda.encolado();
     _comanda = ComandaVista(
       id: _comanda.id,
       numero: _comanda.numero,
@@ -95,7 +104,7 @@ class _RepoFake implements RepositorioDeComandas {
           l.estado == 'PENDIENTE' ? _conEstado(l, 'ENVIADA') : l,
       ],
     );
-    return _comanda;
+    return ResultadoDeComanda.confirmado(_comanda);
   }
 
   @override
@@ -147,8 +156,12 @@ Future<void> _montar(WidgetTester tester, _RepoFake repo,
   await tester.pumpAndSettle();
 }
 
+/// Ejercita el selector de lista de escritorio (HU-091 R12: en móvil «Añadir»
+/// es la rejilla por categorías, ver `_HojaAnadirCategorias` más abajo).
 Future<void> _abrirYAgregar(WidgetTester tester, String itemId,
     {String cantidad = '2'}) async {
+  await tester.binding.setSurfaceSize(const Size(1280, 900));
+  await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('comanda-anadir')));
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('anadir-item')));
@@ -188,6 +201,8 @@ void main() {
 
     await tester.tap(find.byKey(const Key('comanda-enviar')));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('enviar-confirmar'))); // HU-091 criterio 5
+    await tester.pumpAndSettle();
     expect(find.descendant(
             of: find.byKey(const Key('comanda-estado')), matching: find.text('EN COCINA')),
         findsOneWidget);
@@ -207,7 +222,7 @@ void main() {
       ..errorAlAgregar = const ErroresDeValidacion({
         'modificadorIds': ['Falta elegir en un grupo obligatorio de modificadores'],
       });
-    await _montar(tester, repo);
+    await _montar(tester, repo, size: const Size(1280, 900)); // selector de escritorio
 
     await tester.tap(find.byKey(const Key('comanda-anadir')));
     await tester.pumpAndSettle();
@@ -233,7 +248,7 @@ void main() {
         ]),
       ],
     );
-    await _montar(tester, repo);
+    await _montar(tester, repo, size: const Size(1280, 900)); // selector de escritorio
 
     await tester.tap(find.byKey(const Key('comanda-anadir')));
     await tester.pumpAndSettle();
@@ -266,6 +281,118 @@ void main() {
     await _montar(tester, repo, cartaId: null);
     final boton = tester.widget<OutlinedButton>(find.byKey(const Key('comanda-anadir')));
     expect(boton.onPressed, isNull);
+  });
+
+  // ---- HU-091 ----
+
+  testWidgets('Criterio 5: cancelar el diálogo no envía a cocina', (tester) async {
+    final repo = _RepoFake(items: [_it('bandeja', 'Bandeja paisa', 32000)]);
+    await _montar(tester, repo);
+    await _abrirYAgregar(tester, 'bandeja', cantidad: '1');
+
+    await tester.tap(find.byKey(const Key('comanda-enviar')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('enviar-cancelar')));
+    await tester.pumpAndSettle();
+
+    expect(find.descendant(
+            of: find.byKey(const Key('linea-l1')), matching: find.text('PENDIENTE')),
+        findsOneWidget);
+  });
+
+  testWidgets('Criterio 1: en el celular, un ítem sin modificadores se agrega de un toque',
+      (tester) async {
+    final repo = _RepoFake(items: [_it('bandeja', 'Bandeja paisa', 32000)]);
+    await _montar(tester, repo); // 390x844 por defecto
+
+    await tester.tap(find.byKey(const Key('comanda-anadir')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('anadir-categoria-0')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('anadir-item-bandeja')));
+    await tester.pumpAndSettle();
+
+    final agregada = repo.agregadas.single;
+    expect(agregada.itemId, 'bandeja');
+    expect(agregada.cantidad, 1);
+    expect(agregada.mods, isEmpty);
+    expect(agregada.notas, isNull);
+    expect(find.byKey(const Key('anadir-aviso')), findsOneWidget);
+  });
+
+  testWidgets('Criterio 2: un ítem con modificadores pide antes de sumarlo', (tester) async {
+    final repo = _RepoFake(
+      items: [_it('bandeja', 'Bandeja paisa', 32000)],
+      grupos: [
+        const GrupoModificadores(id: 'g1', nombre: 'Término', min: 1, max: 1, opciones: [
+          OpcionModificador(id: 'm1', nombre: 'Término medio', precioExtra: 0),
+        ]),
+      ],
+    );
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('comanda-anadir')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('anadir-item-bandeja')));
+    await tester.pumpAndSettle();
+
+    expect(repo.agregadas, isEmpty); // no se agregó de un toque: hay modificadores
+    expect(find.byKey(const Key('personalizar-guardar')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('personalizar-mod-m1')));
+    await tester.tap(find.byKey(const Key('personalizar-guardar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.agregadas.single.mods, ['m1']);
+  });
+
+  testWidgets('Criterio 3: una pulsación larga permite agregar una nota que viaja con la línea',
+      (tester) async {
+    final repo = _RepoFake(items: [_it('bandeja', 'Bandeja paisa', 32000)]);
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('comanda-anadir')));
+    await tester.pumpAndSettle();
+    await tester.longPress(find.byKey(const Key('anadir-item-bandeja')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('personalizar-notas')), 'sin cebolla');
+    await tester.tap(find.byKey(const Key('personalizar-guardar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.agregadas.single.notas, 'sin cebolla');
+  });
+
+  testWidgets('Criterio 4: sin señal, agregar queda encolado y la línea se ve local',
+      (tester) async {
+    final repo = _RepoFake(items: [_it('bandeja', 'Bandeja paisa', 32000)])
+      ..encolarAgregar = true;
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('comanda-anadir')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('anadir-item-bandeja')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('linea-local-1')), findsOneWidget);
+    expect(find.textContaining('Sin señal'), findsOneWidget);
+  });
+
+  testWidgets('Criterio 4: sin señal, enviar a cocina queda encolado y las líneas se ven ENVIADA',
+      (tester) async {
+    final repo = _RepoFake(items: [_it('bandeja', 'Bandeja paisa', 32000)]);
+    await _montar(tester, repo);
+    await _abrirYAgregar(tester, 'bandeja', cantidad: '1');
+    repo.encolarEnvio = true;
+
+    await tester.tap(find.byKey(const Key('comanda-enviar')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('enviar-confirmar')));
+    await tester.pumpAndSettle();
+
+    expect(find.descendant(
+            of: find.byKey(const Key('linea-l1')), matching: find.text('ENVIADA')),
+        findsOneWidget);
+    expect(find.textContaining('Sin señal'), findsOneWidget);
   });
 
   // ---- HU-086 ----
