@@ -15,6 +15,9 @@ dependencies:
   flutter_riverpod: ^2.6.1
   mobile_scanner: ^5.2.3
   uuid: ^4.5.1
+  # HU-113: el selector de cliente busca contra la copia local cuando no hay
+  # red. La base es la del nucleo; drift es para consultarla.
+  drift: ^2.20.0
 
 dev_dependencies:
   flutter_test:
@@ -23,4 +26,3 @@ dev_dependencies:
   # La cola offline vive en la base local del núcleo: los tests de HU-043 la
   # abren en memoria para comprobar qué quedó encolado.
   dio: ^5.7.0
-  drift: ^2.20.0

@@ -1,3 +1,4 @@
+import '../datos/cliente_de_la_venta.dart';
 import '../datos/producto_buscado.dart';
 import 'linea_de_carrito.dart';
 
@@ -13,6 +14,7 @@ class EstadoDelPos {
     this.mensaje,
     this.ventaNumero,
     this.ventaEnCola = false,
+    this.cliente,
   });
 
   final List<LineaDeCarrito> lineas;
@@ -28,6 +30,10 @@ class EstadoDelPos {
   /// HU-043 criterio 1: se cobró sin señal. La venta quedó guardada en el
   /// celular y sube sola; todavía no tiene número, que lo asigna el servidor.
   final bool ventaEnCola;
+
+  /// HU-113: quien compra. `null` es consumidor final, que es como nace toda
+  /// venta y es el camino que más se usa en mostrador.
+  final ClienteDeLaVenta? cliente;
 
   int get unidades => lineas.fold(0, (a, l) => a + l.cantidad);
   num get subtotal => lineas.fold<num>(0, (a, l) => a + l.subtotal);
@@ -48,6 +54,7 @@ class EstadoDelPos {
     Object? mensaje = _sinCambio,
     Object? ventaNumero = _sinCambio,
     bool? ventaEnCola,
+    Object? cliente = _sinCambio,
   }) =>
       EstadoDelPos(
         lineas: lineas ?? this.lineas,
@@ -59,6 +66,7 @@ class EstadoDelPos {
         ventaNumero:
             ventaNumero == _sinCambio ? this.ventaNumero : ventaNumero as String?,
         ventaEnCola: ventaEnCola ?? this.ventaEnCola,
+        cliente: cliente == _sinCambio ? this.cliente : cliente as ClienteDeLaVenta?,
       );
 
   static const _sinCambio = Object();

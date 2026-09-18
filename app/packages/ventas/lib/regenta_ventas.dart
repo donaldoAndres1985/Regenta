@@ -4,7 +4,12 @@ library;
 
 import 'package:regenta_core/regenta_core.dart';
 
+export 'src/cliente/controlador_de_cliente.dart';
+export 'src/cliente/estado_de_cliente.dart';
+export 'src/cliente/proveedores.dart';
+export 'src/datos/cliente_de_la_venta.dart';
 export 'src/datos/producto_buscado.dart';
+export 'src/datos/repositorio_de_clientes_de_venta.dart';
 export 'src/datos/repositorio_de_ventas.dart';
 export 'src/escaner/escaner_de_codigos.dart';
 export 'src/escaner/escaner_mobile_scanner.dart';
@@ -13,6 +18,7 @@ export 'src/pos/estado_del_pos.dart';
 export 'src/pos/linea_de_carrito.dart';
 export 'src/pos/proveedores.dart';
 export 'src/ui/formato.dart';
+export 'src/ui/pantalla_cliente_de_venta.dart';
 export 'src/ui/pantalla_pos.dart';
 
 /// Nombre del modulo, para el registro de paquetes activos por patron/plan.

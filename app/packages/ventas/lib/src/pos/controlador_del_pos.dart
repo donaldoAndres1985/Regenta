@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
+import '../datos/cliente_de_la_venta.dart';
 import '../datos/producto_buscado.dart';
 import '../datos/repositorio_de_ventas.dart';
 import 'estado_del_pos.dart';
@@ -94,6 +95,11 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
 
   void vaciar() => state = state.copiar(lineas: const [], mensaje: null);
 
+  /// HU-113: el selector devuelve a quién se le está vendiendo, o `null` si
+  /// volvió a consumidor final.
+  void fijarCliente(ClienteDeLaVenta? cliente) =>
+      state = state.copiar(cliente: cliente);
+
   Future<void> cobrar() async {
     if (!state.puedeCobrar) return;
     state = state.copiar(cobrando: true, mensaje: null);
@@ -112,6 +118,7 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
               costoUnitario: l.producto.costoUnitario,
             ),
         ],
+        clienteId: state.cliente?.id,
       );
       state = const EstadoDelPos().copiar(
         ventaNumero: venta.quedoEnLaCola ? null : venta.venta!.numero,

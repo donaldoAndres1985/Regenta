@@ -294,31 +294,54 @@ class _Carrito extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       children: [
         const SizedBox(height: 10),
-        InkWell(
-          onTap: onAgregarCliente,
-          child: Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 11),
-            decoration: BoxDecoration(
-              color: RegentaColors.paper,
-              borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-              border: Border.all(color: RegentaColors.line2),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.person_outline, size: 17, color: RegentaColors.faint),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text('Consumidor final',
-                      style: RegentaType.cuerpo
-                          .copyWith(fontSize: 13.5, color: RegentaColors.ink2)),
-                ),
-                Text('Agregar cliente',
-                    style: RegentaType.cuerpo.copyWith(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: RegentaColors.accent)),
-              ],
+        Semantics(
+          button: true,
+          label: estado.cliente == null
+              ? 'Agregar cliente a la venta'
+              : 'Cambiar el cliente de la venta',
+          container: true,
+          excludeSemantics: true,
+          child: InkWell(
+            onTap: onAgregarCliente,
+            child: Container(
+              // HU-113: se toca de pie y con una mano, como todo lo demás.
+              constraints: const BoxConstraints(minHeight: RegentaSpacing.hitTarget),
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+              decoration: BoxDecoration(
+                color: RegentaColors.paper,
+                borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+                border: Border.all(color: RegentaColors.line2),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.person_outline, size: 17, color: RegentaColors.faint),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(estado.cliente?.nombre ?? 'Consumidor final',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: RegentaType.cuerpo.copyWith(
+                                fontSize: 13.5, color: RegentaColors.ink2)),
+                        if (estado.cliente != null)
+                          Text(estado.cliente!.documento,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: RegentaType.codigo.copyWith(
+                                  fontSize: 10.5, color: RegentaColors.muted)),
+                      ],
+                    ),
+                  ),
+                  Text(estado.cliente == null ? 'Agregar cliente' : 'Cambiar',
+                      style: RegentaType.cuerpo.copyWith(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: RegentaColors.accent)),
+                ],
+              ),
             ),
           ),
         ),
