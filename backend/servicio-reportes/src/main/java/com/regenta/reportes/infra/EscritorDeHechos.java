@@ -40,17 +40,18 @@ public class EscritorDeHechos {
 
     /** HU-096 criterio 4 (patrón Comanda): una fila de hecho por línea de pedido. */
     public void insertarComanda(UUID negocioId, int fechaId, OffsetDateTime ocurridoEn, Long sucursalSk,
-            Long usuarioSk, UUID comandaId, UUID itemMenuId, String itemNombre, BigDecimal cantidad,
-            BigDecimal montoNeto, BigDecimal costo, BigDecimal propina, Integer tiempoPreparacionMin,
-            Integer tiempoMesaMin) {
+            Long usuarioSk, UUID comandaId, UUID mesaId, Integer numComensales, UUID itemMenuId,
+            String itemNombre, BigDecimal cantidad, BigDecimal montoNeto, BigDecimal costo,
+            BigDecimal propina, Integer tiempoPreparacionMin, Integer tiempoMesaMin) {
         jdbc.update("""
                 INSERT INTO reportes.hechos_comanda (negocio_id, fecha_id, ocurrido_en, sucursal_sk, usuario_sk,
-                    comanda_id, item_menu_id, item_nombre, cantidad, monto_neto, costo, propina,
-                    tiempo_preparacion_min, tiempo_mesa_min)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    comanda_id, mesa_id, num_comensales, item_menu_id, item_nombre, cantidad, monto_neto,
+                    costo, propina, tiempo_preparacion_min, tiempo_mesa_min)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                negocioId, fechaId, ocurridoEn, sucursalSk, usuarioSk, comandaId, itemMenuId, itemNombre,
-                cantidad, montoNeto, costo, propina, tiempoPreparacionMin, tiempoMesaMin);
+                negocioId, fechaId, ocurridoEn, sucursalSk, usuarioSk, comandaId, mesaId, numComensales,
+                itemMenuId, itemNombre, cantidad, montoNeto, costo, propina, tiempoPreparacionMin,
+                tiempoMesaMin);
     }
 
     /** HU-096 criterio 4 (patrón Reserva): una fila de hecho por estancia cerrada. */
