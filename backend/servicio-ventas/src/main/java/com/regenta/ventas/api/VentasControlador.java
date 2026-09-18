@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.ventas.aplicacion.GestionDeAnulaciones;
+import com.regenta.ventas.aplicacion.GestionDeVentaACredito;
 import com.regenta.ventas.aplicacion.GestionDeVentas;
 import com.regenta.ventas.aplicacion.LineaDeVenta;
 import com.regenta.ventas.aplicacion.SolicitudDeLinea;
 import com.regenta.ventas.aplicacion.SolicitudDeVenta;
+import com.regenta.ventas.aplicacion.SolicitudDeVentaACredito;
 import com.regenta.ventas.aplicacion.VentaDelNegocio;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,10 +35,24 @@ public class VentasControlador {
 
     private final GestionDeVentas ventas;
     private final GestionDeAnulaciones anulaciones;
+    private final GestionDeVentaACredito credito;
 
-    public VentasControlador(GestionDeVentas ventas, GestionDeAnulaciones anulaciones) {
+    public VentasControlador(GestionDeVentas ventas, GestionDeAnulaciones anulaciones,
+            GestionDeVentaACredito credito) {
         this.ventas = ventas;
         this.anulaciones = anulaciones;
+        this.credito = credito;
+    }
+
+    @PostMapping("/{ventaId}/credito")
+    @Operation(summary = "Confirma la venta a plazo: valida el cupo del cliente y fija el vencimiento")
+    @ApiResponse(responseCode = "409",
+            description = "El cliente tiene cartera vencida: hace falta autorizar con autorizado=true")
+    @ApiResponse(responseCode = "422",
+            description = "Sin crédito habilitado, sin cliente, o la venta no cabe en el cupo")
+    public VentaDelNegocio confirmarACredito(@PathVariable UUID ventaId,
+            @Valid @RequestBody SolicitudDeVentaACredito solicitud) {
+        return credito.confirmarACredito(ventaId, solicitud);
     }
 
     @PostMapping

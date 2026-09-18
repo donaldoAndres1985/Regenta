@@ -242,6 +242,23 @@ public class Venta {
         }
     }
 
+    /** HU-040: la venta se va a plazo, con su saldo y su fecha de vencimiento. */
+    public void aCredito(java.time.LocalDate fechaVencimiento) {
+        registrarCobro(total, "CREDITO", fechaVencimiento);
+    }
+
+    public boolean esACredito() {
+        return "CREDITO".equals(formaPago);
+    }
+
+    /** Deja escrito algo que después hay que poder explicar; no pisa lo anterior. */
+    public void anotar(String linea) {
+        if (linea == null || linea.isBlank()) {
+            return;
+        }
+        this.nota = nota == null || nota.isBlank() ? linea : nota + "\n" + linea;
+    }
+
     /**
      * CONFIRMADA → ANULADA (HU-041). Nunca borra: la venta queda con su histórico
      * intacto y consta quién, cuándo y por qué. Una venta ya facturada
@@ -316,6 +333,10 @@ public class Venta {
 
     public OffsetDateTime getFecha() {
         return fecha;
+    }
+
+    public java.time.LocalDate getFechaVencimiento() {
+        return fechaVencimiento;
     }
 
     public BigDecimal getSaldoPendiente() {
