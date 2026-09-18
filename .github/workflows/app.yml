@@ -1,7 +1,12 @@
 name: app
 
 on:
+  # HU-129: push y pull_request a la vez hacian correr todo dos veces por cada
+  # cambio en una rama con PR abierto. El push queda solo para main —que no
+  # tiene pull_request propio y si no, no se valida— y pull_request cubre el
+  # resto de las ramas con una sola corrida.
   push:
+    branches: [main]
     paths:
       - "app/**"
       - ".github/workflows/app.yml"
@@ -45,8 +50,16 @@ jobs:
       - name: calentar el SDK
         run: flutter --version
 
+      # Criterio 3 de HU-129: "bajando metadatos de Flutter" es exactamente lo
+      # que tumbo el PR #215 con el codigo intacto. bootstrap es el paso que
+      # de verdad baja dependencias (un `pub get` por paquete); se reintenta
+      # solo, no el analyze/test de despues.
       - name: bootstrap
-        run: melos bootstrap
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: cd app && melos bootstrap
 
       # Criterio 3 de HU-002: ningun modulo depende de otro modulo.
       - name: dependencias entre modulos

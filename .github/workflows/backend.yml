@@ -1,7 +1,12 @@
 name: backend
 
 on:
+  # HU-129: push y pull_request a la vez hacian correr todo dos veces por cada
+  # cambio en una rama con PR abierto. El push queda solo para main —que no
+  # tiene pull_request propio y si no, no se valida— y pull_request cubre el
+  # resto de las ramas con una sola corrida.
   push:
+    branches: [main]
     paths:
       - "backend/**"
       - ".github/workflows/backend.yml"
@@ -27,6 +32,17 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: maven
+
+      # Criterio 3 de HU-129: un fallo transitorio bajando el .m2 no tumba el
+      # build. Separado de "mvnw test" para que el reintento sea solo de la
+      # descarga y una prueba que de verdad falla no se reintente disfrazando
+      # un bug de flaky.
+      - name: descargar dependencias
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: cd backend && ./mvnw -B --no-transfer-progress dependency:go-offline
 
       # ubuntu-latest ya trae Docker; Testcontainers levanta PostgreSQL 16 y
       # RabbitMQ contra los que corren los tests de integracion (HU-006, HU-008).
