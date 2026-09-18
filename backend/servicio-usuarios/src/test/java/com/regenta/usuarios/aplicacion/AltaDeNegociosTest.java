@@ -123,6 +123,24 @@ class AltaDeNegociosTest extends BaseDeUsuarios {
     }
 
     @Test
+    @DisplayName("HU-115: negocio_creado lleva la identidad fiscal, que es lo que va en la factura")
+    void elEventoLlevaLaIdentidadFiscal() {
+        String documento = documentoNuevo();
+
+        NegocioCreado creado = alta.registrar(
+                solicitud(documento, Patrones.VENTA_DIRECTA, "PROFESIONAL"));
+
+        String payload = consultar("select payload from outbox_eventos where negocio_id = '"
+                + creado.negocioId() + "'").get(0);
+        assertThat(payload)
+                .as("Facturacion no puede consultar esta base: si no viaja aqui, "
+                        + "la factura sale sin emisor")
+                .contains("\"numero_documento\": \"" + documento + "\"")
+                .contains("\"tipo_documento\"")
+                .contains("\"razon_social\"");
+    }
+
+    @Test
     @DisplayName("HU-012 criterio 1: queda un administrador con todos los permisos")
     void elPrimerUsuarioEsAdministradorConTodo() {
         NegocioCreado creado = alta.registrar(

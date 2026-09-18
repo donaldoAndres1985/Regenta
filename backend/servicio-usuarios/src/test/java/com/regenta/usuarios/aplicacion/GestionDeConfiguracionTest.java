@@ -72,6 +72,16 @@ class GestionDeConfiguracionTest extends BaseDeUsuarios {
         assertThat(consultar("select tipo_evento from outbox_eventos where negocio_id = '"
                 + negocio.negocioId() + "' order by creado_en"))
                 .contains("configuracion_negocio_actualizada");
+
+        // HU-115: Facturacion arma el emisor de la factura con este evento.
+        String payload = consultar("select payload from outbox_eventos where negocio_id = '"
+                + negocio.negocioId() + "' and tipo_evento = 'configuracion_negocio_actualizada'")
+                .get(0);
+        assertThat(payload)
+                .contains("\"razon_social\": \"La Esquina SAS\"")
+                .contains("\"numero_documento\"")
+                .contains("\"direccion\"")
+                .contains("\"ciudad\"");
     }
 
     @Test

@@ -216,6 +216,13 @@ public class AltaDeNegocios {
         datos.put("estado", negocio.getEstado());
         datos.put("pais", negocio.getPais());
         datos.put("moneda", negocio.getMoneda());
+        // HU-115: la identidad fiscal del emisor. servicio-facturacion no puede
+        // consultar esta base, y sin estos campos la factura sale con el
+        // emisor vacio, que la DIAN rechaza.
+        datos.put("razon_social", negocio.getRazonSocial());
+        datos.put("tipo_documento", negocio.getTipoDocumento());
+        datos.put("numero_documento", negocio.getNumeroDocumento());
+        datos.put("digito_verificacion", negocio.getDigitoVerificacion());
         // HU-097 criterio 3: servicio-reportes no consulta esta base, así que la
         // zona horaria del negocio viaja en el mismo evento con el que arma su
         // propio read model.
