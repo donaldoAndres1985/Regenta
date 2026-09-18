@@ -177,7 +177,7 @@ public class GestionDeClientes {
         }
     }
 
-    private static Map<String, Object> datos(UUID negocioId, Cliente cliente) {
+    static Map<String, Object> datos(UUID negocioId, Cliente cliente) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("negocio_id", negocioId.toString());
         payload.put("cliente_id", cliente.getId().toString());

@@ -31,7 +31,10 @@ public class ManejadorDeErrores {
 
     @ExceptionHandler(ErrorDeAplicacion.class)
     public ProblemDetail deAplicacion(ErrorDeAplicacion fallo, WebRequest peticion) {
-        return problema(fallo.getEstado(), fallo.getTitulo(), fallo.getMessage(), peticion);
+        ProblemDetail problema =
+                problema(fallo.getEstado(), fallo.getTitulo(), fallo.getMessage(), peticion);
+        fallo.getDatos().forEach(problema::setProperty);
+        return problema;
     }
 
     @ExceptionHandler(SinNegocioException.class)
