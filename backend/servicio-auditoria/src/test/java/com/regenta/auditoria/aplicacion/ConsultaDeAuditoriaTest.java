@@ -1,8 +1,10 @@
 package com.regenta.auditoria.aplicacion;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.regenta.auditoria.BaseDeAuditoria;
 import com.regenta.auditoria.infra.AuditorDeEventos;
+import com.regenta.comun.errores.SinPermisoException;
 
 /** HU-101 criterios 2 y 4. */
 class ConsultaDeAuditoriaTest extends BaseDeAuditoria {
@@ -50,6 +53,72 @@ class ConsultaDeAuditoriaTest extends BaseDeAuditoria {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private Message eventoDeEntidad(UUID negocio, UUID usuarioId, String agregadoTipo, UUID agregadoId) {
+        try {
+            MessageProperties props = new MessageProperties();
+            props.setMessageId(UUID.randomUUID().toString());
+            props.setReceivedRoutingKey("venta_completada");
+            props.setHeader("negocio_id", negocio.toString());
+            props.setHeader("agregado_tipo", agregadoTipo);
+            props.setHeader("agregado_id", agregadoId.toString());
+            props.setHeader("servicio_origen", "servicio-ventas");
+            Map<String, Object> payload = Map.of("negocio_id", negocio.toString(), "usuario_id",
+                    usuarioId.toString());
+            return MessageBuilder.withBody(json.writeValueAsBytes(payload)).andProperties(props).build();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    @DisplayName("HU-105 criterio 1: el historial de una venta trae cada cambio con autor y fecha")
+    void historialDeUnaEntidad() {
+        UUID venta = UUID.randomUUID();
+        UUID otraVenta = UUID.randomUUID();
+        UUID autor = UUID.randomUUID();
+        consumidor.recibir(eventoDeEntidad(negocio, autor, "Venta", venta));
+        consumidor.recibir(eventoDeEntidad(negocio, autor, "Venta", venta));
+        consumidor.recibir(eventoDeEntidad(negocio, autor, "Venta", otraVenta));
+
+        List<EventoDeAuditoria> filas =
+                enContexto(negocio, null, VER_AUDITORIA, () -> consulta.porEntidad("Venta", venta));
+
+        assertThat(filas).hasSize(2);
+        assertThat(filas).allSatisfy(fila -> {
+            assertThat(fila.usuarioId()).isEqualTo(autor);
+            assertThat(fila.ocurridoEn()).isNotNull();
+        });
+    }
+
+    @Test
+    @DisplayName("HU-105 criterio 2: la actividad de un usuario en un rango trae todo lo que hizo")
+    void actividadDeUnUsuario() {
+        UUID usuario = UUID.randomUUID();
+        UUID otroUsuario = UUID.randomUUID();
+        consumidor.recibir(eventoDeEntidad(negocio, usuario, "Venta", UUID.randomUUID()));
+        consumidor.recibir(eventoDeEntidad(negocio, usuario, "Cliente", UUID.randomUUID()));
+        consumidor.recibir(eventoDeEntidad(negocio, otroUsuario, "Venta", UUID.randomUUID()));
+
+        List<EventoDeAuditoria> filas = enContexto(negocio, null, VER_AUDITORIA, () -> consulta.porUsuario(
+                usuario, OffsetDateTime.now().minusDays(1), OffsetDateTime.now().plusDays(1)));
+
+        assertThat(filas).hasSize(2);
+        assertThat(filas).allSatisfy(fila -> assertThat(fila.usuarioId()).isEqualTo(usuario));
+    }
+
+    @Test
+    @DisplayName("HU-105 criterio 3: sin permiso de auditoría, consultar responde 403")
+    void sinPermisoResponde403() {
+        assertThatThrownBy(() -> enContexto(negocio, null, Set.of(),
+                () -> consulta.porEntidad("Venta", UUID.randomUUID())))
+                .isInstanceOf(SinPermisoException.class);
+
+        assertThatThrownBy(() -> enContexto(negocio, null, Set.of(),
+                () -> consulta.porUsuario(UUID.randomUUID(), OffsetDateTime.now().minusDays(1),
+                        OffsetDateTime.now())))
+                .isInstanceOf(SinPermisoException.class);
     }
 
     @Test
