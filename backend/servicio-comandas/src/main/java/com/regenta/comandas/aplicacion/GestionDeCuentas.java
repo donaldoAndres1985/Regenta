@@ -2,6 +2,8 @@ package com.regenta.comandas.aplicacion;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -202,6 +204,11 @@ public class GestionDeCuentas {
         publicarComandaCerrada(comanda);
     }
 
+    /**
+     * Lleva nombre, monto y costo por línea, y la propina y el tiempo de mesa a
+     * nivel de comanda (HU-096 criterio 4): {@code servicio-reportes} no puede
+     * consultar esta base para completar {@code hechos_comanda}.
+     */
     private void publicarPedidoCompletado(Comanda comanda, List<ComandaLinea> vivas) {
         Map<UUID, List<ComandaLineaModificador>> modsPorLinea = vivas.isEmpty()
                 ? Map.of()
@@ -210,15 +217,28 @@ public class GestionDeCuentas {
         List<Map<String, Object>> lineasPayload = vivas.stream().map(l -> {
             Map<String, Object> lm = new LinkedHashMap<>();
             lm.put("item_menu_id", l.getItemMenuId().toString());
+            lm.put("nombre", l.getNombreSnapshot());
             lm.put("cantidad", l.getCantidad());
+            lm.put("monto_neto", l.getTotal());
+            lm.put("costo", l.costoTotal());
+            lm.put("tiempo_preparacion_min", l.demoraPreparacionMin());
             lm.put("modificador_ids", modsPorLinea.getOrDefault(l.getId(), List.of()).stream()
                     .map(m -> m.getModificadorId().toString()).toList());
             return lm;
         }).toList();
 
+        BigDecimal propinaTotal = cuentas.findByComandaIdOrderByNumeroDivisionAsc(comanda.getId()).stream()
+                .map(Cuenta::getPropina).reduce(BigDecimal.ZERO, BigDecimal::add);
+        int tiempoMesaMin = (int) Duration.between(comanda.getAbiertaEn(), OffsetDateTime.now()).toMinutes();
+
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("negocio_id", comanda.getNegocioId().toString());
         payload.put("comanda_id", comanda.getId().toString());
+        payload.put("mesa_id", comanda.getMesaId() == null ? null : comanda.getMesaId().toString());
+        payload.put("usuario_id",
+                comanda.getMeseroUsuarioId() == null ? null : comanda.getMeseroUsuarioId().toString());
+        payload.put("propina", propinaTotal);
+        payload.put("tiempo_mesa_min", tiempoMesaMin);
         payload.put("lineas", lineasPayload);
         eventos.registrar(comanda.getNegocioId(), "Comanda", comanda.getId(), "pedido_completado", payload);
     }

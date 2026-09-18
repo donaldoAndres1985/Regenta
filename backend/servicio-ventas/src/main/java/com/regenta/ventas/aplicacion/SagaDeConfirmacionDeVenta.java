@@ -84,7 +84,7 @@ public class SagaDeConfirmacionDeVenta {
         ventas.save(venta);
 
         eventos.registrar(saga.getNegocioId(), "Venta", venta.getId(), "venta_completada",
-                payloadCompletada(venta));
+                payloadCompletada(venta, lineas.findByVentaIdOrderByLinea(venta.getId())));
     }
 
     /** Criterio 3. */
@@ -135,13 +135,37 @@ public class SagaDeConfirmacionDeVenta {
         return datos;
     }
 
-    private static Map<String, Object> payloadCompletada(Venta venta) {
+    /**
+     * El detalle de líneas viaja en el evento a propósito (HU-096 criterio 1):
+     * {@code hechos_venta} tiene grano de línea, y Reportes no puede consultar
+     * la base de Ventas para completarlo.
+     */
+    private static Map<String, Object> payloadCompletada(Venta venta, List<VentaLinea> lineas) {
         Map<String, Object> datos = new LinkedHashMap<>();
         datos.put("negocio_id", venta.getNegocioId().toString());
         datos.put("venta_id", venta.getId().toString());
         datos.put("numero", venta.getNumero());
         datos.put("bodega_id", venta.getBodegaId().toString());
+        datos.put("cliente_id", venta.getClienteId() == null ? null : venta.getClienteId().toString());
+        datos.put("usuario_id", venta.getUsuarioId().toString());
+        datos.put("canal", venta.getCanal());
+        datos.put("fecha", venta.getFecha().toString());
         datos.put("total", venta.getTotal());
+        List<Map<String, Object>> lineasPayload = new ArrayList<>();
+        for (VentaLinea l : lineas) {
+            Map<String, Object> lp = new LinkedHashMap<>();
+            lp.put("producto_id", l.getProductoId().toString());
+            lp.put("sku", l.getSkuSnapshot());
+            lp.put("nombre", l.getNombreSnapshot());
+            lp.put("cantidad", l.getCantidad());
+            lp.put("precio_unitario", l.getPrecioUnitario());
+            lp.put("descuento_valor", l.getDescuentoValor());
+            lp.put("impuesto_valor", l.getImpuestoValor());
+            lp.put("total", l.getTotal());
+            lp.put("costo_unitario", l.getCostoUnitarioSnapshot());
+            lineasPayload.add(lp);
+        }
+        datos.put("lineas", lineasPayload);
         return datos;
     }
 

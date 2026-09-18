@@ -112,8 +112,8 @@ class CierreDeComandaTest extends BaseDeComandas {
         enContexto(negocioA, mesero, MESERO, () -> comandas.enviarACocina(c));
         UUID cuentaId = cuentaConTodo(negocioA, c, l);
 
-        enContexto(negocioA, mesero, MESERO,
-                () -> cuentasSvc.registrarPago(c, cuentaId, new SolicitudDePago("EFECTIVO", null, null, null)));
+        enContexto(negocioA, mesero, MESERO, () -> cuentasSvc.registrarPago(c, cuentaId,
+                new SolicitudDePago("EFECTIVO", null, new BigDecimal("4700"), null)));
 
         assertThat(enContexto(negocioA, mesero, MESERO, () -> comandas.ver(c)).estado()).isEqualTo("CERRADA");
         assertThat(comoElServicio(negocioA, "select tipo_evento from outbox_eventos "
@@ -123,6 +123,14 @@ class CierreDeComandaTest extends BaseDeComandas {
                 + "where negocio_id = '" + negocioA + "' and agregado_id = '" + c
                 + "' and tipo_evento = 'comanda_cerrada'")).containsExactly("comanda_cerrada");
         assertThat(contar("select count(*) from pagos_comanda where comanda_id = '" + c + "'")).isEqualTo(1);
+
+        // HU-096 criterio 4: el detalle de línea y la propina viajan en el evento,
+        // porque servicio-reportes no puede consultar esta base para completarlos.
+        String payload = comoElServicio(negocioA, "select payload::text from outbox_eventos "
+                + "where negocio_id = '" + negocioA + "' and agregado_id = '" + c
+                + "' and tipo_evento = 'pedido_completado'").get(0);
+        assertThat(payload).contains("\"monto_neto\"").contains("Bandeja paisa")
+                .contains("\"propina\": 4700");
     }
 
     @Test
