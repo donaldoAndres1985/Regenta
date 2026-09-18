@@ -242,3 +242,35 @@ La reserva sobre un intervalo de tiempo, el check-in, los consumos y el cierre.
 - [ ] Revisada en PR por otra persona.
 
 ---
+
+### HU-118 · La estancia manda el snapshot del huésped al facturar
+
+**Como** recepcionista, **quiero** que la factura del check-out salga a nombre del huésped **para** no tener que corregirla después de emitida
+
+| | |
+|---|---|
+| Épica | `E09` · Reservas · transacción del patrón Reserva |
+| Puntos | 3 |
+| Microservicio | `servicio-reservas` |
+| Tablas | `reservas.reservas.cliente_id` · `facturacion.facturas.cliente_snapshot` |
+| Depende de | HU-074 (Check-out, liquidación y cierre de estancia) · HU-113 (Asignar un cliente a la venta) |
+| Etiquetas | `reservas` · `facturacion` · `backend` |
+
+> `estancia_finalizada` lleva `cliente_id` pero no los datos del cliente, y Facturación no puede
+> consultar la base de Clientes: hoy una estancia con huésped identificado se factura igual al
+> adquiriente genérico. Es la regla **R9** de `design/comportamiento/ClienteVenta.md` aplicada al
+> patrón Reserva, que Venta directa ya cumple.
+
+**Criterios de aceptación**
+
+1. Dada una reserva con cliente, cuando se hace el check-out, entonces `estancia_finalizada` lleva el snapshot con nombre, tipo y número de documento.
+2. Dado ese evento, cuando Facturación emite, entonces la factura sale a nombre del huésped y no del adquiriente genérico.
+3. Dada una reserva sin cliente, cuando se hace el check-out, entonces el evento va sin snapshot y la factura usa el genérico.
+4. Dada una estancia ya facturada, cuando después corrigen los datos del cliente en el CRM, entonces la factura conserva lo que decía.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados, con dos negocios cargados.
+- [ ] Revisada en PR por otra persona.
+
+---

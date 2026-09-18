@@ -208,3 +208,73 @@ El tema, la navegación, la sesión y la base offline que comparten todos los m�
 - [ ] Revisada en PR por otra persona.
 
 ---
+
+### HU-119 · Carcasa de la app: sesión, navegación y módulos del negocio
+
+**Como** usuario, **quiero** abrir Regenta, entrar con mi cuenta y ver los módulos de mi negocio **para** usar lo que está construido, que hoy no se puede abrir
+
+| | |
+|---|---|
+| Épica | `E16` · App Flutter · núcleo |
+| Puntos | 8 |
+| Paquete Flutter | `apps/regenta` |
+| Pantalla | `design/pantallas/LoginMovil.html` · `design/pantallas/PanelInicioWeb.html` |
+| Depende de | HU-107 (Navegación con rutas protegidas) · HU-109 (Sesión y refresco) · HU-112 (Cliente HTTP) |
+| Etiquetas | `flutter` · `core` · `clave` |
+
+> `apps/regenta/lib/main.dart` son cuarenta y una líneas: un `MaterialApp` que comprueba que el
+> tema y las fuentes cargan. El router, la sesión y la guardia de rutas existen en
+> `packages/core` desde HU-107 y HU-109, y **nadie los usa**. Ningún módulo está cableado: ni POS,
+> ni inventario, ni clientes, ni reportes. Doce meses de backlog que no se pueden abrir.
+
+**Criterios de aceptación**
+
+1. Dada la app recién instalada, cuando la abro, entonces veo la pantalla de entrada y puedo iniciar sesión contra el gateway.
+2. Dada una sesión iniciada, cuando el token vence, entonces se refresca solo y no me saca de lo que estaba haciendo.
+3. Dado el patrón operativo y el plan del negocio, cuando entro, entonces la navegación muestra solo los módulos activos: una ferretería no ve Mesas ni Reservas.
+4. Dado un módulo que no está en mi plan, cuando escribo su ruta a mano, entonces la guardia me deja fuera.
+5. Dada la sesión, cuando cada módulo pide sus dependencias, entonces las recibe del `ProviderScope` de la app —repositorios, base local, cola de salida— y ninguna pantalla lanza `UnimplementedError`.
+6. Dada la app cerrada y vuelta a abrir, cuando había sesión, entonces sigo dentro sin escribir la contraseña otra vez.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados.
+- [ ] La app compila y arranca en Android y en Web con los módulos dentro.
+- [ ] Un negocio nuevo se puede usar de punta a punta: entrar, cargar un producto, vender.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-120 · Trabajo en segundo plano con sesión propia
+
+**Como** vendedor, **quiero** que lo que registré sin señal suba solo aunque tenga la app cerrada **para** no tener que abrirla y quedarme mirando
+
+| | |
+|---|---|
+| Épica | `E16` · App Flutter · núcleo |
+| Puntos | 5 |
+| Paquete Flutter | `core` · `apps/regenta` |
+| Tablas | `operaciones_pendientes` (Drift) |
+| Depende de | HU-111 (Cola de sincronización en segundo plano) · HU-119 (Carcasa de la app) |
+| Etiquetas | `flutter` · `core` |
+
+> HU-111 dejó la cola, el reintento con espera creciente y el registro de la tarea periódica. Lo
+> que quedó pendiente es el `callbackDispatcher`: el isolate de fondo arranca en frío, sin el
+> `ProviderScope` de la app, y necesita armarse su propio `Dio` y su propia sesión. Eso solo lo
+> puede hacer la carcasa.
+
+**Criterios de aceptación**
+
+1. Dada la app cerrada y operaciones pendientes, cuando vuelve la conexión, entonces suben sin que nadie abra la aplicación.
+2. Dado el isolate de fondo, cuando arranca, entonces lee el token de `flutter_secure_storage` y lo refresca si hace falta.
+3. Dada una operación que choca al subir, cuando ocurre, entonces queda en la bandeja de conflictos y se avisa.
+4. Dado el modo Web, cuando no hay trabajo en segundo plano, entonces la cola se procesa al abrir la app y nada falla.
+5. Dada una sesión cerrada, cuando corre la tarea de fondo, entonces no sube nada y no reintenta contra un token que ya no vale.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados.
+- [ ] Comprobado en un dispositivo Android real con la app cerrada.
+- [ ] Revisada en PR por otra persona.
+
+---

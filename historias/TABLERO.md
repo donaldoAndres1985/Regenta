@@ -293,4 +293,87 @@ flowchart LR
   E04 --> E14[E14 Reportes]
   E01 --> E15[E15 Auditoría]
   E16 --> E04
+  E16 --> E17[E17 Puesta en produccion]
+  E06 --> E17
+  E13 --> E17
+  E14 --> E17
 ```
+
+---
+
+## Hito 8 · Que esto corra de verdad
+
+El backlog de producto está entregado: 114 historias en `main`. Lo que queda no es
+funcionalidad nueva, es que el sistema se pueda abrir, operar y desplegar.
+
+El orden importa más que nunca, porque casi todo cuelga de lo mismo: **sin la carcasa de la
+app no hay nada que mirar**, y sin los datos fiscales del emisor no hay factura que valga.
+
+**7 historias · 42 puntos**
+
+| Épica | Nombre | HU | Puntos |
+|---|---|---:|---:|
+| `E16` | App Flutter · núcleo | 2 | 13 |
+| `E06` | Facturación electrónica DIAN | 3 | 18 |
+| `E17` | Puesta en producción | 2 | 11 |
+
+<details><summary>Historias del hito, en orden</summary>
+
+1. `HU-119` Carcasa de la app: sesión, navegación y módulos del negocio — **primero, todo lo demás se ve desde aquí**
+2. `HU-115` Datos fiscales del emisor en la factura — sin esto no hay emisión real
+3. `HU-120` Trabajo en segundo plano con sesión propia
+4. `HU-116` El certificado de firma en una bóveda de verdad
+5. `HU-117` Transmisión real a la DIAN
+6. `HU-124` Barridos automáticos en todos los negocios
+7. `HU-125` Desplegar el backend y la Web
+
+</details>
+
+---
+
+## Hito 9 · Integraciones externas
+
+Cada una es un puerto con un stub detrás. Dependen de credenciales y proveedor, no de
+decisiones de diseño.
+
+**3 historias · 15 puntos**
+
+<details><summary>Historias del hito</summary>
+
+- `HU-121` Almacén de documentos y archivos
+- `HU-122` Correo saliente real
+- `HU-123` Notificaciones push reales
+
+</details>
+
+---
+
+## Hito 10 · Deuda técnica
+
+Lo que está construido pero incompleto. Nada de esto impide operar; todo esto se paga
+solo con el tiempo, y cada mes que pasa cuesta más.
+
+**13 historias · 62 puntos**
+
+| Épica | Nombre | HU | Puntos |
+|---|---|---:|---:|
+| `E18` | Deuda técnica | 12 | 59 |
+| `E09` | Reservas | 1 | 3 |
+
+<details><summary>Historias del hito, por lo que más duele</summary>
+
+- `HU-118` La estancia manda el snapshot del huésped al facturar — hoy el hotel factura a consumidor final
+- `HU-126` Que los índices de búsqueda por nombre se usen de verdad
+- `HU-133` Régimen fiscal del cliente en la factura
+- `HU-129` Un solo run de CI por cambio
+- `HU-135` Cancelaciones y no-shows en los reportes de Reserva
+- `HU-137` Monto desde el cual se exige identificar al comprador
+- `HU-127` La saga de stock, probada de punta a punta
+- `HU-134` El salón en los reportes
+- `HU-136` Los bloqueos de mantenimiento descuentan de la ocupación
+- `HU-131` Archivar la bitácora según su retención
+- `HU-128` Golden tests de las pantallas contra los mockups
+- `HU-130` La bitácora dice qué cambió, no solo que cambió
+- `HU-132` Lista de precios por cliente
+
+</details>

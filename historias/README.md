@@ -1,6 +1,6 @@
 # Historias de usuario de Regenta
 
-Backlog completo del producto: **114 historias** en **17 épicas**, **653 puntos**.
+Backlog completo del producto: **137 historias** en **19 épicas**, **777 puntos**.
 
 Cada historia declara qué tablas del modelo toca, qué pantalla del diseño implementa y de
 qué otras historias depende. Nada aquí es genérico: los criterios de aceptación salen de las
@@ -16,17 +16,19 @@ restricciones reales del modelo de datos.
 | `E03` | Inventario · catálogo del patrón Venta directa | 11 | 65 | Básico | [`E03-inventario.md`](epicas/E03-inventario.md) |
 | `E04` | Ventas · transacción del patrón Venta directa | 11 | 68 | Básico | [`E04-ventas.md`](epicas/E04-ventas.md) |
 | `E05` | Compras y proveedores | 6 | 31 | Profesional | [`E05-compras-proveedores.md`](epicas/E05-compras-proveedores.md) |
-| `E06` | Facturación electrónica DIAN | 7 | 57 | Profesional | [`E06-facturacion-electronica-dian.md`](epicas/E06-facturacion-electronica-dian.md) |
+| `E06` | Facturación electrónica DIAN | 10 | 75 | Profesional | [`E06-facturacion-electronica-dian.md`](epicas/E06-facturacion-electronica-dian.md) |
 | `E07` | Caja y POS | 5 | 19 | Empresarial | [`E07-caja-pos.md`](epicas/E07-caja-pos.md) |
 | `E08` | Recursos · catálogo del patrón Reserva | 5 | 24 | Básico | [`E08-recursos.md`](epicas/E08-recursos.md) |
-| `E09` | Reservas · transacción del patrón Reserva | 7 | 55 | Básico | [`E09-reservas.md`](epicas/E09-reservas.md) |
+| `E09` | Reservas · transacción del patrón Reserva | 8 | 58 | Básico | [`E09-reservas.md`](epicas/E09-reservas.md) |
 | `E10` | Menú · catálogo del patrón Comanda | 5 | 24 | Básico | [`E10-menu.md`](epicas/E10-menu.md) |
 | `E11` | Mesas · el salón | 4 | 18 | Básico | [`E11-mesas.md`](epicas/E11-mesas.md) |
 | `E12` | Comandas · transacción del patrón Comanda | 7 | 50 | Básico | [`E12-comandas.md`](epicas/E12-comandas.md) |
 | `E13` | Alertas y notificaciones | 4 | 21 | Profesional | [`E13-alertas-notificaciones.md`](epicas/E13-alertas-notificaciones.md) |
 | `E14` | Reportes y dashboards | 5 | 39 | Profesional | [`E14-reportes-dashboards.md`](epicas/E14-reportes-dashboards.md) |
 | `E15` | Auditoría y sincronización | 5 | 32 | Empresarial | [`E15-auditoria-sincronizacion.md`](epicas/E15-auditoria-sincronizacion.md) |
-| `E16` | App Flutter · núcleo | 7 | 39 | Todos | [`E16-app-flutter.md`](epicas/E16-app-flutter.md) |
+| `E16` | App Flutter · núcleo | 9 | 52 | Todos | [`E16-app-flutter.md`](epicas/E16-app-flutter.md) |
+| `E17` | Puesta en producción | 5 | 31 | Todos | [`E17-puesta-en-produccion.md`](epicas/E17-puesta-en-produccion.md) |
+| `E18` | Deuda técnica | 12 | 59 | Todos | [`E18-deuda-tecnica.md`](epicas/E18-deuda-tecnica.md) |
 
 ## Todas las historias
 
@@ -146,6 +148,29 @@ restricciones reales del modelo de datos.
 | `HU-112` | Cliente HTTP con manejo uniforme de errores | `E16` | 5 | `HU-109` |
 | `HU-113` | Asignar un cliente a la venta | `E04` | 5 | `HU-021` `HU-037` |
 | `HU-114` | Crear un cliente desde la venta, sin salir de la pantalla | `E04` | 3 | `HU-021` `HU-113` |
+| `HU-115` | Datos fiscales del emisor en la factura | `E06` | 5 | `HU-018` `HU-053` |
+| `HU-116` | El certificado de firma en una bóveda de verdad | `E06` | 5 | `HU-055` |
+| `HU-117` | Transmisión real a la DIAN | `E06` | 8 | `HU-115` `HU-116` |
+| `HU-118` | La estancia manda el snapshot del huésped al facturar | `E09` | 3 | `HU-074` `HU-113` |
+| `HU-119` | Carcasa de la app: sesión, navegación y módulos del negocio | `E16` | 8 | `HU-107` `HU-109` `HU-112` |
+| `HU-120` | Trabajo en segundo plano con sesión propia | `E16` | 5 | `HU-111` `HU-119` |
+| `HU-121` | Almacén de documentos y archivos | `E17` | 5 | `HU-055` `HU-100` |
+| `HU-122` | Correo saliente real | `E17` | 5 | `HU-058` `HU-094` `HU-100` |
+| `HU-123` | Notificaciones push reales | `E17` | 5 | `HU-094` `HU-119` |
+| `HU-124` | Barridos automáticos en todos los negocios | `E17` | 8 | `HU-006` `HU-008` |
+| `HU-125` | Desplegar el backend y la Web | `E17` | 8 | `HU-009` `HU-119` |
+| `HU-126` | Que los índices de búsqueda por nombre se usen de verdad | `E18` | 3 | `HU-021` `HU-035` |
+| `HU-127` | La saga de stock, probada de punta a punta | `E18` | 5 | `HU-034` `HU-038` |
+| `HU-128` | Golden tests de las pantallas contra los mockups | `E18` | 8 | `HU-106` |
+| `HU-129` | Un solo run de CI por cambio | `E18` | 3 | `HU-009` |
+| `HU-130` | La bitácora dice qué cambió, no solo que cambió | `E18` | 8 | `HU-101` |
+| `HU-131` | Archivar la bitácora según su retención | `E18` | 5 | `HU-101` `HU-121` |
+| `HU-132` | Lista de precios por cliente | `E18` | 8 | `HU-036` `HU-113` |
+| `HU-133` | Régimen fiscal del cliente en la factura | `E18` | 3 | `HU-114` `HU-115` |
+| `HU-134` | El salón en los reportes | `E18` | 5 | `HU-099` |
+| `HU-135` | Cancelaciones y no-shows en los reportes de Reserva | `E18` | 3 | `HU-071` `HU-099` |
+| `HU-136` | Los bloqueos de mantenimiento descuentan de la ocupación | `E18` | 5 | `HU-099` |
+| `HU-137` | Monto desde el cual se exige identificar al comprador | `E18` | 3 | `HU-113` |
 
 ## Cómo se lee una historia
 
@@ -224,5 +249,6 @@ El token se lee de `--token-file`, de la variable `GITHUB_TOKEN`, o de un archiv
 personal **de grano fino**, limitado a este repositorio, con permiso *Issues: Read and
 write* y caducidad de un día. Al terminar, se revoca y se borra el archivo.
 
-Cualquiera de los dos crea los 17 hitos, las 24 etiquetas y las 112 issues con su
-cuerpo completo.
+Cualquiera de los dos crea los hitos, las etiquetas y las issues con su cuerpo completo.
+Las historias posteriores a `HU-114` se crearon a mano con `gh issue create`; los scripts
+no se regeneraron.

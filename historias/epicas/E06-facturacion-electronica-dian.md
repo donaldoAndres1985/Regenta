@@ -231,3 +231,102 @@ Emisión, firma, transmisión y notas crédito. Sirve a los tres patrones.
 - [ ] Revisada en PR por otra persona.
 
 ---
+
+### HU-115 · Datos fiscales del emisor en la factura
+
+**Como** contador, **quiero** que la factura salga con el NIT, la razón social y las responsabilidades fiscales de mi negocio **para** que sea un documento válido y no un formato en blanco
+
+| | |
+|---|---|
+| Épica | `E06` · Facturación electrónica DIAN |
+| Puntos | 5 |
+| Microservicio | `servicio-facturacion` |
+| Tablas | `facturacion.facturas.emisor_snapshot` · `core_identidad.configuracion_negocio` |
+| Depende de | HU-018 (Configuración fiscal del negocio) · HU-053 (Emitir factura) |
+| Etiquetas | `facturacion` · `backend` |
+
+> `Factura.emitir` recibe el emisor del evento de cierre y ningún emisor lo manda, así que hoy
+> `emisor_snapshot` se guarda como `{}`. Es el mismo hueco que R9 de `ClienteVenta.md` pero del
+> lado del vendedor, y es lo que bloquea una emisión real: Facturación no puede consultar
+> `configuracion_negocio`, que vive en la base de `servicio-usuarios`.
+
+**Criterios de aceptación**
+
+1. Dado un negocio creado, cuando llega `negocio_creado`, entonces Facturación guarda su copia local de los datos fiscales, igual que hace Reportes con la zona horaria.
+2. Dada una factura emitida, cuando se guarda, entonces `emisor_snapshot` lleva razón social, NIT con dígito de verificación, dirección, municipio, régimen y responsabilidades fiscales.
+3. Dado que los datos fiscales cambian, cuando se emite una factura nueva, entonces sale con los datos de hoy y las facturas ya emitidas no cambian.
+4. Dado un negocio sin datos fiscales completos, cuando se intenta emitir, entonces se rechaza diciendo qué falta, antes de consumir un consecutivo.
+5. Dado el municipio del emisor, cuando se arma el adquiriente genérico, entonces se usa ese mismo municipio, como pide el anexo técnico.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados, con dos negocios cargados.
+- [ ] Migración Flyway aplicada y `ddl-auto` sigue en `validate`.
+- [ ] Ningún servicio consulta la base de otro.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-116 · El certificado de firma en una bóveda de verdad
+
+**Como** dueño del negocio, **quiero** que mi certificado de firma esté guardado con llave **para** que nadie pueda firmar en mi nombre
+
+| | |
+|---|---|
+| Épica | `E06` · Facturación electrónica DIAN |
+| Puntos | 5 |
+| Microservicio | `servicio-facturacion` |
+| Tablas | `facturacion.certificados` |
+| Depende de | HU-055 (Firma digital y transmisión a la DIAN) |
+| Etiquetas | `facturacion` · `seguridad` · `infra` |
+
+> `BovedaDeSecretosStub` y `FirmadorDeXmlStub` cerraron HU-055 sin tocar un certificado real.
+
+**Criterios de aceptación**
+
+1. Dado un certificado cargado, cuando se guarda, entonces su clave privada queda cifrada en la bóveda y no en la base del servicio.
+2. Dada una firma, cuando se hace, entonces el XML queda firmado con XAdES-EPES y la firma valida contra el certificado.
+3. Dado un certificado próximo a vencer, cuando faltan menos de treinta días, entonces se avisa por el motor de alertas.
+4. Dado un certificado vencido, cuando se intenta emitir, entonces se rechaza antes de consumir un consecutivo.
+5. Dado un negocio, cuando reviso los registros, entonces no puede leer ni usar el certificado de otro.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados, con dos negocios cargados y un certificado de prueba.
+- [ ] La clave de la bóveda no está en el repo.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-117 · Transmisión real a la DIAN
+
+**Como** dueño del negocio, **quiero** que mis facturas lleguen a la DIAN y me devuelvan el CUFE **para** poder entregárselas al cliente con validez legal
+
+| | |
+|---|---|
+| Épica | `E06` · Facturación electrónica DIAN |
+| Puntos | 8 |
+| Microservicio | `servicio-facturacion` |
+| Tablas | `facturacion.facturas` · `facturacion.transmisiones` |
+| Depende de | HU-115 (Datos fiscales del emisor) · HU-116 (Certificado en bóveda) |
+| Etiquetas | `facturacion` · `infra` · `backend` |
+
+> `ClienteDeLaDianStub` responde siempre que sí. Todo el flujo de HU-055, HU-057 y HU-058 está
+> construido contra esa respuesta.
+
+**Criterios de aceptación**
+
+1. Dada una factura firmada, cuando se transmite al ambiente de habilitación, entonces la DIAN la acepta y el CUFE que devuelve queda guardado.
+2. Dada una factura rechazada, cuando responde la DIAN, entonces el código y el mensaje de rechazo quedan guardados y visibles para quien la emitió.
+3. Dada la DIAN sin responder, cuando se agota el reintento, entonces la factura entra en contingencia, como ya define HU-057.
+4. Dado un rechazo por un dato del emisor o del adquiriente, cuando ocurre, entonces el mensaje dice qué campo lo causó y no solo que falló.
+5. Dado el ambiente de producción, cuando se configura, entonces es un cambio de configuración: el código no distingue entre habilitación y producción.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados, con la DIAN simulada por contrato.
+- [ ] Hay al menos una emisión real contra el ambiente de habilitación, documentada.
+- [ ] El número del adquiriente genérico quedó confirmado contra el anexo técnico vigente.
+- [ ] Revisada en PR por otra persona.
+
+---
