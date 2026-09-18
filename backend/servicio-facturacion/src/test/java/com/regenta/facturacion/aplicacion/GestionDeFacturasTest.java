@@ -44,6 +44,7 @@ class GestionDeFacturasTest extends BaseDeFacturacion {
     private final UUID admin = UUID.randomUUID();
 
     private void resolucionEn(UUID negocio) {
+        conDatosFiscales(negocio);
         enContexto(negocio, admin, DE_ADMIN, () -> resoluciones.cargar(new SolicitudDeResolucion(
                 null, "FACTURA_VENTA", "R-" + negocio, "FE", 1, 100000, "clave-abc",
                 LocalDate.parse("2026-01-01"), LocalDate.parse("2030-01-01"), "PRODUCCION")));
@@ -155,7 +156,10 @@ class GestionDeFacturasTest extends BaseDeFacturacion {
 
         FacturaDetalle detalle = enContexto(negocioA, admin, VER, () -> facturas.ver(facturaId));
         assertThat(detalle.cliente()).containsEntry("razon_social", "Cliente Original SAS");
-        assertThat(detalle.emisor()).containsEntry("nit", "900111222");
+        // HU-115: el emisor ya no sale del evento -el emisor de una venta no
+        // sabe de datos fiscales- sino de la copia local que alimenta
+        // negocio_creado. El `emisor` que trae el payload se ignora.
+        assertThat(detalle.emisor()).containsEntry("numero_documento", "900111222");
 
         // Otra factura, con otro cliente: la primera no cambia.
         entregar("venta_completada", UUID.randomUUID(),
