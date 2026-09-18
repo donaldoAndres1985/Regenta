@@ -62,14 +62,20 @@ Sesion _sesionCon({
       modulos: modulos,
     );
 
-Future<DependenciasDeLaApp> _arrancar(WidgetTester tester, {Sesion? guardada}) async {
+Future<DependenciasDeLaApp> _arrancar(
+  WidgetTester tester, {
+  Sesion? guardada,
+  Future<void> Function(BaseLocal base)? conLaCola,
+}) async {
   await tester.binding.setSurfaceSize(const Size(390, 844));
   addTearDown(() => tester.binding.setSurfaceSize(null));
+  final base = BaseLocal(NativeDatabase.memory());
   final deps = DependenciasDeLaApp.paraPruebas(
-    base: BaseLocal(NativeDatabase.memory()),
+    base: base,
     almacen: _AlmacenEnMemoria(guardada),
   );
   addTearDown(deps.cerrar);
+  if (conLaCola != null) await conLaCola(base);
   await deps.motor.iniciar();
   await tester.pumpWidget(ProviderScope(
     overrides: deps.overrides(),
@@ -132,6 +138,28 @@ void main() {
 
     expect(find.byKey(const Key('login-correo')), findsOneWidget);
     expect(deps.perfil.claims, isNull);
+  });
+
+  testWidgets('HU-120 criterio 3: lo que quedó sin subir se ve en Inicio', (tester) async {
+    await _arrancar(
+      tester,
+      guardada: _sesionCon(modulos: ['VENTAS']),
+      conLaCola: (base) => ColaDeSalidaLocal(base).encolar(const OperacionEncolable(
+        metodo: 'POST',
+        ruta: '/api/ventas/offline',
+        datos: {'numero': 'FV-1'},
+      )),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('esperan conexión'), findsOneWidget);
+  });
+
+  testWidgets('Sin nada en la cola, Inicio no dice nada de sincronización', (tester) async {
+    await _arrancar(tester, guardada: _sesionCon(modulos: ['VENTAS']));
+
+    expect(find.textContaining('esperan conexión'), findsNothing);
+    expect(find.textContaining('chocaron al subir'), findsNothing);
   });
 
   testWidgets('Un negocio sin módulos activos lo dice, no muestra una pantalla vacía',

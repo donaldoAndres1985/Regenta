@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
+import 'dart:async';
+
+import 'package:workmanager/workmanager.dart';
+
 import 'src/arranque/dependencias.dart';
+import 'src/arranque/sincronizacion.dart';
 import 'src/navegacion/catalogo.dart';
 import 'src/ui/pantalla_inicio.dart';
 import 'src/ui/pantalla_login.dart';
@@ -16,14 +21,35 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final dependencias = DependenciasDeLaApp.crear(urlDelGateway: urlDelGateway);
-  // Criterio 6: si había sesión guardada, se restaura antes del primer frame y
-  // la pantalla de entrada no llega a verse.
+  // HU-119 criterio 6: si había sesión guardada, se restaura antes del primer
+  // frame y la pantalla de entrada no llega a verse.
   await dependencias.motor.iniciar();
+
+  if (hayTrabajoEnSegundoPlanoAqui) {
+    await Workmanager().initialize(despachadorDeTareas);
+    dependencias.motor.addListener(() => _seguirLaSesion(dependencias));
+    _seguirLaSesion(dependencias);
+  }
+
+  // HU-120 criterio 4: en Web no hay segundo plano, así que la cola se procesa
+  // al abrir. En Android también conviene: es el momento en que más
+  // probablemente hay red y alguien mirando.
+  unawaited(subirLoPendiente(dependencias));
 
   runApp(ProviderScope(
     overrides: dependencias.overrides(),
     child: RegentaApp(dependencias: dependencias),
   ));
+}
+
+/// Con sesión, la tarea periódica corre; sin ella, no tiene sentido seguir
+/// intentando subir la cola de alguien que ya no está (HU-120 criterio 5).
+void _seguirLaSesion(DependenciasDeLaApp dependencias) {
+  if (dependencias.motor.sesion == null) {
+    unawaited(cancelarSincronizacionEnSegundoPlano());
+  } else {
+    unawaited(registrarSincronizacionEnSegundoPlano());
+  }
 }
 
 /// La carcasa. HU-119.

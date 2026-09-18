@@ -16,6 +16,7 @@ class PantallaInicio extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final perfil = ref.watch(perfilComoNotifierProvider);
     final entradas = menuDe(perfil.claims);
+    final cola = ref.watch(resumenDeColaProvider).valueOrNull;
 
     return Scaffold(
       backgroundColor: RegentaColors.paper,
@@ -46,6 +47,10 @@ class PantallaInicio extends ConsumerWidget {
             padding: const EdgeInsets.all(14),
             children: [
               _Encabezado(plan: perfil.claims?.plan ?? '', patron: perfil.modulos.patron),
+              if (cola != null && (cola.hayConflictos || cola.pendientes > 0)) ...[
+                const SizedBox(height: 10),
+                _Cola(resumen: cola),
+              ],
               const SizedBox(height: 14),
               modulos,
             ],
@@ -78,6 +83,42 @@ class _Encabezado extends StatelessWidget {
         const SizedBox(height: 4),
         Text([plan, patron].where((t) => t.isNotEmpty).join(' · '),
             style: RegentaType.codigo.copyWith(fontSize: 10.5, color: RegentaColors.muted)),
+      ]),
+    );
+  }
+}
+
+/// HU-120 criterio 3: lo que quedó sin subir se dice, no se esconde.
+///
+/// Un conflicto no se arregla solo: alguien tiene que mirarlo. Y una cola con
+/// cosas pendientes explica por qué los números pueden no cuadrar todavía.
+class _Cola extends StatelessWidget {
+  const _Cola({required this.resumen});
+
+  final ResumenDeCola resumen;
+
+  @override
+  Widget build(BuildContext context) {
+    final alerta = resumen.hayConflictos;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: alerta ? RegentaColors.critSoft : RegentaColors.warnSoft,
+        borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+      ),
+      child: Row(children: [
+        Icon(alerta ? Icons.error_outline : Icons.cloud_upload_outlined,
+            size: 18, color: alerta ? RegentaColors.crit : RegentaColors.warn),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            alerta
+                ? '${resumen.conflictos} operación(es) chocaron al subir y hay que revisarlas.'
+                : '${resumen.pendientes} operación(es) esperan conexión para subir.',
+            style: RegentaType.cuerpo.copyWith(fontSize: 12.5, color: RegentaColors.ink),
+          ),
+        ),
       ]),
     );
   }

@@ -13,6 +13,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.6.1
   dio: ^5.7.0
+  # El despachador del isolate de fondo es de la app: el nucleo pone las piezas
+  # pero no sabe con que URL ni con que sesion armarlas (HU-120).
+  workmanager: ^0.10.0
   # La carcasa arma las dependencias de todos los modulos y se las pasa por el
   # ProviderScope: es el unico sitio del monorepo que puede depender de todos.
   # `tool/check_module_deps.dart` solo vigila packages/, no apps/.
