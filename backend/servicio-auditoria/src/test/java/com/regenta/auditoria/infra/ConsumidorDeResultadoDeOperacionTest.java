@@ -44,6 +44,11 @@ class ConsumidorDeResultadoDeOperacionTest extends BaseDeAuditoria {
     }
 
     private Message resultado(UUID negocio, UUID operacionId, String resultado, String motivo) {
+        return resultado(negocio, operacionId, resultado, motivo, null);
+    }
+
+    private Message resultado(UUID negocio, UUID operacionId, String resultado, String motivo,
+            Map<String, Object> conflicto) {
         try {
             MessageProperties props = new MessageProperties();
             props.setMessageId(UUID.randomUUID().toString());
@@ -53,6 +58,9 @@ class ConsumidorDeResultadoDeOperacionTest extends BaseDeAuditoria {
             payload.put("operacion_id", operacionId.toString());
             payload.put("resultado", resultado);
             payload.put("motivo", motivo);
+            if (conflicto != null) {
+                payload.put("conflicto", conflicto);
+            }
             return MessageBuilder.withBody(json.writeValueAsBytes(payload)).andProperties(props).build();
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -104,5 +112,43 @@ class ConsumidorDeResultadoDeOperacionTest extends BaseDeAuditoria {
 
         assertThat(consultar("select estado from operaciones_sync where id = '" + id + "'"))
                 .containsExactly("RECHAZADA");
+    }
+
+    @Test
+    @DisplayName("HU-103 criterio 1: una versión base desactualizada registra un conflicto, no sobrescribe")
+    void registraElConflicto() {
+        UUID id = enContexto(negocio, usuario, Set.of(),
+                () -> cola.subirLote("celular-de-ana", "ANDROID", "1.4.0",
+                        List.of(operacion("op-conf", 1))).get(0).id());
+
+        consumidor.recibir(resultado(negocio, id, "CONFLICTO", "version desactualizada", Map.of(
+                "tipo", "VERSION_DESACTUALIZADA", "version_servidor", 5, "version_cliente", 3,
+                "datos_servidor", Map.of("total", 90000), "datos_cliente", Map.of("total", 85000))));
+
+        assertThat(consultar("select estado from operaciones_sync where id = '" + id + "'"))
+                .containsExactly("CONFLICTO");
+        assertThat(contar("select count(*) from conflictos_sync where operacion_id = '" + id + "'"))
+                .isEqualTo(1);
+        assertThat(consultar("select tipo from conflictos_sync where operacion_id = '" + id + "'"))
+                .containsExactly("VERSION_DESACTUALIZADA");
+        // Criterio 2: la versión del servidor y la del cliente quedan, lado a lado.
+        assertThat(consultar("select datos_servidor::text from conflictos_sync where operacion_id = '" + id
+                + "'").get(0)).contains("90000");
+        assertThat(consultar("select datos_cliente::text from conflictos_sync where operacion_id = '" + id
+                + "'").get(0)).contains("85000");
+    }
+
+    @Test
+    @DisplayName("HU-103 criterio 4: una entidad eliminada en el servidor marca ELIMINADO_EN_SERVIDOR")
+    void marcaEliminadoEnServidor() {
+        UUID id = enContexto(negocio, usuario, Set.of(),
+                () -> cola.subirLote("celular-de-ana", "ANDROID", "1.4.0",
+                        List.of(operacion("op-elim", 1))).get(0).id());
+
+        consumidor.recibir(resultado(negocio, id, "CONFLICTO", "la entidad ya no existe",
+                Map.of("tipo", "ELIMINADO_EN_SERVIDOR")));
+
+        assertThat(consultar("select tipo from conflictos_sync where operacion_id = '" + id + "'"))
+                .containsExactly("ELIMINADO_EN_SERVIDOR");
     }
 }
