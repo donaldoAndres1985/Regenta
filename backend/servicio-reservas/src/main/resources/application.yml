@@ -37,6 +37,13 @@ spring:
     username: ${RABBIT_USER:regenta}
     password: ${RABBIT_PASSWORD:cambiar_en_local}
 
+regenta:
+  clientes:
+    # HU-118: el snapshot del huésped se pide a servicio-clientes al cerrar la
+    # estancia. Sincrona a proposito, pero best-effort: si no responde, el
+    # check-out sigue y la factura sale al adquiriente generico.
+    url: ${CLIENTES_URL:http://localhost:8082}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

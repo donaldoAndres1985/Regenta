@@ -49,18 +49,20 @@ public class GestionDeEstancias {
     private final RepositorioDeConsumos consumos;
     private final RepositorioDePagosDeReserva pagos;
     private final ConsultaDeDisponibilidad disponibilidad;
+    private final ConsultaDeClientes clientes;
     private final RegistroDeEventos eventos;
 
     public GestionDeEstancias(RepositorioDeReservas reservas, RepositorioDeEstancias estancias,
             RepositorioDeOcupantes ocupantes, RepositorioDeConsumos consumos,
             RepositorioDePagosDeReserva pagos, ConsultaDeDisponibilidad disponibilidad,
-            RegistroDeEventos eventos) {
+            ConsultaDeClientes clientes, RegistroDeEventos eventos) {
         this.reservas = reservas;
         this.estancias = estancias;
         this.ocupantes = ocupantes;
         this.consumos = consumos;
         this.pagos = pagos;
         this.disponibilidad = disponibilidad;
+        this.clientes = clientes;
         this.eventos = eventos;
     }
 
@@ -309,6 +311,10 @@ public class GestionDeEstancias {
         payload.put("origen_tipo", "RESERVA");
         payload.put("cliente_id",
                 reserva.getClienteId() == null ? null : reserva.getClienteId().toString());
+        // ClienteVenta.md R9, aplicada al patrón Reserva: Facturación no puede
+        // consultar esta base ni la de Clientes. Sin el snapshot, el check-out
+        // con huésped identificado factura igual que uno sin cliente.
+        payload.put("cliente_snapshot", snapshotDelHuesped(reserva.getClienteId()));
         payload.put("recurso_id", estancia.getRecursoAsignadoId().toString());
         payload.put("tipo_recurso_id", reserva.getTipoRecursoId().toString());
         payload.put("desde", reserva.getDesde().toString());
@@ -327,6 +333,26 @@ public class GestionDeEstancias {
         payload.put("pagos", pagos.porReserva(reserva.getId()));
         eventos.registrar(reserva.getNegocioId(), "Reserva", reserva.getId(),
                 "estancia_finalizada", payload);
+    }
+
+    /**
+     * Nombre, tipo y número de documento tal como están hoy en servicio-clientes
+     * (criterio 1). Se pide al cerrar, no al reservar, para que la factura salga
+     * a nombre de quien realmente ocupó, no de quien reservó hace semanas.
+     */
+    private Map<String, Object> snapshotDelHuesped(UUID clienteId) {
+        if (clienteId == null) {
+            return null;
+        }
+        return clientes.consultar(clienteId).<Map<String, Object>>map(c -> {
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("cliente_id", c.id().toString());
+            snapshot.put("nombre", c.nombre());
+            snapshot.put("tipo_documento", c.tipoDocumento());
+            snapshot.put("numero_documento", c.numeroDocumento());
+            snapshot.put("digito_verificacion", c.digitoVerificacion());
+            return snapshot;
+        }).orElse(null);
     }
 
     private static Map<String, Object> lineaAlojamiento(Reserva reserva) {
