@@ -67,7 +67,8 @@ public class AltaExpresDeClientes {
 
         Cliente cliente = Cliente.crear(negocioId, usuarioId, persona, documento, numeroDocumento,
                 digitoDe(documento, numeroDocumento, limpiar(solicitud.digitoVerificacion())),
-                nombres, apellidos, razonSocial, email, null, null, null, null);
+                nombres, apellidos, razonSocial, email, limpiar(solicitud.telefono()), null, null,
+                null);
         cliente.conElIdDelDispositivo(solicitud.id());
         clientes.save(cliente);
 

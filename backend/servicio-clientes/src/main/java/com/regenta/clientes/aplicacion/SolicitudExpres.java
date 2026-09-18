@@ -23,5 +23,7 @@ public record SolicitudExpres(
         @Size(max = 120) String nombres,
         @Size(max = 120) String apellidos,
         @Size(max = 200) String razonSocial,
-        @Email @Size(max = 150) String email) {
+        @Email @Size(max = 150) String email,
+        /** Opcional: la pantalla lo ofrece, pero una factura no lo exige. */
+        @Size(max = 30) String telefono) {
 }

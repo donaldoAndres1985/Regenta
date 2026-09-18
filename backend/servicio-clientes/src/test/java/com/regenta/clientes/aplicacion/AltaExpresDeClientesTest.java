@@ -36,7 +36,7 @@ class AltaExpresDeClientesTest extends BaseDeClientes {
 
     private static SolicitudExpres ferreteria(String numero) {
         return new SolicitudExpres(null, "JURIDICA", "NIT", numero, null, null, null,
-                "Ferretería El Tornillo SAS", "facturas@tornillo.co");
+                "Ferretería El Tornillo SAS", "facturas@tornillo.co", null);
     }
 
     @Test
@@ -57,7 +57,7 @@ class AltaExpresDeClientesTest extends BaseDeClientes {
     void sinCorreoNoSeCrea() {
         assertThatThrownBy(() -> enContexto(negocioA, vendedor, VENDEDOR,
                 () -> alta.crear(new SolicitudExpres(null, "JURIDICA", "NIT", "900999888", null,
-                        null, null, "Sin Correo SAS", null))))
+                        null, null, "Sin Correo SAS", null, null))))
                 .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessageContaining("correo");
     }
@@ -67,7 +67,7 @@ class AltaExpresDeClientesTest extends BaseDeClientes {
     void sinNombreNoSeCrea() {
         assertThatThrownBy(() -> enContexto(negocioA, vendedor, VENDEDOR,
                 () -> alta.crear(new SolicitudExpres(null, "NATURAL", "CC", "1020304050", null,
-                        null, null, null, "alguien@correo.co"))))
+                        null, null, null, "alguien@correo.co", null))))
                 .isInstanceOf(ReglaDeNegocioException.class);
     }
 
@@ -101,7 +101,7 @@ class AltaExpresDeClientesTest extends BaseDeClientes {
     void elDigitoEscritoAManoSeRespeta() {
         ClienteDelNegocio creado = enContexto(negocioA, vendedor, VENDEDOR,
                 () -> alta.crear(new SolicitudExpres(null, "JURIDICA", "NIT", "900123456", "9",
-                        null, null, "Ferretería El Tornillo SAS", "facturas@tornillo.co")));
+                        null, null, "Ferretería El Tornillo SAS", "facturas@tornillo.co", null)));
 
         assertThat(creado.digitoVerificacion())
                 .as("la cámara de comercio manda sobre la fórmula")
@@ -113,7 +113,7 @@ class AltaExpresDeClientesTest extends BaseDeClientes {
     void laCedulaNoLlevaDigito() {
         ClienteDelNegocio creado = enContexto(negocioA, vendedor, VENDEDOR,
                 () -> alta.crear(new SolicitudExpres(null, "NATURAL", "CC", "1020304050", null,
-                        "Ana", "Restrepo", null, "ana@correo.co")));
+                        "Ana", "Restrepo", null, "ana@correo.co", "6044482210")));
 
         assertThat(creado.digitoVerificacion()).isNull();
         assertThat(creado.nombreDisplay()).contains("Ana");
@@ -132,7 +132,7 @@ class AltaExpresDeClientesTest extends BaseDeClientes {
     void elCreadoSinConexionSubeConSuId() {
         UUID idDelDispositivo = UUID.randomUUID();
         SolicitudExpres offline = new SolicitudExpres(idDelDispositivo, "JURIDICA", "NIT",
-                "901222333", null, null, null, "Creado sin señal SAS", "offline@correo.co");
+                "901222333", null, null, null, "Creado sin señal SAS", "offline@correo.co", null);
 
         ClienteDelNegocio creado = enContexto(negocioA, vendedor, VENDEDOR, () -> alta.crear(offline));
         ClienteDelNegocio reintento = enContexto(negocioA, vendedor, VENDEDOR,
