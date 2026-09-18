@@ -235,8 +235,15 @@ public class GestionDeCuentas {
         payload.put("negocio_id", comanda.getNegocioId().toString());
         payload.put("comanda_id", comanda.getId().toString());
         payload.put("mesa_id", comanda.getMesaId() == null ? null : comanda.getMesaId().toString());
+        payload.put("sesion_mesa_id",
+                comanda.getSesionMesaId() == null ? null : comanda.getSesionMesaId().toString());
         payload.put("usuario_id",
                 comanda.getMeseroUsuarioId() == null ? null : comanda.getMeseroUsuarioId().toString());
+        // HU-099: el ticket por comensal necesita el divisor, y el numero de
+        // comensales solo lo tiene esta comanda. servicio-mesas lo publica en
+        // sesion_mesa_abierta, pero atarse a eso obligaria a Reportes a cruzar
+        // dos eventos de dos servicios para una division.
+        payload.put("num_comensales", (int) comanda.getNumComensales());
         payload.put("propina", propinaTotal);
         payload.put("tiempo_mesa_min", tiempoMesaMin);
         payload.put("lineas", lineasPayload);
