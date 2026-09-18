@@ -48,12 +48,29 @@ public abstract class BaseDeReportes {
 
     protected static <T> T enContexto(UUID negocio, UUID usuario, Set<String> permisos,
             Supplier<T> tarea) {
+        return enContexto(negocio, usuario, "VENTA_DIRECTA", permisos, tarea);
+    }
+
+    /**
+     * Con el patrón operativo explícito: HU-099 criterio 3 depende de él, y un
+     * hotel no ve las mismas métricas que una ferretería.
+     */
+    protected static <T> T enContexto(UUID negocio, UUID usuario, String patron,
+            Set<String> permisos, Supplier<T> tarea) {
         AtomicReference<T> resultado = new AtomicReference<>();
         com.regenta.comun.negocio.ContextoDeNegocio.en(
                 new com.regenta.comun.negocio.DatosDelNegocio(negocio, usuario, "PROFESIONAL",
-                        "VENTA_DIRECTA", Set.of("ADMINISTRADOR"), Set.of("REPORTES"), permisos, Set.of()),
+                        patron, Set.of("ADMINISTRADOR"), Set.of("REPORTES"), permisos, Set.of()),
                 () -> resultado.set(tarea.get()));
         return resultado.get();
+    }
+
+    protected static void enContexto(UUID negocio, UUID usuario, String patron,
+            Set<String> permisos, Runnable tarea) {
+        enContexto(negocio, usuario, patron, permisos, () -> {
+            tarea.run();
+            return null;
+        });
     }
 
     protected static void enContexto(UUID negocio, UUID usuario, Set<String> permisos, Runnable tarea) {

@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.regenta.comun.eventos.InboxIdempotente;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.DatosDelNegocio;
+import com.regenta.reportes.aplicacion.AgregadorDeOcupacion;
 import com.regenta.reportes.aplicacion.AgregadorDiario;
 import com.regenta.reportes.aplicacion.FechaLocalDelNegocio;
 import com.regenta.reportes.aplicacion.ResolverDeDimensiones;
@@ -39,16 +40,18 @@ public class ConsumidorDeEstanciasFinalizadas {
     private final ResolverDeDimensiones dimensiones;
     private final EscritorDeHechos hechos;
     private final AgregadorDiario agregador;
+    private final AgregadorDeOcupacion ocupacion;
     private final FechaLocalDelNegocio fechaLocal;
     private final ObjectMapper json;
 
     public ConsumidorDeEstanciasFinalizadas(InboxIdempotente inbox, ResolverDeDimensiones dimensiones,
-            EscritorDeHechos hechos, AgregadorDiario agregador, FechaLocalDelNegocio fechaLocal,
-            ObjectMapper json) {
+            EscritorDeHechos hechos, AgregadorDiario agregador, AgregadorDeOcupacion ocupacion,
+            FechaLocalDelNegocio fechaLocal, ObjectMapper json) {
         this.inbox = inbox;
         this.dimensiones = dimensiones;
         this.hechos = hechos;
         this.agregador = agregador;
+        this.ocupacion = ocupacion;
         this.fechaLocal = fechaLocal;
         this.json = json;
     }
@@ -88,10 +91,29 @@ public class ConsumidorDeEstanciasFinalizadas {
 
         int fechaId = dimensiones.fechaId(ocurridoEn);
         Long clienteSk = dimensiones.clienteSk(negocioId, clienteId, null);
-        BigDecimal adr = noches == 0 ? total : total.divide(BigDecimal.valueOf(noches), 4, RoundingMode.HALF_UP);
+        // HU-099 criterio 1: el ADR es lo que rinde la habitación, así que el
+        // numerador es el alojamiento, no la cuenta entera. Con el total,
+        // el minibar y el spa lo inflaban y dejaba de compararse con nada.
+        BigDecimal alojamiento = datos.get("alojamiento") == null ? total
+                : numero(datos.get("alojamiento"));
+        BigDecimal adr = noches == 0 ? alojamiento
+                : alojamiento.divide(BigDecimal.valueOf(noches), 4, RoundingMode.HALF_UP);
 
         hechos.insertarReserva(negocioId, fechaId, ocurridoEn, null, clienteSk, reservaId, tipoRecursoId,
                 recursoId, "FINALIZADA", noches, total, consumos, BigDecimal.ZERO, adr);
+
+        // Una estancia es un hecho, pero la ocupación es una pregunta por día:
+        // quien entró el lunes y salió el miércoles ocupó dos noches distintas.
+        if (datos.get("desde") != null && datos.get("hasta") != null) {
+            // La fecha se toma tal como viene en el evento, sin reinterpretarla
+            // en la zona del negocio: desde y hasta son los días de la estancia
+            // que fijó quien reservó, ya con su offset. Pasarlos por la zona
+            // horaria del servicio correría la noche de entrada un día entero.
+            ocupacion.aplicar(negocioId, tipoRecursoId, null,
+                    OffsetDateTime.parse(datos.get("desde").toString()).toLocalDate(),
+                    OffsetDateTime.parse(datos.get("hasta").toString()).toLocalDate(),
+                    alojamiento);
+        }
 
         // HU-097 criterio 1. "Unidades" en el patrón Reserva son noches; el
         // patrón no trae bruto/descuento/impuesto por separado a este nivel.

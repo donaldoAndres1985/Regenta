@@ -80,6 +80,10 @@ public class ConsumidorDePedidosCompletados {
     private void procesar(UUID negocioId, Map<String, Object> datos) {
         UUID comandaId = uuid(datos.get("comanda_id"));
         UUID usuarioId = uuid(datos.get("usuario_id"));
+        // HU-099: la mesa y los comensales son la rotación y el ticket por
+        // comensal. Venían en el evento y se estaban tirando.
+        UUID mesaId = uuid(datos.get("mesa_id"));
+        Integer numComensales = entero(datos.get("num_comensales"));
         BigDecimal propina = numeroONulo(datos.get("propina"));
         Integer tiempoMesaMin = entero(datos.get("tiempo_mesa_min"));
         OffsetDateTime ocurridoEn = OffsetDateTime.now();
@@ -98,8 +102,9 @@ public class ConsumidorDePedidosCompletados {
             BigDecimal costo = numero(l.get("costo"));
             Integer tiempoPreparacionMin = entero(l.get("tiempo_preparacion_min"));
 
-            hechos.insertarComanda(negocioId, fechaId, ocurridoEn, null, usuarioSk, comandaId, itemMenuId,
-                    nombre, cantidad, montoNeto, costo, propina, tiempoPreparacionMin, tiempoMesaMin);
+            hechos.insertarComanda(negocioId, fechaId, ocurridoEn, null, usuarioSk, comandaId, mesaId,
+                    numComensales, itemMenuId, nombre, cantidad, montoNeto, costo, propina,
+                    tiempoPreparacionMin, tiempoMesaMin);
 
             totalUnidades = totalUnidades.add(cantidad);
             totalNeto = totalNeto.add(montoNeto);
