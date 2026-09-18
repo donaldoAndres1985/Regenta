@@ -3,6 +3,7 @@ package com.regenta.alertas.aplicacion;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -107,7 +108,7 @@ public class MotorDeAlertas {
                     titulo, mensaje, datos(hecho), hecho.entidadTipo(), hecho.entidadId(),
                     hecho.rutaApp(), huella);
             alertas.save(nueva);
-            crearEntregas(negocioId, regla, nueva.getId());
+            crearEntregas(negocioId, regla, nueva.getId(), hecho.usuariosExtra());
             despacho.despacharAlerta(nueva.getId());
             return nueva.getId();
         }
@@ -118,14 +119,16 @@ public class MotorDeAlertas {
         }
         existente.reabrir(titulo, mensaje, datos(hecho));
         alertas.save(existente);
-        crearEntregas(negocioId, regla, existente.getId());
+        crearEntregas(negocioId, regla, existente.getId(), hecho.usuariosExtra());
         despacho.despacharAlerta(existente.getId());
         return existente.getId();
     }
 
-    private void crearEntregas(UUID negocioId, ReglaAlerta regla, UUID alertaId) {
-        Set<UUID> destinatarios = regla.destinatarios(
-                rol -> directorio.usuariosConRol(negocioId, rol));
+    private void crearEntregas(UUID negocioId, ReglaAlerta regla, UUID alertaId,
+            Set<UUID> usuariosExtra) {
+        Set<UUID> destinatarios = new LinkedHashSet<>(regla.destinatarios(
+                rol -> directorio.usuariosConRol(negocioId, rol)));
+        destinatarios.addAll(usuariosExtra);
         for (UUID usuario : destinatarios) {
             for (String canal : regla.getCanales()) {
                 entregas.save(Entrega.pendiente(negocioId, alertaId, usuario,

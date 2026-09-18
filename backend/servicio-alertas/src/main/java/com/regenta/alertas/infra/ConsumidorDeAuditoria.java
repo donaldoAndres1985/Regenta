@@ -20,9 +20,10 @@ import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.DatosDelNegocio;
 
 /**
- * Escucha los conflictos de sincronización vencidos de servicio-auditoria
- * (HU-103 criterio 5). Pasa por el Inbox: el mismo conflicto barrido dos
- * veces no genera una segunda alerta.
+ * Escucha lo que sale mal con las operaciones hechas sin señal: el conflicto
+ * de sincronización que lleva demasiado sin resolver (HU-103 criterio 5) y la
+ * venta offline que chocó al subir (HU-043 criterio 4). Pasa por el Inbox: el
+ * mismo evento entregado dos veces no genera una segunda alerta.
  */
 @Component
 public class ConsumidorDeAuditoria {
@@ -42,7 +43,7 @@ public class ConsumidorDeAuditoria {
             value = @Queue(name = "alertas.conflictos-de-sincronizacion", durable = "true"),
             exchange = @Exchange(name = "${regenta.eventos.exchange:regenta.eventos}",
                     type = ExchangeTypes.TOPIC, durable = "true"),
-            key = {"conflicto_sync_vencido"}))
+            key = {"conflicto_sync_vencido", "venta_offline_en_conflicto"}))
     public void recibir(Message mensaje) {
         var props = mensaje.getMessageProperties();
         UUID mensajeId = UUID.fromString(props.getMessageId());
@@ -57,7 +58,15 @@ public class ConsumidorDeAuditoria {
         UUID negocioId = UUID.fromString(negocio.toString());
 
         ContextoDeNegocio.en(contextoDe(negocioId), () -> inbox.procesarUnaVez(
-                mensajeId, negocioId, tipoEvento, cuerpo, payload -> vigilancia.alConflictoSinResolver(datos)));
+                mensajeId, negocioId, tipoEvento, cuerpo, payload -> despachar(tipoEvento, datos)));
+    }
+
+    private void despachar(String tipoEvento, Map<String, Object> datos) {
+        switch (tipoEvento) {
+            case "conflicto_sync_vencido" -> vigilancia.alConflictoSinResolver(datos);
+            case "venta_offline_en_conflicto" -> vigilancia.alVentaOfflineEnConflicto(datos);
+            default -> { /* clave no esperada: se ignora */ }
+        }
     }
 
     private Map<String, Object> leer(String cuerpo) {

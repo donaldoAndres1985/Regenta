@@ -106,6 +106,34 @@ class AlertasDeAuditoriaTest extends BaseDeAlertas {
     }
 
     @Test
+    @DisplayName("HU-043 criterio 4: una venta offline que chocó al subir avisa al vendedor que la hizo")
+    void ventaOfflineEnConflictoAvisaAlVendedor() {
+        reglaDeConflicto("Avisar conflictos");
+        UUID ventaId = UUID.randomUUID();
+        UUID vendedor = UUID.randomUUID();
+
+        consumidor.recibir(mensaje("venta_offline_en_conflicto", Map.of(
+                "negocio_id", negocioA.toString(),
+                "venta_id", ventaId.toString(),
+                "numero", "1042",
+                "origen_offline_id", UUID.randomUUID().toString(),
+                "usuario_id", vendedor.toString(),
+                "motivo", "no hay stock suficiente")));
+
+        assertThat(comoElServicio(negocioA,
+                "select count(*) from alertas where tipo_codigo = 'SYNC_CONFLICTO' "
+                        + "and entidad_id = '" + ventaId + "'"))
+                .containsExactly("1");
+        assertThat(comoElServicio(negocioA, "select ruta_app from alertas where entidad_id = '"
+                + ventaId + "'")).containsExactly("/ventas/" + ventaId);
+        assertThat(comoElServicio(negocioA,
+                "select count(*) from entregas e join alertas a on a.id = e.alerta_id "
+                        + "where a.entidad_id = '" + ventaId + "' and e.usuario_id = '" + vendedor + "'"))
+                .as("la entrega va al vendedor que hizo la venta, no solo a quien diga la regla")
+                .containsExactly("1");
+    }
+
+    @Test
     @DisplayName("Sin una regla activa para SYNC_CONFLICTO, el evento no genera alerta")
     void sinReglaNoGeneraAlerta() {
         UUID ventaId = UUID.randomUUID();
