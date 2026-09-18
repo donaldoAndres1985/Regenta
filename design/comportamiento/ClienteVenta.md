@@ -105,13 +105,54 @@ el permiso de crear clientes; sin él, la pantalla busca y asigna pero no ofrece
   completo.
 - Que no poder crear un cliente impida cobrar. Se cobra a consumidor final y se corrige después.
 
+### R8 · Consumidor final se arma al facturar, no se guarda como cliente
+
+**Dada** una venta sin cliente, **cuando** se emite la factura, **entonces** el adquiriente sale
+del **adquiriente genérico** configurado, no de una fila de `crm.clientes`.
+
+`cliente_id` se queda en NULL de punta a punta. El genérico no es un cliente: es lo que la DIAN
+manda escribir en el XML cuando quien compra no se identifica. Crearlo como fila real por negocio
+lo metería en la búsqueda, en el listado del CRM, en las métricas por cliente y en la cartera, y
+habría que filtrarlo en cada uno de esos sitios; peor, sería un cliente al que alguien le puede
+habilitar crédito.
+
+Los valores viven en configuración (`regenta.dian.adquiriente-generico.*` en
+`servicio-facturacion`), no en el código: cuando la DIAN cambie el número, es un cambio de
+configuración y no un despliegue con migración.
+
+| Campo | Valor por defecto | De dónde sale |
+|---|---|---|
+| Tipo de documento | `13` (cédula de ciudadanía) | Anexo técnico DIAN |
+| Número de documento | `222222222222` | Anexo técnico DIAN |
+| Nombre | `Consumidor final` | Anexo técnico DIAN |
+| Tipo de organización | `2` (persona natural) | Anexo técnico DIAN |
+| Responsabilidad fiscal | `R-99-PN` (no aplica, otros) | Anexo técnico DIAN |
+| País | `CO` | La misma configuración |
+
+El municipio, que el anexo pide que sea el del emisor, **todavía no sale**: los datos fiscales del
+negocio viven en `configuracion_negocio`, en la base de `servicio-usuarios`, y Facturación no puede
+consultarla. Es el mismo hueco del emisor que queda anotado más abajo.
+
+> **Sin confirmar:** la cantidad de doses del número. Aquí van doce (`222222222222`), que es lo que
+> trae el anexo técnico de factura electrónica; los nueve (`222222222`) son el número del mundo POS
+> y de los sistemas anteriores a la facturación electrónica. Confirmar contra el anexo
+> vigente **antes de la primera emisión real**: si está mal, la DIAN rechaza el documento. Está en
+> configuración justamente para que corregirlo no cueste un despliegue.
+
+### R9 · La venta manda su snapshot al facturar
+
+**Dada** una venta con cliente, **cuando** se publica `venta_completada`, **entonces** el evento
+lleva el `cliente_snapshot` que la venta congeló. Facturación no puede consultar la base de Ventas
+ni la de Clientes: si el snapshot no viaja en el evento, la factura sale sin adquiriente.
+
 ## Preguntas abiertas
 
-- **Consumidor final en la factura electrónica.** `facturas.cliente_snapshot` es NOT NULL, así
-  que hay que decidir con qué se llena cuando no hay cliente: tipo de documento, número genérico
-  y nombre. Confirmar contra la resolución DIAN vigente antes de implementarlo.
 - ¿A partir de qué monto se exige identificar al comprador? Si el negocio lo configura, va en
   `configuracion_negocio` y esta pantalla lo respeta.
+- **El emisor de la factura también sale vacío.** Es el mismo problema que R9 pero del otro lado:
+  `facturas.emisor_snapshot` se arma del evento, y los datos fiscales del negocio viven en
+  `configuracion_negocio`, en la base de `servicio-usuarios`. Necesita su propia historia: una
+  copia local en Facturación alimentada por `negocio_creado`, como la que ya tiene Reportes.
 
 ## Lo que falta en el backlog
 
