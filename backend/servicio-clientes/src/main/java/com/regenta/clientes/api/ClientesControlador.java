@@ -14,9 +14,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.regenta.clientes.aplicacion.AltaExpresDeClientes;
 import com.regenta.clientes.aplicacion.ClienteDelNegocio;
 import com.regenta.clientes.aplicacion.GestionDeClientes;
 import com.regenta.clientes.aplicacion.SolicitudDeCliente;
+import com.regenta.clientes.aplicacion.SolicitudExpres;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -30,9 +32,21 @@ import jakarta.validation.Valid;
 public class ClientesControlador {
 
     private final GestionDeClientes clientes;
+    private final AltaExpresDeClientes alta;
 
-    public ClientesControlador(GestionDeClientes clientes) {
+    public ClientesControlador(GestionDeClientes clientes, AltaExpresDeClientes alta) {
         this.clientes = clientes;
+        this.alta = alta;
+    }
+
+    @PostMapping("/expres")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Crea el cliente con lo minimo para facturar, desde la venta")
+    @ApiResponse(responseCode = "409",
+            description = "Ya hay un cliente con ese documento; el cuerpo trae su cliente_id")
+    @ApiResponse(responseCode = "422", description = "Falta documento, nombre o correo")
+    public ClienteDelNegocio crearExpres(@Valid @RequestBody SolicitudExpres solicitud) {
+        return alta.crear(solicitud);
     }
 
     @GetMapping

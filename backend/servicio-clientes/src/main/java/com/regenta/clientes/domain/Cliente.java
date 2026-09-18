@@ -129,6 +129,17 @@ public class Cliente {
      * Alta de un cliente ya normalizado por el servicio (persona, documento y
      * nombre resueltos). Aqui solo se asignan los valores.
      */
+    /**
+     * HU-114 criterio 5: el cliente que se creo sin conexion ya tiene id —se
+     * lo puso el dispositivo— y sube con ese. Solo vale antes de guardarlo:
+     * despues, cambiarle el id seria crear otro cliente.
+     */
+    public void conElIdDelDispositivo(UUID id) {
+        if (id != null) {
+            this.id = id;
+        }
+    }
+
     public static Cliente crear(UUID negocioId, UUID creadoPor, TipoPersona tipoPersona,
             TipoDocumento tipoDocumento, String numeroDocumento, String digitoVerificacion,
             String nombres, String apellidos, String razonSocial, String email, String telefono,

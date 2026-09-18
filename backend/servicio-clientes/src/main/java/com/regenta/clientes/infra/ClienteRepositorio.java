@@ -17,6 +17,10 @@ public interface ClienteRepositorio extends JpaRepository<Cliente, UUID> {
     boolean existsByNegocioIdAndTipoDocumentoAndNumeroDocumento(
             UUID negocioId, TipoDocumento tipoDocumento, String numeroDocumento);
 
+    /** HU-114 criterio 2: un 409 que no dice cual es el que ya existe obliga a buscarlo a mano. */
+    Optional<Cliente> findByNegocioIdAndTipoDocumentoAndNumeroDocumento(
+            UUID negocioId, TipoDocumento tipoDocumento, String numeroDocumento);
+
     boolean existsByNegocioIdAndTipoDocumentoAndNumeroDocumentoAndIdNot(
             UUID negocioId, TipoDocumento tipoDocumento, String numeroDocumento, UUID id);
 
