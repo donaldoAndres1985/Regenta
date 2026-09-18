@@ -267,6 +267,18 @@ public class Venta {
         return clienteId;
     }
 
+    public UUID getUsuarioId() {
+        return usuarioId;
+    }
+
+    public String getCanal() {
+        return canal;
+    }
+
+    public OffsetDateTime getFecha() {
+        return fecha;
+    }
+
     public BigDecimal getSaldoPendiente() {
         return saldoPendiente;
     }

@@ -90,6 +90,21 @@ class SagaDeConfirmacionDeVentaTest extends BaseDeVentas {
     }
 
     @Test
+    @DisplayName("HU-096 criterio 1: venta_completada lleva el detalle de líneas, para que Reportes arme hechos_venta")
+    void ventaCompletadaLlevaLasLineas() {
+        enContexto(negocio, usuario, SETUP, () -> ventas.confirmar(venta));
+        UUID corr = correlacion();
+
+        enContexto(negocio, usuario, SETUP, () -> saga.alStockReservado(corr));
+
+        String payload = comoElServicio(negocio, "select payload::text from outbox_eventos "
+                + "where negocio_id = '" + negocio + "' and tipo_evento = 'venta_completada'").get(0);
+        assertThat(payload).contains("\"lineas\"").contains("SKU-1").contains("\"cantidad\": 2.000000");
+        assertThat(payload).contains("\"usuario_id\": \"" + usuario + "\"");
+        assertThat(payload).contains("\"canal\": \"MOSTRADOR\"");
+    }
+
+    @Test
     @DisplayName("Criterio 3: al llegar stock_reserva_fallida la venta vuelve a BORRADOR y la saga queda COMPENSADA")
     void reservaFallidaCompensa() {
         enContexto(negocio, usuario, SETUP, () -> ventas.confirmar(venta));
