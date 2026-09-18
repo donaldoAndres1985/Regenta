@@ -393,6 +393,18 @@ class $OperacionesPendientesTable extends OperacionesPendientes
     requiredDuringInsert: false,
     defaultValue: const Constant('PENDIENTE'),
   );
+  static const VerificationMeta _proximoIntentoEnMeta = const VerificationMeta(
+    'proximoIntentoEn',
+  );
+  @override
+  late final GeneratedColumn<DateTime> proximoIntentoEn =
+      GeneratedColumn<DateTime>(
+        'proximo_intento_en',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -402,6 +414,7 @@ class $OperacionesPendientesTable extends OperacionesPendientes
     creadoEn,
     intentos,
     estado,
+    proximoIntentoEn,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -462,6 +475,15 @@ class $OperacionesPendientesTable extends OperacionesPendientes
         estado.isAcceptableOrUnknown(data['estado']!, _estadoMeta),
       );
     }
+    if (data.containsKey('proximo_intento_en')) {
+      context.handle(
+        _proximoIntentoEnMeta,
+        proximoIntentoEn.isAcceptableOrUnknown(
+          data['proximo_intento_en']!,
+          _proximoIntentoEnMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -499,6 +521,10 @@ class $OperacionesPendientesTable extends OperacionesPendientes
         DriftSqlType.string,
         data['${effectivePrefix}estado'],
       )!,
+      proximoIntentoEn: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}proximo_intento_en'],
+      ),
     );
   }
 
@@ -517,6 +543,7 @@ class OperacionesPendiente extends DataClass
   final DateTime creadoEn;
   final int intentos;
   final String estado;
+  final DateTime? proximoIntentoEn;
   const OperacionesPendiente({
     required this.id,
     required this.metodo,
@@ -525,6 +552,7 @@ class OperacionesPendiente extends DataClass
     required this.creadoEn,
     required this.intentos,
     required this.estado,
+    this.proximoIntentoEn,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -538,6 +566,9 @@ class OperacionesPendiente extends DataClass
     map['creado_en'] = Variable<DateTime>(creadoEn);
     map['intentos'] = Variable<int>(intentos);
     map['estado'] = Variable<String>(estado);
+    if (!nullToAbsent || proximoIntentoEn != null) {
+      map['proximo_intento_en'] = Variable<DateTime>(proximoIntentoEn);
+    }
     return map;
   }
 
@@ -552,6 +583,9 @@ class OperacionesPendiente extends DataClass
       creadoEn: Value(creadoEn),
       intentos: Value(intentos),
       estado: Value(estado),
+      proximoIntentoEn: proximoIntentoEn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(proximoIntentoEn),
     );
   }
 
@@ -568,6 +602,9 @@ class OperacionesPendiente extends DataClass
       creadoEn: serializer.fromJson<DateTime>(json['creadoEn']),
       intentos: serializer.fromJson<int>(json['intentos']),
       estado: serializer.fromJson<String>(json['estado']),
+      proximoIntentoEn: serializer.fromJson<DateTime?>(
+        json['proximoIntentoEn'],
+      ),
     );
   }
   @override
@@ -581,6 +618,7 @@ class OperacionesPendiente extends DataClass
       'creadoEn': serializer.toJson<DateTime>(creadoEn),
       'intentos': serializer.toJson<int>(intentos),
       'estado': serializer.toJson<String>(estado),
+      'proximoIntentoEn': serializer.toJson<DateTime?>(proximoIntentoEn),
     };
   }
 
@@ -592,6 +630,7 @@ class OperacionesPendiente extends DataClass
     DateTime? creadoEn,
     int? intentos,
     String? estado,
+    Value<DateTime?> proximoIntentoEn = const Value.absent(),
   }) => OperacionesPendiente(
     id: id ?? this.id,
     metodo: metodo ?? this.metodo,
@@ -600,6 +639,9 @@ class OperacionesPendiente extends DataClass
     creadoEn: creadoEn ?? this.creadoEn,
     intentos: intentos ?? this.intentos,
     estado: estado ?? this.estado,
+    proximoIntentoEn: proximoIntentoEn.present
+        ? proximoIntentoEn.value
+        : this.proximoIntentoEn,
   );
   OperacionesPendiente copyWithCompanion(OperacionesPendientesCompanion data) {
     return OperacionesPendiente(
@@ -610,6 +652,9 @@ class OperacionesPendiente extends DataClass
       creadoEn: data.creadoEn.present ? data.creadoEn.value : this.creadoEn,
       intentos: data.intentos.present ? data.intentos.value : this.intentos,
       estado: data.estado.present ? data.estado.value : this.estado,
+      proximoIntentoEn: data.proximoIntentoEn.present
+          ? data.proximoIntentoEn.value
+          : this.proximoIntentoEn,
     );
   }
 
@@ -622,14 +667,23 @@ class OperacionesPendiente extends DataClass
           ..write('cuerpo: $cuerpo, ')
           ..write('creadoEn: $creadoEn, ')
           ..write('intentos: $intentos, ')
-          ..write('estado: $estado')
+          ..write('estado: $estado, ')
+          ..write('proximoIntentoEn: $proximoIntentoEn')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, metodo, ruta, cuerpo, creadoEn, intentos, estado);
+  int get hashCode => Object.hash(
+    id,
+    metodo,
+    ruta,
+    cuerpo,
+    creadoEn,
+    intentos,
+    estado,
+    proximoIntentoEn,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -640,7 +694,8 @@ class OperacionesPendiente extends DataClass
           other.cuerpo == this.cuerpo &&
           other.creadoEn == this.creadoEn &&
           other.intentos == this.intentos &&
-          other.estado == this.estado);
+          other.estado == this.estado &&
+          other.proximoIntentoEn == this.proximoIntentoEn);
 }
 
 class OperacionesPendientesCompanion
@@ -652,6 +707,7 @@ class OperacionesPendientesCompanion
   final Value<DateTime> creadoEn;
   final Value<int> intentos;
   final Value<String> estado;
+  final Value<DateTime?> proximoIntentoEn;
   final Value<int> rowid;
   const OperacionesPendientesCompanion({
     this.id = const Value.absent(),
@@ -661,6 +717,7 @@ class OperacionesPendientesCompanion
     this.creadoEn = const Value.absent(),
     this.intentos = const Value.absent(),
     this.estado = const Value.absent(),
+    this.proximoIntentoEn = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   OperacionesPendientesCompanion.insert({
@@ -671,6 +728,7 @@ class OperacionesPendientesCompanion
     required DateTime creadoEn,
     this.intentos = const Value.absent(),
     this.estado = const Value.absent(),
+    this.proximoIntentoEn = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        metodo = Value(metodo),
@@ -684,6 +742,7 @@ class OperacionesPendientesCompanion
     Expression<DateTime>? creadoEn,
     Expression<int>? intentos,
     Expression<String>? estado,
+    Expression<DateTime>? proximoIntentoEn,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -694,6 +753,7 @@ class OperacionesPendientesCompanion
       if (creadoEn != null) 'creado_en': creadoEn,
       if (intentos != null) 'intentos': intentos,
       if (estado != null) 'estado': estado,
+      if (proximoIntentoEn != null) 'proximo_intento_en': proximoIntentoEn,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -706,6 +766,7 @@ class OperacionesPendientesCompanion
     Value<DateTime>? creadoEn,
     Value<int>? intentos,
     Value<String>? estado,
+    Value<DateTime?>? proximoIntentoEn,
     Value<int>? rowid,
   }) {
     return OperacionesPendientesCompanion(
@@ -716,6 +777,7 @@ class OperacionesPendientesCompanion
       creadoEn: creadoEn ?? this.creadoEn,
       intentos: intentos ?? this.intentos,
       estado: estado ?? this.estado,
+      proximoIntentoEn: proximoIntentoEn ?? this.proximoIntentoEn,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -744,6 +806,9 @@ class OperacionesPendientesCompanion
     if (estado.present) {
       map['estado'] = Variable<String>(estado.value);
     }
+    if (proximoIntentoEn.present) {
+      map['proximo_intento_en'] = Variable<DateTime>(proximoIntentoEn.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -760,6 +825,7 @@ class OperacionesPendientesCompanion
           ..write('creadoEn: $creadoEn, ')
           ..write('intentos: $intentos, ')
           ..write('estado: $estado, ')
+          ..write('proximoIntentoEn: $proximoIntentoEn, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1178,6 +1244,7 @@ typedef $$OperacionesPendientesTableCreateCompanionBuilder =
       required DateTime creadoEn,
       Value<int> intentos,
       Value<String> estado,
+      Value<DateTime?> proximoIntentoEn,
       Value<int> rowid,
     });
 typedef $$OperacionesPendientesTableUpdateCompanionBuilder =
@@ -1189,6 +1256,7 @@ typedef $$OperacionesPendientesTableUpdateCompanionBuilder =
       Value<DateTime> creadoEn,
       Value<int> intentos,
       Value<String> estado,
+      Value<DateTime?> proximoIntentoEn,
       Value<int> rowid,
     });
 
@@ -1233,6 +1301,11 @@ class $$OperacionesPendientesTableFilterComposer
 
   ColumnFilters<String> get estado => $composableBuilder(
     column: $table.estado,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get proximoIntentoEn => $composableBuilder(
+    column: $table.proximoIntentoEn,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1280,6 +1353,11 @@ class $$OperacionesPendientesTableOrderingComposer
     column: $table.estado,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get proximoIntentoEn => $composableBuilder(
+    column: $table.proximoIntentoEn,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OperacionesPendientesTableAnnotationComposer
@@ -1311,6 +1389,11 @@ class $$OperacionesPendientesTableAnnotationComposer
 
   GeneratedColumn<String> get estado =>
       $composableBuilder(column: $table.estado, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get proximoIntentoEn => $composableBuilder(
+    column: $table.proximoIntentoEn,
+    builder: (column) => column,
+  );
 }
 
 class $$OperacionesPendientesTableTableManager
@@ -1366,6 +1449,7 @@ class $$OperacionesPendientesTableTableManager
                 Value<DateTime> creadoEn = const Value.absent(),
                 Value<int> intentos = const Value.absent(),
                 Value<String> estado = const Value.absent(),
+                Value<DateTime?> proximoIntentoEn = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OperacionesPendientesCompanion(
                 id: id,
@@ -1375,6 +1459,7 @@ class $$OperacionesPendientesTableTableManager
                 creadoEn: creadoEn,
                 intentos: intentos,
                 estado: estado,
+                proximoIntentoEn: proximoIntentoEn,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1386,6 +1471,7 @@ class $$OperacionesPendientesTableTableManager
                 required DateTime creadoEn,
                 Value<int> intentos = const Value.absent(),
                 Value<String> estado = const Value.absent(),
+                Value<DateTime?> proximoIntentoEn = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OperacionesPendientesCompanion.insert(
                 id: id,
@@ -1395,6 +1481,7 @@ class $$OperacionesPendientesTableTableManager
                 creadoEn: creadoEn,
                 intentos: intentos,
                 estado: estado,
+                proximoIntentoEn: proximoIntentoEn,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
