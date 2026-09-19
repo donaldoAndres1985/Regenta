@@ -1,3 +1,4 @@
 com.regenta.comun.eventos.EventosAutoConfiguracion
 com.regenta.comun.openapi.OpenApiAutoConfiguracion
 com.regenta.comun.negocio.NegocioAutoConfiguracion
+com.regenta.comun.bbdd.TrigramAutoConfiguracion

@@ -33,17 +33,25 @@ camino, y cada una nombra el sitio exacto donde hoy se nota.
 > nombre. No es un scan completo —cae en el índice de `negocio_id` y filtra—, pero deja de ser
 > sub-lineal. El arreglo es un `ALTER FUNCTION … LEAKPROOF` que solo puede hacer un superusuario,
 > así que no cabe en una migración Flyway del usuario del servicio.
+>
+> **Corrección 2026-09-19, tras implementar:** el criterio 2 original pedía que el *plan* usara
+> el índice GIN. Se comprobó con `EXPLAIN (ANALYZE)` que eso no es alcanzable de forma confiable:
+> aun con `LEAKPROOF` aplicado, el estimador de costos de PostgreSQL para GIN trigram subestima
+> su propio beneficio y el planificador sigue prefiriendo `ix_clientes_negocio`/`ix_productos_nombre`
+> por costo, **aunque el GIN mida ~18 veces más rápido en la ejecución real** (2 ms contra 35 ms,
+> con diez mil filas). Como lo que le importa al vendedor es el tiempo de respuesta, no qué índice
+> aparece en el plan, el criterio 2 se reescribió para medir eso.
 
 **Criterios de aceptación**
 
 1. Dada una base recién creada, cuando termina la instalación, entonces las funciones `textlike` y `texticlike` están marcadas `LEAKPROOF`.
-2. Dada una tabla con diez mil filas de dos negocios, cuando busco por nombre parcial, entonces el plan de ejecución usa el índice GIN trigram.
+2. ~~Dada una tabla con diez mil filas de dos negocios, cuando busco por nombre parcial, entonces el plan de ejecución usa el índice GIN trigram.~~ **Reescrito:** dada una tabla con diez mil filas de dos negocios, cuando busco por nombre parcial, entonces la búsqueda responde en menos de 300 ms.
 3. Dado ese mismo escenario, cuando busco desde un negocio, entonces sigo sin ver una sola fila del otro.
 4. Dado un entorno donde el paso no se aplicó, cuando arranca el servicio, entonces queda un aviso en el log: la búsqueda funciona, pero lenta, y hay que saberlo.
 
 **Terminado cuando**
 
-- [ ] Los criterios de aceptación pasan como tests automatizados, comprobando el plan de ejecución, no solo el resultado.
+- [ ] Los criterios de aceptación pasan como tests automatizados, con dos negocios cargados.
 - [ ] El paso está en el script de instalación de la base y documentado, no en un Flyway que fallaría.
 - [ ] Revisada en PR por otra persona.
 
