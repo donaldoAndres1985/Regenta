@@ -1,7 +1,9 @@
 package com.regenta.recursos.aplicacion;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -11,10 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.regenta.comun.errores.ConflictoDeEstadoException;
 import com.regenta.comun.errores.NoEncontradoException;
 import com.regenta.comun.errores.ReglaDeNegocioException;
+import com.regenta.comun.eventos.RegistroDeEventos;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.RequierePermiso;
 import com.regenta.recursos.domain.BloqueoDeRecurso;
 import com.regenta.recursos.domain.MotivoBloqueo;
+import com.regenta.recursos.domain.Recurso;
 import com.regenta.recursos.infra.RecursoRepositorio;
 import com.regenta.recursos.infra.RepositorioDeBloqueos;
 
@@ -31,19 +35,21 @@ public class GestionDeBloqueos {
     private final RepositorioDeBloqueos bloqueos;
     private final RecursoRepositorio recursos;
     private final ConsultaDeReservasDeRecurso reservas;
+    private final RegistroDeEventos eventos;
 
     public GestionDeBloqueos(RepositorioDeBloqueos bloqueos, RecursoRepositorio recursos,
-            ConsultaDeReservasDeRecurso reservas) {
+            ConsultaDeReservasDeRecurso reservas, RegistroDeEventos eventos) {
         this.bloqueos = bloqueos;
         this.recursos = recursos;
         this.reservas = reservas;
+        this.eventos = eventos;
     }
 
     @Transactional
     @RequierePermiso("RECURSOS_RECURSO_EDITAR")
     public BloqueoCreado crear(UUID recursoId, SolicitudDeBloqueo solicitud) {
         UUID negocioId = ContextoDeNegocio.negocioActual();
-        exigirRecurso(recursoId, negocioId);
+        Recurso recurso = exigirRecurso(recursoId, negocioId);
 
         BloqueoDeRecurso bloqueo = BloqueoDeRecurso.nuevo(negocioId, recursoId, solicitud.desde(),
                 solicitud.hasta(), MotivoBloqueo.desde(solicitud.motivo()), solicitud.detalle(),
@@ -58,6 +64,8 @@ public class GestionDeBloqueos {
 
         List<ReservaAfectada> afectadas = reservas.reservasConfirmadasEnPeriodo(
                 negocioId, recursoId, bloqueo.getDesde(), bloqueo.getHasta());
+
+        publicar(bloqueo, recurso, "bloqueo_recurso_creado");
 
         return new BloqueoCreado(
                 BloqueoDelNegocio.de(bloqueos.buscar(bloqueo.getId()).orElseThrow()), afectadas);
@@ -91,11 +99,35 @@ public class GestionDeBloqueos {
                 .orElseThrow(() -> new NoEncontradoException("Ese bloqueo no existe"));
         // La RLS ya acota la búsqueda al negocio de la transacción.
         bloqueos.eliminar(bloqueo.getId());
+        publicar(bloqueo, recursos.findByIdAndNegocioId(bloqueo.getRecursoId(),
+                bloqueo.getNegocioId()).orElse(null), "bloqueo_recurso_levantado");
     }
 
-    private void exigirRecurso(UUID recursoId, UUID negocioId) {
-        if (recursos.findByIdAndNegocioId(recursoId, negocioId).isEmpty()) {
-            throw new NoEncontradoException("Ese recurso no existe");
-        }
+    /**
+     * HU-136 criterio 1. Va el periodo completo y el tipo de recurso, no solo
+     * el id: Reportes no puede consultar esta base y necesita las dos cosas
+     * para sacar del denominador de la ocupación las noches que la habitación
+     * estuvo en obra.
+     */
+    private void publicar(BloqueoDeRecurso bloqueo, Recurso recurso, String tipoEvento) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("negocio_id", bloqueo.getNegocioId().toString());
+        payload.put("bloqueo_id", bloqueo.getId().toString());
+        payload.put("recurso_id", bloqueo.getRecursoId().toString());
+        payload.put("tipo_recurso_id",
+                recurso == null ? null : recurso.getTipoRecursoId().toString());
+        payload.put("sucursal_id", recurso == null || recurso.getSucursalId() == null ? null
+                : recurso.getSucursalId().toString());
+        payload.put("desde", bloqueo.getDesde().toString());
+        payload.put("hasta", bloqueo.getHasta().toString());
+        payload.put("motivo", bloqueo.getMotivo().name());
+        payload.put("detalle", bloqueo.getDetalle());
+        eventos.registrar(bloqueo.getNegocioId(), "BloqueoDeRecurso", bloqueo.getId(), tipoEvento,
+                payload);
+    }
+
+    private Recurso exigirRecurso(UUID recursoId, UUID negocioId) {
+        return recursos.findByIdAndNegocioId(recursoId, negocioId)
+                .orElseThrow(() -> new NoEncontradoException("Ese recurso no existe"));
     }
 }
