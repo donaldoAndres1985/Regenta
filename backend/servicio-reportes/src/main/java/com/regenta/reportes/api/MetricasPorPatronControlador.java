@@ -16,6 +16,7 @@ import com.regenta.reportes.aplicacion.MetricasDeComanda;
 import com.regenta.reportes.aplicacion.MetricasDeReserva;
 import com.regenta.reportes.aplicacion.OcupacionDelDia;
 import com.regenta.reportes.aplicacion.PreparacionDePlato;
+import com.regenta.reportes.aplicacion.RotacionDeMesa;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -80,6 +81,15 @@ public class MetricasPorPatronControlador {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
         return comanda.mesas(desde, hasta);
+    }
+
+    @GetMapping("/mesas/por-mesa")
+    @Operation(summary = "Rotación desglosada por mesa, con su código y su zona (HU-134)")
+    @ApiResponse(responseCode = "404", description = "El negocio no es del patrón Comanda")
+    public List<RotacionDeMesa> porMesa(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        return comanda.porMesa(desde, hasta);
     }
 
     @GetMapping("/preparacion")

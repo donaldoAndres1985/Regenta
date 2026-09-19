@@ -80,6 +80,47 @@ public class MetricasDeComanda {
     }
 
     /**
+     * HU-134 criterio 4. El mismo grano que {@link #mesas}, pero desglosado
+     * por mesa: código y zona, no id. El código es el que quedó guardado en
+     * {@code hechos_comanda} al momento del pedido (sobrevive a que la mesa
+     * se elimine, criterio 5); la zona sale de {@code dim_mesa}, la de hoy.
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("REPORTES_REPORTE_VER")
+    public List<RotacionDeMesa> porMesa(LocalDate desde, LocalDate hasta) {
+        PatronDelNegocio.exigir("COMANDA", "rotación de mesas");
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        OffsetDateTime[] rango = rango(negocioId, desde, hasta);
+
+        return jdbc.query("""
+                WITH por_comanda AS (
+                    SELECT comanda_id, mesa_id, mesa_codigo,
+                           max(num_comensales)  AS comensales,
+                           max(tiempo_mesa_min) AS minutos,
+                           sum(monto_neto)      AS neto
+                      FROM reportes.hechos_comanda
+                     WHERE negocio_id = ? AND ocurrido_en >= ? AND ocurrido_en < ?
+                       AND mesa_id IS NOT NULL
+                     GROUP BY comanda_id, mesa_id, mesa_codigo
+                )
+                SELECT max(pc.mesa_codigo) AS codigo, dm.zona_nombre AS zona,
+                       count(*)                                       AS comandas,
+                       COALESCE(sum(pc.comensales), 0)                AS comensales,
+                       COALESCE(sum(pc.neto), 0)                      AS neto,
+                       COALESCE(avg(pc.minutos), 0)                   AS minutos_medios
+                  FROM por_comanda pc
+                  LEFT JOIN reportes.dim_mesa dm
+                         ON dm.negocio_id = ? AND dm.mesa_id = pc.mesa_id
+                 GROUP BY pc.mesa_id, dm.zona_nombre
+                 ORDER BY codigo
+                """,
+                (rs, fila) -> new RotacionDeMesa(rs.getString("codigo"), rs.getString("zona"),
+                        rs.getInt("comandas"), rs.getInt("comensales"), rs.getBigDecimal("neto"),
+                        rs.getBigDecimal("minutos_medios").setScale(4, java.math.RoundingMode.HALF_UP)),
+                negocioId, rango[0], rango[1], negocioId);
+    }
+
+    /**
      * Criterio 4. Las líneas sin marca de cocina no entran: un plato que nunca
      * pasó por el KDS no se preparó en cero minutos, simplemente no se sabe
      * cuánto tardó, y contarlo como cero bajaría el promedio con un dato falso.

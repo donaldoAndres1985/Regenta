@@ -83,6 +83,10 @@ public class ConsumidorDePedidosCompletados {
         // HU-099: la mesa y los comensales son la rotación y el ticket por
         // comensal. Venían en el evento y se estaban tirando.
         UUID mesaId = uuid(datos.get("mesa_id"));
+        // HU-134: el código sale de dim_mesa, snapshot al momento del pedido
+        // (criterio 3); si la mesa se borra después, este hecho no cambia
+        // (criterio 5).
+        String mesaCodigo = dimensiones.mesaCodigo(negocioId, mesaId);
         Integer numComensales = entero(datos.get("num_comensales"));
         BigDecimal propina = numeroONulo(datos.get("propina"));
         Integer tiempoMesaMin = entero(datos.get("tiempo_mesa_min"));
@@ -103,7 +107,7 @@ public class ConsumidorDePedidosCompletados {
             Integer tiempoPreparacionMin = entero(l.get("tiempo_preparacion_min"));
 
             hechos.insertarComanda(negocioId, fechaId, ocurridoEn, null, usuarioSk, comandaId, mesaId,
-                    numComensales, itemMenuId, nombre, cantidad, montoNeto, costo, propina,
+                    mesaCodigo, numComensales, itemMenuId, nombre, cantidad, montoNeto, costo, propina,
                     tiempoPreparacionMin, tiempoMesaMin);
 
             totalUnidades = totalUnidades.add(cantidad);

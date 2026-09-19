@@ -2,6 +2,7 @@ package com.regenta.mesas.aplicacion;
 
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.regenta.comun.errores.ConflictoDeEstadoException;
 import com.regenta.comun.errores.NoEncontradoException;
 import com.regenta.comun.errores.RecursoDuplicadoException;
+import com.regenta.comun.eventos.RegistroDeEventos;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.RequierePermiso;
 import com.regenta.mesas.aplicacion.PlanoDelSalon.ZonaConMesas;
@@ -38,13 +40,16 @@ public class GestionDeMesas {
     private final ZonaRepositorio zonas;
     private final ConteoDeSesionesAbiertas sesiones;
     private final MapaDeSesionesVivas sesionesVivas;
+    private final RegistroDeEventos eventos;
 
     public GestionDeMesas(MesaRepositorio mesas, ZonaRepositorio zonas,
-            ConteoDeSesionesAbiertas sesiones, MapaDeSesionesVivas sesionesVivas) {
+            ConteoDeSesionesAbiertas sesiones, MapaDeSesionesVivas sesionesVivas,
+            RegistroDeEventos eventos) {
         this.mesas = mesas;
         this.zonas = zonas;
         this.sesiones = sesiones;
         this.sesionesVivas = sesionesVivas;
+        this.eventos = eventos;
     }
 
     @Transactional(readOnly = true)
@@ -110,6 +115,7 @@ public class GestionDeMesas {
         } catch (DataIntegrityViolationException choca) {
             throw new RecursoDuplicadoException("Ya hay una mesa con el código " + codigo);
         }
+        publicar(mesa, "mesa_creada");
         return MesaDelNegocio.de(mesa);
     }
 
@@ -121,6 +127,7 @@ public class GestionDeMesas {
         mesa.editar(solicitud.zonaId(), solicitud.nombre(), solicitud.capacidad(),
                 FormaDeMesa.desde(solicitud.forma()));
         mesas.save(mesa);
+        publicar(mesa, "mesa_actualizada");
         return MesaDelNegocio.de(mesa);
     }
 
@@ -144,6 +151,33 @@ public class GestionDeMesas {
         }
         mesa.desactivar();
         mesas.save(mesa);
+        publicar(mesa, "mesa_eliminada");
+    }
+
+    /**
+     * El catálogo sale al bus (HU-134). {@code hechos_comanda.mesa_codigo}
+     * lleva NULL desde V1 porque nada lo publica: la rotación cuenta bien
+     * porque agrupa por {@code mesa_id}, pero un listado por mesa mostraría
+     * UUIDs en vez de códigos.
+     *
+     * <p>Va la mesa completa en cada cambio, no un delta, igual que el
+     * catálogo de recursos de HU-099: quien lo consume hace un upsert y
+     * queda con la foto correcta sin haber visto los eventos anteriores.
+     */
+    private void publicar(Mesa mesa, String tipoEvento) {
+        String zonaNombre = mesa.getZonaId() == null ? null
+                : zonas.findByIdAndNegocioId(mesa.getZonaId(), mesa.getNegocioId())
+                        .map(Zona::getNombre).orElse(null);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("negocio_id", mesa.getNegocioId().toString());
+        payload.put("mesa_id", mesa.getId().toString());
+        payload.put("zona_id", mesa.getZonaId() == null ? null : mesa.getZonaId().toString());
+        payload.put("zona_nombre", zonaNombre);
+        payload.put("codigo", mesa.getCodigo());
+        payload.put("nombre", mesa.getNombre());
+        payload.put("capacidad", (int) mesa.getCapacidad());
+        payload.put("activa", mesa.isActiva());
+        eventos.registrar(mesa.getNegocioId(), "Mesa", mesa.getId(), tipoEvento, payload);
     }
 
     private void exigirZona(UUID zonaId, UUID negocioId) {
