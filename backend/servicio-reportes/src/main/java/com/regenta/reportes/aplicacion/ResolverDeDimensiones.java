@@ -8,6 +8,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.time.temporal.WeekFields;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -132,6 +133,22 @@ public class ResolverDeDimensiones {
         return usuarios.findByNegocioIdAndUsuarioIdAndEsActualTrue(negocioId, usuarioId)
                 .map(DimUsuario::getSk)
                 .orElseGet(() -> usuarios.save(DimUsuario.crear(negocioId, usuarioId)).getSk());
+    }
+
+    /**
+     * El código legible de la mesa, snapshot al momento del pedido (HU-134
+     * criterio 3). Se resuelve desde {@code dim_mesa}, no se referencia por
+     * clave foránea: si la mesa no está todavía en la dimensión (o nunca
+     * llegó su catálogo) el hecho igual se guarda, solo que sin código.
+     */
+    public String mesaCodigo(UUID negocioId, UUID mesaId) {
+        if (mesaId == null) {
+            return null;
+        }
+        List<String> filas = jdbc.queryForList(
+                "SELECT codigo FROM reportes.dim_mesa WHERE negocio_id = ? AND mesa_id = ?",
+                String.class, negocioId, mesaId);
+        return filas.isEmpty() ? null : filas.get(0);
     }
 
     public Long sucursalSk(UUID negocioId, UUID sucursalId) {
