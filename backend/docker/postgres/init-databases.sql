@@ -179,3 +179,25 @@ SELECT format('CREATE DATABASE %I OWNER %I', 'regenta_auditoria', 'reg_auditoria
 
 REVOKE ALL ON DATABASE regenta_auditoria FROM PUBLIC;
 GRANT CONNECT, TEMPORARY ON DATABASE regenta_auditoria TO reg_auditoria;
+
+-- ------------------------------------------------------- indices trigram (HU-126)
+-- Bajo FORCE ROW LEVEL SECURITY, los operadores LIKE/ILIKE (textlike/texticlike)
+-- no son LEAKPROOF, asi que el planificador nunca los baja a un indice GIN
+-- trigram: la busqueda por nombre parcial se resuelve por el indice de
+-- negocio_id + filtro, sub-lineal pero no tan rapido como el trigram. Marcarlos
+-- LEAKPROOF es responsabilidad del cluster, no de un servicio (ningun reg_*
+-- es superusuario), y es por base porque pg_proc es un catalogo por base de
+-- datos: hay que repetirlo en cada una que busca por nombre.
+--
+-- Es una propiedad, no una migracion: ALTER FUNCTION ... LEAKPROOF no falla si
+-- ya estaba aplicada, asi que este bloque es idempotente igual que el resto
+-- del script.
+\c regenta_clientes
+ALTER FUNCTION pg_catalog.textlike(text, text)   LEAKPROOF;
+ALTER FUNCTION pg_catalog.texticlike(text, text) LEAKPROOF;
+
+\c regenta_inventario
+ALTER FUNCTION pg_catalog.textlike(text, text)   LEAKPROOF;
+ALTER FUNCTION pg_catalog.texticlike(text, text) LEAKPROOF;
+
+\c postgres
