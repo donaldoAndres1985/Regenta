@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.regenta.comun.auditoria.CambiosDeAuditoria;
 import com.regenta.comun.errores.NoEncontradoException;
 import com.regenta.comun.errores.RecursoDuplicadoException;
 import com.regenta.comun.errores.ReglaDeNegocioException;
@@ -65,6 +66,7 @@ public class GestionDeConfiguracion {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         Negocio negocio = negocio(negocioId);
         ConfiguracionNegocio configuracion = configuracion(negocioId);
+        Map<String, Object> antes = foto(negocioId, negocio, configuracion);
 
         negocio.renombrar(cambio.nombreComercial(), cambio.razonSocial());
         negocio.corregirDocumento(cambio.tipoDocumento(), cambio.numeroDocumento(),
@@ -97,6 +99,18 @@ public class GestionDeConfiguracion {
         // identidad completa y no solo lo que cambio: el consumidor guarda una
         // foto, no aplica un parche, y asi no depende de haber visto los
         // eventos anteriores.
+        Map<String, Object> payload = foto(negocioId, negocio, configuracion);
+        // HU-130: para la bitácora, solo lo que cambió y con qué valores.
+        payload.put(CambiosDeAuditoria.CLAVE, CambiosDeAuditoria.actualizacion(antes, payload));
+        eventos.registrar(negocioId, "negocio", negocioId, "configuracion_negocio_actualizada",
+                payload);
+
+        return comoDto(negocio, configuracion,
+                cambiaElCalculo ? ADVERTENCIA_IMPUESTO_INCLUIDO : null);
+    }
+
+    private static Map<String, Object> foto(UUID negocioId, Negocio negocio,
+            ConfiguracionNegocio configuracion) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("negocio_id", negocioId.toString());
         payload.put("nombre_comercial", negocio.getNombreComercial());
@@ -112,11 +126,7 @@ public class GestionDeConfiguracion {
         payload.put("regimen_fiscal", configuracion.getRegimenFiscal());
         payload.put("responsabilidades_fiscales", configuracion.getResponsabilidadesFiscales());
         payload.put("precios_incluyen_impuesto", configuracion.isPreciosIncluyenImpuesto());
-        eventos.registrar(negocioId, "negocio", negocioId, "configuracion_negocio_actualizada",
-                payload);
-
-        return comoDto(negocio, configuracion,
-                cambiaElCalculo ? ADVERTENCIA_IMPUESTO_INCLUIDO : null);
+        return payload;
     }
 
     @Transactional(readOnly = true)

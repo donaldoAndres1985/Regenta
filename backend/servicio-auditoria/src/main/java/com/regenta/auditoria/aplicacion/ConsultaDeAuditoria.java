@@ -4,9 +4,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,9 +23,11 @@ import com.regenta.comun.negocio.RequierePermiso;
 public class ConsultaDeAuditoria {
 
     private final JdbcTemplate jdbc;
+    private final ObjectMapper json;
 
-    public ConsultaDeAuditoria(JdbcTemplate jdbc) {
+    public ConsultaDeAuditoria(JdbcTemplate jdbc, ObjectMapper json) {
         this.jdbc = jdbc;
+        this.json = json;
     }
 
     /** HU-101 criterio 4: reconstruye todo lo que hizo un request, aunque cruzara varios servicios. */
@@ -30,7 +37,7 @@ public class ConsultaDeAuditoria {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         return jdbc.query("""
                 SELECT id, usuario_id, servicio, entidad_tipo, entidad_id, accion, trace_id, resultado,
-                    ocurrido_en
+                    ocurrido_en, cambios::text AS cambios
                 FROM auditoria.eventos_auditoria
                 WHERE negocio_id = ? AND trace_id = ?
                 ORDER BY ocurrido_en
@@ -44,7 +51,7 @@ public class ConsultaDeAuditoria {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         return jdbc.query("""
                 SELECT id, usuario_id, servicio, entidad_tipo, entidad_id, accion, trace_id, resultado,
-                    ocurrido_en
+                    ocurrido_en, cambios::text AS cambios
                 FROM auditoria.eventos_auditoria
                 WHERE negocio_id = ? AND entidad_tipo = ? AND entidad_id = ?
                 ORDER BY ocurrido_en DESC
@@ -58,7 +65,7 @@ public class ConsultaDeAuditoria {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         return jdbc.query("""
                 SELECT id, usuario_id, servicio, entidad_tipo, entidad_id, accion, trace_id, resultado,
-                    ocurrido_en
+                    ocurrido_en, cambios::text AS cambios
                 FROM auditoria.eventos_auditoria
                 WHERE negocio_id = ? AND usuario_id = ? AND ocurrido_en >= ? AND ocurrido_en < ?
                 ORDER BY ocurrido_en DESC
@@ -71,6 +78,17 @@ public class ConsultaDeAuditoria {
                 rs.getString("servicio"), rs.getString("entidad_tipo"),
                 rs.getString("entidad_id") == null ? null : UUID.fromString(rs.getString("entidad_id")),
                 rs.getString("accion"), rs.getString("trace_id"), rs.getString("resultado"),
-                rs.getObject("ocurrido_en", OffsetDateTime.class));
+                rs.getObject("ocurrido_en", OffsetDateTime.class), cambios(rs.getString("cambios")));
+    }
+
+    private Map<String, Object> cambios(String texto) {
+        if (texto == null) {
+            return null;
+        }
+        try {
+            return json.readValue(texto, new TypeReference<Map<String, Object>>() {});
+        } catch (JsonProcessingException ilegible) {
+            throw new IllegalStateException("La bitácora tiene un detalle ilegible", ilegible);
+        }
     }
 }

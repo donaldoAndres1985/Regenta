@@ -85,6 +85,33 @@ class GestionDeConfiguracionTest extends BaseDeUsuarios {
     }
 
     @Test
+    @DisplayName("HU-130: el evento de configuración lleva para la bitácora solo los campos que cambiaron")
+    void elEventoLlevaElDetalleParaLaBitacora() {
+        NegocioCreado negocio = negocioNuevo();
+        comoAdmin(negocio, () -> gestion.actualizar(cambio(negocio, null)));
+        CambioDeConfiguracion primero = cambio(negocio, null);
+        CambioDeConfiguracion otraCiudad = new CambioDeConfiguracion(primero.nombreComercial(),
+                primero.razonSocial(), primero.tipoDocumento(), primero.numeroDocumento(),
+                primero.digitoVerificacion(), primero.direccion(), "Envigado", primero.departamento(),
+                primero.telefono(), primero.email(), primero.sitioWeb(), primero.codigoPostal(),
+                primero.logoUrl(), primero.regimenFiscal(), primero.responsabilidadesFiscales(),
+                primero.decimalesMoneda(), primero.formatoFecha(), primero.preciosIncluyenImpuesto(),
+                primero.politicaStockNegativo(), primero.preferencias());
+
+        comoAdmin(negocio, () -> gestion.actualizar(otraCiudad));
+
+        String payload = consultar("select payload::text from outbox_eventos where negocio_id = '"
+                + negocio.negocioId() + "' and tipo_evento = 'configuracion_negocio_actualizada' "
+                + "order by creado_en desc limit 1").get(0);
+        assertThat(payload)
+                .contains("\"_auditoria\"")
+                .contains("\"tipo\": \"ACTUALIZAR\"")
+                .as("solo lo que cambió, no la foto entera")
+                .contains("\"cambios\": {\"ciudad\": {\"antes\": \"Medellin\", "
+                        + "\"despues\": \"Envigado\"}}");
+    }
+
+    @Test
     @DisplayName("Criterio 4: cambiar si los precios incluyen impuesto viene con advertencia")
     void cambiarElCalculoAdvierte() {
         NegocioCreado negocio = negocioNuevo();

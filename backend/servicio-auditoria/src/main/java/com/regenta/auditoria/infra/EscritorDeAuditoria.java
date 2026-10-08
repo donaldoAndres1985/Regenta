@@ -22,13 +22,14 @@ public class EscritorDeAuditoria {
     }
 
     public void insertar(UUID id, UUID negocioId, UUID usuarioId, String servicio, String entidadTipo,
-            UUID entidadId, String accion, String datosDespues, String traceId, OffsetDateTime ocurridoEn) {
+            UUID entidadId, String accion, String cambios, String datosDespues, String traceId,
+            OffsetDateTime ocurridoEn) {
         jdbc.update("""
                 INSERT INTO auditoria.eventos_auditoria (id, negocio_id, usuario_id, servicio, entidad_tipo,
-                    entidad_id, accion, datos_despues, trace_id, resultado, ocurrido_en)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, 'OK', ?)
+                    entidad_id, accion, cambios, datos_despues, trace_id, resultado, ocurrido_en)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, 'OK', ?)
                 """,
-                id, negocioId, usuarioId, servicio, entidadTipo, entidadId, accion, datosDespues, traceId,
-                ocurridoEn);
+                id, negocioId, usuarioId, servicio, entidadTipo, entidadId, accion, cambios, datosDespues,
+                traceId, ocurridoEn);
     }
 }
