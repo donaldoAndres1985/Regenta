@@ -119,6 +119,8 @@ public class GestionDeClientes {
                 digitoVerificacion, nombres, apellidos, razonSocial, limpiar(solicitud.email()),
                 limpiar(solicitud.telefono()), limpiar(solicitud.telefonoAlterno()),
                 limpiar(solicitud.segmento()), limpiar(solicitud.notas()));
+        cliente.definirDatosFiscales(limpiar(solicitud.regimenFiscal()),
+                solicitud.responsabilidadesFiscales());
         clientes.save(cliente);
 
         eventos.registrar(negocioId, "cliente", cliente.getId(), "cliente_creado",
@@ -145,6 +147,8 @@ public class GestionDeClientes {
                 limpiar(solicitud.email()), limpiar(solicitud.telefono()),
                 limpiar(solicitud.telefonoAlterno()), limpiar(solicitud.segmento()),
                 limpiar(solicitud.notas()), ContextoDeNegocio.usuarioActual());
+        cliente.definirDatosFiscales(limpiar(solicitud.regimenFiscal()),
+                solicitud.responsabilidadesFiscales());
         clientes.save(cliente);
         return ClienteDelNegocio.de(cliente);
     }

@@ -184,6 +184,55 @@ void main() {
     expect(devuelto?.nombre, 'Nueva Ferretería SAS');
   });
 
+  testWidgets('HU-133 criterio 2: al crear una persona jurídica se indica el régimen y viaja al guardar',
+      (tester) async {
+    final repo = _RepoFake();
+
+    await _montar(tester, repo, size: const Size(1280, 900));
+    await tester.tap(find.text('Crear cliente nuevo'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('campo-numero-documento')), '900412883');
+    await tester.enterText(find.byKey(const Key('campo-nombre')), 'Nueva Ferretería SAS');
+    await tester.enterText(find.byKey(const Key('campo-correo')), 'compras@nueva.co');
+    await tester.tap(find.byKey(const Key('campo-regimen')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Responsable de IVA').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Crear y asignar'));
+    await tester.pumpAndSettle();
+
+    expect(repo.creado?.regimenFiscal, 'RESPONSABLE_IVA');
+    expect(repo.creado?.aJson()['regimenFiscal'], 'RESPONSABLE_IVA');
+  });
+
+  testWidgets('HU-133: sin indicar el régimen el cliente se crea igual, y con cédula no se pregunta',
+      (tester) async {
+    final repo = _RepoFake();
+
+    await _montar(tester, repo, size: const Size(1280, 900));
+    await tester.tap(find.text('Crear cliente nuevo'));
+    await tester.pumpAndSettle();
+    expect(find.text('RÉGIMEN FISCAL'), findsOneWidget);
+
+    await tester.tap(find.text('NIT'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cédula').last);
+    await tester.pumpAndSettle();
+    expect(find.text('RÉGIMEN FISCAL'), findsNothing,
+        reason: 'persona natural: la factura aplica el valor por defecto');
+
+    await tester.enterText(find.byKey(const Key('campo-numero-documento')), '43219876');
+    await tester.enterText(find.byKey(const Key('campo-nombre')), 'María Restrepo');
+    await tester.enterText(find.byKey(const Key('campo-correo')), 'maria@correo.co');
+    await tester.tap(find.text('Crear y asignar'));
+    await tester.pumpAndSettle();
+
+    expect(repo.creado, isNotNull);
+    expect(repo.creado?.regimenFiscal, isNull);
+    expect(repo.creado?.aJson().containsKey('regimenFiscal'), isFalse);
+  });
+
   testWidgets('HU-114 criterio 3: el dígito de verificación del NIT se calcula al escribirlo',
       (tester) async {
     await _montar(tester, _RepoFake(), size: const Size(1280, 900));

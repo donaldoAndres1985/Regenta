@@ -145,14 +145,26 @@ consultarla. Es el mismo hueco del emisor que queda anotado más abajo.
 lleva el `cliente_snapshot` que la venta congeló. Facturación no puede consultar la base de Ventas
 ni la de Clientes: si el snapshot no viaja en el evento, la factura sale sin adquiriente.
 
+### R10 · El régimen fiscal del adquiriente viaja en el snapshot (HU-133)
+
+**Dado** el alta exprés con NIT (persona jurídica), **cuando** se crea, **entonces** se puede
+indicar el **régimen fiscal** (`Responsable de IVA` / `No responsable de IVA`). Es opcional: el
+selector arranca en *Sin indicar* y no bloquea crear. Con cédula o cédula de extranjería (persona
+natural) el campo no aparece.
+
+**Dada** una venta o una estancia con cliente, **cuando** se congela el snapshot, **entonces**
+lleva `regimen_fiscal` y `responsabilidades_fiscales` tal como estaban ese día; si el cliente
+cambia de régimen después, la factura no se entera.
+
+**Dado** un cliente sin régimen, **cuando** se emite la factura, **entonces** Facturación aplica
+el de persona natural (`NO_RESPONSABLE`, `R-99-PN`, configurable en
+`regenta.dian.regimen-por-defecto.*`) y marca el snapshot con `regimen_por_defecto: true`, para
+distinguir "no responsable" de "nadie lo indicó".
+
 ## Preguntas abiertas
 
 - ¿A partir de qué monto se exige identificar al comprador? Si el negocio lo configura, va en
   `configuracion_negocio` y esta pantalla lo respeta.
-- **El emisor de la factura también sale vacío.** Es el mismo problema que R9 pero del otro lado:
-  `facturas.emisor_snapshot` se arma del evento, y los datos fiscales del negocio viven en
-  `configuracion_negocio`, en la base de `servicio-usuarios`. Necesita su propia historia: una
-  copia local en Facturación alimentada por `negocio_creado`, como la que ya tiene Reportes.
 
 ## Lo que falta en el backlog
 

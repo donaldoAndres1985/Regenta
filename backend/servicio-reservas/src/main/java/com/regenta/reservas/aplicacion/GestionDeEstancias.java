@@ -351,6 +351,8 @@ public class GestionDeEstancias {
             snapshot.put("tipo_documento", c.tipoDocumento());
             snapshot.put("numero_documento", c.numeroDocumento());
             snapshot.put("digito_verificacion", c.digitoVerificacion());
+            snapshot.put("regimen_fiscal", c.regimenFiscal());
+            snapshot.put("responsabilidades_fiscales", c.responsabilidadesFiscales());
             return snapshot;
         }).orElse(null);
     }

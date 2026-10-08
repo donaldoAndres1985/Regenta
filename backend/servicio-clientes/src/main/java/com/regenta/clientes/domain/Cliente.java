@@ -2,6 +2,8 @@ package com.regenta.clientes.domain;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
@@ -91,6 +93,15 @@ public class Cliente {
     /** Proyección de cartera: lo que el cliente debe. La mantiene HU-022. */
     @Column(name = "saldo_pendiente", nullable = false)
     private BigDecimal saldoPendiente;
+
+    /** HU-133: 'RESPONSABLE_IVA' o 'NO_RESPONSABLE', igual que el emisor. */
+    @Column(name = "regimen_fiscal", length = 40)
+    private String regimenFiscal;
+
+    /** HU-133: codigos DIAN del adquiriente (O-13, O-15, R-99-PN...). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "responsabilidades_fiscales", nullable = false)
+    private List<String> responsabilidadesFiscales = new ArrayList<>();
 
     @Column(columnDefinition = "text")
     private String notas;
@@ -195,6 +206,20 @@ public class Cliente {
         this.actualizadoPor = actualizadoPor;
     }
 
+    /**
+     * HU-133: el regimen y las responsabilidades con que se le factura. Un
+     * {@code null} no borra lo que hay: editar la ficha sin mandarlos no
+     * deja la factura sin un dato que ya se tenia.
+     */
+    public void definirDatosFiscales(String regimenFiscal, List<String> responsabilidades) {
+        if (regimenFiscal != null) {
+            this.regimenFiscal = regimenFiscal;
+        }
+        if (responsabilidades != null) {
+            this.responsabilidadesFiscales = new ArrayList<>(responsabilidades);
+        }
+    }
+
     public boolean estaEliminado() {
         return eliminadoEn != null;
     }
@@ -286,6 +311,14 @@ public class Cliente {
 
     public BigDecimal getSaldoPendiente() {
         return saldoPendiente;
+    }
+
+    public String getRegimenFiscal() {
+        return regimenFiscal;
+    }
+
+    public List<String> getResponsabilidadesFiscales() {
+        return List.copyOf(responsabilidadesFiscales);
     }
 
     public String getNotas() {

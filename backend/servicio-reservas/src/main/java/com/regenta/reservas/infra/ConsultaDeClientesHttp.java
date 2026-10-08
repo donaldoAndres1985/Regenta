@@ -1,5 +1,6 @@
 package com.regenta.reservas.infra;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -57,7 +58,8 @@ public class ConsultaDeClientesHttp implements ConsultaDeClientes {
             }
             return Optional.of(new ClienteDeLaReserva(clienteId, texto(cliente.get("nombreDisplay")),
                     texto(cliente.get("tipoDocumento")), texto(cliente.get("numeroDocumento")),
-                    texto(cliente.get("digitoVerificacion"))));
+                    texto(cliente.get("digitoVerificacion")), texto(cliente.get("regimenFiscal")),
+                    textos(cliente.get("responsabilidadesFiscales"))));
         } catch (RuntimeException fallo) {
             log.warn("No se pudo consultar el cliente {} para el snapshot de la estancia: {}",
                     clienteId, fallo.getMessage());
@@ -76,6 +78,13 @@ public class ConsultaDeClientesHttp implements ConsultaDeClientes {
         cabeceras.set(CabecerasDeNegocio.ROLES, String.join(",", quien.roles()));
         cabeceras.set(CabecerasDeNegocio.MODULOS, String.join(",", quien.modulos()));
         cabeceras.set(CabecerasDeNegocio.PERMISOS, String.join(",", quien.permisos()));
+    }
+
+    private static List<String> textos(Object valor) {
+        if (!(valor instanceof List<?> lista)) {
+            return List.of();
+        }
+        return lista.stream().filter(v -> v != null).map(Object::toString).toList();
     }
 
     private static String texto(Object valor) {

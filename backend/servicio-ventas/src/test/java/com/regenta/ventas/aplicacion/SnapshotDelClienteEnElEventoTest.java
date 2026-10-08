@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -106,6 +107,27 @@ class SnapshotDelClienteEnElEventoTest extends BaseDeVentas {
                 .contains("\"cliente_id\": \"" + ferreteria + "\"")
                 .contains("Materiales Cruz S.A.S.")
                 .contains("900412883");
+    }
+
+    @Test
+    @DisplayName("HU-133 criterio 3: el snapshot lleva el régimen fiscal que el cliente tenía ese día")
+    void elSnapshotLlevaElRegimenDeEseDia() {
+        clientes.conocidos.put(ferreteria, new ClienteDeLaVenta(ferreteria,
+                "Materiales Cruz S.A.S.", "NIT", "900412883", "1", "RESPONSABLE_IVA",
+                List.of("O-13", "O-15")));
+        enContexto(negocio, usuario, VENDEDOR, () -> clienteDeLaVenta.asignar(venta, ferreteria));
+        // Después de asignarlo, el cliente cambia de régimen en el CRM.
+        clientes.conocidos.put(ferreteria, new ClienteDeLaVenta(ferreteria,
+                "Materiales Cruz S.A.S.", "NIT", "900412883", "1", "NO_RESPONSABLE", List.of()));
+        enContexto(negocio, usuario, VENDEDOR, () -> ventas.confirmar(venta));
+
+        String payload = eventoDeVentaCompletada();
+
+        assertThat(payload)
+                .contains("\"regimen_fiscal\": \"RESPONSABLE_IVA\"")
+                .contains("O-13")
+                .contains("O-15")
+                .doesNotContain("NO_RESPONSABLE");
     }
 
     @Test

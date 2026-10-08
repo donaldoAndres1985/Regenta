@@ -1,5 +1,6 @@
 package com.regenta.reservas.aplicacion;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -12,5 +13,19 @@ public record ClienteDeLaReserva(
         String nombre,
         String tipoDocumento,
         String numeroDocumento,
-        String digitoVerificacion) {
+        String digitoVerificacion,
+        /** HU-133: con qué régimen se le factura; {@code null} si el CRM no lo tiene. */
+        String regimenFiscal,
+        List<String> responsabilidadesFiscales) {
+
+    public ClienteDeLaReserva {
+        responsabilidadesFiscales = responsabilidadesFiscales == null
+                ? List.of() : List.copyOf(responsabilidadesFiscales);
+    }
+
+    /** El huésped de antes de HU-133, sin datos fiscales. */
+    public ClienteDeLaReserva(UUID id, String nombre, String tipoDocumento,
+            String numeroDocumento, String digitoVerificacion) {
+        this(id, nombre, tipoDocumento, numeroDocumento, digitoVerificacion, null, List.of());
+    }
 }

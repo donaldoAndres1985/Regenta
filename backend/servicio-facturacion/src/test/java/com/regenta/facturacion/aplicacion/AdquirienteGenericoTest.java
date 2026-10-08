@@ -128,6 +128,45 @@ class AdquirienteGenericoTest extends BaseDeFacturacion {
     }
 
     @Test
+    @DisplayName("HU-133 criterio 3: el régimen que la venta congeló llega tal cual a la factura")
+    void elRegimenDelSnapshotLlegaALaFactura() {
+        resolucionEnElNegocio();
+        UUID cliente = UUID.randomUUID();
+
+        ventaCompletada(cliente.toString(), Map.of(
+            "cliente_id", cliente.toString(),
+            "nombre", "Materiales Cruz S.A.S.",
+            "tipo_documento", "NIT",
+            "numero_documento", "900412883",
+            "regimen_fiscal", "RESPONSABLE_IVA",
+            "responsabilidades_fiscales", List.of("O-13", "O-15")));
+
+        assertThat(adquirienteDeLaUnicaFactura())
+                .containsEntry("regimen_fiscal", "RESPONSABLE_IVA")
+                .containsEntry("responsabilidades_fiscales", List.of("O-13", "O-15"))
+                .doesNotContainKey("regimen_por_defecto");
+    }
+
+    @Test
+    @DisplayName("HU-133 criterio 4: un cliente sin régimen sale con el de persona natural, y queda dicho que fue por defecto")
+    void sinRegimenSeAplicaElDePersonaNatural() {
+        resolucionEnElNegocio();
+        UUID cliente = UUID.randomUUID();
+
+        ventaCompletada(cliente.toString(), Map.of(
+            "cliente_id", cliente.toString(),
+            "nombre", "María Restrepo Uribe",
+            "tipo_documento", "CC",
+            "numero_documento", "43219876"));
+
+        assertThat(adquirienteDeLaUnicaFactura())
+                .containsEntry("nombre", "María Restrepo Uribe")
+                .containsEntry("regimen_fiscal", "NO_RESPONSABLE")
+                .containsEntry("responsabilidades_fiscales", List.of("R-99-PN"))
+                .containsEntry("regimen_por_defecto", true);
+    }
+
+    @Test
     @DisplayName("El snapshot que llega como texto JSON tampoco se pierde")
     void elSnapshotComoTextoSeEntiende() {
         resolucionEnElNegocio();

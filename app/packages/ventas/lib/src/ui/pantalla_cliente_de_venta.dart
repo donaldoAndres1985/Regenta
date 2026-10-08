@@ -523,6 +523,9 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
   String _tipoDocumento = 'NIT';
   String? _error;
 
+  /// HU-133: solo se pregunta a una persona jurídica; sin elegir, va nulo.
+  String? _regimen;
+
   /// El DV solo lo toca la fórmula mientras nadie lo haya escrito a mano.
   bool _dvAMano = false;
 
@@ -572,6 +575,7 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
       email: email,
       digitoVerificacion: _tipoDocumento == 'NIT' && _dv.text.isNotEmpty ? _dv.text : null,
       telefono: _telefono.text.trim().isEmpty ? null : _telefono.text.trim(),
+      regimenFiscal: _tipoDocumento == 'NIT' ? _regimen : null,
     ));
   }
 
@@ -607,6 +611,7 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
               _dvAMano = false;
               if (_tipoDocumento != 'NIT') {
                 _dv.text = '';
+                _regimen = null;
               } else {
                 _recalcularDv();
               }
@@ -682,6 +687,25 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
                 decoration: _decoracion()),
           ),
         ),
+        if (_tipoDocumento == 'NIT')
+          _Campo(
+            etiqueta: 'Régimen fiscal',
+            hijo: DropdownButtonFormField<String>(
+              key: const Key('campo-regimen'),
+              initialValue: _regimen,
+              decoration: _decoracion(),
+              isExpanded: true,
+              hint: Text('Sin indicar',
+                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.muted)),
+              items: const [
+                DropdownMenuItem(value: 'RESPONSABLE_IVA', child: Text('Responsable de IVA')),
+                DropdownMenuItem(
+                    value: 'NO_RESPONSABLE',
+                    child: Text('No responsable de IVA', overflow: TextOverflow.ellipsis)),
+              ],
+              onChanged: (v) => setState(() => _regimen = v),
+            ),
+          ),
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
