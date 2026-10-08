@@ -27,6 +27,7 @@ public abstract class BaseDeReportes {
 
     protected static final String ROL = "reg_reportes";
     protected static final String CLAVE = "clave_de_prueba";
+    protected static final String ROL_BARRIDOS = "reg_reportes_barridos";
 
     static final PostgreSQLContainer<?> PG =
             new PostgreSQLContainer<>(DockerImageName.parse("postgres:16"));
@@ -35,6 +36,13 @@ public abstract class BaseDeReportes {
         PG.start();
         comoSuperusuario("CREATE ROLE " + ROL + " LOGIN PASSWORD '" + CLAVE + "'");
         comoSuperusuario("GRANT ALL ON DATABASE " + PG.getDatabaseName() + " TO " + ROL);
+        // HU-124: el rol de los barridos, igual que en docker/postgres/init-databases.sql.
+        comoSuperusuario("CREATE ROLE " + ROL_BARRIDOS + " LOGIN BYPASSRLS PASSWORD '" + CLAVE + "'");
+        comoSuperusuario("GRANT CONNECT ON DATABASE " + PG.getDatabaseName() + " TO " + ROL_BARRIDOS);
+        comoSuperusuario("ALTER DEFAULT PRIVILEGES FOR ROLE " + ROL
+                + " GRANT USAGE ON SCHEMAS TO " + ROL_BARRIDOS);
+        comoSuperusuario("ALTER DEFAULT PRIVILEGES FOR ROLE " + ROL
+                + " GRANT SELECT ON TABLES TO " + ROL_BARRIDOS);
     }
 
     @DynamicPropertySource
@@ -42,6 +50,10 @@ public abstract class BaseDeReportes {
         registro.add("spring.datasource.url", PG::getJdbcUrl);
         registro.add("spring.datasource.username", () -> ROL);
         registro.add("spring.datasource.password", () -> CLAVE);
+        // HU-124: el barrido con su rol, pero sin reloj: cada test barre cuando quiere.
+        registro.add("regenta.barridos.usuario", () -> ROL_BARRIDOS);
+        registro.add("regenta.barridos.clave", () -> CLAVE);
+        registro.add("regenta.barridos.programados", () -> false);
         registro.add("regenta.eventos.publicador-activo", () -> false);
         registro.add("spring.rabbitmq.listener.simple.auto-startup", () -> false);
     }

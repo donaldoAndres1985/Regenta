@@ -15,8 +15,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 /**
  * Barrido de recordatorios de seguimiento. HU-024 criterio 3.
  *
- * <p>Lo dispara hoy una llamada externa; el barrido multi-tenant programado se
- * conecta con el rol privilegiado, igual que el publicador de outbox.
+ * <p>Corre solo, en todos los negocios, por el barrido de HU-124
+ * ({@code BarridosDeClientes}); este endpoint es la palanca para forzarlo en
+ * el negocio de quien llama sin esperar al reloj.
  */
 @RestController
 @RequestMapping("/api/clientes/seguimientos")

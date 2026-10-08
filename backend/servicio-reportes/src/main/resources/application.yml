@@ -37,6 +37,14 @@ spring:
     username: ${RABBIT_USER:regenta}
     password: ${RABBIT_PASSWORD:cambiar_en_local}
 
+regenta:
+  barridos:
+    # HU-124: los barridos automaticos (timeouts, reintentos, envios programados)
+    # usan un rol aparte, reg_reportes_barridos, que solo DESCUBRE que negocios tienen
+    # pendientes. Vacio = sin barridos automaticos; los endpoints manuales siguen.
+    usuario: ${BARRIDOS_DB_USER:}
+    clave: ${BARRIDOS_DB_PASSWORD:}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

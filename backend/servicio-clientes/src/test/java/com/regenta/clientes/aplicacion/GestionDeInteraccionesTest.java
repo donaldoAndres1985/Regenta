@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.regenta.clientes.BaseDeClientes;
+import com.regenta.comun.barridos.EjecutorDeBarridos;
+import com.regenta.comun.barridos.ResultadoDeBarrido;
 import com.regenta.comun.errores.NoEncontradoException;
 import com.regenta.comun.errores.SinPermisoException;
 
@@ -29,6 +31,9 @@ class GestionDeInteraccionesTest extends BaseDeClientes {
 
     @Autowired
     private GestionDeClientes clientes;
+
+    @Autowired
+    private EjecutorDeBarridos barridos;
 
     private final UUID negocioA = UUID.randomUUID();
     private final UUID negocioB = UUID.randomUUID();
@@ -109,6 +114,27 @@ class GestionDeInteraccionesTest extends BaseDeClientes {
         int repetido = enContexto(negocioA, vendedor, DE_VENDEDOR,
                 () -> interacciones.procesarSeguimientosPendientes(LocalDate.parse("2026-09-12")));
         assertThat(repetido).isZero();
+    }
+
+    @Test
+    @DisplayName("HU-124: los recordatorios salen solos, por el barrido, en cada negocio con seguimientos vencidos")
+    void elBarridoAvisaEnTodosLosNegocios() {
+        UUID enA = clienteEn(negocioA, "Fabio");
+        UUID enB = clienteEn(negocioB, "Gema");
+        InteraccionDelCliente deA = enContexto(negocioA, vendedor, DE_VENDEDOR,
+                () -> interacciones.registrar(enA, solicitud("LLAMADA",
+                        OffsetDateTime.parse("2026-09-01T09:00:00Z"), LocalDate.parse("2026-09-10"))));
+        InteraccionDelCliente deB = enContexto(negocioB, vendedor, DE_VENDEDOR,
+                () -> interacciones.registrar(enB, solicitud("VISITA",
+                        OffsetDateTime.parse("2026-09-01T09:00:00Z"), LocalDate.parse("2026-09-10"))));
+
+        ResultadoDeBarrido resultado = barridos.ejecutar("seguimientos-vencidos");
+
+        assertThat(resultado.tomadasPorNegocio()).containsEntry(negocioA, 1).containsEntry(negocioB, 1);
+        assertThat(comoElServicio(negocioA, "select seguimiento_notificado_en is not null"
+                + " from interacciones where id = '" + deA.id() + "'")).containsExactly("t");
+        assertThat(comoElServicio(negocioB, "select seguimiento_notificado_en is not null"
+                + " from interacciones where id = '" + deB.id() + "'")).containsExactly("t");
     }
 
     @Test
