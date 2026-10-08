@@ -37,6 +37,7 @@ export 'src/sincronizacion/cola_de_salida_local.dart';
 export 'src/sincronizacion/resumen_de_cola.dart';
 export 'src/sincronizacion/sincronizacion_en_segundo_plano.dart';
 export 'src/sincronizacion/trabajador_de_sincronizacion.dart';
+export 'src/tema/fuentes_de_regenta.dart';
 export 'src/tema/patron_operativo.dart';
 export 'src/tema/regenta_colors.dart';
 export 'src/tema/regenta_spacing.dart';
