@@ -161,10 +161,29 @@ el de persona natural (`NO_RESPONSABLE`, `R-99-PN`, configurable en
 `regenta.dian.regimen-por-defecto.*`) y marca el snapshot con `regimen_por_defecto: true`, para
 distinguir "no responsable" de "nadie lo indicó".
 
+### R11 · Desde cierto monto se identifica al comprador (HU-137)
+
+**Dado** un negocio que configuró el monto (`configuracion_negocio.monto_identificar_comprador`),
+**cuando** el total de la venta lo **supera** y no hay cliente, **entonces**:
+
+- en el POS aparece, **encima** del botón *Cobrar*, el aviso «Supera $X: identifica al comprador
+  para cobrar» (color `warn`), y *Cobrar* queda deshabilitado hasta asignar un cliente;
+- en el backend, `POST /api/ventas/{id}/confirmacion` responde 422 con el mismo motivo: la regla no
+  depende de que el botón esté bien pintado.
+
+Sin monto configurado (NULL, que es como nace todo negocio) no se exige nada. El monto lo decide
+cada negocio; el sistema no trae uno por defecto.
+
+El POS pregunta el monto a Ventas (`GET /api/ventas/reglas-de-cobro`), que guarda su copia
+alimentada por `configuracion_negocio_actualizada`: leer la configuración del negocio en
+servicio-usuarios pide un permiso que quien cobra no suele tener.
+
+**Sin señal:** si el POS no alcanzó a preguntar el monto, no avisa. La venta cobrada sin señal no
+se rechaza al subir —ya está cobrada; rechazarla solo la dejaría en conflicto—.
+
 ## Preguntas abiertas
 
-- ¿A partir de qué monto se exige identificar al comprador? Si el negocio lo configura, va en
-  `configuracion_negocio` y esta pantalla lo respeta.
+Ninguna: la última (el monto para identificar al comprador) quedó resuelta en R11.
 
 ## Lo que falta en el backlog
 

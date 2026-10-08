@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.regenta.comun.errores.NoEncontradoException;
+import com.regenta.comun.errores.ReglaDeNegocioException;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.RequierePermiso;
 import com.regenta.ventas.domain.Venta;
@@ -32,13 +33,16 @@ public class GestionDeVentas {
     private final VentaLineaRepositorio lineas;
     private final AsignadorDeConsecutivos consecutivos;
     private final SagaDeConfirmacionDeVenta saga;
+    private final ConfiguracionDelNegocio configuracion;
 
     public GestionDeVentas(VentaRepositorio ventas, VentaLineaRepositorio lineas,
-            AsignadorDeConsecutivos consecutivos, SagaDeConfirmacionDeVenta saga) {
+            AsignadorDeConsecutivos consecutivos, SagaDeConfirmacionDeVenta saga,
+            ConfiguracionDelNegocio configuracion) {
         this.ventas = ventas;
         this.lineas = lineas;
         this.consecutivos = consecutivos;
         this.saga = saga;
+        this.configuracion = configuracion;
     }
 
     @Transactional
@@ -89,8 +93,38 @@ public class GestionDeVentas {
     @Transactional
     @RequierePermiso("VENTAS_VENTA_CONFIRMAR")
     public void confirmar(UUID ventaId) {
+        exigirCompradorSiHaceFalta(ventaDelNegocio(ventaId));
+        saga.iniciar(ventaId, SagaDeConfirmacionDeVenta.TIMEOUT_POR_DEFECTO);
+    }
+
+    /**
+     * La venta que se cobró sin señal (HU-043) ya está cobrada: el dinero se
+     * recibió en el mostrador. Al subir no se le vuelve a exigir el comprador
+     * (HU-137) —rechazarla aquí no la descobra, solo la deja en conflicto—; la
+     * app lo hace cumplir antes de cobrar con el monto que tiene guardado.
+     */
+    @Transactional
+    @RequierePermiso("VENTAS_VENTA_CONFIRMAR")
+    public void confirmarLaQueYaSeCobroSinSenal(UUID ventaId) {
         ventaDelNegocio(ventaId);   // valida negocio y existencia
         saga.iniciar(ventaId, SagaDeConfirmacionDeVenta.TIMEOUT_POR_DEFECTO);
+    }
+
+    /**
+     * HU-137 criterio 2: sobre el monto que configuró el negocio, la venta no
+     * se cobra a consumidor final. Sin monto configurado no se exige nada
+     * (criterio 3).
+     */
+    private void exigirCompradorSiHaceFalta(Venta venta) {
+        if (venta.getClienteId() != null) {
+            return;
+        }
+        configuracion.montoParaIdentificarComprador(venta.getNegocioId())
+                .filter(monto -> venta.getTotal().compareTo(monto) > 0)
+                .ifPresent(monto -> {
+                    throw new ReglaDeNegocioException("La venta supera " + monto.toPlainString()
+                            + ": hay que identificar al comprador antes de cobrar");
+                });
     }
 
     @Transactional(readOnly = true)

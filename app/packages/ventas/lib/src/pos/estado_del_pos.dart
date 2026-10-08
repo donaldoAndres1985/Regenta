@@ -15,6 +15,7 @@ class EstadoDelPos {
     this.ventaNumero,
     this.ventaEnCola = false,
     this.cliente,
+    this.montoParaIdentificar,
   });
 
   final List<LineaDeCarrito> lineas;
@@ -35,6 +36,10 @@ class EstadoDelPos {
   /// venta y es el camino que más se usa en mostrador.
   final ClienteDeLaVenta? cliente;
 
+  /// HU-137: sobre este total la venta no se cobra a consumidor final. `null`
+  /// es que el negocio no lo configuró, y entonces no se exige nada.
+  final num? montoParaIdentificar;
+
   int get unidades => lineas.fold(0, (a, l) => a + l.cantidad);
   num get subtotal => lineas.fold<num>(0, (a, l) => a + l.subtotal);
   num get impuesto => lineas.fold<num>(0, (a, l) => a + l.impuesto);
@@ -42,8 +47,14 @@ class EstadoDelPos {
 
   bool get hayLineasSinStock => lineas.any((l) => l.sinStock);
 
-  /// Se puede cobrar si hay líneas, ninguna sin stock, y no se está cobrando ya.
-  bool get puedeCobrar => lineas.isNotEmpty && !hayLineasSinStock && !cobrando;
+  /// HU-137 criterio 2: la venta supera el monto y nadie dijo quién compra.
+  bool get faltaIdentificarComprador =>
+      montoParaIdentificar != null && cliente == null && total > montoParaIdentificar!;
+
+  /// Se puede cobrar si hay líneas, ninguna sin stock, el comprador está
+  /// identificado cuando hace falta, y no se está cobrando ya.
+  bool get puedeCobrar =>
+      lineas.isNotEmpty && !hayLineasSinStock && !faltaIdentificarComprador && !cobrando;
 
   EstadoDelPos copiar({
     List<LineaDeCarrito>? lineas,
@@ -55,6 +66,7 @@ class EstadoDelPos {
     Object? ventaNumero = _sinCambio,
     bool? ventaEnCola,
     Object? cliente = _sinCambio,
+    Object? montoParaIdentificar = _sinCambio,
   }) =>
       EstadoDelPos(
         lineas: lineas ?? this.lineas,
@@ -67,6 +79,9 @@ class EstadoDelPos {
             ventaNumero == _sinCambio ? this.ventaNumero : ventaNumero as String?,
         ventaEnCola: ventaEnCola ?? this.ventaEnCola,
         cliente: cliente == _sinCambio ? this.cliente : cliente as ClienteDeLaVenta?,
+        montoParaIdentificar: montoParaIdentificar == _sinCambio
+            ? this.montoParaIdentificar
+            : montoParaIdentificar as num?,
       );
 
   static const _sinCambio = Object();

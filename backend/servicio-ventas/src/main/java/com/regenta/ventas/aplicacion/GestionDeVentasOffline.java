@@ -62,7 +62,7 @@ public class GestionDeVentasOffline {
         for (SolicitudDeLinea linea : solicitud.lineas()) {
             gestion.agregarLinea(venta.getId(), linea);
         }
-        gestion.confirmar(venta.getId());
+        gestion.confirmarLaQueYaSeCobroSinSenal(venta.getId());
         return gestion.ver(venta.getId());
     }
 

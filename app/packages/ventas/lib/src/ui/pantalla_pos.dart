@@ -557,6 +557,18 @@ class _Totales extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       color: RegentaColors.crit)),
             ),
+          // HU-137 criterio 4: se avisa antes de llegar al botón, no después
+          // de tocarlo.
+          if (estado.faltaIdentificarComprador)
+            Padding(
+              key: const Key('aviso-identificar-comprador'),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                  'Supera ${formatearPesos(estado.montoParaIdentificar!)}: '
+                  'identifica al comprador para cobrar',
+                  style: RegentaType.cuerpo.copyWith(
+                      fontSize: 12, fontWeight: FontWeight.w600, color: RegentaColors.warn)),
+            ),
           SizedBox(
             width: double.infinity,
             height: 52,
