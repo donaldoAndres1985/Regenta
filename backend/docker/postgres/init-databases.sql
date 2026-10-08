@@ -180,6 +180,84 @@ SELECT format('CREATE DATABASE %I OWNER %I', 'regenta_auditoria', 'reg_auditoria
 REVOKE ALL ON DATABASE regenta_auditoria FROM PUBLIC;
 GRANT CONNECT, TEMPORARY ON DATABASE regenta_auditoria TO reg_auditoria;
 
+-- ------------------------------------------------- roles de los barridos (HU-124)
+-- Con FORCE ROW LEVEL SECURITY, una consulta sin negocio fijado no ve una sola
+-- fila: un @Scheduled que recorra todos los negocios no tiene como saber cuales
+-- tienen trabajo pendiente. Cada servicio con barridos tiene un segundo rol,
+-- reg_<servicio>_barridos, que:
+--   * se salta la RLS (BYPASSRLS) para DESCUBRIR que negocios tienen pendientes;
+--   * solo lee: SELECT, nunca INSERT/UPDATE/DELETE. El trabajo en si lo hace el
+--     servicio con su usuario normal, negocio por negocio y bajo su RLS;
+--   * solo entra a la base de su servicio;
+--   * no es el usuario con el que corre el servicio: la aplicacion lo usa en un
+--     pool aparte que no se puede inyectar (comun/barridos).
+-- Los privilegios por defecto cubren las tablas que Flyway cree despues; el
+-- bloque DO cubre las que ya existan si el script se vuelve a correr.
+
+SELECT format('CREATE ROLE %I LOGIN BYPASSRLS PASSWORD %L', 'reg_ventas_barridos', :'clave')
+  WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'reg_ventas_barridos')\gexec
+ALTER ROLE reg_ventas_barridos WITH LOGIN BYPASSRLS NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD :'clave';
+GRANT CONNECT ON DATABASE regenta_ventas TO reg_ventas_barridos;
+\c regenta_ventas
+ALTER DEFAULT PRIVILEGES FOR ROLE reg_ventas GRANT USAGE ON SCHEMAS TO reg_ventas_barridos;
+ALTER DEFAULT PRIVILEGES FOR ROLE reg_ventas GRANT SELECT ON TABLES TO reg_ventas_barridos;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'ventas') THEN
+        GRANT USAGE ON SCHEMA ventas TO reg_ventas_barridos;
+        GRANT SELECT ON ALL TABLES IN SCHEMA ventas TO reg_ventas_barridos;
+    END IF;
+END $$;
+\c postgres
+
+SELECT format('CREATE ROLE %I LOGIN BYPASSRLS PASSWORD %L', 'reg_alertas_barridos', :'clave')
+  WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'reg_alertas_barridos')\gexec
+ALTER ROLE reg_alertas_barridos WITH LOGIN BYPASSRLS NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD :'clave';
+GRANT CONNECT ON DATABASE regenta_alertas TO reg_alertas_barridos;
+\c regenta_alertas
+ALTER DEFAULT PRIVILEGES FOR ROLE reg_alertas GRANT USAGE ON SCHEMAS TO reg_alertas_barridos;
+ALTER DEFAULT PRIVILEGES FOR ROLE reg_alertas GRANT SELECT ON TABLES TO reg_alertas_barridos;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'alertas') THEN
+        GRANT USAGE ON SCHEMA alertas TO reg_alertas_barridos;
+        GRANT SELECT ON ALL TABLES IN SCHEMA alertas TO reg_alertas_barridos;
+    END IF;
+END $$;
+\c postgres
+
+SELECT format('CREATE ROLE %I LOGIN BYPASSRLS PASSWORD %L', 'reg_clientes_barridos', :'clave')
+  WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'reg_clientes_barridos')\gexec
+ALTER ROLE reg_clientes_barridos WITH LOGIN BYPASSRLS NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD :'clave';
+GRANT CONNECT ON DATABASE regenta_clientes TO reg_clientes_barridos;
+\c regenta_clientes
+ALTER DEFAULT PRIVILEGES FOR ROLE reg_clientes GRANT USAGE ON SCHEMAS TO reg_clientes_barridos;
+ALTER DEFAULT PRIVILEGES FOR ROLE reg_clientes GRANT SELECT ON TABLES TO reg_clientes_barridos;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'crm') THEN
+        GRANT USAGE ON SCHEMA crm TO reg_clientes_barridos;
+        GRANT SELECT ON ALL TABLES IN SCHEMA crm TO reg_clientes_barridos;
+    END IF;
+END $$;
+\c postgres
+
+SELECT format('CREATE ROLE %I LOGIN BYPASSRLS PASSWORD %L', 'reg_reportes_barridos', :'clave')
+  WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'reg_reportes_barridos')\gexec
+ALTER ROLE reg_reportes_barridos WITH LOGIN BYPASSRLS NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD :'clave';
+GRANT CONNECT ON DATABASE regenta_reportes TO reg_reportes_barridos;
+\c regenta_reportes
+ALTER DEFAULT PRIVILEGES FOR ROLE reg_reportes GRANT USAGE ON SCHEMAS TO reg_reportes_barridos;
+ALTER DEFAULT PRIVILEGES FOR ROLE reg_reportes GRANT SELECT ON TABLES TO reg_reportes_barridos;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'reportes') THEN
+        GRANT USAGE ON SCHEMA reportes TO reg_reportes_barridos;
+        GRANT SELECT ON ALL TABLES IN SCHEMA reportes TO reg_reportes_barridos;
+    END IF;
+END $$;
+\c postgres
+
 -- ------------------------------------------------------- indices trigram (HU-126)
 -- Bajo FORCE ROW LEVEL SECURITY, los operadores LIKE/ILIKE (textlike/texticlike)
 -- no son LEAKPROOF, asi que el planificador nunca los baja a un indice GIN

@@ -12,6 +12,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.regenta.comun.barridos.EjecutorDeBarridos;
+import com.regenta.comun.barridos.ResultadoDeBarrido;
 import com.regenta.comun.errores.ReglaDeNegocioException;
 import com.regenta.reportes.BaseDeReportes;
 import com.regenta.reportes.infra.PasarelaDeCorreoStub;
@@ -34,6 +36,8 @@ class ProgramacionDeReportesTest extends BaseDeReportes {
     private GestionDeExportaciones exportaciones;
     @Autowired
     private PasarelaDeCorreoStub correo;
+    @Autowired
+    private EjecutorDeBarridos barridos;
 
     private final UUID negocio = UUID.randomUUID();
     private final UUID otroNegocio = UUID.randomUUID();
@@ -139,5 +143,26 @@ class ProgramacionDeReportesTest extends BaseDeReportes {
         assertThat(enContexto(negocio, contador, CONTADOR, () -> programaciones.barrer())).isZero();
         assertThat(enContexto(otroNegocio, contador, CONTADOR, () -> programaciones.barrer()))
                 .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("HU-124: las programaciones vencidas se encolan, generan y envían solas, en cada negocio")
+    void losBarridosLoHacenSolos() {
+        ReporteProgramado deUno = programar(negocio, "Semanal de uno");
+        ReporteProgramado deOtro = programar(otroNegocio, "Semanal del otro");
+        ejecutarComoElServicio(negocio, "update reportes_programados set proxima_ejecucion = now() "
+                + "where id = '" + deUno.id() + "'");
+        ejecutarComoElServicio(otroNegocio, "update reportes_programados set proxima_ejecucion = now() "
+                + "where id = '" + deOtro.id() + "'");
+
+        ResultadoDeBarrido encoladas = barridos.ejecutar("programaciones-vencidas");
+        ResultadoDeBarrido generadas = barridos.ejecutar("exportaciones-pendientes");
+
+        assertThat(encoladas.tomadasPorNegocio()).containsEntry(negocio, 1).containsEntry(otroNegocio, 1);
+        assertThat(generadas.tomadasPorNegocio()).containsKeys(negocio, otroNegocio);
+        assertThat(comoElServicio(negocio, "select estado from ejecuciones_reporte "
+                + "where programado_id = '" + deUno.id() + "'")).containsExactly("COMPLETADO");
+        assertThat(comoElServicio(otroNegocio, "select estado from ejecuciones_reporte "
+                + "where programado_id = '" + deOtro.id() + "'")).containsExactly("COMPLETADO");
     }
 }

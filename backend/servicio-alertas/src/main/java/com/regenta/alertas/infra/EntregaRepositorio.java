@@ -4,8 +4,13 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import com.regenta.alertas.domain.Entrega;
@@ -20,7 +25,12 @@ public interface EntregaRepositorio extends JpaRepository<Entrega, UUID> {
      * La cola de reintentos (HU-094 criterio 3): pendiente/fallida cuya hora ya
      * llegó. El {@code 5} es {@code Entrega.MAX_INTENTOS} (HQL no resuelve la
      * constante Java).
+     *
+     * <p>HU-124: {@code SKIP LOCKED} (hint -2) para que dos instancias que
+     * barren a la vez no reintenten la misma entrega.
      */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
     @Query("""
             select e from Entrega e
             where e.negocioId = :negocioId

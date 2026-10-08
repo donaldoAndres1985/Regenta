@@ -112,6 +112,8 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/regenta_clientes
       DB_USER: reg_clientes
       DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      BARRIDOS_DB_USER: reg_clientes_barridos
+      BARRIDOS_DB_PASSWORD: ${REGENTA_DB_PASSWORD}
       RABBIT_HOST: rabbitmq
       RABBIT_USER: ${RABBIT_USER}
       RABBIT_PASSWORD: ${RABBIT_PASSWORD}
@@ -158,6 +160,8 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/regenta_ventas
       DB_USER: reg_ventas
       DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      BARRIDOS_DB_USER: reg_ventas_barridos
+      BARRIDOS_DB_PASSWORD: ${REGENTA_DB_PASSWORD}
       RABBIT_HOST: rabbitmq
       RABBIT_USER: ${RABBIT_USER}
       RABBIT_PASSWORD: ${RABBIT_PASSWORD}
@@ -365,6 +369,8 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/regenta_alertas
       DB_USER: reg_alertas
       DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      BARRIDOS_DB_USER: reg_alertas_barridos
+      BARRIDOS_DB_PASSWORD: ${REGENTA_DB_PASSWORD}
       RABBIT_HOST: rabbitmq
       RABBIT_USER: ${RABBIT_USER}
       RABBIT_PASSWORD: ${RABBIT_PASSWORD}
@@ -388,6 +394,8 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/regenta_reportes
       DB_USER: reg_reportes
       DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      BARRIDOS_DB_USER: reg_reportes_barridos
+      BARRIDOS_DB_PASSWORD: ${REGENTA_DB_PASSWORD}
       RABBIT_HOST: rabbitmq
       RABBIT_USER: ${RABBIT_USER}
       RABBIT_PASSWORD: ${RABBIT_PASSWORD}

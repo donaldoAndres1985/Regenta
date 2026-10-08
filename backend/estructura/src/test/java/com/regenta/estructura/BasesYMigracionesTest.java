@@ -376,4 +376,48 @@ class BasesYMigracionesTest {
             c.rollback();
         }
     }
+
+    // ------------------------------------------------------------------ HU-124
+
+    /** Los servicios que tienen barridos automáticos, y por eso su rol privilegiado. */
+    private static final List<String> CON_BARRIDOS = List.of("ventas", "alertas", "clientes", "reportes");
+
+    @Test
+    @DisplayName("HU-124 criterio 1 . cada servicio con barridos tiene su rol privilegiado, que no es el del servicio")
+    void rolPrivilegiadoPorServicio() throws Exception {
+        for (String s : CON_BARRIDOS) {
+            List<String> rol = consultar("postgres", ADMIN, CLAVE_ADMIN,
+                    "select rolbypassrls::text || ',' || rolsuper::text || ',' || rolcanlogin::text "
+                    + "from pg_roles where rolname = 'reg_" + s + "_barridos'");
+            assertThat(rol).as("falta el rol de barridos de %s", s).containsExactly("true,false,true");
+            List<String> delServicio = consultar("postgres", ADMIN, CLAVE_ADMIN,
+                    "select rolbypassrls::text from pg_roles where rolname = 'reg_" + s + "'");
+            assertThat(delServicio).as("el usuario del servicio %s no puede saltarse la RLS", s)
+                    .containsExactly("false");
+        }
+    }
+
+    @Test
+    @DisplayName("HU-124 criterio 1 . el rol del barrido ve los pendientes de todos los negocios, y solo lee")
+    void elRolDelBarridoVeTodoYSoloLee() throws Exception {
+        try (Connection c = conexion("clientes"); Statement s = c.createStatement()) {
+            for (String negocio : List.of(NEGOCIO_A, NEGOCIO_B)) {
+                fijarNegocio(s, negocio);
+                s.executeUpdate("INSERT INTO crm.clientes (id, negocio_id, tipo_persona, nombres) "
+                        + "VALUES (gen_random_uuid(), '" + negocio + "', 'NATURAL', 'Cliente de barrido')");
+                c.commit();
+            }
+        }
+        String sql = "select count(distinct negocio_id) from crm.clientes where nombres = 'Cliente de barrido'";
+
+        assertThat(consultar("regenta_clientes", "reg_clientes_barridos", CLAVE, sql))
+                .as("el barrido descubre los dos negocios").containsExactly("2");
+        assertThat(consultar("regenta_clientes", "reg_clientes", CLAVE, sql))
+                .as("el servicio, sin negocio fijado, no ve ninguno").containsExactly("0");
+        assertThatThrownBy(() -> consultar("regenta_clientes", "reg_clientes_barridos", CLAVE,
+                "update crm.clientes set notas = 'x' returning id"))
+                .isInstanceOf(SQLException.class).hasMessageContaining("permission denied");
+        assertThatThrownBy(() -> DriverManager.getConnection(url("regenta_ventas"), "reg_clientes_barridos", CLAVE))
+                .as("y no entra a la base de otro servicio").isInstanceOf(SQLException.class);
+    }
 }

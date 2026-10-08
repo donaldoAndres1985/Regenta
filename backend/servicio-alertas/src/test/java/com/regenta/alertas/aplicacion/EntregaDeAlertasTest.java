@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.regenta.alertas.BaseDeAlertas;
+import com.regenta.comun.barridos.EjecutorDeBarridos;
+import com.regenta.comun.barridos.ResultadoDeBarrido;
 import com.regenta.alertas.aplicacion.PasarelaDePush.ResultadoDePush;
 import com.regenta.alertas.infra.PasarelaDeCorreoStub;
 import com.regenta.alertas.infra.PasarelaDePushStub;
@@ -41,6 +43,8 @@ class EntregaDeAlertasTest extends BaseDeAlertas {
     private PasarelaDePushStub push;
     @Autowired
     private PasarelaDeCorreoStub correo;
+    @Autowired
+    private EjecutorDeBarridos barridos;
 
     private final UUID negocioA = UUID.randomUUID();
     private final UUID admin = UUID.randomUUID();
@@ -131,6 +135,25 @@ class EntregaDeAlertasTest extends BaseDeAlertas {
         int tocadas = enContexto(negocioA, admin, ADMIN, () -> despacho.reintentarPendientes());
 
         assertThat(tocadas).isEqualTo(1);
+        assertThat(comoElServicio(negocioA,
+                "select estado from entregas where alerta_id = '" + alertaId + "'"))
+                .containsExactly("ENVIADA");
+    }
+
+    @Test
+    @DisplayName("HU-124: el reintento ocurre solo, por el barrido, sin que nadie llame al endpoint")
+    void elBarridoReintentaSolo() {
+        registrarDispositivo("token-barrido");
+        reglaVencimiento("Push falla en barrido", "ALTA", List.of("PUSH"));
+        push.proximo(ResultadoDePush.fallo("FCM 503"));
+        UUID alertaId = evaluarLote(UUID.randomUUID()).get(0);
+        ejecutarComoElServicio(negocioA, "update entregas set proximo_intento = now() - interval '1 minute' "
+                + "where alerta_id = '" + alertaId + "'");
+        push.proximo(ResultadoDePush.ok("msg-barrido"));
+
+        ResultadoDeBarrido resultado = barridos.ejecutar("entregas-por-reintentar");
+
+        assertThat(resultado.tomadasPorNegocio()).containsEntry(negocioA, 1);
         assertThat(comoElServicio(negocioA,
                 "select estado from entregas where alerta_id = '" + alertaId + "'"))
                 .containsExactly("ENVIADA");

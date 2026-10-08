@@ -36,7 +36,8 @@ import org.testcontainers.utility.DockerImageName;
 public abstract class BaseDeVentas {
 
     protected static final String ROL = "reg_ventas";
-    protected static final String CLAVE = "clave_de_prueba";
+    public static final String CLAVE = "clave_de_prueba";
+    public static final String ROL_BARRIDOS = "reg_ventas_barridos";
 
     static final PostgreSQLContainer<?> PG =
             new PostgreSQLContainer<>(DockerImageName.parse("postgres:16"));
@@ -45,6 +46,13 @@ public abstract class BaseDeVentas {
         PG.start();
         comoSuperusuario("CREATE ROLE " + ROL + " LOGIN PASSWORD '" + CLAVE + "'");
         comoSuperusuario("GRANT ALL ON DATABASE " + PG.getDatabaseName() + " TO " + ROL);
+        // HU-124: el rol de los barridos, igual que en docker/postgres/init-databases.sql.
+        comoSuperusuario("CREATE ROLE " + ROL_BARRIDOS + " LOGIN BYPASSRLS PASSWORD '" + CLAVE + "'");
+        comoSuperusuario("GRANT CONNECT ON DATABASE " + PG.getDatabaseName() + " TO " + ROL_BARRIDOS);
+        comoSuperusuario("ALTER DEFAULT PRIVILEGES FOR ROLE " + ROL
+                + " GRANT USAGE ON SCHEMAS TO " + ROL_BARRIDOS);
+        comoSuperusuario("ALTER DEFAULT PRIVILEGES FOR ROLE " + ROL
+                + " GRANT SELECT ON TABLES TO " + ROL_BARRIDOS);
     }
 
     @DynamicPropertySource
