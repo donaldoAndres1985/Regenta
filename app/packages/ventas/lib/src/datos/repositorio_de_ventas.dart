@@ -70,6 +70,15 @@ class RepositorioDeVentas {
   final ClienteHttp _http;
   final Uuid _uuid;
 
+  /// HU-137: el monto desde el cual hay que identificar al comprador, o `null`
+  /// si el negocio no lo configuró. Se le pregunta a Ventas, que tiene su
+  /// copia: la configuración del negocio pide un permiso que quien cobra no
+  /// suele tener.
+  Future<num?> montoParaIdentificarComprador() async {
+    final cuerpo = await _http.get<Map<String, dynamic>>('/api/ventas/reglas-de-cobro');
+    return cuerpo['montoIdentificarComprador'] as num?;
+  }
+
   Future<List<ProductoBuscado>> buscar(String termino) async {
     final q = termino.trim();
     if (q.length < 3) return const [];

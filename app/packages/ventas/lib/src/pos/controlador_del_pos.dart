@@ -13,14 +13,17 @@ import 'linea_de_carrito.dart';
 /// entra igual pero marcada: el botón *Cobrar* queda deshabilitado con el aviso
 /// "Hay líneas sin stock" hasta que se quite (HU-045, criterio 3).
 class ControladorDelPos extends StateNotifier<EstadoDelPos> {
-  ControladorDelPos(this._repo, {required String bodegaId, Duration? rebote})
+  ControladorDelPos(this._repo,
+      {required String bodegaId, Duration? rebote, num? montoParaIdentificar})
       : _bodegaId = bodegaId,
         _rebote = rebote ?? const Duration(milliseconds: 300),
-        super(const EstadoDelPos());
+        _montoParaIdentificar = montoParaIdentificar,
+        super(EstadoDelPos(montoParaIdentificar: montoParaIdentificar));
 
   final RepositorioDeVentas _repo;
   final String _bodegaId;
   final Duration _rebote;
+  num? _montoParaIdentificar;
   Timer? _temporizador;
   int _generacion = 0;
 
@@ -93,6 +96,12 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     state = state.copiar(lineas: lineas, mensaje: null);
   }
 
+  /// HU-137: el monto puede llegar después de abrir el POS.
+  void fijarMontoParaIdentificar(num? monto) {
+    _montoParaIdentificar = monto;
+    state = state.copiar(montoParaIdentificar: monto);
+  }
+
   void vaciar() => state = state.copiar(lineas: const [], mensaje: null);
 
   /// HU-113: el selector devuelve a quién se le está vendiendo, o `null` si
@@ -120,7 +129,7 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
         ],
         clienteId: state.cliente?.id,
       );
-      state = const EstadoDelPos().copiar(
+      state = EstadoDelPos(montoParaIdentificar: _montoParaIdentificar).copiar(
         ventaNumero: venta.quedoEnLaCola ? null : venta.venta!.numero,
         ventaEnCola: venta.quedoEnLaCola,
       );

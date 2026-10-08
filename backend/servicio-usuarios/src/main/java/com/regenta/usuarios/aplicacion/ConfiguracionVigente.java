@@ -1,5 +1,6 @@
 package com.regenta.usuarios.aplicacion;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,5 +32,7 @@ public record ConfiguracionVigente(
         boolean politicaStockNegativo,
         UUID impuestoPorDefecto,
         Map<String, Object> preferencias,
-        String advertencia) {
+        String advertencia,
+        /** HU-137: {@code null} = no se exige identificar al comprador. */
+        BigDecimal montoIdentificarComprador) {
 }

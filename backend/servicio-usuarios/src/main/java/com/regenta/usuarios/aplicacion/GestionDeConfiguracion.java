@@ -90,6 +90,7 @@ public class GestionDeConfiguracion {
                         : cambio.preciosIncluyenImpuesto(),
                 cambio.politicaStockNegativo() == null ? configuracion.isPoliticaStockNegativo()
                         : cambio.politicaStockNegativo());
+        configuracion.fijarMontoParaIdentificarComprador(cambio.montoIdentificarComprador());
         if (cambio.preferencias() != null) {
             configuracion.guardarPreferencias(cambio.preferencias());
         }
@@ -126,6 +127,8 @@ public class GestionDeConfiguracion {
         payload.put("regimen_fiscal", configuracion.getRegimenFiscal());
         payload.put("responsabilidades_fiscales", configuracion.getResponsabilidadesFiscales());
         payload.put("precios_incluyen_impuesto", configuracion.isPreciosIncluyenImpuesto());
+        // HU-137: Ventas lo guarda y lo hace cumplir al cobrar.
+        payload.put("monto_identificar_comprador", configuracion.getMontoIdentificarComprador());
         return payload;
     }
 
@@ -233,6 +236,6 @@ public class GestionDeConfiguracion {
                 conf.getResponsabilidadesFiscales(), conf.getDecimalesMoneda(),
                 conf.getFormatoFecha(), conf.isPreciosIncluyenImpuesto(),
                 conf.isPoliticaStockNegativo(), conf.getImpuestoDefaultId(),
-                conf.getPreferencias(), advertencia);
+                conf.getPreferencias(), advertencia, conf.getMontoIdentificarComprador());
     }
 }

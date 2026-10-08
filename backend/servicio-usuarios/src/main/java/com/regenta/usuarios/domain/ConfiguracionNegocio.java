@@ -1,5 +1,6 @@
 package com.regenta.usuarios.domain;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -60,6 +61,10 @@ public class ConfiguracionNegocio {
 
     @Column(name = "codigo_postal", length = 15)
     private String codigoPostal;
+
+    /** HU-137: sobre este total, la venta no se cobra a consumidor final. NULL = no se exige. */
+    @Column(name = "monto_identificar_comprador", precision = 14, scale = 2)
+    private BigDecimal montoIdentificarComprador;
 
     @Column(name = "decimales_moneda", nullable = false)
     private short decimalesMoneda;
@@ -198,6 +203,14 @@ public class ConfiguracionNegocio {
         this.formatoFecha = formatoFecha;
         this.preciosIncluyenImpuesto = preciosIncluyenImpuesto;
         this.politicaStockNegativo = politicaStockNegativo;
+    }
+
+    public void fijarMontoParaIdentificarComprador(BigDecimal monto) {
+        this.montoIdentificarComprador = monto;
+    }
+
+    public BigDecimal getMontoIdentificarComprador() {
+        return montoIdentificarComprador;
     }
 
     public void fijarImpuestoPorDefecto(UUID impuestoId) {

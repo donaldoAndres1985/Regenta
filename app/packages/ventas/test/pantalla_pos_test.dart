@@ -24,6 +24,12 @@ class _RepoFake implements RepositorioDeVentas {
   /// Cuando es true, el cobro simula que no había señal y la venta quedó en la cola.
   bool sinSenal = false;
 
+  /// HU-137: lo que contesta Ventas en `/api/ventas/reglas-de-cobro`.
+  num? montoDelNegocio;
+
+  @override
+  Future<num?> montoParaIdentificarComprador() async => montoDelNegocio;
+
   @override
   Future<ResultadoDeCobro> confirmarVenta({
     required String bodegaId,
@@ -56,7 +62,9 @@ ProductoBuscado _prod({
         id: id, sku: 'CEM-050', nombre: nombre, precioVenta: precio, nivelStock: nivel);
 
 Future<void> _montar(WidgetTester tester, _RepoFake repo,
-    {Size size = const Size(390, 844), void Function(String)? onCobrada}) async {
+    {Size size = const Size(390, 844),
+    void Function(String)? onCobrada,
+    num? montoParaIdentificar}) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(ProviderScope(
@@ -64,6 +72,8 @@ Future<void> _montar(WidgetTester tester, _RepoFake repo,
       repositorioDeVentasProvider.overrideWithValue(repo),
       bodegaDeVentaProvider.overrideWithValue('bodega-1'),
       escanerProvider.overrideWithValue(_EscanerFake()),
+      if (montoParaIdentificar != null)
+        montoParaIdentificarCompradorProvider.overrideWithValue(montoParaIdentificar),
     ],
     child: MaterialApp(home: PantallaPos(onVentaCobrada: onCobrada)),
   ));
@@ -119,6 +129,67 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Quitar uno').first);
     await tester.pump();
     expect(find.text('Hay líneas sin stock'), findsNothing);
+  });
+
+  testWidgets('HU-137 criterios 2 y 4: sobre el monto y sin cliente, se avisa antes de Cobrar y no se cobra',
+      (tester) async {
+    final repo = _RepoFake();
+    await _montar(tester, repo, size: const Size(390, 844), montoParaIdentificar: 50000);
+
+    await _agregar(tester, repo, _prod());
+    expect(find.byKey(const Key('aviso-identificar-comprador')), findsNothing,
+        reason: 'bajo el monto, nada cambia');
+
+    await tester.tap(find.bySemanticsLabel('Agregar uno').first); // 64.000 > 50.000
+    await tester.pump();
+
+    expect(find.byKey(const Key('aviso-identificar-comprador')), findsOneWidget);
+    expect(find.textContaining('identifica al comprador'), findsOneWidget);
+    final aviso = tester.getTopLeft(find.byKey(const Key('aviso-identificar-comprador')));
+    final boton = tester.getTopLeft(find.widgetWithText(FilledButton, 'Cobrar'));
+    expect(aviso.dy, lessThan(boton.dy), reason: 'el aviso va antes del botón, no después');
+    final cobrar = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Cobrar'));
+    expect(cobrar.onPressed, isNull);
+  });
+
+  testWidgets('HU-137 criterio 1: el monto que configuró el negocio llega solo, desde Ventas',
+      (tester) async {
+    final repo = _RepoFake()..montoDelNegocio = 50000;
+    await _montar(tester, repo, size: const Size(390, 844));
+    await tester.pump();
+
+    await _agregar(tester, repo, _prod(precio: 64000));
+
+    expect(find.byKey(const Key('aviso-identificar-comprador')), findsOneWidget);
+    expect(repo.ventasConfirmadas, isEmpty);
+  });
+
+  testWidgets('HU-137 criterio 2: con el comprador identificado, la misma venta se cobra',
+      (tester) async {
+    final repo = _RepoFake();
+    await _montar(tester, repo, size: const Size(390, 844), montoParaIdentificar: 50000);
+    await _agregar(tester, repo, _prod(precio: 64000));
+
+    final contenedor = ProviderScope.containerOf(tester.element(find.byType(PantallaPos)));
+    contenedor.read(controladorDelPosProvider.notifier).fijarCliente(const ClienteDeLaVenta(
+        id: 'c-1', nombre: 'Materiales Cruz S.A.S.', tipoDocumento: 'NIT',
+        numeroDocumento: '900412883'));
+    await tester.pump();
+
+    expect(find.byKey(const Key('aviso-identificar-comprador')), findsNothing);
+    final cobrar = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Cobrar'));
+    expect(cobrar.onPressed, isNotNull);
+  });
+
+  testWidgets('HU-137 criterio 3: sin monto configurado se cobra como siempre, por grande que sea',
+      (tester) async {
+    final repo = _RepoFake();
+    await _montar(tester, repo, size: const Size(390, 844));
+    await _agregar(tester, repo, _prod(precio: 99000000));
+
+    expect(find.byKey(const Key('aviso-identificar-comprador')), findsNothing);
+    final cobrar = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Cobrar'));
+    expect(cobrar.onPressed, isNotNull);
   });
 
   testWidgets('Criterio 4: el mismo widget se adapta con LayoutBuilder a móvil y a escritorio',

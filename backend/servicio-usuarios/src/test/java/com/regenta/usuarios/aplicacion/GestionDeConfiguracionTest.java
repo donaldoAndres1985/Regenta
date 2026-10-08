@@ -112,6 +112,41 @@ class GestionDeConfiguracionTest extends BaseDeUsuarios {
     }
 
     @Test
+    @DisplayName("HU-137 criterio 1: el monto para identificar al comprador queda guardado y viaja a Ventas")
+    void elMontoParaIdentificarQuedaGuardado() {
+        NegocioCreado negocio = negocioNuevo();
+        CambioDeConfiguracion base = cambio(negocio, null);
+        CambioDeConfiguracion conMonto = new CambioDeConfiguracion(base.nombreComercial(),
+                base.razonSocial(), base.tipoDocumento(), base.numeroDocumento(),
+                base.digitoVerificacion(), base.direccion(), base.ciudad(), base.departamento(),
+                base.telefono(), base.email(), base.sitioWeb(), base.codigoPostal(), base.logoUrl(),
+                base.regimenFiscal(), base.responsabilidadesFiscales(), base.decimalesMoneda(),
+                base.formatoFecha(), base.preciosIncluyenImpuesto(), base.politicaStockNegativo(),
+                base.preferencias(), new java.math.BigDecimal("1000000"));
+
+        ConfiguracionVigente guardada = comoAdmin(negocio, () -> gestion.actualizar(conMonto));
+
+        assertThat(guardada.montoIdentificarComprador()).isEqualByComparingTo("1000000");
+        assertThat(comoAdmin(negocio, () -> gestion.ver()).montoIdentificarComprador())
+                .isEqualByComparingTo("1000000");
+        assertThat(consultar("select payload::text from outbox_eventos where negocio_id = '"
+                + negocio.negocioId() + "' and tipo_evento = 'configuracion_negocio_actualizada' "
+                + "order by creado_en desc limit 1").get(0))
+                .contains("\"monto_identificar_comprador\": 1000000");
+    }
+
+    @Test
+    @DisplayName("HU-137 criterio 3: sin monto configurado, la configuración no exige nada")
+    void sinMontoNoSeExigeNada() {
+        NegocioCreado negocio = negocioNuevo();
+
+        ConfiguracionVigente guardada = comoAdmin(negocio,
+                () -> gestion.actualizar(cambio(negocio, null)));
+
+        assertThat(guardada.montoIdentificarComprador()).isNull();
+    }
+
+    @Test
     @DisplayName("Criterio 4: cambiar si los precios incluyen impuesto viene con advertencia")
     void cambiarElCalculoAdvierte() {
         NegocioCreado negocio = negocioNuevo();

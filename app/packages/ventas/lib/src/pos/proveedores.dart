@@ -21,10 +21,26 @@ final bodegaDeVentaProvider = Provider<String>((ref) {
 
 final escanerProvider = Provider<EscanerDeCodigos>((ref) => const EscanerMobileScanner());
 
+/// HU-137: lo que el negocio configuró, preguntado una vez a Ventas.
+final reglasDeCobroProvider = FutureProvider<num?>(
+    (ref) => ref.watch(repositorioDeVentasProvider).montoParaIdentificarComprador());
+
+/// HU-137: sobre este total la venta no se cobra a consumidor final. `null`
+/// —lo de siempre— es que no se exige nada: también mientras la respuesta no
+/// llega o si no hay señal. El backend lo vuelve a exigir al cobrar en línea.
+final montoParaIdentificarCompradorProvider =
+    Provider<num?>((ref) => ref.watch(reglasDeCobroProvider).valueOrNull);
+
 final controladorDelPosProvider =
-    StateNotifierProvider<ControladorDelPos, EstadoDelPos>(
-  (ref) => ControladorDelPos(
+    StateNotifierProvider<ControladorDelPos, EstadoDelPos>((ref) {
+  final controlador = ControladorDelPos(
     ref.watch(repositorioDeVentasProvider),
     bodegaId: ref.watch(bodegaDeVentaProvider),
-  ),
-);
+    montoParaIdentificar: ref.read(montoParaIdentificarCompradorProvider),
+  );
+  // Se escucha y no se observa: si el monto llega con el carrito ya armado,
+  // reconstruir el controlador vaciaría la venta en curso.
+  ref.listen<num?>(montoParaIdentificarCompradorProvider,
+      (_, monto) => controlador.fijarMontoParaIdentificar(monto));
+  return controlador;
+});

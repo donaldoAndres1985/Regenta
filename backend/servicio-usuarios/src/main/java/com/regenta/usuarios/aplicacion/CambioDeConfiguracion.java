@@ -1,8 +1,10 @@
 package com.regenta.usuarios.aplicacion;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -32,5 +34,25 @@ public record CambioDeConfiguracion(
         @Size(max = 20) String formatoFecha,
         Boolean preciosIncluyenImpuesto,
         Boolean politicaStockNegativo,
-        Map<String, Object> preferencias) {
+        Map<String, Object> preferencias,
+        /**
+         * HU-137: sobre este total la venta no se cobra a consumidor final.
+         * Como los datos fiscales, se manda siempre: {@code null} es "no se
+         * exige", no "dejar el que había".
+         */
+        @DecimalMin("0") BigDecimal montoIdentificarComprador) {
+
+    /** La configuración de antes de HU-137, sin monto para identificar al comprador. */
+    public CambioDeConfiguracion(String nombreComercial, String razonSocial, String tipoDocumento,
+            String numeroDocumento, String digitoVerificacion, String direccion, String ciudad,
+            String departamento, String telefono, String email, String sitioWeb,
+            String codigoPostal, String logoUrl, String regimenFiscal,
+            List<String> responsabilidadesFiscales, Short decimalesMoneda, String formatoFecha,
+            Boolean preciosIncluyenImpuesto, Boolean politicaStockNegativo,
+            Map<String, Object> preferencias) {
+        this(nombreComercial, razonSocial, tipoDocumento, numeroDocumento, digitoVerificacion,
+                direccion, ciudad, departamento, telefono, email, sitioWeb, codigoPostal, logoUrl,
+                regimenFiscal, responsabilidadesFiscales, decimalesMoneda, formatoFecha,
+                preciosIncluyenImpuesto, politicaStockNegativo, preferencias, null);
+    }
 }
