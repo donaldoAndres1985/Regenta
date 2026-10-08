@@ -67,6 +67,7 @@ class EsqueletoBackendTest {
         hijos.add(Repo.backend().resolve("gateway/pom.xml"));
         hijos.add(Repo.backend().resolve("comun/pom.xml"));
         hijos.add(Repo.backend().resolve("estructura/pom.xml"));
+        hijos.add(Repo.backend().resolve("integracion/pom.xml"));
         Repo.SERVICIOS.forEach(s -> hijos.add(Repo.moduloServicio(s).resolve("pom.xml")));
 
         for (Path pom : hijos) {

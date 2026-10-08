@@ -9,6 +9,7 @@ COPY mvnw .
 COPY comun/pom.xml comun/pom.xml
 COPY gateway/pom.xml gateway/pom.xml
 COPY estructura/pom.xml estructura/pom.xml
+COPY integracion/pom.xml integracion/pom.xml
 COPY servicio-usuarios/pom.xml servicio-usuarios/pom.xml
 COPY servicio-clientes/pom.xml servicio-clientes/pom.xml
 COPY servicio-inventario/pom.xml servicio-inventario/pom.xml
