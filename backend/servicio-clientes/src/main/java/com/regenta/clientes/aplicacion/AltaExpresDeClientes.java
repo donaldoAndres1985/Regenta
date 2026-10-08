@@ -70,6 +70,8 @@ public class AltaExpresDeClientes {
                 nombres, apellidos, razonSocial, email, limpiar(solicitud.telefono()), null, null,
                 null);
         cliente.conElIdDelDispositivo(solicitud.id());
+        cliente.definirDatosFiscales(limpiar(solicitud.regimenFiscal()),
+                solicitud.responsabilidadesFiscales());
         clientes.save(cliente);
 
         eventos.registrar(negocioId, "cliente", cliente.getId(), "cliente_creado",

@@ -121,6 +121,21 @@ class SnapshotDelHuespedEnElEventoTest extends BaseDeReservas {
     }
 
     @Test
+    @DisplayName("HU-133 criterio 3: el snapshot del huésped lleva su régimen fiscal")
+    void elSnapshotLlevaElRegimenFiscal() {
+        clientes.conocidos.put(huesped, new ClienteDeLaReserva(huesped, "María Restrepo Uribe",
+                "CC", "43219876", null, "NO_RESPONSABLE", List.of("R-99-PN")));
+        ReservaDelNegocio r = conCheckIn(huesped);
+
+        enContexto(negocio, recepcion, RECEPCION,
+                () -> estancias.checkOut(r.id(), new SolicitudDeCheckOut(true, null)));
+
+        assertThat(eventoDeEstanciaFinalizada(r.id()))
+                .contains("\"regimen_fiscal\": \"NO_RESPONSABLE\"")
+                .contains("R-99-PN");
+    }
+
+    @Test
     @DisplayName("Criterio 3: sin huésped el evento va sin snapshot, y eso no es un error")
     void sinClienteElEventoVaSinSnapshot() {
         ReservaDelNegocio r = conCheckIn(null);

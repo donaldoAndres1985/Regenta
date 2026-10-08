@@ -104,6 +104,7 @@ class ClienteNuevo {
     required this.email,
     this.digitoVerificacion,
     this.telefono,
+    this.regimenFiscal,
   });
 
   final String id;
@@ -114,6 +115,10 @@ class ClienteNuevo {
   final String email;
   final String? digitoVerificacion;
   final String? telefono;
+
+  /// HU-133: `RESPONSABLE_IVA` o `NO_RESPONSABLE`. Sin él, la factura aplica
+  /// el de persona natural y deja dicho que fue por defecto.
+  final String? regimenFiscal;
 
   bool get esJuridica => tipoPersona == 'JURIDICA';
 
@@ -127,6 +132,7 @@ class ClienteNuevo {
         if (!esJuridica) 'nombres': nombre,
         'email': email,
         if (telefono != null && telefono!.isNotEmpty) 'telefono': telefono,
+        if (regimenFiscal != null) 'regimenFiscal': regimenFiscal,
       };
 }
 

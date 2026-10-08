@@ -1,5 +1,6 @@
 package com.regenta.ventas.infra;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -67,7 +68,15 @@ public class ConsultaDeClientesHttp implements ConsultaDeClientes {
         }
         return new ClienteDeLaVenta(clienteId, texto(cliente.get("nombreDisplay")),
                 texto(cliente.get("tipoDocumento")), texto(cliente.get("numeroDocumento")),
-                texto(cliente.get("digitoVerificacion")));
+                texto(cliente.get("digitoVerificacion")), texto(cliente.get("regimenFiscal")),
+                textos(cliente.get("responsabilidadesFiscales")));
+    }
+
+    private static List<String> textos(Object valor) {
+        if (!(valor instanceof List<?> lista)) {
+            return List.of();
+        }
+        return lista.stream().filter(v -> v != null).map(Object::toString).toList();
     }
 
     private void conLaIdentidadDeQuienVende(HttpHeaders cabeceras) {

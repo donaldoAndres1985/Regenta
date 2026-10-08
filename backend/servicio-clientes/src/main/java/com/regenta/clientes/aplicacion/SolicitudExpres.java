@@ -1,5 +1,6 @@
 package com.regenta.clientes.aplicacion;
 
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.constraints.Email;
@@ -25,5 +26,16 @@ public record SolicitudExpres(
         @Size(max = 200) String razonSocial,
         @Email @Size(max = 150) String email,
         /** Opcional: la pantalla lo ofrece, pero una factura no lo exige. */
-        @Size(max = 30) String telefono) {
+        @Size(max = 30) String telefono,
+        /** HU-133 criterio 2: opcional; sin él, la factura aplica el de persona natural. */
+        @Size(max = 40) String regimenFiscal,
+        List<@Size(max = 10) String> responsabilidadesFiscales) {
+
+    /** El alta exprés de antes de HU-133, sin datos fiscales. */
+    public SolicitudExpres(UUID id, String tipoPersona, String tipoDocumento,
+            String numeroDocumento, String digitoVerificacion, String nombres, String apellidos,
+            String razonSocial, String email, String telefono) {
+        this(id, tipoPersona, tipoDocumento, numeroDocumento, digitoVerificacion, nombres,
+                apellidos, razonSocial, email, telefono, null, null);
+    }
 }

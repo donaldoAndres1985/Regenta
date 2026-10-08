@@ -70,7 +70,7 @@ public class GestionDeFacturas {
      */
     private Map<String, Object> adquirienteDe(SolicitudDeFacturaDesdeEvento s, UUID negocioId) {
         if (s.cliente() != null && !s.cliente().isEmpty()) {
-            return s.cliente();
+            return adquirienteGenerico.conRegimen(s.cliente());
         }
         Map<String, Object> generico = adquirienteGenerico.snapshot();
         // HU-115 criterio 5: el anexo tecnico pide que el municipio del

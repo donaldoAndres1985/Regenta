@@ -1,6 +1,8 @@
 package com.regenta.ventas.aplicacion;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,7 +60,7 @@ public class GestionDeClienteDeLaVenta {
     }
 
     /**
-     * Nombre, tipo y número de documento, tal como están hoy. Se arma a mano y
+     * Nombre, documento y régimen fiscal (HU-133), tal como están hoy. Se arma a mano y
      * no con Jackson porque son cuatro campos y porque lo que se guarda es
      * exactamente esto: el snapshot no es "el cliente serializado", es lo que
      * hace falta para facturar.
@@ -68,7 +70,15 @@ public class GestionDeClienteDeLaVenta {
                 + ",\"nombre\":" + texto(cliente.nombre())
                 + ",\"tipo_documento\":" + texto(cliente.tipoDocumento())
                 + ",\"numero_documento\":" + texto(cliente.numeroDocumento())
-                + ",\"digito_verificacion\":" + texto(cliente.digitoVerificacion()) + "}";
+                + ",\"digito_verificacion\":" + texto(cliente.digitoVerificacion())
+                + ",\"regimen_fiscal\":" + texto(cliente.regimenFiscal())
+                + ",\"responsabilidades_fiscales\":" + lista(cliente.responsabilidadesFiscales())
+                + "}";
+    }
+
+    private static String lista(List<String> valores) {
+        return valores.stream().map(GestionDeClienteDeLaVenta::texto)
+                .collect(Collectors.joining(",", "[", "]"));
     }
 
     private static String texto(String valor) {
