@@ -78,6 +78,16 @@ jobs:
       - name: test
         run: melos run test --no-select
 
+      # HU-128 criterio 2: cuando un golden falla, la imagen esperada, la
+      # obtenida y la diferencia quedan como artefacto de la corrida.
+      - name: diferencias de goldens
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goldens-fallidos
+          path: app/packages/*/test/goldens/failures/
+          if-no-files-found: ignore
+
   build:
     name: compilar Android y Web
     runs-on: ubuntu-latest

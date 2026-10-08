@@ -182,3 +182,6 @@ temp/
 *.log
 npm-debug.log*
 node_modules/
+
+# HU-128: lo que deja un golden fallido (CI lo sube como artefacto)
+app/packages/*/test/goldens/failures/

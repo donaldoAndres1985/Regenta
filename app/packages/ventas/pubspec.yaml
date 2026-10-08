@@ -26,3 +26,7 @@ dev_dependencies:
   # La cola offline vive en la base local del núcleo: los tests de HU-043 la
   # abren en memoria para comprobar qué quedó encolado.
   dio: ^5.7.0
+
+flutter:
+  # HU-128: los goldens del paquete pintan los íconos de verdad, no cajas.
+  uses-material-design: true

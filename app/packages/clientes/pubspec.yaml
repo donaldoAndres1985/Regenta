@@ -19,3 +19,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+flutter:
+  # HU-128: los goldens del paquete pintan los íconos de verdad, no cajas.
+  uses-material-design: true
