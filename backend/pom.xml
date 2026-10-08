@@ -51,6 +51,7 @@
     <module>servicio-reportes</module>
     <module>servicio-auditoria</module>
     <module>estructura</module>
+    <module>integracion</module>
   </modules>
 
   <dependencyManagement>
@@ -60,6 +61,18 @@
       <dependency>
         <groupId>com.regenta</groupId>
         <artifactId>comun</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <!-- Solo para el modulo integracion (HU-127): las pruebas que levantan dos
+           servicios juntos. Ningun servicio depende de otro. -->
+      <dependency>
+        <groupId>com.regenta</groupId>
+        <artifactId>servicio-ventas</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.regenta</groupId>
+        <artifactId>servicio-inventario</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
