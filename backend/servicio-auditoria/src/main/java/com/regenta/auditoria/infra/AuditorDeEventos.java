@@ -2,6 +2,7 @@ package com.regenta.auditoria.infra;
 
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -15,8 +16,11 @@ import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.regenta.auditoria.aplicacion.AccionDeAuditoria;
+import com.regenta.comun.auditoria.CambiosDeAuditoria;
 import com.regenta.comun.eventos.InboxIdempotente;
 import com.regenta.comun.negocio.ContextoDeNegocio;
 import com.regenta.comun.negocio.DatosDelNegocio;
@@ -30,15 +34,18 @@ import com.regenta.comun.negocio.DatosDelNegocio;
  * {@code agregado_tipo}, {@code agregado_id}, {@code trace_id} y
  * {@code servicio_origen}.
  *
- * <p>Límite conocido (criterio 3): sin tocar cada servicio para que declare
- * un diff campo a campo, esta bitácora guarda el payload resultante del
- * evento como {@code datos_despues}, no un {@code cambios} antes/después.
+ * <p>HU-130: el servicio que quiere que se vea qué cambió adjunta el bloque
+ * {@link CambiosDeAuditoria#CLAVE} a su payload, y de ahí sale
+ * {@code cambios}. El que no lo adjunta queda auditado igual, con el payload
+ * como {@code datos_despues} y sin detalle.
  *
  * <p>El mismo evento también alimenta {@code cambios_servidor} (HU-104): el
  * watermark del que sale la descarga incremental de la app.
  */
 @Component
 public class AuditorDeEventos {
+
+    private static final Set<String> TIPOS_DECLARADOS = Set.of("CREAR", "ACTUALIZAR", "ELIMINAR");
 
     private final InboxIdempotente inbox;
     private final EscritorDeAuditoria escritor;
@@ -81,21 +88,75 @@ public class AuditorDeEventos {
         String entidadTipo = texto(headers.get("agregado_tipo"));
         UUID entidadId = uuid(headers.get("agregado_id"));
         String traceId = texto(headers.get("trace_id"));
-        UUID usuarioId = usuarioDesdePayload(cuerpo);
-        String accion = AccionDeAuditoria.desde(tipoEvento);
+        Map<String, Object> payload = leer(cuerpo);
+        UUID usuarioId = payload == null ? null : uuid(payload.get("usuario_id"));
+        Map<?, ?> detalle = payload == null ? null
+                : payload.remove(CambiosDeAuditoria.CLAVE) instanceof Map<?, ?> m ? m : null;
+        String accion = accionDe(detalle, tipoEvento);
+        String sinDetalle = payload == null ? cuerpo : aJson(payload);
         OffsetDateTime ahora = OffsetDateTime.now();
 
+        // HU-130 criterio 2: se enmascara aquí también, por si el emisor se
+        // olvidó. Criterio 4: sin detalle, el evento entra igual, con cambios NULL.
         escritor.insertar(mensajeId, negocioId, usuarioId,
                 servicio == null || servicio.isBlank() ? "desconocido" : servicio,
                 entidadTipo == null || entidadTipo.isBlank() ? "Desconocida" : entidadTipo, entidadId,
-                accion, cuerpo, traceId, ahora);
+                accion, cambiosDe(detalle),
+                payload == null ? cuerpo : aJson(CambiosDeAuditoria.enmascarar(payload)), traceId, ahora);
 
         // HU-104: el mismo evento alimenta el watermark de descarga incremental. Va en
         // la misma transacción del Inbox de arriba: un segundo @RabbitListener con
         // "#" en este servicio chocaría por el mismo mensaje contra el mismo Inbox.
         if (entidadId != null) {
             cambios.insertar(negocioId, entidadTipo == null || entidadTipo.isBlank() ? "Desconocida"
-                    : entidadTipo, entidadId, operacionDeCambio(accion), cuerpo, ahora);
+                    : entidadTipo, entidadId, operacionDeCambio(accion), sinDetalle, ahora);
+        }
+    }
+
+    /**
+     * HU-130 criterio 3: si el servicio dijo qué hizo (alta, edición, baja), eso
+     * manda sobre la heurística del nombre del evento.
+     */
+    private static String accionDe(Map<?, ?> detalle, String tipoEvento) {
+        Object tipo = detalle == null ? null : detalle.get("tipo");
+        if (tipo != null && TIPOS_DECLARADOS.contains(tipo.toString())) {
+            return tipo.toString();
+        }
+        return AccionDeAuditoria.desde(tipoEvento);
+    }
+
+    private String cambiosDe(Map<?, ?> detalle) {
+        if (detalle == null || !(detalle.get("cambios") instanceof Map<?, ?> cambiosDeclarados)) {
+            return null;
+        }
+        Map<String, Object> limpio = new LinkedHashMap<>();
+        cambiosDeclarados.forEach((campo, par) -> {
+            String nombre = String.valueOf(campo);
+            if (CambiosDeAuditoria.esSensible(nombre) && par instanceof Map<?, ?> antesYDespues) {
+                Map<String, Object> oculto = new LinkedHashMap<>();
+                antesYDespues.forEach((k, v) -> oculto.put(String.valueOf(k),
+                        v == null ? null : CambiosDeAuditoria.OCULTO));
+                limpio.put(nombre, oculto);
+            } else {
+                limpio.put(nombre, CambiosDeAuditoria.enmascarar(par));
+            }
+        });
+        return aJson(limpio);
+    }
+
+    private Map<String, Object> leer(String cuerpo) {
+        try {
+            return json.readValue(cuerpo, new TypeReference<LinkedHashMap<String, Object>>() {});
+        } catch (Exception noEsUnObjeto) {
+            return null;
+        }
+    }
+
+    private String aJson(Object valor) {
+        try {
+            return json.writeValueAsString(valor);
+        } catch (JsonProcessingException imposible) {
+            throw new IllegalStateException(imposible);
         }
     }
 
@@ -105,16 +166,6 @@ public class AuditorDeEventos {
             case "ELIMINAR" -> "ELIMINAR";
             default -> "ACTUALIZAR";
         };
-    }
-
-    private UUID usuarioDesdePayload(String cuerpo) {
-        try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> datos = json.readValue(cuerpo, Map.class);
-            return uuid(datos.get("usuario_id"));
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     private static String texto(Object valor) {
