@@ -107,7 +107,8 @@ public class GestionDeAjustes {
                     tipo, diferencia.abs(), OrigenMovimiento.AJUSTE, ajusteId,
                     "Ajuste " + ajuste.getNumero() + " (" + ajuste.getTipo() + "): "
                             + ajuste.getMotivo(),
-                    "ajuste:" + ajusteId + ":linea:" + linea.getId(), codigoDeLote(linea), null));
+                    "ajuste:" + ajusteId + ":linea:" + linea.getId(), codigoDeLote(linea), null,
+                    linea.getCostoUnitario()));
         }
         ajustes.save(ajuste);
         return comoDto(ajuste);

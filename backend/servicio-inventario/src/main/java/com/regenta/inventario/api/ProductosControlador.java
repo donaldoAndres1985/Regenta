@@ -1,5 +1,6 @@
 package com.regenta.inventario.api;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -8,9 +9,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.regenta.inventario.aplicacion.CostoDeProducto;
 import com.regenta.inventario.aplicacion.GestionDeProductos;
 import com.regenta.inventario.aplicacion.ProductoDelNegocio;
 import com.regenta.inventario.aplicacion.SolicitudDeProducto;
@@ -39,6 +42,14 @@ public class ProductosControlador {
     @ApiResponse(responseCode = "422", description = "Faltan atributos obligatorios o son del tipo equivocado")
     public ProductoDelNegocio crear(@Valid @RequestBody SolicitudDeProducto solicitud) {
         return productos.crear(solicitud);
+    }
+
+    @GetMapping("/costos")
+    @Operation(summary = "El ultimo costo de entrada de cada producto; los que no tienen costo "
+            + "conocido no aparecen (lo consume servicio-menu, HU-138)")
+    public List<CostoDeProducto> costos(@RequestParam List<UUID> ids) {
+        return productos.costos(ids).entrySet().stream()
+                .map(c -> new CostoDeProducto(c.getKey(), c.getValue())).toList();
     }
 
     @GetMapping("/{productoId}")

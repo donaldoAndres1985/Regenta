@@ -78,6 +78,11 @@ public class MovimientoInventario {
     protected MovimientoInventario() {
     }
 
+    /** El costo unitario de una entrada; se fija antes de guardar, despues es inmutable. */
+    public void conCosto(BigDecimal costo) {
+        this.costoUnitario = costo;
+    }
+
     public static MovimientoInventario de(UUID negocioId, UUID productoId, UUID bodegaId,
             UUID loteId, TipoMovimiento tipo, BigDecimal cantidad, BigDecimal saldoPosterior,
             OrigenMovimiento origenTipo, UUID origenId, UUID usuarioId, String motivo,

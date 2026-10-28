@@ -93,4 +93,8 @@ public class AjusteLinea {
     public BigDecimal getDiferencia() {
         return diferencia;
     }
+
+    public BigDecimal getCostoUnitario() {
+        return costoUnitario;
+    }
 }

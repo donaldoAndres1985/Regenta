@@ -37,4 +37,24 @@ public interface ExistenciaLoteRepositorio
             """)
     List<FilaFefo> fefo(@Param("productoId") UUID productoId, @Param("bodegaId") UUID bodegaId,
             @Param("hoy") LocalDate hoy);
+
+    /**
+     * Los lotes del negocio con saldo que vencen entre {@code hoy} y {@code limite},
+     * con la existencia sumada de todas las bodegas (HU-138, criterio 7).
+     */
+    @Query("""
+            select new com.regenta.inventario.aplicacion.FilaPorVencer(
+                l.id, l.productoId, p.nombre, l.codigoLote, l.fechaVencimiento, sum(el.cantidad))
+            from ExistenciaLote el, Lote l, Producto p
+            where el.loteId = l.id
+              and l.productoId = p.id
+              and l.negocioId = :negocioId
+              and l.fechaVencimiento between :hoy and :limite
+            group by l.id, l.productoId, p.nombre, l.codigoLote, l.fechaVencimiento
+            having sum(el.cantidad) > 0
+            order by l.fechaVencimiento asc, l.codigoLote asc
+            """)
+    List<com.regenta.inventario.aplicacion.FilaPorVencer> porVencer(
+            @Param("negocioId") UUID negocioId, @Param("hoy") LocalDate hoy,
+            @Param("limite") LocalDate limite);
 }

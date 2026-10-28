@@ -1,5 +1,6 @@
 package com.regenta.inventario.aplicacion;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -156,5 +157,22 @@ public class GestionDeProductos {
     @RequierePermiso("INVENTARIO_PRODUCTO_VER")
     public List<UnidadMedida> unidades() {
         return unidades.findByNegocioIdOrderByCodigo(ContextoDeNegocio.negocioActual());
+    }
+
+    /**
+     * El ultimo costo de entrada de cada producto (HU-138, criterio 6). Un
+     * producto sin costo conocido no aparece. La RLS acota al negocio.
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("INVENTARIO_PRODUCTO_VER")
+    public Map<UUID, BigDecimal> costos(java.util.Collection<UUID> productoIds) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        Map<UUID, BigDecimal> costos = new LinkedHashMap<>();
+        for (Producto p : productos.findAllById(productoIds)) {
+            if (negocioId.equals(p.getNegocioId()) && p.getCostoUltimo().signum() > 0) {
+                costos.put(p.getId(), p.getCostoUltimo());
+            }
+        }
+        return costos;
     }
 }
