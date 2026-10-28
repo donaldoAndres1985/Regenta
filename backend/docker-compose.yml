@@ -211,6 +211,7 @@ services:
       RABBIT_HOST: rabbitmq
       RABBIT_USER: ${RABBIT_USER}
       RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+      RESERVAS_URL: http://servicio-reservas:8080
     ports:
       - "8086:8080"
     depends_on:

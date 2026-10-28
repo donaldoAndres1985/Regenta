@@ -75,6 +75,13 @@ public class RepositorioDeBloqueos {
                 + "ORDER BY lower(periodo)", A_BLOQUEO, recursoId, desde, hasta);
     }
 
+    /** Los bloqueos de cualquier recurso del negocio que pisan {@code [desde, hasta)}. */
+    public List<BloqueoDeRecurso> enPeriodo(OffsetDateTime desde, OffsetDateTime hasta) {
+        return jdbc.query("SELECT " + COLUMNAS + " FROM recursos.bloqueos_recurso "
+                + "WHERE periodo && tstzrange(?, ?, '[)') "
+                + "ORDER BY lower(periodo), recurso_id", A_BLOQUEO, desde, hasta);
+    }
+
     public void eliminar(UUID id) {
         jdbc.update("DELETE FROM recursos.bloqueos_recurso WHERE id = ?", id);
     }
