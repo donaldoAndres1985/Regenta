@@ -110,6 +110,14 @@ public class Rol {
         return plantillaId;
     }
 
+    /**
+     * Como viaja el rol en el token y como lo nombran las reglas de alerta:
+     * el nombre en mayusculas y con guion bajo ("Jefe de cocina" -> JEFE_DE_COCINA).
+     */
+    public String codigo() {
+        return nombre.toUpperCase().replace(' ', '_');
+    }
+
     public String getNombre() {
         return nombre;
     }

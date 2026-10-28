@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -90,6 +91,30 @@ public class GestionDeUsuarios {
     public List<UsuarioDelNegocio> listar() {
         return usuarios.findByNegocioIdOrderByNombre(ContextoDeNegocio.negocioActual()).stream()
                 .map(GestionDeUsuarios::comoDto)
+                .toList();
+    }
+
+    /**
+     * Los usuarios activos del negocio con un rol activo de ese codigo (HU-138,
+     * criterio 8): a quien le llega una alerta dirigida a ese rol. Lo consume
+     * servicio-alertas.
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("USUARIOS_USUARIO_VER")
+    public List<UUID> conRol(String rol) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        Set<UUID> rolesBuscados = roles.findByNegocioIdOrderByNombre(negocioId).stream()
+                .filter(r -> r.isActivo() && r.codigo().equalsIgnoreCase(rol))
+                .map(Rol::getId)
+                .collect(java.util.stream.Collectors.toSet());
+        if (rolesBuscados.isEmpty()) {
+            return List.of();
+        }
+        return usuarios.findByNegocioIdOrderByNombre(negocioId).stream()
+                .filter(u -> Usuario.ACTIVO.equals(u.getEstado()))
+                .filter(u -> u.getRoles().stream()
+                        .anyMatch(a -> rolesBuscados.contains(a.getRolId())))
+                .map(Usuario::getId)
                 .toList();
     }
 
