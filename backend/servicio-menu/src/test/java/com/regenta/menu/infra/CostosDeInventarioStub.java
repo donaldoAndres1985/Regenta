@@ -6,16 +6,18 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import com.regenta.menu.aplicacion.CostosDeInventario;
 
 /**
  * Stub de los costos de servicio-inventario (HU-079). Los tests cargan costos
- * con {@link #cargarCosto}; la integración real (REST o réplica por eventos)
- * queda como seguimiento.
+ * con {@link #cargarCosto}. Reemplaza a {@link CostosDeInventarioHttp} en los
+ * tests; en producción los costos se le preguntan a inventario (HU-138).
  */
 @Component
+@Primary
 public class CostosDeInventarioStub implements CostosDeInventario {
 
     private final Map<UUID, BigDecimal> costos = new LinkedHashMap<>();
