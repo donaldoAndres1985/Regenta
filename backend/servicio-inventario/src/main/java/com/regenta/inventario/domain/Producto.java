@@ -64,6 +64,10 @@ public class Producto {
     @Column(name = "precio_venta", nullable = false)
     private BigDecimal precioVenta;
 
+    /** El costo de la ultima entrada con costo (HU-138). Cero = sin costo conocido. */
+    @Column(name = "costo_ultimo", nullable = false)
+    private BigDecimal costoUltimo;
+
     @Column(name = "controla_stock", nullable = false)
     private boolean controlaStock;
 
@@ -127,6 +131,7 @@ public class Producto {
         producto.unidadMedidaId = unidadMedidaId;
         producto.tipo = TipoProducto.BIEN;
         producto.precioVenta = BigDecimal.ZERO;
+        producto.costoUltimo = BigDecimal.ZERO;
         producto.controlaStock = true;
         producto.stockMinimo = BigDecimal.ZERO;
         producto.manejaLotes = false;
@@ -217,6 +222,22 @@ public class Producto {
 
     public BigDecimal getPrecioVenta() {
         return precioVenta;
+    }
+
+    public BigDecimal getCostoUltimo() {
+        return costoUltimo;
+    }
+
+    /**
+     * Una entrada con costo fija el ultimo costo (HU-138, criterio 6). Devuelve
+     * si cambio: el mismo costo no es noticia.
+     */
+    public boolean registrarCostoDeEntrada(BigDecimal costo) {
+        if (costo == null || costo.signum() <= 0 || costo.compareTo(costoUltimo) == 0) {
+            return false;
+        }
+        this.costoUltimo = costo;
+        return true;
     }
 
     public boolean isControlaStock() {

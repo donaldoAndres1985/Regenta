@@ -1,6 +1,7 @@
 package com.regenta.inventario.api;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.inventario.aplicacion.ExistenciaDeLote;
 import com.regenta.inventario.aplicacion.GestionDeLotes;
+import com.regenta.inventario.aplicacion.LotePorVencer;
 import com.regenta.inventario.aplicacion.RegistroDeLote;
 import com.regenta.inventario.aplicacion.RegistroDeMovimiento;
 import com.regenta.inventario.aplicacion.SolicitudDeEntradaDeLote;
@@ -60,6 +62,13 @@ public class LotesControlador {
     @Operation(summary = "La existencia de un lote, desglosada por bodega")
     public ExistenciaDeLote existencia(@PathVariable UUID loteId) {
         return lotes.existenciaDelLote(loteId);
+    }
+
+    @GetMapping("/por-vencer")
+    @Operation(summary = "Lotes con saldo que vencen dentro de una ventana de dias "
+            + "(lo consume el barrido de vencimientos de servicio-alertas, HU-138)")
+    public List<LotePorVencer> porVencer(@RequestParam(defaultValue = "30") int ventanaDias) {
+        return lotes.porVencer(ventanaDias);
     }
 
     @GetMapping("/fefo")

@@ -78,7 +78,7 @@ public class GestionDeLotes {
         RegistroDeMovimiento movimiento = libro.registrar(new SolicitudDeMovimiento(
                 producto.getId(), solicitud.bodegaId(), TipoMovimiento.ENTRADA_COMPRA,
                 solicitud.cantidad(), OrigenMovimiento.RECEPCION, null, solicitud.motivo(),
-                solicitud.idempotencyKey(), codigo, null));
+                solicitud.idempotencyKey(), codigo, null, solicitud.costoUnitario()));
 
         BigDecimal enBodega = existenciasLote
                 .findByLoteIdAndBodegaId(lote.getId(), solicitud.bodegaId())
@@ -164,5 +164,26 @@ public class GestionDeLotes {
             throw new ReglaDeNegocioException("El producto \"" + producto.getNombre()
                     + "\" no maneja lotes");
         }
+    }
+
+    /**
+     * Los lotes con saldo que vencen de hoy a {@code ventanaDias} dias, del que
+     * vence antes al que vence despues (HU-138, criterio 7). Los ya vencidos no:
+     * esos los bloquea el criterio 4 de HU-031, no es un aviso.
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("INVENTARIO_LOTE_VER")
+    public List<LotePorVencer> porVencer(int ventanaDias) {
+        if (ventanaDias < 0) {
+            throw new ReglaDeNegocioException("La ventana de vencimiento no puede ser negativa");
+        }
+        LocalDate hoy = LocalDate.now();
+        return existenciasLote.porVencer(ContextoDeNegocio.negocioActual(), hoy,
+                        hoy.plusDays(ventanaDias)).stream()
+                .map(f -> new LotePorVencer(f.loteId(), f.productoId(), f.productoNombre(),
+                        f.codigoLote(), f.fechaVencimiento(),
+                        (int) java.time.temporal.ChronoUnit.DAYS.between(hoy, f.fechaVencimiento()),
+                        f.existencia()))
+                .toList();
     }
 }

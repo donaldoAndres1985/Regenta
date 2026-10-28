@@ -95,7 +95,15 @@ public class LibroMayorDeInventario {
                 solicitud.cantidad(), saldoPosterior, solicitud.origenTipo(), solicitud.origenId(),
                 ContextoDeNegocio.actual().usuario(), solicitud.motivo(),
                 solicitud.idempotencyKey(), OffsetDateTime.now());
+        boolean entradaConCosto = signo > 0 && solicitud.costoUnitario() != null
+                && solicitud.costoUnitario().signum() > 0;
+        if (entradaConCosto) {
+            movimiento.conCosto(solicitud.costoUnitario());
+        }
         movimientos.saveAndFlush(movimiento);
+        if (entradaConCosto) {
+            fijarUltimoCosto(negocioId, solicitud.productoId(), solicitud.costoUnitario());
+        }
 
         eventos.registrar(negocioId, "existencia", solicitud.productoId(), "stock_actualizado",
                 payload(negocioId, movimiento, saldoPosterior));
@@ -178,6 +186,24 @@ public class LibroMayorDeInventario {
         return movimientos.findByProductoIdOrderByOcurridoEnAsc(productoId).stream()
                 .map(m -> comoDto(m, false))
                 .toList();
+    }
+
+    /**
+     * El costo de un insumo es el de su ultima entrada con costo (HU-138,
+     * decision del 27-oct en #258). Si cambia, el menu recalcula las recetas que
+     * lo usan (HU-079 criterio 2).
+     */
+    private void fijarUltimoCosto(UUID negocioId, UUID productoId, BigDecimal costo) {
+        productos.findById(productoId).filter(p -> p.registrarCostoDeEntrada(costo))
+                .ifPresent(producto -> {
+                    productos.save(producto);
+                    Map<String, Object> datos = new LinkedHashMap<>();
+                    datos.put("negocio_id", negocioId.toString());
+                    datos.put("producto_id", productoId.toString());
+                    datos.put("costo_unitario", costo);
+                    eventos.registrar(negocioId, "Producto", productoId,
+                            "costo_producto_actualizado", datos);
+                });
     }
 
     private static Map<String, Object> payload(UUID negocioId, MovimientoInventario m,
