@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import com.regenta.comandas.aplicacion.CatalogoDeMenu;
@@ -14,11 +15,13 @@ import com.regenta.comun.errores.NoEncontradoException;
 import com.regenta.comun.errores.ReglaDeNegocioException;
 
 /**
- * Stub del catálogo de menú mientras no exista el cliente REST real contra
- * {@code servicio-menu}. Los tests cargan ítems, grupos y modificadores a mano y
- * replican la regla de HU-078 (mínimos y máximos por grupo).
+ * El catálogo de menú de los tests: reemplaza a {@link CatalogoDeMenuHttp} para
+ * no levantar servicio-menu. Los tests cargan ítems, grupos y modificadores a
+ * mano y replican la regla de HU-078 (mínimos y máximos por grupo). Vive solo en
+ * {@code src/test}: en producción el único catálogo es el HTTP (HU-138).
  */
 @Component
+@Primary
 public class CatalogoDeMenuStub implements CatalogoDeMenu {
 
     private final Map<UUID, ItemDeMenu> items = new LinkedHashMap<>();
