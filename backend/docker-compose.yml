@@ -234,6 +234,8 @@ services:
       RABBIT_HOST: rabbitmq
       RABBIT_USER: ${RABBIT_USER}
       RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+      CLIENTES_URL: http://servicio-clientes:8080
+      RECURSOS_URL: http://servicio-recursos:8080
     ports:
       - "8087:8080"
     depends_on:

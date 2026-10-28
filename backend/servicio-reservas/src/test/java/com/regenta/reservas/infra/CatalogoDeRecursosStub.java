@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import com.regenta.reservas.aplicacion.AnticipoRequerido;
@@ -23,10 +24,12 @@ import com.regenta.reservas.aplicacion.RecursoReservable;
 /**
  * Stub del catálogo de servicio-recursos (HU-069/HU-070). Los tests cargan
  * recursos con {@link #agregar}, bloqueos con {@link #bloquear}, cotizaciones con
- * {@link #cotizacion} y el porcentaje de anticipo con {@link #anticipoPct}; la
- * integración real (REST o réplica por eventos) queda como seguimiento.
+ * {@link #cotizacion} y el porcentaje de anticipo con {@link #anticipoPct}.
+ * Reemplaza a {@link CatalogoDeRecursosHttp} en los tests; en producción el único
+ * catálogo es el HTTP (HU-138).
  */
 @Component
+@Primary
 public class CatalogoDeRecursosStub implements CatalogoDeRecursos {
 
     private static final BigDecimal PRECIO_NOCHE_POR_DEFECTO = new BigDecimal("100000.0000");

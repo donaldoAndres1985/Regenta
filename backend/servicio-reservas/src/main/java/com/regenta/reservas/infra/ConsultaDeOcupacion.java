@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
+import com.regenta.reservas.aplicacion.ReservaDeUnRecurso;
 import com.regenta.reservas.aplicacion.ReservaEnCalendario;
 import com.regenta.reservas.domain.VentanaOcupada;
 
@@ -78,5 +79,29 @@ public class ConsultaDeOcupacion {
         }
         return jdbc.query(CALENDARIO + " AND tipo_recurso_id = ? ORDER BY lower(periodo)", A_BARRA,
                 desde, hasta, tipoRecursoId);
+    }
+    private static final RowMapper<ReservaDeUnRecurso> A_RESERVA_DE_RECURSO = (rs, fila) ->
+            new ReservaDeUnRecurso(
+                    rs.getObject("id", UUID.class),
+                    rs.getString("numero"),
+                    rs.getString("estado"),
+                    rs.getObject("desde", OffsetDateTime.class),
+                    rs.getObject("hasta", OffsetDateTime.class));
+
+    /**
+     * Las reservas de un recurso que se solapan con {@code [desde, hasta)}; sin
+     * {@code hasta}, todas las que terminan después de {@code desde} (HU-138).
+     * Con {@code soloConfirmadas}, solo las CONFIRMADA; si no, las que ocupan.
+     */
+    public List<ReservaDeUnRecurso> reservasDeRecurso(UUID recursoId, OffsetDateTime desde,
+            OffsetDateTime hasta, boolean soloConfirmadas) {
+        String estados = soloConfirmadas ? "('CONFIRMADA')" : "('PENDIENTE','CONFIRMADA','CHECK_IN')";
+        return jdbc.query("SELECT id, numero, estado, lower(periodo) AS desde, upper(periodo) AS hasta "
+                + "FROM reservas.reservas "
+                + "WHERE recurso_id = ? "
+                + "  AND estado IN " + estados
+                // Con cast: sin hasta, el parámetro va nulo y PostgreSQL no podría inferir su tipo.
+                + "  AND periodo && tstzrange(?::timestamptz, ?::timestamptz, '[)') "
+                + "ORDER BY lower(periodo)", A_RESERVA_DE_RECURSO, recursoId, desde, hasta);
     }
 }

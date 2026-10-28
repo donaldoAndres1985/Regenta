@@ -43,6 +43,10 @@ regenta:
     # estancia. Sincrona a proposito, pero best-effort: si no responde, el
     # check-out sigue y la factura sale al adquiriente generico.
     url: ${CLIENTES_URL:http://localhost:8082}
+  recursos:
+    # HU-138: recursos reservables, bloqueos, tarifas y politica de cancelacion se
+    # preguntan a servicio-recursos. Sincrono: sin eso no hay disponibilidad ni precio.
+    url: ${RECURSOS_URL:http://localhost:8086}
 
 springdoc:
   api-docs:

@@ -2,10 +2,12 @@ package com.regenta.reservas.api;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,6 +16,8 @@ import com.regenta.reservas.aplicacion.CalendarioDeOcupacion;
 import com.regenta.reservas.aplicacion.ConsultaDeCalendario;
 import com.regenta.reservas.aplicacion.ConsultaDeDisponibilidad;
 import com.regenta.reservas.aplicacion.DisponibilidadEnPeriodo;
+import com.regenta.reservas.aplicacion.ReservaDeUnRecurso;
+import com.regenta.reservas.aplicacion.ReservasDeUnRecurso;
 import com.regenta.reservas.aplicacion.SolicitudDeDisponibilidad;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,11 +31,13 @@ public class DisponibilidadControlador {
 
     private final ConsultaDeDisponibilidad disponibilidad;
     private final ConsultaDeCalendario calendario;
+    private final ReservasDeUnRecurso deUnRecurso;
 
     public DisponibilidadControlador(ConsultaDeDisponibilidad disponibilidad,
-            ConsultaDeCalendario calendario) {
+            ConsultaDeCalendario calendario, ReservasDeUnRecurso deUnRecurso) {
         this.disponibilidad = disponibilidad;
         this.calendario = calendario;
+        this.deUnRecurso = deUnRecurso;
     }
 
     @GetMapping("/disponibilidad")
@@ -52,5 +58,16 @@ public class DisponibilidadControlador {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(required = false) UUID tipoRecursoId) {
         return calendario.calendario(desde, hasta, tipoRecursoId);
+    }
+
+    @GetMapping("/de-recurso/{recursoId}")
+    @Operation(summary = "Las reservas de un recurso en un periodo; sin hasta, de desde en adelante "
+            + "(lo consume servicio-recursos, HU-138)")
+    public List<ReservaDeUnRecurso> deUnRecurso(@PathVariable UUID recursoId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime desde,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime hasta,
+            @RequestParam(defaultValue = "false") boolean soloConfirmadas) {
+        return deUnRecurso.delRecurso(recursoId, desde, hasta, soloConfirmadas);
     }
 }
