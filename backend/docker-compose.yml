@@ -300,6 +300,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/regenta_comandas
       DB_USER: reg_comandas
       DB_PASSWORD: ${REGENTA_DB_PASSWORD}
+      MENU_URL: http://servicio-menu:8080
       RABBIT_HOST: rabbitmq
       RABBIT_USER: ${RABBIT_USER}
       RABBIT_PASSWORD: ${RABBIT_PASSWORD}

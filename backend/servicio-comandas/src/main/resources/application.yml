@@ -37,6 +37,12 @@ spring:
     username: ${RABBIT_USER:regenta}
     password: ${RABBIT_PASSWORD:cambiar_en_local}
 
+regenta:
+  menu:
+    # HU-138: el item y la seleccion de modificadores se preguntan a servicio-menu
+    # al agregar una linea. Sincrono a proposito: sin el precio real no hay linea.
+    url: ${MENU_URL:http://localhost:8088}
+
 springdoc:
   api-docs:
     path: /v3/api-docs
