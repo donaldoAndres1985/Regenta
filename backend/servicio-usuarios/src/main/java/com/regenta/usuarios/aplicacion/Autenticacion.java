@@ -221,7 +221,7 @@ public class Autenticacion {
         Set<String> permisos = new LinkedHashSet<>();
         for (Rol rol : susRoles) {
             if (rol.isActivo()) {
-                nombresDeRoles.add(rol.getNombre().toUpperCase().replace(' ', '_'));
+                nombresDeRoles.add(rol.codigo());
                 permisos.addAll(rol.getPermisos());
             }
         }

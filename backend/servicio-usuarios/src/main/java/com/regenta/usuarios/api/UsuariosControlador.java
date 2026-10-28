@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -40,6 +41,13 @@ public class UsuariosControlador {
     @Operation(summary = "Los usuarios del negocio")
     public List<UsuarioDelNegocio> listar() {
         return gestion.listar();
+    }
+
+    @GetMapping("/con-rol")
+    @Operation(summary = "Los ids de los usuarios activos con un rol, por su codigo "
+            + "(lo consume servicio-alertas, HU-138)")
+    public List<UUID> conRol(@RequestParam String rol) {
+        return gestion.conRol(rol);
     }
 
     @PostMapping("/invitaciones")
