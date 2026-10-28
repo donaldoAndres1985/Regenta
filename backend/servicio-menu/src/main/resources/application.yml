@@ -37,6 +37,12 @@ spring:
     username: ${RABBIT_USER:regenta}
     password: ${RABBIT_PASSWORD:cambiar_en_local}
 
+regenta:
+  inventario:
+    # HU-138: el costo de los insumos de una receta se pregunta a servicio-inventario
+    # (ultimo costo de entrada). Si no responde, no se recalcula en cero.
+    url: ${INVENTARIO_URL:http://localhost:8083}
+
 springdoc:
   api-docs:
     path: /v3/api-docs
