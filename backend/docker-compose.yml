@@ -379,6 +379,8 @@ services:
       RABBIT_HOST: rabbitmq
       RABBIT_USER: ${RABBIT_USER}
       RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+      INVENTARIO_URL: http://servicio-inventario:8080
+      USUARIOS_URL: http://servicio-usuarios:8080
     ports:
       - "8093:8080"
     depends_on:

@@ -44,6 +44,13 @@ regenta:
     # pendientes. Vacio = sin barridos automaticos; los endpoints manuales siguen.
     usuario: ${BARRIDOS_DB_USER:}
     clave: ${BARRIDOS_DB_PASSWORD:}
+  # HU-138: el barrido de vencimientos pregunta a inventario por los lotes por
+  # vencer, y una alerta dirigida a un rol pregunta a usuarios quien lo tiene.
+  # Van como SISTEMA: no hay un usuario detras de un barrido ni de un evento.
+  inventario:
+    url: ${INVENTARIO_URL:http://localhost:8083}
+  usuarios:
+    url: ${USUARIOS_URL:http://localhost:8081}
 
 springdoc:
   api-docs:

@@ -6,16 +6,18 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import com.regenta.alertas.aplicacion.DirectorioDeUsuarios;
 
 /**
  * Stub del directorio de usuarios (HU-092 criterio 5). Devuelve lo que se le
- * cargue con {@link #cargar}; la integración real con {@code servicio-usuarios}
- * queda como seguimiento.
+ * cargue con {@link #cargar}. Reemplaza a {@link DirectorioDeUsuariosHttp} en los tests; en
+ * producción se le pregunta a {@code servicio-usuarios} (HU-138).
  */
 @Component
+@Primary
 public class DirectorioDeUsuariosStub implements DirectorioDeUsuarios {
 
     private final Map<String, List<UUID>> porNegocioYRol = new ConcurrentHashMap<>();
