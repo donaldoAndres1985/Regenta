@@ -6,16 +6,18 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import com.regenta.alertas.aplicacion.ConsultaDeInventario;
 
 /**
  * Stub de la consulta al inventario (HU-093 criterio 2). Devuelve lo que se le
- * cargue con {@link #cargar}; la integración real con {@code servicio-inventario}
- * queda como seguimiento.
+ * cargue con {@link #cargar}. Reemplaza a {@link ConsultaDeInventarioHttp} en los tests; en
+ * producción se le pregunta a {@code servicio-inventario} (HU-138).
  */
 @Component
+@Primary
 public class ConsultaDeInventarioStub implements ConsultaDeInventario {
 
     private final Map<UUID, List<LotePorVencer>> porNegocio = new ConcurrentHashMap<>();
