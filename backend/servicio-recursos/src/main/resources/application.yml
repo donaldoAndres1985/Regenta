@@ -37,6 +37,12 @@ spring:
     username: ${RABBIT_USER:regenta}
     password: ${RABBIT_PASSWORD:cambiar_en_local}
 
+regenta:
+  reservas:
+    # HU-138: antes de borrar un recurso o al bloquearlo se pregunta a
+    # servicio-reservas por sus reservas. Si no responde, la operacion no sigue.
+    url: ${RESERVAS_URL:http://localhost:8087}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

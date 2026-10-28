@@ -78,6 +78,21 @@ public class GestionDeBloqueos {
         return bloqueos.porRecurso(recursoId).stream().map(BloqueoDelNegocio::de).toList();
     }
 
+    /**
+     * Los bloqueos de todos los recursos del negocio que pisan {@code [desde, hasta)}:
+     * servicio-reservas los pide de una vez para la disponibilidad y el
+     * calendario (HU-138). La RLS acota al negocio de la transacción.
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("RECURSOS_RECURSO_VER")
+    public List<BloqueoDelNegocio> enPeriodo(OffsetDateTime desde, OffsetDateTime hasta) {
+        if (desde == null || hasta == null || !hasta.isAfter(desde)) {
+            throw new ReglaDeNegocioException(
+                    "El periodo consultado necesita un inicio y un fin posterior");
+        }
+        return bloqueos.enPeriodo(desde, hasta).stream().map(BloqueoDelNegocio::de).toList();
+    }
+
     @Transactional(readOnly = true)
     @RequierePermiso("RECURSOS_RECURSO_VER")
     public DisponibilidadDeRecurso disponibilidad(UUID recursoId, OffsetDateTime desde,

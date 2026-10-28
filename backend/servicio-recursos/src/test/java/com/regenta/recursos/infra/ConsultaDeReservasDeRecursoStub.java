@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import com.regenta.recursos.aplicacion.ConsultaDeReservasDeRecurso;
@@ -17,10 +18,12 @@ import com.regenta.recursos.aplicacion.ReservaAfectada;
 /**
  * Stub de la consulta a servicio-reservas (HU-065 y HU-067). Los tests marcan
  * qué recursos tienen reservas futuras con {@link #conReservasFuturas} y qué
- * reservas confirmadas hay en el calendario con {@link #conReservaConfirmada};
- * la integración REST real queda como seguimiento.
+ * reservas confirmadas hay en el calendario con {@link #conReservaConfirmada}.
+ * Reemplaza a {@link ConsultaDeReservasDeRecursoHttp} en los tests; en producción
+ * la única consulta es la HTTP (HU-138).
  */
 @Component
+@Primary
 public class ConsultaDeReservasDeRecursoStub implements ConsultaDeReservasDeRecurso {
 
     private final Set<UUID> conReservas = new HashSet<>();

@@ -45,6 +45,15 @@ public class BloqueosControlador {
         return bloqueos.listar(recursoId);
     }
 
+    @GetMapping("/bloqueos")
+    @Operation(summary = "Los bloqueos de todos los recursos que pisan un periodo "
+            + "(lo consume servicio-reservas, HU-138)")
+    public List<BloqueoDelNegocio> enPeriodo(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime hasta) {
+        return bloqueos.enPeriodo(desde, hasta);
+    }
+
     @GetMapping("/{recursoId}/disponibilidad")
     @Operation(summary = "Si el recurso está libre de bloqueos entre dos instantes")
     public DisponibilidadDeRecurso disponibilidad(@PathVariable UUID recursoId,
