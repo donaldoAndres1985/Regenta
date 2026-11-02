@@ -68,4 +68,9 @@ public record DatosDelNegocio(
     public boolean alcanza(UUID sucursal) {
         return alcanzaTodaSucursal() || sucursales.contains(sucursal);
     }
+
+    public static DatosDelNegocio sistema(UUID negocioId, String... permisos) {
+        return new DatosDelNegocio(negocioId, null, "SISTEMA", "", Set.of("SISTEMA"), Set.of(),
+                Set.of(permisos), Set.of());
+    }
 }

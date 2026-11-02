@@ -65,4 +65,18 @@ public final class ContextoDeNegocio {
             }
         }
     }
+
+    public static <T> T en(DatosDelNegocio datos, java.util.function.Supplier<T> tarea) {
+        DatosDelNegocio anterior = ACTUAL.get();
+        try {
+            ACTUAL.set(datos);
+            return tarea.get();
+        } finally {
+            if (anterior == null) {
+                ACTUAL.remove();
+            } else {
+                ACTUAL.set(anterior);
+            }
+        }
+    }
 }

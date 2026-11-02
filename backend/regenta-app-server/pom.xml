@@ -15,11 +15,6 @@
   <description>Monolito modular de Regenta con Spring Modulith</description>
 
   <dependencies>
-    <dependency>
-      <groupId>com.regenta</groupId>
-      <artifactId>comun</artifactId>
-    </dependency>
-
     <!-- Spring Boot Web & Security -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

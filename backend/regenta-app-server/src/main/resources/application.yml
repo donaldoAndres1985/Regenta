@@ -27,6 +27,9 @@ regenta:
     jwt:
       secreto: ${JWT_SECRETO:regenta-secreto-super-seguro-de-al-menos-32-bytes!}
       emisor: ${JWT_EMISOR:regenta}
+  jwt:
+    secreto: ${JWT_SECRETO:regenta-secreto-super-seguro-de-al-menos-32-bytes!}
+    emisor: ${JWT_EMISOR:regenta}
 
 management:
   endpoints:
