@@ -1,0 +1,42 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: regenta-server
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/regenta_monolito}
+    username: ${DB_USER:regenta}
+    password: ${DB_PASSWORD:regenta}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:15}
+      minimum-idle: 2
+      connection-timeout: 30000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: false
+
+regenta:
+  seguridad:
+    jwt:
+      secreto: ${JWT_SECRETO:regenta-secreto-super-seguro-de-al-menos-32-bytes!}
+      emisor: ${JWT_EMISOR:regenta}
+  jwt:
+    secreto: ${JWT_SECRETO:regenta-secreto-super-seguro-de-al-menos-32-bytes!}
+    emisor: ${JWT_EMISOR:regenta}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true

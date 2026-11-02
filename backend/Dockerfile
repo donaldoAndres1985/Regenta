@@ -1,38 +1,36 @@
-# Un solo Dockerfile para los 16 modulos. El modulo se elige con --build-arg.
-#   docker build --build-arg MODULO=servicio-ventas .
-FROM eclipse-temurin:17-jdk AS build
-ARG MODULO
+# Multi-stage Dockerfile para el Monolito Modular Regenta (desde backend/)
+# =======================================================
+FROM eclipse-temurin:17-jdk-alpine AS builder
 WORKDIR /src
-COPY pom.xml .
+
 COPY .mvn .mvn
 COPY mvnw .
-COPY comun/pom.xml comun/pom.xml
-COPY gateway/pom.xml gateway/pom.xml
-COPY estructura/pom.xml estructura/pom.xml
-COPY integracion/pom.xml integracion/pom.xml
-COPY servicio-usuarios/pom.xml servicio-usuarios/pom.xml
-COPY servicio-clientes/pom.xml servicio-clientes/pom.xml
-COPY servicio-inventario/pom.xml servicio-inventario/pom.xml
-COPY servicio-ventas/pom.xml servicio-ventas/pom.xml
-COPY servicio-compras/pom.xml servicio-compras/pom.xml
-COPY servicio-recursos/pom.xml servicio-recursos/pom.xml
-COPY servicio-reservas/pom.xml servicio-reservas/pom.xml
-COPY servicio-menu/pom.xml servicio-menu/pom.xml
-COPY servicio-mesas/pom.xml servicio-mesas/pom.xml
-COPY servicio-comandas/pom.xml servicio-comandas/pom.xml
-COPY servicio-facturacion/pom.xml servicio-facturacion/pom.xml
-COPY servicio-caja/pom.xml servicio-caja/pom.xml
-COPY servicio-alertas/pom.xml servicio-alertas/pom.xml
-COPY servicio-reportes/pom.xml servicio-reportes/pom.xml
-COPY servicio-auditoria/pom.xml servicio-auditoria/pom.xml
-# Capa de dependencias: se rehace solo cuando cambia un pom.
-RUN ./mvnw -B -q -pl ${MODULO} -am dependency:go-offline
-COPY . .
-RUN ./mvnw -B -q -pl ${MODULO} -am -DskipTests package
+COPY pom.xml .
+COPY regenta-app-server/pom.xml regenta-app-server/pom.xml
 
-FROM eclipse-temurin:17-jre AS run
-ARG MODULO
+RUN chmod +x ./mvnw && ./mvnw dependency:go-offline -pl regenta-app-server -am -B
+
+COPY regenta-app-server regenta-app-server
+
+RUN ./mvnw clean package -pl regenta-app-server -DskipTests -B
+
+# =======================================================
+# Runtime Stage
+# =======================================================
+FROM eclipse-temurin:17-jre-alpine AS runner
+
+RUN addgroup -S regenta && adduser -S regenta -G regenta
+
 WORKDIR /app
-COPY --from=build /src/${MODULO}/target/*.jar app.jar
+
+COPY --from=builder /src/regenta-app-server/target/regenta-app-server-*.jar /app/app.jar
+
+RUN chown -R regenta:regenta /app
+
+USER regenta
+
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","/app/app.jar"]
+
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom"
+
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

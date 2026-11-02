@@ -1,0 +1,10 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.regenta.mesas`
+|Bean references
+|* `c.r.s.events.RegistroDeEventos` (in Shared Kernel)
+* `c.r.s.events.InboxIdempotente` (in Shared Kernel)
+|Events listened to
+|* `c.r.s.events.EventoGenerico` (async) 
+|===

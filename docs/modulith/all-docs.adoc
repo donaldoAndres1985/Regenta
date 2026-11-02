@@ -1,0 +1,67 @@
+== RegentaApplication
+plantuml::components.puml[,,format=svg]
+
+== Alertas Module
+plantuml::module-alertas.puml[,,format=svg]
+include::module-alertas.adoc[]
+
+== Auditoria Module
+plantuml::module-auditoria.puml[,,format=svg]
+include::module-auditoria.adoc[]
+
+== Caja Module
+plantuml::module-caja.puml[,,format=svg]
+include::module-caja.adoc[]
+
+== Clientes Module
+plantuml::module-clientes.puml[,,format=svg]
+include::module-clientes.adoc[]
+
+== Comandas Module
+plantuml::module-comandas.puml[,,format=svg]
+include::module-comandas.adoc[]
+
+== Compras Module
+plantuml::module-compras.puml[,,format=svg]
+include::module-compras.adoc[]
+
+== Facturacion Module
+plantuml::module-facturacion.puml[,,format=svg]
+include::module-facturacion.adoc[]
+
+== Inventario Module
+plantuml::module-inventario.puml[,,format=svg]
+include::module-inventario.adoc[]
+
+== Menu Module
+plantuml::module-menu.puml[,,format=svg]
+include::module-menu.adoc[]
+
+== Mesas Module
+plantuml::module-mesas.puml[,,format=svg]
+include::module-mesas.adoc[]
+
+== Recursos Module
+plantuml::module-recursos.puml[,,format=svg]
+include::module-recursos.adoc[]
+
+== Reportes Module
+plantuml::module-reportes.puml[,,format=svg]
+include::module-reportes.adoc[]
+
+== Reservas Module
+plantuml::module-reservas.puml[,,format=svg]
+include::module-reservas.adoc[]
+
+== Shared Kernel
+plantuml::module-shared.puml[,,format=svg]
+include::module-shared.adoc[]
+
+== Usuarios Module
+plantuml::module-usuarios.puml[,,format=svg]
+include::module-usuarios.adoc[]
+
+== Ventas Module
+plantuml::module-ventas.puml[,,format=svg]
+include::module-ventas.adoc[]
+

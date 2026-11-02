@@ -1,0 +1,19 @@
+@startuml
+set separator none
+title Usuarios Module
+
+top to bottom direction
+
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Component>
+
+Container_Boundary("RegentaApplication.RegentaApplication_boundary", "RegentaApplication", $tags="") {
+  Component(RegentaApplication.RegentaApplication.SharedKernel, "Shared Kernel", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.UsuariosModule, "Usuarios Module", $techn="Module", $descr="", $tags="", $link="")
+}
+
+Rel(RegentaApplication.RegentaApplication.UsuariosModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+
+SHOW_LEGEND(true)
+@enduml

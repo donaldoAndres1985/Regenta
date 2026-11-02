@@ -1,0 +1,17 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.regenta.usuarios`
+|Spring components
+|_Services_
+
+* `c.r.u.api.DirectorioDeUsuariosApi` (via `c.r.u.application.DirectorioDeUsuariosServicio`)
+|Bean references
+|* `c.r.s.events.RegistroDeEventos` (in Shared Kernel)
+* `c.r.s.tenancy.FijadorDeNegocio` (in Shared Kernel)
+|Properties
+|* `regenta.jwt.emisor` -- `java.lang.String`, default `regenta`
+* `regenta.jwt.secreto` -- `java.lang.String`. El mismo secreto con el que el gateway valida. Minimo 32 caracteres.
+* `regenta.jwt.vigencia-acceso` -- `java.time.Duration`, default `15m`. Corto a proposito: es lo que acota el daño de un token robado.
+* `regenta.jwt.vigencia-refresco` -- `java.time.Duration`, default `30d`. Largo, pero rota en cada uso y se puede revocar.
+|===

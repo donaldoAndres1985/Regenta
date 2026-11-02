@@ -1,0 +1,17 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.regenta.alertas`
+|Spring components
+|_Services_
+
+* `c.r.a.api.AlertasApi` (via `c.r.a.application.GestionDeVigilancia`)
+|Bean references
+|* `c.r.s.events.RegistroDeEventos` (in Shared Kernel)
+* `c.r.i.api.InventarioApi` (in Inventario Module)
+* `c.r.s.events.InboxIdempotente` (in Shared Kernel)
+* `c.r.u.api.DirectorioDeUsuariosApi` (in Usuarios Module)
+|Events listened to
+|* `c.r.s.events.EventoGenerico` (async) 
+* `c.r.s.events.EventoGenerico` (async) 
+|===

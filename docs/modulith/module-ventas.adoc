@@ -1,0 +1,12 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.regenta.ventas`
+|Bean references
+|* `c.r.s.events.RegistroDeEventos` (in Shared Kernel)
+* `c.r.c.api.ClientesApi` (in Clientes Module)
+* `c.r.s.events.InboxIdempotente` (in Shared Kernel)
+|Events listened to
+|* `c.r.s.events.EventoGenerico` (async) 
+* `c.r.s.events.EventoGenerico` (async) 
+|===

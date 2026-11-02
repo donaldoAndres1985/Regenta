@@ -1,0 +1,15 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.regenta.recursos`
+|Spring components
+|_Services_
+
+* `c.r.r.api.RecursosApi` (via `c.r.r.application.RecursosServicio`)
+
+_Others_
+
+* `c.r.r.api.ConsultaDeReservasDeRecurso` (via `c.r.r.infrastructure.ConsultaDeReservasFallback`)
+|Bean references
+|* `c.r.s.events.RegistroDeEventos` (in Shared Kernel)
+|===
