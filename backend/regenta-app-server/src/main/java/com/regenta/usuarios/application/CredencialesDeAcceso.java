@@ -2,7 +2,6 @@ package com.regenta.usuarios.application;
 
 import java.util.UUID;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -11,7 +10,7 @@ import jakarta.validation.constraints.Size;
  * cuando el mismo correo trabaja en mas de uno.
  */
 public record CredencialesDeAcceso(
-        @NotBlank @Email @Size(max = 150) String email,
+        @NotBlank @Size(max = 150) String email,
         @NotBlank @Size(max = 200) String password,
         UUID negocioId,
         @Size(max = 80) String dispositivoId,

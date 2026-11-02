@@ -103,6 +103,11 @@ public class Autenticacion {
         fijador.fijar(negocioId);
         OffsetDateTime ahora = OffsetDateTime.now(reloj);
         Usuario usuario = usuarios.findByNegocioIdAndEmail(negocioId, email)
+                .or(() -> posibles.stream()
+                        .filter(a -> a.getNegocioId().equals(negocioId))
+                        .map(a -> usuarios.findById(a.getUsuarioId()).orElse(null))
+                        .filter(java.util.Objects::nonNull)
+                        .findFirst())
                 .orElseThrow(() -> new NoAutenticadoException(NO_CUADRA));
 
         if (usuario.estaBloqueado(ahora)) {
