@@ -39,6 +39,7 @@ class VersionesGestionadasTest {
             "org.springframework",
             "org.springframework.boot",
             "org.springframework.cloud",
+            "org.springframework.modulith",
             "org.springframework.data",
             "org.springframework.security",
             "org.springdoc",
