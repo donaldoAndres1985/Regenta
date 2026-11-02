@@ -30,7 +30,7 @@ public class RegistroDeEventos {
     public EventoGenerico registrar(UUID negocioId, String agregadoTipo, UUID agregadoId,
                                     String tipoEvento, Object payload, String traceId) {
         EventoGenerico evento = new EventoGenerico(negocioId, agregadoTipo, agregadoId,
-                tipoEvento, payload, traceId, OffsetDateTime.now());
+                tipoEvento, payload, traceId);
         publisher.publishEvent(evento);
         return evento;
     }

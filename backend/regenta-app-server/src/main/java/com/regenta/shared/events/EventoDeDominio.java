@@ -11,6 +11,8 @@ import java.util.UUID;
  * sin depender de un ThreadLocal del hilo HTTP emisor.
  */
 public interface EventoDeDominio {
+    UUID id();
     UUID negocioId();
+    String tipoEvento();
     OffsetDateTime ocurridoEn();
 }
