@@ -6,21 +6,17 @@ import 'dart:async';
 
 import 'package:workmanager/workmanager.dart';
 
+import 'core/config/env.dart';
 import 'src/arranque/dependencias.dart';
 import 'src/arranque/sincronizacion.dart';
 import 'src/navegacion/catalogo.dart';
 import 'src/ui/pantalla_inicio.dart';
 import 'src/ui/pantalla_login.dart';
 
-/// Dónde vive el gateway. Se fija al compilar:
-/// `flutter build web --dart-define=REGENTA_GATEWAY=https://api.midominio.co`.
-const String urlDelGateway =
-    String.fromEnvironment('REGENTA_GATEWAY', defaultValue: 'http://localhost:8080');
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final dependencias = DependenciasDeLaApp.crear(urlDelGateway: urlDelGateway);
+  final dependencias = DependenciasDeLaApp.crear(urlDelGateway: Env.apiBaseUrl);
   // HU-119 criterio 6: si había sesión guardada, se restaura antes del primer
   // frame y la pantalla de entrada no llega a verse.
   await dependencias.motor.iniciar();

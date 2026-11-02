@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:regenta_core/regenta_core.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../../core/config/env.dart';
 import 'dependencias.dart';
 
 /// El trabajo de fondo de la cola de sincronización (HU-120).
@@ -23,7 +24,7 @@ void despachadorDeTareas() {
   Workmanager().executeTask((tarea, datos) async {
     if (tarea != tareaDeSincronizacion) return true;
     final dependencias = DependenciasDeLaApp.crear(
-      urlDelGateway: datos?['gateway'] as String? ?? '',
+      urlDelGateway: datos?['gateway'] as String? ?? Env.apiBaseUrl,
     );
     try {
       return await subirLoPendiente(dependencias);
