@@ -1,6 +1,7 @@
 package com.regenta.clientes.api;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,16 +20,20 @@ public interface ClientesApi {
             String email,
             String telefono,
             String direccion,
-            String regimenFiscal
+            String regimenFiscal,
+            String digitoVerificacion,
+            List<String> responsabilidadesFiscales
     ) {}
 
     record CarteraInfo(
             UUID clienteId,
-            BigDecimal limiteCredito,
-            BigDecimal saldoPendiente,
-            BigDecimal saldoDisponible,
-            int diasMora,
-            boolean bloqueado
+            boolean creditoHabilitado,
+            BigDecimal cupo,
+            BigDecimal saldo,
+            BigDecimal disponible,
+            int diasCredito,
+            boolean carteraVencida,
+            long diasMoraMaxima
     ) {}
 
     Optional<ClienteInfo> obtenerCliente(UUID clienteId);

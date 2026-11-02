@@ -1,6 +1,5 @@
 package com.regenta.reservas.infrastructure;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,9 +28,9 @@ public class ConsultaDeClientesDirecto implements ConsultaDeClientes {
                 c.nombre(),
                 c.tipoDocumento(),
                 c.numeroDocumento(),
-                "",
+                c.digitoVerificacion(),
                 c.regimenFiscal(),
-                List.of()
+                c.responsabilidadesFiscales()
         ));
     }
 }

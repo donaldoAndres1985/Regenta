@@ -1,5 +1,6 @@
 package com.regenta.clientes.application;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,7 +32,9 @@ public class ClientesServicio implements ClientesApi {
                     c.email(),
                     c.telefono(),
                     "",
-                    c.regimenFiscal()
+                    c.regimenFiscal(),
+                    c.digitoVerificacion(),
+                    c.responsabilidadesFiscales() != null ? c.responsabilidadesFiscales() : List.of()
             ));
         } catch (Exception e) {
             return Optional.empty();
@@ -42,13 +45,17 @@ public class ClientesServicio implements ClientesApi {
     public Optional<CarteraInfo> obtenerCartera(UUID clienteId) {
         try {
             CarteraDelCliente car = gestionCartera.verCartera(clienteId);
+            boolean vencida = car.cuentas() != null && car.cuentas().stream().anyMatch(CuentaEnCartera::vencida);
+            long moraMax = car.cuentas() == null ? 0 : car.cuentas().stream().mapToLong(CuentaEnCartera::diasMora).max().orElse(0);
             return Optional.of(new CarteraInfo(
                     car.clienteId(),
+                    car.creditoHabilitado(),
                     car.cupo(),
                     car.saldo(),
                     car.disponible(),
-                    0,
-                    !car.creditoHabilitado()
+                    car.diasCredito(),
+                    vencida,
+                    moraMax
             ));
         } catch (Exception e) {
             return Optional.empty();
