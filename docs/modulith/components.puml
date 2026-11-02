@@ -1,0 +1,65 @@
+@startuml
+set separator none
+title RegentaApplication
+
+top to bottom direction
+
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Component>
+
+Container_Boundary("RegentaApplication.RegentaApplication_boundary", "RegentaApplication", $tags="") {
+  Component(RegentaApplication.RegentaApplication.InventarioModule, "Inventario Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.MenuModule, "Menu Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.MesasModule, "Mesas Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.RecursosModule, "Recursos Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.ReportesModule, "Reportes Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.ReservasModule, "Reservas Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.SharedKernel, "Shared Kernel", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.UsuariosModule, "Usuarios Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.VentasModule, "Ventas Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.AlertasModule, "Alertas Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.AuditoriaModule, "Auditoria Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.CajaModule, "Caja Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.ClientesModule, "Clientes Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.ComandasModule, "Comandas Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.ComprasModule, "Compras Module", $techn="Module", $descr="", $tags="", $link="")
+  Component(RegentaApplication.RegentaApplication.FacturacionModule, "Facturacion Module", $techn="Module", $descr="", $tags="", $link="")
+}
+
+Rel(RegentaApplication.RegentaApplication.MenuModule, RegentaApplication.RegentaApplication.SharedKernel, "listens to", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.MenuModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.MenuModule, RegentaApplication.RegentaApplication.InventarioModule, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.ComprasModule, RegentaApplication.RegentaApplication.SharedKernel, "listens to", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.ComprasModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.RecursosModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.CajaModule, RegentaApplication.RegentaApplication.SharedKernel, "listens to", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.CajaModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.ReservasModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.ReservasModule, RegentaApplication.RegentaApplication.RecursosModule, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.ReservasModule, RegentaApplication.RegentaApplication.ClientesModule, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.AlertasModule, RegentaApplication.RegentaApplication.SharedKernel, "listens to", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.AlertasModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.AlertasModule, RegentaApplication.RegentaApplication.InventarioModule, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.AlertasModule, RegentaApplication.RegentaApplication.UsuariosModule, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.ClientesModule, RegentaApplication.RegentaApplication.SharedKernel, "listens to", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.ClientesModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.InventarioModule, RegentaApplication.RegentaApplication.SharedKernel, "listens to", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.InventarioModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.UsuariosModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.MesasModule, RegentaApplication.RegentaApplication.SharedKernel, "listens to", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.MesasModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.AuditoriaModule, RegentaApplication.RegentaApplication.SharedKernel, "listens to", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.AuditoriaModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.VentasModule, RegentaApplication.RegentaApplication.SharedKernel, "listens to", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.VentasModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.VentasModule, RegentaApplication.RegentaApplication.ClientesModule, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.FacturacionModule, RegentaApplication.RegentaApplication.SharedKernel, "listens to", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.FacturacionModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.ComandasModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.ComandasModule, RegentaApplication.RegentaApplication.MenuModule, "uses", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.ReportesModule, RegentaApplication.RegentaApplication.SharedKernel, "listens to", $techn="", $tags="", $link="")
+Rel(RegentaApplication.RegentaApplication.ReportesModule, RegentaApplication.RegentaApplication.SharedKernel, "uses", $techn="", $tags="", $link="")
+
+SHOW_LEGEND(true)
+@enduml

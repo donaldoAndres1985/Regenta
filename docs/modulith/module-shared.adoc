@@ -1,0 +1,39 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.regenta.shared`
+|Spring components
+|_Repositories_
+
+* `c.r.s.events.InboxRepositorio`
+
+_Configuration properties_
+
+* `c.r.s.security.PropiedadesDeSeguridad`
+
+_Others_
+
+* `c.r.s.barridos.BarridosAutoConfiguracion`
+* `c.r.s.barridos.EjecutorDeBarridos`
+* `c.r.s.barridos.ProgramadorDeBarridos`
+* `c.r.s.bbdd.ConfiguracionMultiSchemaFlyway`
+* `c.r.s.bbdd.TrigramAutoConfiguracion`
+* `c.r.s.bbdd.VerificadorDeLeakproof`
+* `c.r.s.events.ConfiguracionEventos`
+* `c.r.s.events.InboxIdempotente`
+* `c.r.s.events.RegistroDeEventos`
+* `c.r.s.security.ConfiguracionDeSeguridad`
+* `c.r.s.security.FiltroDeContexto`
+* `c.r.s.security.GuardiaDeModulos`
+* `c.r.s.security.GuardiaDePermisos`
+* `c.r.s.tenancy.AislamientoPorNegocio`
+* `c.r.s.tenancy.FijadorDeNegocio`
+* `c.r.s.web.ManejadorDeErrores`
+|Aggregate roots
+|* `c.r.s.events.InboxEvento`
+|Properties
+|* `regenta.seguridad.cors-origenes` -- `java.util.List<java.lang.String>`
+* `regenta.seguridad.jwt.emisor` -- `java.lang.String`, default `regenta`
+* `regenta.seguridad.jwt.secreto` -- `java.lang.String`
+* `regenta.seguridad.rutas-publicas` -- `java.util.List<java.lang.String>`
+|===

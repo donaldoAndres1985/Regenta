@@ -1,0 +1,9 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.regenta.reservas`
+|Bean references
+|* `c.r.s.events.RegistroDeEventos` (in Shared Kernel)
+* `c.r.r.api.RecursosApi` (in Recursos Module)
+* `c.r.c.api.ClientesApi` (in Clientes Module)
+|===

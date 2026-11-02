@@ -3,6 +3,7 @@ package com.regenta;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.modulith.core.ApplicationModules;
+import org.springframework.modulith.docs.Documenter;
 
 class ModularityTests {
 
@@ -11,5 +12,16 @@ class ModularityTests {
     void modularidadValida() {
         ApplicationModules modulos = ApplicationModules.of(RegentaApplication.class);
         modulos.verify();
+    }
+
+    @Test
+    @DisplayName("Genera la documentación y diagramas de arquitectura con Spring Modulith")
+    void generarDocumentacion() {
+        ApplicationModules modulos = ApplicationModules.of(RegentaApplication.class);
+        new Documenter(modulos)
+                .writeDocumentation()
+                .writeModulesAsPlantUml()
+                .writeIndividualModulesAsPlantUml()
+                .writeModuleCanvases();
     }
 }
