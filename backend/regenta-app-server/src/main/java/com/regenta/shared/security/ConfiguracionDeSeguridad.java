@@ -42,7 +42,7 @@ import jakarta.persistence.EntityManagerFactory;
 
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties(PropiedadesDeSeguridad.class)
+@EnableConfigurationProperties({PropiedadesDeSeguridad.class, PropiedadesCors.class})
 @EnableTransactionManagement(order = 0, proxyTargetClass = true)
 @EnableAspectJAutoProxy(proxyTargetClass = true)
 public class ConfiguracionDeSeguridad {
@@ -79,12 +79,12 @@ public class ConfiguracionDeSeguridad {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, PropiedadesDeSeguridad propiedades,
-            FiltroDeContexto filtroDeContexto) throws Exception {
+            PropiedadesCors propiedadesCors, FiltroDeContexto filtroDeContexto) throws Exception {
         String[] publicas = propiedades.getRutasPublicas().toArray(new String[0]);
 
         http
             .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource(propiedades)))
+            .cors(cors -> cors.configurationSource(corsConfigurationSource(propiedades, propiedadesCors)))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(publicas).permitAll()
@@ -104,13 +104,17 @@ public class ConfiguracionDeSeguridad {
         return http.build();
     }
 
-    private CorsConfigurationSource corsConfigurationSource(PropiedadesDeSeguridad propiedades) {
+    private CorsConfigurationSource corsConfigurationSource(PropiedadesDeSeguridad propiedades,
+            PropiedadesCors propiedadesCors) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(propiedades.getCorsOrigenes());
+        List<String> origenes = (propiedadesCors != null && propiedadesCors.getAllowedOriginPatterns() != null && !propiedadesCors.getAllowedOriginPatterns().isEmpty())
+                ? propiedadesCors.getAllowedOriginPatterns()
+                : propiedades.getCorsOrigenes();
+        config.setAllowedOriginPatterns(origenes);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With", Trazas.CABECERA));
         config.setExposedHeaders(List.of(Trazas.CABECERA));
-        config.setAllowCredentials(true);
+        config.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

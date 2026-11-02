@@ -23,6 +23,8 @@ spring:
     enabled: false
 
 regenta:
+  cors:
+    allowed-origin-patterns: ${CORS_ORIGINS:https://regenta.pages.dev,https://*.regenta.pages.dev,http://localhost:5000,http://localhost:*}
   seguridad:
     jwt:
       secreto: ${JWT_SECRETO:regenta-secreto-super-seguro-de-al-menos-32-bytes!}

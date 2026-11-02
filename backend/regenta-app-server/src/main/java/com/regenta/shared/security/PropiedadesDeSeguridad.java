@@ -17,10 +17,10 @@ public class PropiedadesDeSeguridad {
             "/v3/api-docs/**"
     ));
     private List<String> corsOrigenes = new ArrayList<>(List.of(
-            "http://localhost:3000",
-            "http://localhost:8080",
+            "https://regenta.pages.dev",
+            "https://*.regenta.pages.dev",
             "http://localhost:5000",
-            "https://*.pages.dev"
+            "http://localhost:*"
     ));
 
     public Jwt getJwt() {
