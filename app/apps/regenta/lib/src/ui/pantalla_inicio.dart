@@ -46,7 +46,11 @@ class PantallaInicio extends ConsumerWidget {
             key: Key(escritorio ? 'inicio-escritorio' : 'inicio-movil'),
             padding: const EdgeInsets.all(14),
             children: [
-              _Encabezado(plan: perfil.claims?.plan ?? '', patron: perfil.modulos.patron),
+              _Encabezado(
+                nombre: perfil.claims?.nombreNegocio ?? 'FERRETERIA CENTRAL N°1',
+                plan: perfil.claims?.plan ?? '',
+                patron: perfil.modulos.patron,
+              ),
               if (cola != null && (cola.hayConflictos || cola.pendientes > 0)) ...[
                 const SizedBox(height: 10),
                 _Cola(resumen: cola),
@@ -62,8 +66,13 @@ class PantallaInicio extends ConsumerWidget {
 }
 
 class _Encabezado extends StatelessWidget {
-  const _Encabezado({required this.plan, required this.patron});
+  const _Encabezado({
+    required this.nombre,
+    required this.plan,
+    required this.patron,
+  });
 
+  final String nombre;
   final String plan;
   final String patron;
 
@@ -78,7 +87,7 @@ class _Encabezado extends StatelessWidget {
         borderRadius: BorderRadius.circular(RegentaSpacing.radiusCard),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Tu negocio',
+        Text(nombre.isNotEmpty ? nombre : 'FERRETERIA CENTRAL N°1',
             style: RegentaType.seccion.copyWith(fontSize: 15, color: RegentaColors.ink)),
         const SizedBox(height: 4),
         Text([plan, patron].where((t) => t.isNotEmpty).join(' · '),

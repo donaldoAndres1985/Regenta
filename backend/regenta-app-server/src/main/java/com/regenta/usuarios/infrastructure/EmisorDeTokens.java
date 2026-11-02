@@ -55,7 +55,13 @@ public class EmisorDeTokens {
     /** Datos que el token lleva encima. */
     public record Contexto(UUID negocio, UUID usuario, String plan, String patron,
             String estadoNegocio, Collection<String> roles, Collection<String> modulos,
-            Collection<String> permisos, Collection<UUID> sucursales) {
+            Collection<String> permisos, Collection<UUID> sucursales, String nombreNegocio) {
+
+        public Contexto(UUID negocio, UUID usuario, String plan, String patron,
+                String estadoNegocio, Collection<String> roles, Collection<String> modulos,
+                Collection<String> permisos, Collection<UUID> sucursales) {
+            this(negocio, usuario, plan, patron, estadoNegocio, roles, modulos, permisos, sucursales, null);
+        }
     }
 
     public record TokenDeAcceso(String valor, long vigenciaEnSegundos, Instant expiraEn) {
@@ -64,7 +70,7 @@ public class EmisorDeTokens {
     public TokenDeAcceso emitir(Contexto contexto) {
         Instant ahora = Instant.now(reloj);
         Instant expira = ahora.plus(propiedades.getVigenciaAcceso());
-        JWTClaimsSet claims = new JWTClaimsSet.Builder()
+        JWTClaimsSet.Builder builder = new JWTClaimsSet.Builder()
                 .issuer(propiedades.getEmisor())
                 .subject(contexto.usuario().toString())
                 .jwtID(UUID.randomUUID().toString())
@@ -77,8 +83,11 @@ public class EmisorDeTokens {
                 .claim("roles", List.copyOf(contexto.roles()))
                 .claim("modulos", List.copyOf(contexto.modulos()))
                 .claim("permisos", List.copyOf(contexto.permisos()))
-                .claim("sucursales", contexto.sucursales().stream().map(UUID::toString).toList())
-                .build();
+                .claim("sucursales", contexto.sucursales().stream().map(UUID::toString).toList());
+        if (contexto.nombreNegocio() != null && !contexto.nombreNegocio().isBlank()) {
+            builder.claim("nombre_negocio", contexto.nombreNegocio());
+        }
+        JWTClaimsSet claims = builder.build();
         SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
         try {
             jwt.sign(new MACSigner(propiedades.getSecreto().getBytes(StandardCharsets.UTF_8)));

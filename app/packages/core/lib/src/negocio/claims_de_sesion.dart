@@ -16,6 +16,7 @@ class ClaimsDeSesion {
     required this.modulos,
     required this.roles,
     required this.permisos,
+    this.nombreNegocio,
   });
 
   final String negocioId;
@@ -25,6 +26,7 @@ class ClaimsDeSesion {
   final List<String> modulos;
   final List<String> roles;
   final List<String> permisos;
+  final String? nombreNegocio;
 
   factory ClaimsDeSesion.deJwt(String jwt) {
     final partes = jwt.split('.');
@@ -45,6 +47,7 @@ class ClaimsDeSesion {
       modulos: lista('modulos'),
       roles: lista('roles'),
       permisos: lista('permisos'),
+      nombreNegocio: payload['nombre_negocio'] as String?,
     );
   }
 }

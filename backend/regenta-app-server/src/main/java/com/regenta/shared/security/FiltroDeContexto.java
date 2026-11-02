@@ -32,7 +32,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * Extrae la identidad y el contexto de negocio directamente del JWT verificado
  * (o de las cabeceras internas si aplica) y puebla el ContextoDeNegocio.
  */
-public class FiltroDeContexto extends OncePerRequestFilter implements Ordered {
+public class FiltroDeContexto extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(FiltroDeContexto.class);
     private static final Set<String> SIN_SERVICIO = Set.of("SUSPENDIDO", "CANCELADO");
@@ -146,8 +146,4 @@ public class FiltroDeContexto extends OncePerRequestFilter implements Ordered {
         return res;
     }
 
-    @Override
-    public int getOrder() {
-        return Ordered.HIGHEST_PRECEDENCE + 50;
-    }
 }

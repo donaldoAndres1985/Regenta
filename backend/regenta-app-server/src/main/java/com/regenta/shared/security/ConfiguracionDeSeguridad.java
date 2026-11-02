@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
@@ -75,6 +76,13 @@ public class ConfiguracionDeSeguridad {
     @Bean
     public FiltroDeContexto filtroDeContexto() {
         return new FiltroDeContexto();
+    }
+
+    @Bean
+    public FilterRegistrationBean<FiltroDeContexto> registroFiltroDeContexto(FiltroDeContexto filtro) {
+        FilterRegistrationBean<FiltroDeContexto> registro = new FilterRegistrationBean<>(filtro);
+        registro.setEnabled(false);
+        return registro;
     }
 
     @Bean

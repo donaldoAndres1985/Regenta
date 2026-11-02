@@ -187,7 +187,7 @@ class _Formulario extends StatelessWidget {
         keyboardType: TextInputType.emailAddress,
         textInputAction: TextInputAction.next,
         onChanged: (_) => onCambio(),
-        decoration: _decoracion('donaldo@eltornillo.co'),
+        decoration: _decoracion('donaldogandara'),
       ),
       const SizedBox(height: 14),
       _Etiqueta('Contraseña'),
