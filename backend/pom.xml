@@ -34,25 +34,6 @@
   </properties>
 
   <modules>
-    <module>comun</module>
-    <module>gateway</module>
-    <module>servicio-usuarios</module>
-    <module>servicio-clientes</module>
-    <module>servicio-inventario</module>
-    <module>servicio-ventas</module>
-    <module>servicio-compras</module>
-    <module>servicio-recursos</module>
-    <module>servicio-reservas</module>
-    <module>servicio-menu</module>
-    <module>servicio-mesas</module>
-    <module>servicio-comandas</module>
-    <module>servicio-facturacion</module>
-    <module>servicio-caja</module>
-    <module>servicio-alertas</module>
-    <module>servicio-reportes</module>
-    <module>servicio-auditoria</module>
-    <module>estructura</module>
-    <module>integracion</module>
     <module>regenta-app-server</module>
   </modules>
 
