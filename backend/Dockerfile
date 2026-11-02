@@ -8,11 +8,11 @@ COPY mvnw .
 COPY pom.xml .
 COPY regenta-app-server/pom.xml regenta-app-server/pom.xml
 
-RUN chmod +x ./mvnw && ./mvnw dependency:go-offline -pl regenta-app-server -am -B
+RUN sed -i 's/\r$//' ./mvnw && chmod +x ./mvnw && ./mvnw dependency:go-offline -pl regenta-app-server -am -B
 
 COPY regenta-app-server regenta-app-server
 
-RUN ./mvnw clean package -pl regenta-app-server -DskipTests -B
+RUN ./mvnw -pl regenta-app-server -am clean package -DskipTests -B
 
 # =======================================================
 # Runtime Stage
@@ -23,7 +23,7 @@ RUN addgroup -S regenta && adduser -S regenta -G regenta
 
 WORKDIR /app
 
-COPY --from=builder /src/regenta-app-server/target/regenta-app-server-*.jar /app/app.jar
+COPY --from=builder /src/regenta-app-server/target/regenta-app-server.jar /app/app.jar
 
 RUN chown -R regenta:regenta /app
 
@@ -33,4 +33,4 @@ EXPOSE 8080
 
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom"
 
-ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -Dserver.port=${PORT:-8080} -jar /app/app.jar"]

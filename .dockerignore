@@ -1,0 +1,11 @@
+.git/
+backend/target/
+backend/**/target/
+.idea/
+.vscode/
+docs/
+design/
+historias/
+modelo-datos/
+app/
+*.md
