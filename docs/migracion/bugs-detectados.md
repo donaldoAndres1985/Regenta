@@ -37,3 +37,15 @@ Durante la Fase 0 (Inventario y Análisis) y las pruebas iniciales de regresión
   ```
   El Gateway no tenía ninguna regla de enrutamiento para `/api/cotizaciones/**`. Por ende, cualquier petición externa a través del Gateway hacia `/api/cotizaciones` resultaba en 404 Not Found.
 - **Impacto:** En microservicios, el frontend no podía invocar cotizaciones directamente a través del Gateway a menos que se agregara la ruta explícita. En el monolito modular, al eliminarse el Gateway y tener una única aplicación web, `/api/cotizaciones` pasa a estar disponible automáticamente en la raíz HTTP de la aplicación sin alterar su contrato.
+
+---
+
+## 3. Ruta `/api/cocina` no expuesta en el Spring Cloud Gateway
+
+- **Ubicación:** `gateway/src/main/resources/application.yml` (predicados de rutas del Gateway) y `com.regenta.comandas.api.CocinaControlador.java` (`@RequestMapping("/api/cocina")`).
+- **Descripción:**
+  El microservicio `servicio-comandas` expone el controlador KDS de cocina en `/api/cocina`:
+  - `GET /api/cocina/estaciones/{estacionId}/tickets`
+  - `POST /api/cocina/tickets/{ticketId}/avance`
+  Sin embargo, el Spring Cloud Gateway solo enrutaba a `servicio-comandas` el prefijo `/api/comandas/**`.
+- **Impacto:** En microservicios, cualquier petición al Gateway en `/api/cocina` retornaba 404. En el monolito modular, `CocinaControlador` se mapea dualmente a `@RequestMapping({"/api/cocina", "/api/comandas/cocina"})` para asegurar compatibilidad total tanto si el cliente llama directo a `/api/cocina` como si lo hace a `/api/comandas/cocina`.
