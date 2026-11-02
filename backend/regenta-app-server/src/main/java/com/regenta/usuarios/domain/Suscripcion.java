@@ -23,7 +23,7 @@ import jakarta.persistence.Table;
  * unico parcial sobre {@code fecha_fin IS NULL}.
  */
 @Entity
-@Table(name = "suscripciones", schema = "usuarios")
+@Table(name = "suscripciones", schema = "core_identidad")
 public class Suscripcion {
 
     public static final String VIGENTE = "VIGENTE";

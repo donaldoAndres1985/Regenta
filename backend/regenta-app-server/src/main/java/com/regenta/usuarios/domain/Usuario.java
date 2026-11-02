@@ -31,7 +31,7 @@ import jakarta.persistence.Version;
  * <p>Un usuario nunca se borra: se desactiva. Sus ventas siguen atribuidas a el.
  */
 @Entity
-@Table(name = "usuarios", schema = "usuarios")
+@Table(name = "usuarios", schema = "core_identidad")
 public class Usuario {
 
     public static final String INVITADO = "INVITADO";

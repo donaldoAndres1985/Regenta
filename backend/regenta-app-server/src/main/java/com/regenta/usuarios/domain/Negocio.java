@@ -24,7 +24,7 @@ import jakarta.persistence.Version;
  * peticion: reciben negocio, plan y patron como claims del token.
  */
 @Entity
-@Table(name = "negocios", schema = "usuarios")
+@Table(name = "negocios", schema = "core_identidad")
 public class Negocio {
 
     public static final String TRIAL = "TRIAL";

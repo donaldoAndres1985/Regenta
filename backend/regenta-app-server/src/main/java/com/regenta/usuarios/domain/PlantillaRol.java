@@ -18,7 +18,7 @@ import jakarta.persistence.Table;
  * patrones: lo unico que cambia son las plantillas que cada negocio instancia.
  */
 @Entity
-@Table(name = "plantillas_rol", schema = "usuarios")
+@Table(name = "plantillas_rol", schema = "core_identidad")
 public class PlantillaRol {
 
     @Id

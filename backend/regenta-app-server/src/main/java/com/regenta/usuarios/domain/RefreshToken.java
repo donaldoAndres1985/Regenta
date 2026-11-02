@@ -19,7 +19,7 @@ import jakarta.persistence.Table;
  * presenta uno ya usado, es que hay dos manos con el mismo token.
  */
 @Entity
-@Table(name = "refresh_tokens", schema = "usuarios")
+@Table(name = "refresh_tokens", schema = "core_identidad")
 public class RefreshToken {
 
     @Id

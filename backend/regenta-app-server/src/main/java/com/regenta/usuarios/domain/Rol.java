@@ -27,7 +27,7 @@ import jakarta.persistence.Version;
  * ahi son del negocio.
  */
 @Entity
-@Table(name = "roles", schema = "usuarios")
+@Table(name = "roles", schema = "core_identidad")
 public class Rol {
 
     @Id

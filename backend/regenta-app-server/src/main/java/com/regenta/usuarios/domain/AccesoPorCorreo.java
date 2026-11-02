@@ -15,7 +15,7 @@ import jakarta.persistence.Table;
  * estando en {@link Usuario}.
  */
 @Entity
-@Table(name = "acceso_por_correo", schema = "usuarios")
+@Table(name = "acceso_por_correo", schema = "core_identidad")
 public class AccesoPorCorreo {
 
     @EmbeddedId

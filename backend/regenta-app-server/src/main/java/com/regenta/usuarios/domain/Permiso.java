@@ -7,7 +7,7 @@ import jakarta.persistence.Table;
 
 /** Catalogo global de permisos: MODULO_RECURSO_ACCION. */
 @Entity
-@Table(name = "permisos", schema = "usuarios")
+@Table(name = "permisos", schema = "core_identidad")
 public class Permiso {
 
     @Id

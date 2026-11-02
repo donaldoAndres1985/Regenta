@@ -10,7 +10,7 @@ import jakarta.persistence.Table;
  * operativos; los de patron nulo son comunes a los tres.
  */
 @Entity
-@Table(name = "modulos", schema = "usuarios")
+@Table(name = "modulos", schema = "core_identidad")
 public class Modulo {
 
     @Id

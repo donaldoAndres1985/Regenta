@@ -23,7 +23,7 @@ import jakarta.persistence.Version;
  * Uno por negocio: la clave primaria es el negocio.
  */
 @Entity
-@Table(name = "configuracion_negocio", schema = "usuarios")
+@Table(name = "configuracion_negocio", schema = "core_identidad")
 public class ConfiguracionNegocio {
 
     @Id

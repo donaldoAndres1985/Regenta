@@ -10,7 +10,7 @@ import jakarta.persistence.Table;
  * FACTURACION sin VENTAS, o MESAS sin COMANDAS.
  */
 @Entity
-@Table(name = "modulo_dependencias", schema = "usuarios")
+@Table(name = "modulo_dependencias", schema = "core_identidad")
 public class ModuloDependencia {
 
     @EmbeddedId

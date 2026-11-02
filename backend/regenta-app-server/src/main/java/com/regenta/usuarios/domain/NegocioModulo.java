@@ -17,7 +17,7 @@ import jakarta.persistence.Table;
  * puntual sin bajar de plan. Lo que manda no es el plan: es esta tabla.
  */
 @Entity
-@Table(name = "negocio_modulos", schema = "usuarios")
+@Table(name = "negocio_modulos", schema = "core_identidad")
 public class NegocioModulo {
 
     public static final String POR_PLAN = "PLAN";

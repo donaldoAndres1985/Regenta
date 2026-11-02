@@ -20,7 +20,7 @@ import jakarta.persistence.Version;
  * reescribir todos los indices y todas las consultas.
  */
 @Entity
-@Table(name = "sucursales", schema = "usuarios")
+@Table(name = "sucursales", schema = "core_identidad")
 public class Sucursal {
 
     @Id

@@ -25,7 +25,7 @@ import jakarta.persistence.Table;
  * no un recorrido del grafo en cada peticion.
  */
 @Entity
-@Table(name = "planes", schema = "usuarios")
+@Table(name = "planes", schema = "core_identidad")
 public class Plan {
 
     @Id

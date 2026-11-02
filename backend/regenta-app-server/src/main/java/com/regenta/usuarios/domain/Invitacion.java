@@ -18,7 +18,7 @@ import jakarta.persistence.Table;
  * llave puesta.
  */
 @Entity
-@Table(name = "invitaciones", schema = "usuarios")
+@Table(name = "invitaciones", schema = "core_identidad")
 public class Invitacion {
 
     public static final String PENDIENTE = "PENDIENTE";

@@ -18,7 +18,7 @@ import jakarta.persistence.Table;
  * factura de marzo tiene que seguir cuadrando en diciembre. Se crea otro.
  */
 @Entity
-@Table(name = "impuestos", schema = "usuarios")
+@Table(name = "impuestos", schema = "core_identidad")
 public class Impuesto {
 
     @Id
