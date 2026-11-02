@@ -18,7 +18,7 @@ import org.hibernate.type.SqlTypes;
  * veces. El segundo insert choca contra la PK y ahi se corta el efecto.
  */
 @Entity
-@Table(name = "inbox_eventos")
+@Table(name = "inbox_eventos", schema = "auditoria")
 public class InboxEvento {
 
     @Id

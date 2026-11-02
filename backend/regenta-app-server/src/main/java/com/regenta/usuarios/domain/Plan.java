@@ -60,7 +60,7 @@ public class Plan {
     private boolean activo;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "plan_modulos", joinColumns = @JoinColumn(name = "plan_id"))
+    @CollectionTable(name = "plan_modulos", schema = "core_identidad", joinColumns = @JoinColumn(name = "plan_id"))
     @Column(name = "modulo_codigo", nullable = false, length = 40)
     private Set<String> modulos = new LinkedHashSet<>();
 

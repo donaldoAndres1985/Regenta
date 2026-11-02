@@ -35,7 +35,7 @@ public class PlantillaRol {
     private String patron;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "plantilla_rol_permisos", joinColumns = @JoinColumn(name = "plantilla_id"))
+    @CollectionTable(name = "plantilla_rol_permisos", schema = "core_identidad", joinColumns = @JoinColumn(name = "plantilla_id"))
     @Column(name = "permiso_codigo", nullable = false, length = 80)
     private Set<String> permisos = new LinkedHashSet<>();
 

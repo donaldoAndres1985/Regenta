@@ -54,7 +54,7 @@ public class Rol {
     private boolean activo;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "rol_permisos", joinColumns = @JoinColumn(name = "rol_id"))
+    @CollectionTable(name = "rol_permisos", schema = "core_identidad", joinColumns = @JoinColumn(name = "rol_id"))
     @Column(name = "permiso_codigo", nullable = false, length = 80)
     private Set<String> permisos = new LinkedHashSet<>();
 

@@ -87,11 +87,11 @@ public class Usuario {
     private OffsetDateTime ultimoAccesoEn;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "usuario_roles", joinColumns = @JoinColumn(name = "usuario_id"))
+    @CollectionTable(name = "usuario_roles", schema = "core_identidad", joinColumns = @JoinColumn(name = "usuario_id"))
     private Set<AsignacionDeRol> roles = new LinkedHashSet<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "usuario_sucursales", joinColumns = @JoinColumn(name = "usuario_id"))
+    @CollectionTable(name = "usuario_sucursales", schema = "core_identidad", joinColumns = @JoinColumn(name = "usuario_id"))
     @Column(name = "sucursal_id", nullable = false)
     private Set<UUID> sucursales = new LinkedHashSet<>();
 

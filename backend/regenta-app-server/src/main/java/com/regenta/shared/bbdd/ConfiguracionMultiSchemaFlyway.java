@@ -1,27 +1,31 @@
 package com.regenta.shared.bbdd;
 
+import java.sql.Connection;
+import java.sql.Statement;
 import java.util.List;
 import javax.sql.DataSource;
 
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.output.MigrateResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.boot.autoconfigure.AutoConfigureBefore;
+import org.springframework.boot.autoconfigure.orm.jpa.EntityManagerFactoryDependsOnPostProcessor;
+import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import jakarta.persistence.EntityManagerFactory;
 
 /**
  * Ejecutor programático de migraciones Flyway para los 15 módulos del monolito.
  *
  * <p>Garantiza que cada módulo ejecute sus migraciones de esquema en orden
  * dentro de su propio schema de PostgreSQL y con su propia tabla aislada
- * {@code flyway_schema_history}, antes de que JPA/Hibernate inicialice el
- * {@link EntityManagerFactory}.
+ * {@code flyway_schema_history}, ANTES de que JPA/Hibernate inicialice el
+ * {@code EntityManagerFactory}.
  */
-@Configuration
+@Configuration(proxyBeanMethods = false)
+@AutoConfigureBefore(HibernateJpaAutoConfiguration.class)
 public class ConfiguracionMultiSchemaFlyway {
 
     private static final Logger log = LoggerFactory.getLogger(ConfiguracionMultiSchemaFlyway.class);
@@ -47,36 +51,69 @@ public class ConfiguracionMultiSchemaFlyway {
     );
 
     @Bean
-    public static BeanPostProcessor flywayMultiSchemaRunner(DataSource dataSource) {
-        return new BeanPostProcessor() {
-            private boolean ejecutado = false;
-
-            @Override
-            public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
-                if (!ejecutado && bean instanceof EntityManagerFactory) {
-                    ejecutarMigraciones(dataSource);
-                    ejecutado = true;
-                }
-                return bean;
-            }
-        };
+    public FlywayMultiSchemaRunner flywayMultiSchemaRunner(DataSource dataSource) {
+        return new FlywayMultiSchemaRunner(dataSource);
     }
 
-    public static void ejecutarMigraciones(DataSource dataSource) {
-        log.info("Iniciando ejecución de migraciones Flyway multi-schema...");
-        for (ModuloMigracion m : MODULOS) {
-            log.info("Ejecutando Flyway para '{}' en schema '{}' desde '{}'...",
-                    m.modulo(), m.schema(), m.location());
-            Flyway flyway = Flyway.configure()
-                    .dataSource(dataSource)
-                    .schemas(m.schema())
-                    .defaultSchema(m.schema())
-                    .locations(m.location())
-                    .table("flyway_schema_history")
-                    .baselineOnMigrate(true)
-                    .load();
-            flyway.migrate();
+    @Bean
+    public static EntityManagerFactoryDependsOnPostProcessor entityManagerFactoryDependsOnFlyway() {
+        return new EntityManagerFactoryDependsOnPostProcessor("flywayMultiSchemaRunner");
+    }
+
+    public static class FlywayMultiSchemaRunner implements InitializingBean {
+
+        private final DataSource dataSource;
+
+        public FlywayMultiSchemaRunner(DataSource dataSource) {
+            this.dataSource = dataSource;
         }
-        log.info("Todas las migraciones Flyway multi-schema se completaron exitosamente.");
+
+        @Override
+        public void afterPropertiesSet() throws Exception {
+            inicializarBaseDeDatos();
+            ejecutarMigraciones();
+        }
+
+        private void inicializarBaseDeDatos() {
+            try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
+                stmt.execute("""
+                    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+                    CREATE EXTENSION IF NOT EXISTS "btree_gist";
+                    CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+                    CREATE EXTENSION IF NOT EXISTS "unaccent";
+                    CREATE TABLE IF NOT EXISTS public.event_publication (
+                        id UUID NOT NULL,
+                        listener_id VARCHAR(512) NOT NULL,
+                        event_type VARCHAR(512) NOT NULL,
+                        publication_date TIMESTAMPTZ NOT NULL,
+                        serialized_event TEXT NOT NULL,
+                        completion_date TIMESTAMPTZ,
+                        PRIMARY KEY (id)
+                    );
+                """);
+                log.info("Extensiones PostgreSQL (pgcrypto, btree_gist, pg_trgm, unaccent) y tabla public.event_publication listas.");
+            } catch (Exception e) {
+                log.warn("Aviso durante inicialización base: {}", e.getMessage());
+            }
+        }
+
+        public void ejecutarMigraciones() {
+            log.info("Iniciando ejecución de migraciones Flyway multi-schema...");
+            for (ModuloMigracion m : MODULOS) {
+                log.info("Migrando esquema '{}'...", m.schema());
+                Flyway flyway = Flyway.configure()
+                        .dataSource(dataSource)
+                        .schemas(m.schema())
+                        .defaultSchema(m.schema())
+                        .createSchemas(true)
+                        .locations(m.location())
+                        .table("flyway_schema_history")
+                        .baselineOnMigrate(true)
+                        .load();
+                MigrateResult result = flyway.migrate();
+                log.info("Migrando esquema '{}'... {} migraciones aplicadas", m.schema(), result.migrationsExecuted);
+            }
+            log.info("Todas las migraciones Flyway multi-schema se completaron exitosamente.");
+        }
     }
 }
