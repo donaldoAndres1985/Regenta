@@ -28,6 +28,10 @@ const Map<String, String> permisoParaVer = {
   'MESAS': 'MESAS_MESA_VER',
   'COMANDAS': 'COMANDAS_COMANDA_VER',
   'FACTURACION': 'FACTURACION_FACTURA_VER',
+  'CAJA': 'CAJA_TURNO_VER',
+  'COMPRAS': 'COMPRAS_COMPRA_VER',
+  'REPORTES': 'REPORTES_REPORTE_VER',
+  'CONFIGURACION': 'CONFIGURACION_NEGOCIO_VER',
 };
 
 /// Las pantallas enrutables, con el módulo que cada una exige.
@@ -43,9 +47,8 @@ final List<RutaProtegida> rutasDeLaApp = [
   RutaProtegida(
     ruta: '/inventario',
     modulo: 'INVENTARIO',
-    builder: (context, parametros) => PantallaInventario(
-      onProductoSeleccionado: (productoId, factor) {},
-    ),
+    builder: (context, parametros) =>
+        PantallaInventario(onProductoSeleccionado: (productoId, factor) {}),
   ),
   RutaProtegida(
     ruta: '/clientes',
@@ -80,18 +83,94 @@ final List<RutaProtegida> rutasDeLaApp = [
       return PantallaFactura(facturaId: id);
     },
   ),
+  // Módulos que ya tienen backend pero todavía no su pantalla en la app: la
+  // entrada existe para que el menú sea el del diseño, y la guardia los trata
+  // igual que a los demás.
+  RutaProtegida(
+    ruta: '/caja',
+    modulo: 'CAJA',
+    builder: (context, parametros) => const _SinPantallaTodavia(modulo: 'Caja'),
+  ),
+  RutaProtegida(
+    ruta: '/compras',
+    modulo: 'COMPRAS',
+    builder: (context, parametros) =>
+        const _SinPantallaTodavia(modulo: 'Compras'),
+  ),
+  RutaProtegida(
+    ruta: '/reportes',
+    modulo: 'REPORTES',
+    builder: (context, parametros) =>
+        const _SinPantallaTodavia(modulo: 'Reportes'),
+  ),
+  RutaProtegida(
+    ruta: '/configuracion',
+    modulo: 'CONFIGURACION',
+    builder: (context, parametros) =>
+        const _SinPantallaTodavia(modulo: 'Configuración'),
+  ),
 ];
 
 /// El menú completo, antes de filtrar por lo que tiene el negocio.
+/// En el orden en que se pintan, grupo por grupo.
 const List<EntradaDeNavegacion> menuCompleto = [
   EntradaDeNavegacion(ruta: GuardiaDeRutas.inicio, titulo: 'Inicio'),
-  EntradaDeNavegacion(ruta: '/ventas', titulo: 'Vender', modulo: 'VENTAS'),
-  EntradaDeNavegacion(ruta: '/inventario', titulo: 'Inventario', modulo: 'INVENTARIO'),
-  EntradaDeNavegacion(ruta: '/clientes', titulo: 'Clientes', modulo: 'CLIENTES'),
+  EntradaDeNavegacion(ruta: '/ventas', titulo: 'Ventas', modulo: 'VENTAS'),
+  EntradaDeNavegacion(ruta: '/caja', titulo: 'Caja', modulo: 'CAJA'),
   EntradaDeNavegacion(ruta: '/mesas', titulo: 'Mesas', modulo: 'MESAS'),
   EntradaDeNavegacion(ruta: '/cocina', titulo: 'Cocina', modulo: 'COMANDAS'),
-  EntradaDeNavegacion(ruta: '/facturas', titulo: 'Facturas', modulo: 'FACTURACION'),
+  EntradaDeNavegacion(
+    ruta: '/inventario',
+    titulo: 'Inventario',
+    modulo: 'INVENTARIO',
+  ),
+  EntradaDeNavegacion(ruta: '/compras', titulo: 'Compras', modulo: 'COMPRAS'),
+  EntradaDeNavegacion(
+    ruta: '/clientes',
+    titulo: 'Clientes',
+    modulo: 'CLIENTES',
+  ),
+  EntradaDeNavegacion(
+    ruta: '/facturas',
+    titulo: 'Facturación',
+    modulo: 'FACTURACION',
+  ),
+  EntradaDeNavegacion(
+    ruta: '/reportes',
+    titulo: 'Reportes',
+    modulo: 'REPORTES',
+  ),
+  EntradaDeNavegacion(
+    ruta: '/configuracion',
+    titulo: 'Configuración',
+    modulo: 'CONFIGURACION',
+  ),
 ];
+
+/// Los grupos del menú lateral.
+enum GrupoDeMenu {
+  operacion('Operación'),
+  gestion('Gestión'),
+  analisis('Análisis');
+
+  const GrupoDeMenu(this.titulo);
+  final String titulo;
+}
+
+/// A qué grupo va cada entrada del menú. Es presentación, como los iconos.
+const Map<String, GrupoDeMenu> grupoDeRuta = {
+  GuardiaDeRutas.inicio: GrupoDeMenu.operacion,
+  '/ventas': GrupoDeMenu.operacion,
+  '/caja': GrupoDeMenu.operacion,
+  '/mesas': GrupoDeMenu.operacion,
+  '/cocina': GrupoDeMenu.operacion,
+  '/inventario': GrupoDeMenu.gestion,
+  '/compras': GrupoDeMenu.gestion,
+  '/clientes': GrupoDeMenu.gestion,
+  '/facturas': GrupoDeMenu.gestion,
+  '/reportes': GrupoDeMenu.analisis,
+  '/configuracion': GrupoDeMenu.analisis,
+};
 
 /// El menú de este negocio y de esta persona (criterio 3).
 ///
@@ -111,8 +190,12 @@ List<EntradaDeNavegacion> menuDe(ClaimsDeSesion? claims) {
 
 /// Iconos del menú, por ruta. Separado del catálogo porque es presentación.
 const Map<String, IconData> iconoDeRuta = {
-  GuardiaDeRutas.inicio: Icons.bar_chart_outlined,
+  GuardiaDeRutas.inicio: Icons.home_outlined,
   '/ventas': Icons.shopping_cart_outlined,
+  '/caja': Icons.payments_outlined,
+  '/compras': Icons.local_shipping_outlined,
+  '/reportes': Icons.bar_chart_rounded,
+  '/configuracion': Icons.settings_outlined,
   '/inventario': Icons.inventory_2_outlined,
   '/clientes': Icons.people_outline,
   '/mesas': Icons.table_restaurant_outlined,
@@ -135,15 +218,65 @@ class _SinDocumento extends StatelessWidget {
         surfaceTintColor: RegentaColors.surface,
         elevation: 0,
         shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
-        title: Text('Sin $que',
-            style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
+        title: Text(
+          'Sin $que',
+          style: RegentaType.seccion.copyWith(
+            fontSize: 16,
+            color: RegentaColors.ink,
+          ),
+        ),
       ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text('Elige una $que de la lista para verla.',
-              textAlign: TextAlign.center,
-              style: RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.ink2)),
+          child: Text(
+            'Elige una $que de la lista para verla.',
+            textAlign: TextAlign.center,
+            style: RegentaType.cuerpo.copyWith(
+              fontSize: 14,
+              color: RegentaColors.ink2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Un módulo del menú cuya pantalla todavía no existe en la app.
+class _SinPantallaTodavia extends StatelessWidget {
+  const _SinPantallaTodavia({required this.modulo});
+
+  final String modulo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: RegentaColors.paper,
+      appBar: AppBar(
+        backgroundColor: RegentaColors.surface,
+        surfaceTintColor: RegentaColors.surface,
+        elevation: 0,
+        shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
+        title: Text(
+          modulo,
+          style: RegentaType.seccion.copyWith(
+            fontSize: 16,
+            color: RegentaColors.ink,
+          ),
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'La pantalla de $modulo todavía no está disponible en la app.',
+            textAlign: TextAlign.center,
+            style: RegentaType.cuerpo.copyWith(
+              fontSize: 14,
+              color: RegentaColors.ink2,
+            ),
+          ),
         ),
       ),
     );

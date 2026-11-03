@@ -41,33 +41,33 @@ Sesion _sesionCon({
     'MESAS_MESA_VER',
     'COMANDAS_COMANDA_VER',
   ],
-}) =>
-    Sesion(
-      tokenDeAcceso: _jwt({
-        'negocio_id': 'n-1',
-        'sub': 'u-1',
-        'plan': 'PROFESIONAL',
-        'patron': patron,
-        'modulos': modulos,
-        'roles': const ['ADMINISTRADOR'],
-        'permisos': permisos,
-      }),
-      tokenDeRefresco: 'refresco',
-      expiraEn: DateTime.now().toUtc().add(const Duration(minutes: 30)),
-      negocioId: 'n-1',
-      usuarioId: 'u-1',
-      plan: 'PROFESIONAL',
-      patron: patron,
-      roles: const ['ADMINISTRADOR'],
-      modulos: modulos,
-    );
+}) => Sesion(
+  tokenDeAcceso: _jwt({
+    'negocio_id': 'n-1',
+    'sub': 'u-1',
+    'plan': 'PROFESIONAL',
+    'patron': patron,
+    'modulos': modulos,
+    'roles': const ['ADMINISTRADOR'],
+    'permisos': permisos,
+  }),
+  tokenDeRefresco: 'refresco',
+  expiraEn: DateTime.now().toUtc().add(const Duration(minutes: 30)),
+  negocioId: 'n-1',
+  usuarioId: 'u-1',
+  plan: 'PROFESIONAL',
+  patron: patron,
+  roles: const ['ADMINISTRADOR'],
+  modulos: modulos,
+);
 
 Future<DependenciasDeLaApp> _arrancar(
   WidgetTester tester, {
   Sesion? guardada,
   Future<void> Function(BaseLocal base)? conLaCola,
+  Size tamano = const Size(390, 844),
 }) async {
-  await tester.binding.setSurfaceSize(const Size(390, 844));
+  await tester.binding.setSurfaceSize(tamano);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final base = BaseLocal(NativeDatabase.memory());
   final deps = DependenciasDeLaApp.paraPruebas(
@@ -77,61 +77,84 @@ Future<DependenciasDeLaApp> _arrancar(
   addTearDown(deps.cerrar);
   if (conLaCola != null) await conLaCola(base);
   await deps.motor.iniciar();
-  await tester.pumpWidget(ProviderScope(
-    overrides: deps.overrides(),
-    child: RegentaApp(dependencias: deps),
-  ));
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: deps.overrides(),
+      child: RegentaApp(dependencias: deps),
+    ),
+  );
   await tester.pumpAndSettle();
   return deps;
 }
 
 void main() {
-  testWidgets('Criterio 1: sin sesión, la app abre en la pantalla de entrada',
-      (tester) async {
+  testWidgets('Criterio 1: sin sesión, la app abre en la pantalla de entrada', (
+    tester,
+  ) async {
     await _arrancar(tester);
 
     expect(find.text('Entrar'), findsOneWidget);
     expect(find.byKey(const Key('login-correo')), findsOneWidget);
   });
 
-  testWidgets('Criterio 6: con sesión guardada, la app abre dentro y no pasa por el login',
-      (tester) async {
-    await _arrancar(tester, guardada: _sesionCon(modulos: ['VENTAS']));
+  testWidgets(
+    'Criterio 6: con sesión guardada, la app abre dentro y no pasa por el login',
+    (tester) async {
+      await _arrancar(tester, guardada: _sesionCon(modulos: ['VENTAS']));
 
-    expect(find.text('Inicio'), findsOneWidget);
-    expect(find.byKey(const Key('login-correo')), findsNothing);
-  });
+      expect(find.text('Inicio'), findsOneWidget);
+      expect(find.byKey(const Key('login-correo')), findsNothing);
+    },
+  );
 
-  testWidgets('Criterio 3: el menú muestra los módulos del negocio y no los demás',
-      (tester) async {
-    await _arrancar(tester, guardada: _sesionCon(modulos: ['VENTAS', 'INVENTARIO']));
+  testWidgets(
+    'Criterio 3: el menú muestra los módulos del negocio y no los demás',
+    (tester) async {
+      await _arrancar(
+        tester,
+        guardada: _sesionCon(modulos: ['VENTAS', 'INVENTARIO']),
+      );
 
-    expect(find.text('Vender'), findsOneWidget);
-    expect(find.text('Inventario'), findsOneWidget);
-    expect(find.text('Mesas'), findsNothing);
-  });
+      expect(find.text('Ventas'), findsOneWidget);
+      expect(find.text('Inventario'), findsOneWidget);
+      expect(find.text('Mesas'), findsNothing);
+    },
+  );
 
-  testWidgets('Criterio 3: un restaurante ve el salón, no el inventario', (tester) async {
-    await _arrancar(tester,
-        guardada: _sesionCon(modulos: ['MESAS', 'COMANDAS'], patron: 'COMANDA'));
+  testWidgets('Criterio 3: un restaurante ve el salón, no el inventario', (
+    tester,
+  ) async {
+    await _arrancar(
+      tester,
+      guardada: _sesionCon(modulos: ['MESAS', 'COMANDAS'], patron: 'COMANDA'),
+    );
 
     expect(find.text('Mesas'), findsOneWidget);
     expect(find.text('Cocina'), findsOneWidget);
     expect(find.text('Inventario'), findsNothing);
   });
 
-  testWidgets('El patrón operativo del negocio decide el color secundario del tema',
-      (tester) async {
-    await _arrancar(tester,
-        guardada: _sesionCon(modulos: ['COMANDAS'], patron: 'COMANDA'));
+  testWidgets(
+    'El patrón operativo del negocio decide el color secundario del tema',
+    (tester) async {
+      await _arrancar(
+        tester,
+        guardada: _sesionCon(modulos: ['COMANDAS'], patron: 'COMANDA'),
+      );
 
-    final material = tester.widget<MaterialApp>(find.byType(MaterialApp));
-    expect(material.theme!.colorScheme.secondary, RegentaColors.comanda);
-    expect(material.theme!.colorScheme.primary, RegentaColors.accent);
-  });
+      final material = tester.widget<MaterialApp>(find.byType(MaterialApp));
+      expect(material.theme!.colorScheme.secondary, RegentaColors.comanda);
+      expect(material.theme!.colorScheme.primary, RegentaColors.accent);
+    },
+  );
 
-  testWidgets('Criterio 6: cerrar sesión vuelve a la pantalla de entrada', (tester) async {
-    final deps = await _arrancar(tester, guardada: _sesionCon(modulos: ['VENTAS']));
+  testWidgets('Criterio 6: cerrar sesión vuelve a la pantalla de entrada', (
+    tester,
+  ) async {
+    final deps = await _arrancar(
+      tester,
+      guardada: _sesionCon(modulos: ['VENTAS']),
+    );
 
     await deps.motor.cerrar();
     await tester.pumpAndSettle();
@@ -140,32 +163,140 @@ void main() {
     expect(deps.perfil.claims, isNull);
   });
 
-  testWidgets('HU-120 criterio 3: lo que quedó sin subir se ve en Inicio', (tester) async {
+  testWidgets('HU-120 criterio 3: lo que quedó sin subir se ve en Inicio', (
+    tester,
+  ) async {
     await _arrancar(
       tester,
       guardada: _sesionCon(modulos: ['VENTAS']),
-      conLaCola: (base) => ColaDeSalidaLocal(base).encolar(const OperacionEncolable(
-        metodo: 'POST',
-        ruta: '/api/ventas/offline',
-        datos: {'numero': 'FV-1'},
-      )),
+      conLaCola: (base) => ColaDeSalidaLocal(base).encolar(
+        const OperacionEncolable(
+          metodo: 'POST',
+          ruta: '/api/ventas/offline',
+          datos: {'numero': 'FV-1'},
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
     expect(find.textContaining('esperan conexión'), findsOneWidget);
   });
 
-  testWidgets('Sin nada en la cola, Inicio no dice nada de sincronización', (tester) async {
+  testWidgets('Sin nada en la cola, Inicio no dice nada de sincronización', (
+    tester,
+  ) async {
     await _arrancar(tester, guardada: _sesionCon(modulos: ['VENTAS']));
 
     expect(find.textContaining('esperan conexión'), findsNothing);
     expect(find.textContaining('chocaron al subir'), findsNothing);
   });
 
-  testWidgets('Un negocio sin módulos activos lo dice, no muestra una pantalla vacía',
-      (tester) async {
-    await _arrancar(tester, guardada: _sesionCon(modulos: const []));
+  testWidgets(
+    'Un negocio sin módulos activos lo dice, no muestra una pantalla vacía',
+    (tester) async {
+      await _arrancar(tester, guardada: _sesionCon(modulos: const []));
 
-    expect(find.textContaining('no tiene módulos activos'), findsOneWidget);
+      expect(find.textContaining('no tiene módulos activos'), findsOneWidget);
+    },
+  );
+
+  group('Inicio en escritorio (1440×900)', () {
+    final todos = _sesionCon(
+      modulos: [
+        'VENTAS',
+        'CAJA',
+        'INVENTARIO',
+        'COMPRAS',
+        'CLIENTES',
+        'FACTURACION',
+        'REPORTES',
+        'CONFIGURACION',
+      ],
+      permisos: [
+        'VENTAS_VENTA_VER',
+        'CAJA_TURNO_VER',
+        'INVENTARIO_PRODUCTO_VER',
+        'COMPRAS_COMPRA_VER',
+        'CLIENTES_CLIENTE_VER',
+        'FACTURACION_FACTURA_VER',
+        'REPORTES_REPORTE_VER',
+        'CONFIGURACION_NEGOCIO_VER',
+      ],
+    );
+
+    testWidgets(
+      'el menú lateral agrupa los módulos en Operación, Gestión y Análisis',
+      (tester) async {
+        await _arrancar(tester, guardada: todos, tamano: const Size(1440, 900));
+
+        final y = {
+          for (final t in [
+            'OPERACIÓN',
+            'Caja',
+            'GESTIÓN',
+            'Compras',
+            'Facturación',
+            'ANÁLISIS',
+            'Configuración',
+          ])
+            t: tester.getTopLeft(find.text(t).first).dy,
+        };
+        expect(y['OPERACIÓN']! < y['Caja']!, isTrue);
+        expect(y['Caja']! < y['GESTIÓN']!, isTrue);
+        expect(y['GESTIÓN']! < y['Compras']!, isTrue);
+        expect(y['Facturación']! < y['ANÁLISIS']!, isTrue);
+        expect(y['ANÁLISIS']! < y['Configuración']!, isTrue);
+      },
+    );
+
+    testWidgets(
+      'las ventas de los últimos 7 días se dibujan como línea, no como barras',
+      (tester) async {
+        await _arrancar(tester, guardada: todos, tamano: const Size(1440, 900));
+
+        expect(
+          find.byKey(const ValueKey('grafico-ventas-linea')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('grafico-ventas-barras')),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
+      'la tarjeta de alertas llega hasta abajo, a la par de últimas ventas',
+      (tester) async {
+        await _arrancar(tester, guardada: todos, tamano: const Size(1440, 900));
+
+        final alertas = tester.getRect(
+          find.byKey(const ValueKey('tarjeta-alertas')),
+        );
+        final ventas = tester.getRect(
+          find.byKey(const ValueKey('tarjeta-ultimas-ventas')),
+        );
+        expect(alertas.bottom, moreOrLessEquals(ventas.bottom, epsilon: 0.5));
+      },
+    );
+
+    testWidgets(
+      'la tabla de últimas ventas ocupa todo el ancho de su tarjeta',
+      (tester) async {
+        await _arrancar(tester, guardada: todos, tamano: const Size(1440, 900));
+
+        final tarjeta = tester.getRect(
+          find.byKey(const ValueKey('tarjeta-ultimas-ventas')),
+        );
+        final tabla = tester.getRect(
+          find.byKey(const ValueKey('tabla-ultimas-ventas')),
+        );
+        // 24 px de padding a cada lado y 1 px de borde.
+        expect(
+          tabla.width,
+          moreOrLessEquals(tarjeta.width - 2 * 25, epsilon: 1),
+        );
+      },
+    );
   });
 }

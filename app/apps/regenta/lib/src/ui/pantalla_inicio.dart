@@ -168,26 +168,43 @@ class _EscritorioLayout extends StatelessWidget {
                       const SizedBox(height: 24),
 
                       // Rejilla de Contenido: Gráfico + Tabla (70%) | Alertas (30%)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // La columna izquierda fija el alto; Alertas se estira
+                      // hasta su fondo para que la tarjeta no quede cortada.
+                      Stack(
                         children: [
-                          Expanded(
-                            flex: 7,
-                            child: Column(
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 7,
+                                child: Column(
+                                  children: [
+                                    const _TarjetaGraficoVentas(),
+                                    const SizedBox(height: 24),
+                                    _TarjetaUltimasVentas(
+                                      onVerTodas: () => onNavegar('/ventas'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 24),
+                              const Spacer(flex: 3),
+                            ],
+                          ),
+                          Positioned.fill(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const _TarjetaGraficoVentas(),
-                                const SizedBox(height: 24),
-                                _TarjetaUltimasVentas(
-                                  onVerTodas: () => onNavegar('/ventas'),
+                                const Spacer(flex: 7),
+                                const SizedBox(width: 24),
+                                Expanded(
+                                  flex: 3,
+                                  child: _TarjetaAlertas(
+                                    onGenerarOrden: () =>
+                                        onNavegar('/inventario'),
+                                  ),
                                 ),
                               ],
-                            ),
-                          ),
-                          const SizedBox(width: 24),
-                          Expanded(
-                            flex: 3,
-                            child: _TarjetaAlertas(
-                              onGenerarOrden: () => onNavegar('/inventario'),
                             ),
                           ),
                         ],
@@ -459,9 +476,12 @@ class _BarraLateral extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final modulosActivos = entradas
-        .where((e) => e.ruta != GuardiaDeRutas.inicio)
-        .toList();
+    // Inicio se ve siempre; lo demás, lo que el negocio y la persona tienen.
+    final visibles = entradas.isEmpty
+        ? const [
+            EntradaDeNavegacion(ruta: GuardiaDeRutas.inicio, titulo: 'Inicio'),
+          ]
+        : entradas;
 
     return Container(
       margin: const EdgeInsets.only(left: 16, top: 16, bottom: 16),
@@ -574,74 +594,21 @@ class _BarraLateral extends StatelessWidget {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                _ItemMenu(
-                  icono: Icons.home_rounded,
-                  titulo: 'Inicio',
-                  activo: rutaActiva == '/',
-                  onTap: () => onNavegar('/'),
-                ),
-                if (entradas.isEmpty) ...[
-                  // Muestra de diseño completa de la propuesta Pastel
-                  _ItemMenu(
-                    icono: Icons.shopping_cart_outlined,
-                    titulo: 'Ventas',
-                    activo: rutaActiva == '/ventas',
-                    onTap: () => onNavegar('/ventas'),
-                  ),
-                  _ItemMenu(
-                    icono: Icons.point_of_sale_outlined,
-                    titulo: 'Caja',
-                    activo: rutaActiva == '/caja',
-                    onTap: () => onNavegar('/ventas'),
-                  ),
-                  _ItemMenu(
-                    icono: Icons.inventory_2_outlined,
-                    titulo: 'Inventario',
-                    activo: rutaActiva == '/inventario',
-                    badge: '7',
-                    onTap: () => onNavegar('/inventario'),
-                  ),
-                  _ItemMenu(
-                    icono: Icons.local_shipping_outlined,
-                    titulo: 'Compras',
-                    activo: rutaActiva == '/compras',
-                    onTap: () => onNavegar('/inventario'),
-                  ),
-                  _ItemMenu(
-                    icono: Icons.people_outline_rounded,
-                    titulo: 'Clientes',
-                    activo: rutaActiva == '/clientes',
-                    onTap: () => onNavegar('/clientes'),
-                  ),
-                  _ItemMenu(
-                    icono: Icons.receipt_long_outlined,
-                    titulo: 'Facturación',
-                    activo: rutaActiva == '/facturas',
-                    onTap: () => onNavegar('/facturas'),
-                  ),
-                  _ItemMenu(
-                    icono: Icons.bar_chart_rounded,
-                    titulo: 'Reportes',
-                    activo: rutaActiva == '/reportes',
-                    onTap: () => onNavegar('/reportes'),
-                  ),
-                  _ItemMenu(
-                    icono: Icons.wb_sunny_outlined,
-                    titulo: 'Configuración',
-                    activo: rutaActiva == '/configuracion',
-                    onTap: () {},
-                  ),
-                ] else ...[
-                  // Menú conectado según los permisos y módulos activos del negocio
-                  for (final entrada in modulosActivos)
-                    _ItemMenu(
-                      icono: iconoDeRuta[entrada.ruta] ?? Icons.apps,
-                      titulo: entrada.titulo,
-                      activo: rutaActiva == entrada.ruta,
-                      badge: entrada.modulo == 'INVENTARIO' ? '7' : null,
-                      onTap: () => onNavegar(entrada.ruta),
-                    ),
-                ],
+                for (final grupo in GrupoDeMenu.values)
+                  if (visibles.any((e) => grupoDeRuta[e.ruta] == grupo)) ...[
+                    _TituloDeGrupo(grupo.titulo),
+                    for (final entrada in visibles.where(
+                      (e) => grupoDeRuta[e.ruta] == grupo,
+                    ))
+                      _ItemMenu(
+                        icono: iconoDeRuta[entrada.ruta] ?? Icons.apps,
+                        titulo: entrada.titulo,
+                        activo: rutaActiva == entrada.ruta,
+                        badge: entrada.modulo == 'INVENTARIO' ? '7' : null,
+                        onTap: () => onNavegar(entrada.ruta),
+                      ),
+                    const SizedBox(height: 10),
+                  ],
               ],
             ),
           ),
@@ -704,6 +671,28 @@ class _BarraLateral extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TituloDeGrupo extends StatelessWidget {
+  const _TituloDeGrupo(this.titulo);
+
+  final String titulo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+      child: Text(
+        titulo.toUpperCase(),
+        style: PastelTheme.cuerpo(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+          color: RegentaColors.ink2,
+        ),
       ),
     );
   }
@@ -1206,85 +1195,13 @@ class _TarjetaGraficoVentas extends StatelessWidget {
           ),
           const SizedBox(height: 28),
 
-          // Área del gráfico de barras
+          // Línea con área sombreada: la tendencia de la semana de un vistazo.
           SizedBox(
-            height: 180,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Eje Y con etiquetas
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '4 M',
-                      style: PastelTheme.cuerpo(
-                        fontSize: 11,
-                        color: RegentaColors.faint,
-                      ),
-                    ),
-                    Text(
-                      '2 M',
-                      style: PastelTheme.cuerpo(
-                        fontSize: 11,
-                        color: RegentaColors.faint,
-                      ),
-                    ),
-                    Text(
-                      '0',
-                      style: PastelTheme.cuerpo(
-                        fontSize: 11,
-                        color: RegentaColors.faint,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 14),
-
-                // Barras
-                Expanded(
-                  child: Stack(
-                    children: [
-                      // Líneas guía horizontales
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          Divider(
-                            color: RegentaColors.line2,
-                            thickness: 1,
-                            height: 1,
-                          ),
-                          Divider(
-                            color: RegentaColors.line2,
-                            thickness: 1,
-                            height: 1,
-                          ),
-                          Divider(
-                            color: RegentaColors.line2,
-                            thickness: 1,
-                            height: 1,
-                          ),
-                        ],
-                      ),
-
-                      // Barras alineadas
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          for (final d in datos)
-                            _BarraItem(
-                              dia: d.dia,
-                              valor: d.valor,
-                              esHoy: d.esHoy,
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            height: 190,
+            width: double.infinity,
+            child: CustomPaint(
+              key: const ValueKey('grafico-ventas-linea'),
+              painter: _PintorLineaDeVentas(datos),
             ),
           ),
         ],
@@ -1293,60 +1210,132 @@ class _TarjetaGraficoVentas extends StatelessWidget {
   }
 }
 
-class _BarraItem extends StatelessWidget {
-  const _BarraItem({
-    required this.dia,
-    required this.valor,
-    required this.esHoy,
-  });
+/// Ventas por día como línea: eje en millones, guías en 0, 2 M y 4 M, el valor
+/// sobre cada punto y hoy destacado.
+class _PintorLineaDeVentas extends CustomPainter {
+  _PintorLineaDeVentas(this.datos);
 
-  final String dia;
-  final double valor;
-  final bool esHoy;
+  final List<({String dia, double valor, bool esHoy})> datos;
+
+  static const _maximo = 5.5;
+  static const _ejeY = 34.0;
+  static const _arriba = 22.0;
+  static const _abajo = 28.0;
+
+  TextPainter _texto(String t, TextStyle estilo) => TextPainter(
+    text: TextSpan(text: t, style: estilo),
+    textDirection: TextDirection.ltr,
+  )..layout();
 
   @override
-  Widget build(BuildContext context) {
-    // Escala máxima = 5.5 M
-    const maxVal = 5.5;
-    final alturaBarra = (valor / maxVal) * 135;
+  void paint(Canvas canvas, Size size) {
+    final alto = size.height - _arriba - _abajo;
+    final ancho = size.width - _ejeY;
+    double y(double v) => _arriba + alto * (1 - v / _maximo);
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Text(
-          valor.toString().replaceAll('.', ','),
-          style: PastelTheme.cuerpo(
-            fontSize: 11,
-            fontWeight: esHoy ? FontWeight.bold : FontWeight.w500,
-            color: esHoy ? RegentaColors.accent : RegentaColors.ink2,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          width: 30,
-          height: alturaBarra,
-          decoration: BoxDecoration(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            color: esHoy ? RegentaColors.accent : RegentaColors.accentSoft,
-            border: esHoy
-                ? null
-                : Border.all(
-                    color: RegentaColors.accent.withValues(alpha: 0.35),
-                  ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          dia,
-          style: PastelTheme.cuerpo(
-            fontSize: 12,
-            fontWeight: esHoy ? FontWeight.bold : FontWeight.w500,
-            color: esHoy ? RegentaColors.ink : RegentaColors.ink2,
-          ),
-        ),
-      ],
+    // Guías y etiquetas del eje.
+    final guia = Paint()
+      ..color = RegentaColors.line2
+      ..strokeWidth = 1;
+    final estiloEje = PastelTheme.cuerpo(
+      fontSize: 11,
+      color: RegentaColors.faint,
     );
+    for (final (v, etiqueta) in [(0.0, '0'), (2.0, '2 M'), (4.0, '4 M')]) {
+      canvas.drawLine(Offset(_ejeY, y(v)), Offset(size.width, y(v)), guia);
+      final t = _texto(etiqueta, estiloEje);
+      t.paint(canvas, Offset(0, y(v) - t.height / 2));
+    }
+
+    // Un punto por día, centrado en su franja.
+    final paso = ancho / datos.length;
+    final puntos = [
+      for (var k = 0; k < datos.length; k++)
+        Offset(_ejeY + paso * (k + 0.5), y(datos[k].valor)),
+    ];
+
+    // Área bajo la línea.
+    final area = Path()..moveTo(puntos.first.dx, y(0));
+    for (final p in puntos) {
+      area.lineTo(p.dx, p.dy);
+    }
+    area
+      ..lineTo(puntos.last.dx, y(0))
+      ..close();
+    canvas.drawPath(
+      area,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            RegentaColors.accent.withValues(alpha: 0.28),
+            RegentaColors.accent.withValues(alpha: 0.02),
+          ],
+        ).createShader(Rect.fromLTRB(0, _arriba, size.width, y(0))),
+    );
+
+    // La línea.
+    final linea = Path()..moveTo(puntos.first.dx, puntos.first.dy);
+    for (final p in puntos.skip(1)) {
+      linea.lineTo(p.dx, p.dy);
+    }
+    canvas.drawPath(
+      linea,
+      Paint()
+        ..color = RegentaColors.accent
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeJoin = StrokeJoin.round,
+    );
+
+    // Puntos, valores y días.
+    for (var k = 0; k < datos.length; k++) {
+      final d = datos[k];
+      final p = puntos[k];
+      if (d.esHoy) {
+        canvas.drawCircle(p, 6.5, Paint()..color = RegentaColors.surface);
+        canvas.drawCircle(p, 5, Paint()..color = RegentaColors.ok);
+      } else {
+        canvas.drawCircle(p, 4.5, Paint()..color = RegentaColors.surface);
+        canvas.drawCircle(
+          p,
+          4.5,
+          Paint()
+            ..color = RegentaColors.accent
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2,
+        );
+      }
+
+      final valor = _texto(
+        d.valor.toStringAsFixed(1).replaceAll('.', ','),
+        PastelTheme.cuerpo(
+          fontSize: 12,
+          fontWeight: d.esHoy ? FontWeight.w800 : FontWeight.w600,
+          color: d.esHoy ? RegentaColors.ink : RegentaColors.ink2,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      );
+      valor.paint(
+        canvas,
+        Offset(p.dx - valor.width / 2, p.dy - valor.height - 7),
+      );
+
+      final dia = _texto(
+        d.dia,
+        PastelTheme.cuerpo(
+          fontSize: 12,
+          fontWeight: d.esHoy ? FontWeight.w800 : FontWeight.w500,
+          color: d.esHoy ? RegentaColors.ink : RegentaColors.ink2,
+        ),
+      );
+      dia.paint(canvas, Offset(p.dx - dia.width / 2, y(0) + 8));
+    }
   }
+
+  @override
+  bool shouldRepaint(_PintorLineaDeVentas old) => old.datos != datos;
 }
 
 // =========================================================================
@@ -1396,6 +1385,7 @@ class _TarjetaUltimasVentas extends StatelessWidget {
     ];
 
     return Container(
+      key: const ValueKey('tarjeta-ultimas-ventas'),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1434,109 +1424,116 @@ class _TarjetaUltimasVentas extends StatelessWidget {
           ),
           const SizedBox(height: 18),
 
-          // Tabla con ancho acotado para desplazamiento horizontal
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: 580,
-              child: Column(
-                children: [
-                  // Cabecera
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      children: [
-                        _columnaCabecera('Documento', flex: 2),
-                        _columnaCabecera('Cliente', flex: 4),
-                        _columnaCabecera('Hora', flex: 2),
-                        _columnaCabecera('Medio', flex: 3),
-                        _columnaCabecera('Total', flex: 3, derecha: true),
-                        _columnaCabecera('Estado', flex: 3, derecha: true),
-                      ],
-                    ),
-                  ),
-                  const Divider(color: RegentaColors.line, height: 1),
-
-                  // Filas
-                  for (final v in ventas) ...[
+          // La tabla ocupa todo el ancho de la tarjeta; solo si no caben las
+          // columnas (580 px) se desplaza en horizontal.
+          LayoutBuilder(
+            builder: (context, restricciones) => SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                key: const ValueKey('tabla-ultimas-ventas'),
+                width: restricciones.maxWidth < 580
+                    ? 580
+                    : restricciones.maxWidth,
+                child: Column(
+                  children: [
+                    // Cabecera
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.only(bottom: 12),
                       child: Row(
                         children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              v.doc,
-                              style: PastelTheme.cuerpo(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: RegentaColors.ink,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 4,
-                            child: Text(
-                              v.cliente,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: PastelTheme.cuerpo(
-                                fontSize: 13,
-                                color: RegentaColors.ink,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              v.hora,
-                              style: PastelTheme.cuerpo(
-                                fontSize: 13,
-                                color: RegentaColors.ink2,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              v.medio,
-                              style: PastelTheme.cuerpo(
-                                fontSize: 13,
-                                color: RegentaColors.ink2,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              v.total,
-                              textAlign: TextAlign.right,
-                              style: PastelTheme.cuerpo(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: RegentaColors.ink,
-                                decoration: v.estado == EstadoDocumento.anulado
-                                    ? TextDecoration.lineThrough
-                                    : null,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: _ChipEstado(estado: v.estado),
-                            ),
-                          ),
+                          _columnaCabecera('Documento', flex: 2),
+                          _columnaCabecera('Cliente', flex: 4),
+                          _columnaCabecera('Hora', flex: 2),
+                          _columnaCabecera('Medio', flex: 3),
+                          _columnaCabecera('Total', flex: 3, derecha: true),
+                          _columnaCabecera('Estado', flex: 3, derecha: true),
                         ],
                       ),
                     ),
-                    const Divider(color: RegentaColors.line2, height: 1),
+                    const Divider(color: RegentaColors.line, height: 1),
+
+                    // Filas
+                    for (final v in ventas) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                v.doc,
+                                style: PastelTheme.cuerpo(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: RegentaColors.ink,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 4,
+                              child: Text(
+                                v.cliente,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: PastelTheme.cuerpo(
+                                  fontSize: 13,
+                                  color: RegentaColors.ink,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                v.hora,
+                                style: PastelTheme.cuerpo(
+                                  fontSize: 13,
+                                  color: RegentaColors.ink2,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                v.medio,
+                                style: PastelTheme.cuerpo(
+                                  fontSize: 13,
+                                  color: RegentaColors.ink2,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                v.total,
+                                textAlign: TextAlign.right,
+                                style: PastelTheme.cuerpo(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: RegentaColors.ink,
+                                  decoration:
+                                      v.estado == EstadoDocumento.anulado
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 3,
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: _ChipEstado(estado: v.estado),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(color: RegentaColors.line2, height: 1),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -1645,6 +1642,7 @@ class _TarjetaAlertas extends StatelessWidget {
     ];
 
     return Container(
+      key: const ValueKey('tarjeta-alertas'),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
