@@ -110,6 +110,7 @@ public class ConfiguracionMultiSchemaFlyway {
                         .table("flyway_schema_history")
                         .baselineOnMigrate(true)
                         .load();
+                flyway.repair();
                 MigrateResult result = flyway.migrate();
                 log.info("Migrando esquema '{}'... {} migraciones aplicadas", m.schema(), result.migrationsExecuted);
             }
