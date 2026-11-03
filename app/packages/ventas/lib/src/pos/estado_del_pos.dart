@@ -2,8 +2,11 @@ import '../datos/cliente_de_la_venta.dart';
 import '../datos/producto_buscado.dart';
 import 'linea_de_carrito.dart';
 
+/// Cuántas ventas se pueden armar a la vez en el POS (R12).
+const int ventasEnParalelo = 3;
+
 /// El estado de la pantalla de POS: el carrito, la búsqueda y el resultado del
-/// cobro.
+/// cobro de la venta activa, más cuántos productos lleva cada una de las otras.
 class EstadoDelPos {
   const EstadoDelPos({
     this.lineas = const [],
@@ -16,7 +19,19 @@ class EstadoDelPos {
     this.ventaEnCola = false,
     this.cliente,
     this.montoParaIdentificar,
+    this.ventaActiva = 0,
+    this.productosPorVenta = const [0, 0, 0],
   });
+
+  /// R12: cuál de las [ventasEnParalelo] ventas se está mostrando (desde 0).
+  final int ventaActiva;
+
+  /// R12: productos que lleva cada venta guardada. La activa se cuenta de
+  /// [lineas]; usa [productosEnVenta].
+  final List<int> productosPorVenta;
+
+  int productosEnVenta(int venta) =>
+      venta == ventaActiva ? lineas.length : productosPorVenta[venta];
 
   final List<LineaDeCarrito> lineas;
   final String termino;
@@ -67,6 +82,8 @@ class EstadoDelPos {
     bool? ventaEnCola,
     Object? cliente = _sinCambio,
     Object? montoParaIdentificar = _sinCambio,
+    int? ventaActiva,
+    List<int>? productosPorVenta,
   }) =>
       EstadoDelPos(
         lineas: lineas ?? this.lineas,
@@ -82,6 +99,8 @@ class EstadoDelPos {
         montoParaIdentificar: montoParaIdentificar == _sinCambio
             ? this.montoParaIdentificar
             : montoParaIdentificar as num?,
+        ventaActiva: ventaActiva ?? this.ventaActiva,
+        productosPorVenta: productosPorVenta ?? this.productosPorVenta,
       );
 
   static const _sinCambio = Object();

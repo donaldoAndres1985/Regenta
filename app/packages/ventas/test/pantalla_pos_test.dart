@@ -103,14 +103,36 @@ void main() {
     expect(mas.height, greaterThanOrEqualTo(44));
   });
 
-  testWidgets('Criterio 2: en escritorio se ven la rejilla de productos y el carrito a la vez',
+  testWidgets('R10: en escritorio la factura ocupa el panel principal y no hay lista de resultados',
       (tester) async {
     await _montar(tester, _RepoFake(), size: const Size(1280, 900));
 
     expect(find.byKey(const Key('pos-escritorio')), findsOneWidget);
-    expect(find.byKey(const Key('pos-resultados')), findsOneWidget);
     expect(find.byKey(const Key('pos-carrito')), findsOneWidget);
+    expect(find.byKey(const Key('pos-resultados')), findsNothing);
     expect(find.byKey(const Key('pos-movil')), findsNothing);
+    expect(tester.getSize(find.byKey(const Key('pos-carrito'))).width, greaterThan(800),
+        reason: 'la factura se lleva el espacio, no la búsqueda');
+  });
+
+  testWidgets('R10b: en escritorio los resultados se despliegan sobre la factura y se cierran al agregar',
+      (tester) async {
+    final repo = _RepoFake()..resultados = [_prod()];
+    await _montar(tester, repo, size: const Size(1280, 900));
+
+    await tester.enterText(find.byType(TextField).first, 'cem');
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final resultados = tester.getRect(find.byKey(const Key('pos-resultados')));
+    final factura = tester.getRect(find.byKey(const Key('pos-carrito')));
+    expect(resultados.top, greaterThanOrEqualTo(factura.top - 1),
+        reason: 'flota sobre la factura, debajo del buscador');
+    expect(factura.width, greaterThan(800), reason: 'la factura no se encoge');
+
+    await tester.tap(find.text('Cemento gris 50 kg').first);
+    await tester.pump();
+    expect(find.byKey(const Key('pos-resultados')), findsNothing);
+    expect(find.text('Cemento gris 50 kg'), findsOneWidget, reason: 'quedó como línea');
   });
 
   testWidgets('Criterio 3: agregar un producto sin stock avisa y deshabilita Cobrar antes de confirmar',
@@ -240,5 +262,71 @@ void main() {
     expect(find.textContaining('sube sola cuando vuelva la conexión'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Cobrar'), findsOneWidget,
         reason: 'el carrito quedó limpio y la pantalla lista para la siguiente venta');
+  });
+
+  group('R12: varias ventas a la vez', () {
+    testWidgets('al abrir hay tres ventas y la activa es la 1', (tester) async {
+      await _montar(tester, _RepoFake(), size: const Size(1280, 900));
+
+      for (final n in [1, 2, 3]) {
+        expect(find.byKey(Key('venta-$n')), findsOneWidget);
+      }
+      final contenedor = ProviderScope.containerOf(tester.element(find.byType(PantallaPos)));
+      expect(contenedor.read(controladorDelPosProvider).ventaActiva, 0);
+    });
+
+    testWidgets('pasar a la 2 da una venta en blanco y volver a la 1 la recupera', (tester) async {
+      final repo = _RepoFake();
+      await _montar(tester, repo, size: const Size(1280, 900));
+      await _agregar(tester, repo, _prod());
+      await tester.tap(find.bySemanticsLabel('Agregar uno').first);
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('venta-2')));
+      await tester.pump();
+      expect(find.text('Cemento gris 50 kg'), findsNothing);
+      expect(find.text('Busca o escanea un producto para empezar.'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('venta-1')));
+      await tester.pump();
+      expect(find.text('Cemento gris 50 kg'), findsOneWidget);
+      final contenedor = ProviderScope.containerOf(tester.element(find.byType(PantallaPos)));
+      expect(contenedor.read(controladorDelPosProvider).lineas.single.cantidad, 2);
+    });
+
+    testWidgets('el botón de una venta con productos dice cuántos lleva', (tester) async {
+      final repo = _RepoFake();
+      await _montar(tester, repo, size: const Size(1280, 900));
+      await _agregar(tester, repo, _prod());
+      await tester.tap(find.byKey(const Key('venta-2')));
+      await tester.pump();
+
+      expect(
+          find.descendant(of: find.byKey(const Key('venta-1')), matching: find.text('1')),
+          findsWidgets);
+      expect(find.bySemanticsLabel(RegExp(r'Venta 1.*1 producto')), findsOneWidget);
+    });
+
+    testWidgets('cobrar la venta 2 no toca la venta 1', (tester) async {
+      final repo = _RepoFake();
+      await _montar(tester, repo, size: const Size(1280, 900));
+      await _agregar(tester, repo, _prod(id: 'p1', nombre: 'Cemento gris 50 kg'));
+
+      await tester.tap(find.byKey(const Key('venta-2')));
+      await tester.pump();
+      await _agregar(tester, repo, _prod(id: 'p2', nombre: 'Tubo PVC'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Cobrar'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(repo.ventasConfirmadas.single.single.productoId, 'p2');
+      final contenedor = ProviderScope.containerOf(tester.element(find.byType(PantallaPos)));
+      expect(contenedor.read(controladorDelPosProvider).ventaActiva, 1);
+      expect(contenedor.read(controladorDelPosProvider).lineas, isEmpty);
+
+      await tester.tap(find.byKey(const Key('venta-1')));
+      await tester.pump();
+      expect(find.text('Cemento gris 50 kg'), findsOneWidget);
+    });
   });
 }

@@ -27,6 +27,39 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
   Timer? _temporizador;
   int _generacion = 0;
 
+  /// R12: las ventas que no se están mostrando, tal como quedaron.
+  final List<EstadoDelPos?> _guardadas = List.filled(ventasEnParalelo, null);
+
+  EstadoDelPos _ventaNueva() => EstadoDelPos(montoParaIdentificar: _montoParaIdentificar);
+
+  /// R12: guarda la venta activa y muestra [venta]: la que había, o una en
+  /// blanco si nunca se usó. La búsqueda no viaja entre ventas.
+  void cambiarDeVenta(int venta) {
+    if (venta == state.ventaActiva || venta < 0 || venta >= ventasEnParalelo) return;
+    _temporizador?.cancel();
+    _generacion++;
+    final actual = state.ventaActiva;
+    _guardadas[actual] = state.copiar(
+      termino: '',
+      resultados: const [],
+      buscando: false,
+      mensaje: null,
+      ventaNumero: null,
+      ventaEnCola: false,
+    );
+    final conteo = [
+      for (var k = 0; k < ventasEnParalelo; k++)
+        k == actual ? state.lineas.length : (k == venta ? 0 : state.productosPorVenta[k]),
+    ];
+    final siguiente = _guardadas[venta] ?? _ventaNueva();
+    _guardadas[venta] = null;
+    state = siguiente.copiar(
+      ventaActiva: venta,
+      productosPorVenta: conteo,
+      montoParaIdentificar: _montoParaIdentificar,
+    );
+  }
+
   void cambiarTermino(String termino) {
     state = state.copiar(termino: termino);
     _temporizador?.cancel();
@@ -129,9 +162,12 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
         ],
         clienteId: state.cliente?.id,
       );
-      state = EstadoDelPos(montoParaIdentificar: _montoParaIdentificar).copiar(
+      // Sólo se vacía la venta cobrada; las otras siguen guardadas (R12).
+      state = _ventaNueva().copiar(
         ventaNumero: venta.quedoEnLaCola ? null : venta.venta!.numero,
         ventaEnCola: venta.quedoEnLaCola,
+        ventaActiva: state.ventaActiva,
+        productosPorVenta: state.productosPorVenta,
       );
     } on ErrorDeApi catch (e) {
       state = state.copiar(cobrando: false, mensaje: e.mensaje);

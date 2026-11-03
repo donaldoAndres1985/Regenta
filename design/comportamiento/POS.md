@@ -86,9 +86,17 @@ de pie y con una mano.
 **Dado** el mismo widget `PantallaPos`, **cuando** el ancho disponible es menor a 900 px
 (`kBreakpointEscritorio`), **entonces** se muestra la rama móvil (`Key('pos-movil')`): buscador
 y escáner arriba, y debajo los resultados o el carrito según haya búsqueda activa. **Cuando** es
-900 px o más, **entonces** la rama escritorio (`Key('pos-escritorio')`) muestra la rejilla de
-resultados y el carrito a la vez, en dos paneles. No son dos widgets: es un `if` sobre las
-restricciones.
+900 px o más, **entonces** la rama escritorio (`Key('pos-escritorio')`) da el panel principal a
+la factura (`Key('pos-carrito')`): una tabla con código, descripción, cantidad, precio, IVA y
+total por línea. El panel derecho (380 px) lleva el cliente, el resumen y los totales. No son
+dos widgets: es un `if` sobre las restricciones.
+
+### R10b · En escritorio la búsqueda se despliega sobre la factura
+**Dado** el POS en escritorio, **cuando** no hay búsqueda activa, **entonces** no se ve ninguna
+lista de resultados: la factura usa todo el panel. **Cuando** escribo 3 o más caracteres,
+**entonces** los resultados (`Key('pos-resultados')`) se despliegan como una lista flotante
+justo debajo del buscador, encima de la factura, sin moverla. **Cuando** agrego un producto o
+borro la búsqueda, **entonces** la lista se cierra.
 
 ### R11 · Cobrar arma la venta de una y la confirma
 **Dado** un carrito con al menos una línea y sin líneas sin stock, **cuando** toco *Cobrar*,
@@ -97,6 +105,16 @@ restricciones.
 corre, el botón dice *Cobrando…* y no se puede volver a tocar. Al terminar, el carrito queda
 vacío, se avisa *Venta {número} cobrada* y se dispara `onVentaCobrada`.
 
+### R12 · Varias ventas a la vez
+**Dado** el POS, **cuando** se abre, **entonces** arriba a la derecha hay tres botones *1*, *2*
+y *3* (`Key('venta-1')`…) y está activa la venta 1. **Cuando** tengo productos en la venta 1 y
+toco *2*, **entonces** veo una venta en blanco, con su propio carrito y su propio cliente.
+**Cuando** vuelvo a *1*, **entonces** está tal como la dejé. Cobrar o vaciar una venta sólo
+afecta a esa venta. Un botón cuya venta tiene productos muestra cuántos lleva, para que no se
+olvide una venta a medias. El término de búsqueda no viaja entre ventas.
+
+Las ventas en paralelo viven en memoria: recargar la pantalla las vacía todas, igual que hoy
+pasa con la única venta (ver *Al abrir · pendiente*).
 
 ## Al abrir
 
@@ -153,8 +171,9 @@ se ocultan en móvil, acciones que solo tienen sentido con teclado o solo con el
 - **Móvil** (`< 900`): buscador + escáner fijos arriba; debajo, un solo panel que muestra los
   resultados mientras hay búsqueda y el carrito cuando no. Totales y *Cobrar* fijos abajo.
   Objetivo de toque de 44 px en escáner y steppers (R9).
-- **Escritorio** (`>= 900`): dos paneles lado a lado — resultados a la izquierda, carrito +
-  totales a la derecha (ancho fijo 380 px). Ambos visibles siempre.
+- **Escritorio** (`>= 900`): la factura en el panel principal y, a la derecha (380 px),
+  cliente, resumen y totales. Los resultados de búsqueda flotan sobre la factura sólo mientras
+  hay búsqueda (R10b).
 - **Escáner con cámara:** sólo tiene sentido en móvil/Android. En web el botón abre directo el
   diálogo de ingreso manual (R7).
 - Atajos de teclado y orden de tabulación en escritorio: _sin definir_.
