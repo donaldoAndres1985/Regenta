@@ -697,7 +697,7 @@ class _BarraLateral extends StatelessWidget {
                   const Icon(
                     Icons.logout_rounded,
                     size: 18,
-                    color: RegentaColors.muted,
+                    color: RegentaColors.faint,
                   ),
                 ],
               ),
@@ -832,7 +832,7 @@ class _EncabezadoSuperior extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(Icons.search, size: 18, color: RegentaColors.muted),
+              const Icon(Icons.search, size: 18, color: RegentaColors.faint),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -841,7 +841,7 @@ class _EncabezadoSuperior extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: PastelTheme.cuerpo(
                     fontSize: 12.5,
-                    color: RegentaColors.muted,
+                    color: RegentaColors.faint,
                   ),
                 ),
               ),
@@ -1199,7 +1199,7 @@ class _TarjetaGraficoVentas extends StatelessWidget {
                 'millones de pesos',
                 style: PastelTheme.cuerpo(
                   fontSize: 12.5,
-                  color: RegentaColors.muted,
+                  color: RegentaColors.faint,
                 ),
               ),
             ],
@@ -1221,21 +1221,21 @@ class _TarjetaGraficoVentas extends StatelessWidget {
                       '4 M',
                       style: PastelTheme.cuerpo(
                         fontSize: 11,
-                        color: RegentaColors.muted,
+                        color: RegentaColors.faint,
                       ),
                     ),
                     Text(
                       '2 M',
                       style: PastelTheme.cuerpo(
                         fontSize: 11,
-                        color: RegentaColors.muted,
+                        color: RegentaColors.faint,
                       ),
                     ),
                     Text(
                       '0',
                       style: PastelTheme.cuerpo(
                         fontSize: 11,
-                        color: RegentaColors.muted,
+                        color: RegentaColors.faint,
                       ),
                     ),
                   ],
@@ -1251,17 +1251,17 @@ class _TarjetaGraficoVentas extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: const [
                           Divider(
-                            color: RegentaColors.faint,
+                            color: RegentaColors.line2,
                             thickness: 1,
                             height: 1,
                           ),
                           Divider(
-                            color: RegentaColors.faint,
+                            color: RegentaColors.line2,
                             thickness: 1,
                             height: 1,
                           ),
                           Divider(
-                            color: RegentaColors.faint,
+                            color: RegentaColors.line2,
                             thickness: 1,
                             height: 1,
                           ),
@@ -1534,7 +1534,7 @@ class _TarjetaUltimasVentas extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Divider(color: RegentaColors.faint, height: 1),
+                    const Divider(color: RegentaColors.line2, height: 1),
                   ],
                 ],
               ),
@@ -1558,7 +1558,7 @@ class _TarjetaUltimasVentas extends StatelessWidget {
         style: PastelTheme.cuerpo(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: RegentaColors.muted,
+          color: RegentaColors.faint,
         ),
       ),
     );
@@ -1731,7 +1731,7 @@ class _TarjetaAlertas extends StatelessWidget {
                               a.tiempo,
                               style: PastelTheme.cuerpo(
                                 fontSize: 10.5,
-                                color: RegentaColors.muted,
+                                color: RegentaColors.faint,
                               ),
                             ),
                           ],

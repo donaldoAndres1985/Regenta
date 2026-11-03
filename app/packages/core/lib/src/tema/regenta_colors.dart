@@ -10,8 +10,11 @@ abstract final class RegentaColors {
   static const sunken = Color(0xFFF1F1F5);
   static const ink = Color(0xFF25253A);
   static const ink2 = Color(0xFF5D5D78);
-  static const muted = Color(0xFFA6A6B5);
-  static const faint = Color(0xFFE9E9EE);
+  /// Texto terciario: etiquetas de campo, códigos secundarios.
+  static const muted = Color(0xFF717183);
+
+  /// Placeholders e íconos de apoyo. No es un borde: para eso, [line].
+  static const faint = Color(0xFFA6A6B5);
   static const line = Color(0xFFE7E7F2);
   static const line2 = Color(0xFFE9E9EE);
   static const accent = Color(0xFF2E62C0);

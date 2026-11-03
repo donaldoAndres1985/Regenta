@@ -11,6 +11,9 @@ void main() {
     expect(RegentaColors.ink2, const Color(0xFF5D5D78));
     expect(RegentaColors.accent, const Color(0xFF2E62C0));
     expect(RegentaColors.line, const Color(0xFFE7E7F2));
+    expect(RegentaColors.muted, const Color(0xFF717183));
+    expect(RegentaColors.faint, const Color(0xFFA6A6B5),
+        reason: 'faint es el gris de los placeholders, no un borde');
     expect(RegentaColors.crit, const Color(0xFFB3304F));
     expect(RegentaColors.ok, const Color(0xFF1D7550));
     expect(RegentaColors.warn, const Color(0xFF935700));

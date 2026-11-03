@@ -11,17 +11,21 @@ import 'package:flutter/services.dart';
 /// tipografía, que es justo lo que más se despinta.
 ///
 /// Lee el `FontManifest.json` del paquete que corre las pruebas y registra
-/// cada familia con el nombre con que la piden los estilos: las de un paquete
-/// vienen como `packages/regenta_core/Archivo`, y [RegentaType] pide
-/// `Archivo`. Se llama desde el `flutter_test_config.dart` de cada paquete.
+/// cada familia con los dos nombres con que la piden los estilos: el completo
+/// (`packages/regenta_core/Nunito`, como lo pide `PastelTheme`) y el corto
+/// (`Archivo`, como lo pide [RegentaType]). Se llama desde el `flutter_test_config.dart` de cada paquete.
 Future<void> cargarFuentesDeRegenta() async {
   final manifiesto = json.decode(await rootBundle.loadString('FontManifest.json')) as List<dynamic>;
   for (final entrada in manifiesto.cast<Map<String, dynamic>>()) {
-    final familia = (entrada['family'] as String).split('/').last;
-    final cargador = FontLoader(familia);
-    for (final fuente in (entrada['fonts'] as List<dynamic>).cast<Map<String, dynamic>>()) {
-      cargador.addFont(rootBundle.load(fuente['asset'] as String));
+    final completo = entrada['family'] as String;
+    // Con los dos nombres: el corto lo pide RegentaType (`Archivo`); el
+    // completo, el tema Pastel (`packages/regenta_core/Nunito`).
+    for (final familia in {completo, completo.split('/').last}) {
+      final cargador = FontLoader(familia);
+      for (final fuente in (entrada['fonts'] as List<dynamic>).cast<Map<String, dynamic>>()) {
+        cargador.addFont(rootBundle.load(fuente['asset'] as String));
+      }
+      await cargador.load();
     }
-    await cargador.load();
   }
 }
