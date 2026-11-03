@@ -7,17 +7,25 @@ SELECT set_config('app.negocio_id', 'c1000000-0000-4000-8000-000000000001', fals
 ALTER TABLE clientes NO FORCE ROW LEVEL SECURITY;
 ALTER TABLE direcciones_cliente NO FORCE ROW LEVEL SECURITY;
 
+-- Limpiar clientes previos del negocio
+DELETE FROM direcciones_cliente WHERE negocio_id = 'c1000000-0000-4000-8000-000000000001'::uuid;
+DELETE FROM interacciones WHERE negocio_id = 'c1000000-0000-4000-8000-000000000001'::uuid;
+DELETE FROM contactos_cliente WHERE negocio_id = 'c1000000-0000-4000-8000-000000000001'::uuid;
+DELETE FROM cliente_metricas WHERE negocio_id = 'c1000000-0000-4000-8000-000000000001'::uuid;
+DELETE FROM cuentas_por_cobrar WHERE negocio_id = 'c1000000-0000-4000-8000-000000000001'::uuid;
+DELETE FROM clientes WHERE negocio_id = 'c1000000-0000-4000-8000-000000000001'::uuid;
+
 INSERT INTO clientes (
     id, negocio_id, tipo_persona, tipo_documento, numero_documento, digito_verificacion,
     nombres, apellidos, razon_social, email, telefono, activo
 ) VALUES (
-    'c1000000-0004-4000-8000-000000000003'::uuid,
+    'c1000000-0004-4000-8000-000000000999'::uuid,
     'c1000000-0000-4000-8000-000000000001'::uuid,
     'NATURAL',
     'SIN_IDENTIFICAR',
     '222222222222',
     NULL,
-    'Cliente Ocasional',
+    'Consumidor Final',
     NULL,
     NULL,
     NULL,
@@ -2139,13 +2147,13 @@ INSERT INTO clientes (
 ) VALUES (
     'c1000000-0004-4000-8000-000000000045'::uuid,
     'c1000000-0000-4000-8000-000000000001'::uuid,
-    'JURIDICA',
+    'NATURAL',
     'CC',
     '79534121',
     NULL,
-    NULL,
-    NULL,
     'ACOSTA Y ACOSTA CONSTRUCCIONES',
+    NULL,
+    NULL,
     NULL,
     '3213607456',
     true
@@ -6758,13 +6766,13 @@ INSERT INTO clientes (
 ) VALUES (
     'c1000000-0004-4000-8000-0000000000db'::uuid,
     'c1000000-0000-4000-8000-000000000001'::uuid,
-    'NATURAL',
-    'CC',
+    'JURIDICA',
+    'NIT',
     '8002304477',
     NULL,
+    NULL,
+    NULL,
     'SODEXO colombia',
-    NULL,
-    NULL,
     NULL,
     '3015016788',
     true
@@ -8156,7 +8164,7 @@ INSERT INTO clientes (
     'JURIDICA',
     'NIT',
     '901017804',
-    '',
+    NULL,
     NULL,
     NULL,
     'transportes y suministro goez',
