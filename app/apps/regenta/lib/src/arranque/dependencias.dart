@@ -117,38 +117,50 @@ class DependenciasDeLaApp {
   /// pantalla que lo usa, que es el peor momento posible. Por eso hay un test
   /// que los lee todos.
   List<Override> overrides() => [
-        dependenciasProvider.overrideWithValue(this),
-        motorDeSesionProvider.overrideWithValue(motor),
-        perfilDeSesionProvider.overrideWithValue(perfil),
-        clienteHttpProvider.overrideWithValue(http),
-        baseLocalProvider.overrideWithValue(base),
+    dependenciasProvider.overrideWithValue(this),
+    motorDeSesionProvider.overrideWithValue(motor),
+    perfilDeSesionProvider.overrideWithValue(perfil),
+    clienteHttpProvider.overrideWithValue(http),
+    baseLocalProvider.overrideWithValue(base),
 
-        // Ventas
-        repositorioDeVentasProvider.overrideWithValue(RepositorioDeVentas(http)),
-        repositorioDeClientesDeVentaProvider
-            .overrideWithValue(ClientesDelPos(RepositorioDeClientesHttp(http, base))),
-        bodegaDeVentaProvider.overrideWith((ref) => ref.watch(bodegaActivaProvider)),
-        ventaEnCursoProvider.overrideWith((ref) => ref.watch(ventaDelPosProvider)),
-        permisosDeLaSesionProvider.overrideWith(
-            (ref) => ref.watch(perfilComoNotifierProvider).claims?.permisos.toSet() ?? const {}),
+    // Ventas
+    repositorioDeVentasProvider.overrideWithValue(RepositorioDeVentas(http)),
+    repositorioDeClientesDeVentaProvider.overrideWithValue(
+      ClientesDelPos(RepositorioDeClientesHttp(http, base)),
+    ),
+    bodegaDeVentaProvider.overrideWith(
+      (ref) => ref.watch(bodegaActivaProvider),
+    ),
+    ventaEnCursoProvider.overrideWith((ref) => ref.watch(ventaDelPosProvider)),
+    permisosDeLaSesionProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos.toSet() ??
+          const {},
+    ),
 
-        // Clientes
-        repositorioDeClientesProvider
-            .overrideWithValue(RepositorioDeClientes(http, base)),
+    // Clientes
+    repositorioDeClientesProvider.overrideWithValue(
+      RepositorioDeClientes(http, base),
+    ),
 
-        // Inventario
-        repositorioDeInventarioProvider
-            .overrideWithValue(RepositorioDeInventario(http)),
+    // Inventario
+    repositorioDeInventarioProvider.overrideWithValue(
+      RepositorioDeInventario(http),
+    ),
 
-        // Mesas y comandas
-        repositorioDeMesasProvider.overrideWithValue(RepositorioDeMesas(http)),
-        repositorioDeComandasProvider.overrideWithValue(RepositorioDeComandas(http)),
-        repositorioDeCuentasProvider.overrideWithValue(RepositorioDeCuentas(http)),
-        repositorioDeCocinaProvider.overrideWithValue(RepositorioDeCocina(http)),
+    // Mesas y comandas
+    repositorioDeMesasProvider.overrideWithValue(RepositorioDeMesas(http)),
+    repositorioDeComandasProvider.overrideWithValue(
+      RepositorioDeComandas(http),
+    ),
+    repositorioDeCuentasProvider.overrideWithValue(RepositorioDeCuentas(http)),
+    repositorioDeCocinaProvider.overrideWithValue(RepositorioDeCocina(http)),
 
-        // Facturación
-        repositorioDeFacturasProvider.overrideWithValue(RepositorioDeFacturas(http)),
-      ];
+    // Facturación
+    repositorioDeFacturasProvider.overrideWithValue(
+      RepositorioDeFacturas(http),
+    ),
+  ];
 
   Future<void> cerrar() async {
     motor.removeListener(_seguirAlMotor);

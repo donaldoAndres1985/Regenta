@@ -10,6 +10,7 @@ import 'core/config/env.dart';
 import 'src/arranque/dependencias.dart';
 import 'src/arranque/sincronizacion.dart';
 import 'src/navegacion/catalogo.dart';
+import 'src/ui/carcasa_con_menu.dart';
 import 'src/ui/pantalla_inicio.dart';
 import 'src/ui/pantalla_login.dart';
 
@@ -32,10 +33,12 @@ Future<void> main() async {
   // probablemente hay red y alguien mirando.
   unawaited(subirLoPendiente(dependencias));
 
-  runApp(ProviderScope(
-    overrides: dependencias.overrides(),
-    child: RegentaApp(dependencias: dependencias),
-  ));
+  runApp(
+    ProviderScope(
+      overrides: dependencias.overrides(),
+      child: RegentaApp(dependencias: dependencias),
+    ),
+  );
 }
 
 /// Con sesión, la tarea periódica corre; sin ella, no tiene sentido seguir
@@ -81,6 +84,9 @@ class _RegentaAppState extends State<RegentaApp> {
       darkTheme: PastelTheme.dark(),
       themeMode: ThemeMode.system,
       routerConfig: _enrutador,
+      // El menú principal acompaña a todas las pantallas en escritorio.
+      builder: (context, child) =>
+          CarcasaConMenu(enrutador: _enrutador, child: child!),
     );
   }
 

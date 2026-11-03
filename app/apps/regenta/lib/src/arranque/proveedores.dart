@@ -10,41 +10,58 @@ import 'dependencias.dart';
 
 /// Lo arma [DependenciasDeLaApp] al montar el `ProviderScope`.
 final dependenciasProvider = Provider<DependenciasDeLaApp>((ref) {
-  throw UnimplementedError('La app monta el ProviderScope con sus dependencias.');
+  throw UnimplementedError(
+    'La app monta el ProviderScope con sus dependencias.',
+  );
 });
 
 final motorDeSesionProvider = Provider<MotorDeSesion>((ref) {
-  throw UnimplementedError('Sobrescribe motorDeSesionProvider al montar el ProviderScope.');
+  throw UnimplementedError(
+    'Sobrescribe motorDeSesionProvider al montar el ProviderScope.',
+  );
 });
 
 final perfilDeSesionProvider = Provider<PerfilDeSesion>((ref) {
-  throw UnimplementedError('Sobrescribe perfilDeSesionProvider al montar el ProviderScope.');
+  throw UnimplementedError(
+    'Sobrescribe perfilDeSesionProvider al montar el ProviderScope.',
+  );
 });
 
 final clienteHttpProvider = Provider<ClienteHttp>((ref) {
-  throw UnimplementedError('Sobrescribe clienteHttpProvider al montar el ProviderScope.');
+  throw UnimplementedError(
+    'Sobrescribe clienteHttpProvider al montar el ProviderScope.',
+  );
 });
 
 final baseLocalProvider = Provider<BaseLocal>((ref) {
-  throw UnimplementedError('Sobrescribe baseLocalProvider al montar el ProviderScope.');
+  throw UnimplementedError(
+    'Sobrescribe baseLocalProvider al montar el ProviderScope.',
+  );
 });
 
 /// El perfil como notificador, para que las pantallas se reconstruyan cuando
 /// cambia la sesión. Es el único uso de la API legada de Riverpod, y está
 /// acotado a este archivo.
-final perfilComoNotifierProvider =
-    ChangeNotifierProvider<PerfilDeSesion>((ref) => ref.watch(perfilDeSesionProvider));
+final perfilComoNotifierProvider = ChangeNotifierProvider<PerfilDeSesion>(
+  (ref) => ref.watch(perfilDeSesionProvider),
+);
 
 /// El motor como notificador: la pantalla de entrada necesita saber por qué se
 /// cerró la sesión, y eso el enrutador no lo propaga.
-final motorComoNotifierProvider =
-    ChangeNotifierProvider<MotorDeSesion>((ref) => ref.watch(motorDeSesionProvider));
+final motorComoNotifierProvider = ChangeNotifierProvider<MotorDeSesion>(
+  (ref) => ref.watch(motorDeSesionProvider),
+);
 
 /// La cola de salida de este dispositivo, para mirarla sin tocarla.
-final trabajadorDeSincronizacionProvider = Provider<TrabajadorDeSincronizacion>((ref) {
-  final dependencias = ref.watch(dependenciasProvider);
-  return TrabajadorDeSincronizacion(dio: dependencias.dio, db: dependencias.base);
-});
+final trabajadorDeSincronizacionProvider = Provider<TrabajadorDeSincronizacion>(
+  (ref) {
+    final dependencias = ref.watch(dependenciasProvider);
+    return TrabajadorDeSincronizacion(
+      dio: dependencias.dio,
+      db: dependencias.base,
+    );
+  },
+);
 
 /// Cuántas operaciones faltan por subir y cuántas chocaron (HU-120 criterio 3).
 ///
@@ -54,7 +71,8 @@ final trabajadorDeSincronizacionProvider = Provider<TrabajadorDeSincronizacion>(
 /// Inicio es una pantalla que se abre, no un tablero en vivo; cuando exista la
 /// pantalla de sincronización, ahí sí vale la pena el stream.
 final resumenDeColaProvider = FutureProvider<ResumenDeCola>(
-    (ref) => ref.watch(trabajadorDeSincronizacionProvider).resumen());
+  (ref) => ref.watch(trabajadorDeSincronizacionProvider).resumen(),
+);
 
 /// La bodega desde la que se vende.
 ///
@@ -63,7 +81,8 @@ final resumenDeColaProvider = FutureProvider<ResumenDeCola>(
 /// sucursal ni bodega. Mientras tanto, el negocio: es lo que ya hace el backend
 /// cuando la venta no dice otra cosa.
 final bodegaActivaProvider = Provider<String>(
-    (ref) => ref.watch(perfilComoNotifierProvider).claims?.negocioId ?? '');
+  (ref) => ref.watch(perfilComoNotifierProvider).claims?.negocioId ?? '',
+);
 
 /// La venta que se está armando en el POS.
 ///

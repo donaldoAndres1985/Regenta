@@ -18,13 +18,17 @@ class ClientesDelPos implements RepositorioDeClientesDeVenta {
   static bool esVentaDelServidor(String ventaId) => ventaId.trim().isNotEmpty;
 
   @override
-  Future<List<ClienteDeLaVenta>> buscar(String termino) => _real.buscar(termino);
+  Future<List<ClienteDeLaVenta>> buscar(String termino) =>
+      _real.buscar(termino);
 
   @override
   Future<ResultadoDeAlta> crear(ClienteNuevo nuevo) => _real.crear(nuevo);
 
   @override
-  Future<void> asignar({required String ventaId, required String clienteId}) async {
+  Future<void> asignar({
+    required String ventaId,
+    required String clienteId,
+  }) async {
     if (!esVentaDelServidor(ventaId)) return;
     await _real.asignar(ventaId: ventaId, clienteId: clienteId);
   }

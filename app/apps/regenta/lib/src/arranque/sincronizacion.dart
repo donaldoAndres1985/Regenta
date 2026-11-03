@@ -63,13 +63,16 @@ Future<bool> subirLoPendiente(DependenciasDeLaApp dependencias) async {
 ///
 /// En Web no hay: la cola se procesa al abrir la app (criterio 4). En
 /// escritorio `workmanager` tampoco aplica.
-bool hayTrabajoEnSegundoPlano({required bool esWeb, required String plataforma}) {
+bool hayTrabajoEnSegundoPlano({
+  required bool esWeb,
+  required String plataforma,
+}) {
   if (esWeb) return false;
   return plataforma == 'android' || plataforma == 'ios';
 }
 
 /// Lo mismo, leyendo la plataforma real.
 bool get hayTrabajoEnSegundoPlanoAqui => hayTrabajoEnSegundoPlano(
-      esWeb: kIsWeb,
-      plataforma: defaultTargetPlatform.name.toLowerCase(),
-    );
+  esWeb: kIsWeb,
+  plataforma: defaultTargetPlatform.name.toLowerCase(),
+);

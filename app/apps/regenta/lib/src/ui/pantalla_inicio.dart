@@ -4,6 +4,8 @@ import 'package:regenta_core/regenta_core.dart';
 
 import '../arranque/proveedores.dart';
 import '../navegacion/catalogo.dart';
+import 'barra_lateral.dart';
+import 'carcasa_con_menu.dart';
 
 /// Pantalla de Inicio basada en la propuesta Pastel.
 ///
@@ -45,7 +47,8 @@ class _PantallaInicioState extends ConsumerState<PantallaInicio> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final esEscritorio = constraints.maxWidth >= 1024;
+        // En escritorio el menú lo pone la carcasa; aquí solo va el contenido.
+        final esEscritorio = MenuFijo.presente(context);
 
         if (esEscritorio) {
           return _EscritorioLayout(
@@ -116,23 +119,8 @@ class _EscritorioLayout extends StatelessWidget {
       backgroundColor: RegentaColors.paper,
       body: Stack(
         children: [
-          // Contenedor principal con barra lateral y panel
           Row(
             children: [
-              // Barra Lateral
-              SizedBox(
-                width: 240,
-                child: _BarraLateral(
-                  nombreNegocio: nombreNegocio,
-                  nombreUsuario: nombreUsuario,
-                  plan: plan,
-                  rutaActiva: rutaActiva,
-                  entradas: entradas,
-                  onNavegar: onNavegar,
-                  onCerrarSesion: onCerrarSesion,
-                ),
-              ),
-
               // Área de Contenido Principal
               Expanded(
                 child: SingleChildScrollView(
@@ -306,7 +294,7 @@ class _MovilLayout extends StatelessWidget {
         ],
       ),
       drawer: Drawer(
-        child: _BarraLateral(
+        child: BarraLateral(
           nombreNegocio: nombreNegocio,
           nombreUsuario: nombreUsuario,
           plan: plan,
@@ -440,334 +428,6 @@ class _AccesosRapidosModulos extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-// =========================================================================
-// BARRA LATERAL (SIDEBAR)
-// =========================================================================
-
-class _BarraLateral extends StatelessWidget {
-  const _BarraLateral({
-    required this.nombreNegocio,
-    required this.nombreUsuario,
-    required this.plan,
-    required this.rutaActiva,
-    required this.onNavegar,
-    required this.onCerrarSesion,
-    this.entradas = const [],
-  });
-
-  final String nombreNegocio;
-  final String nombreUsuario;
-  final String plan;
-  final String rutaActiva;
-  final ValueChanged<String> onNavegar;
-  final VoidCallback onCerrarSesion;
-  final List<EntradaDeNavegacion> entradas;
-
-  String _iniciales(String texto) {
-    final partes = texto.trim().split(RegExp(r'\s+'));
-    if (partes.isEmpty || partes.first.isEmpty) return 'R';
-    if (partes.length == 1) return partes.first.substring(0, 1).toUpperCase();
-    return (partes.first[0] + partes[1][0]).toUpperCase();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Inicio se ve siempre; lo demás, lo que el negocio y la persona tienen.
-    final visibles = entradas.isEmpty
-        ? const [
-            EntradaDeNavegacion(ruta: GuardiaDeRutas.inicio, titulo: 'Inicio'),
-          ]
-        : entradas;
-
-    return Container(
-      margin: const EdgeInsets.only(left: 16, top: 16, bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Logo Regenta
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: RegentaColors.accent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'R',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Regenta',
-                style: PastelTheme.titulo(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: RegentaColors.ink,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Selector de Negocio
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: RegentaColors.paper,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: RegentaColors.accent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    _iniciales(nombreNegocio),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        nombreNegocio,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: PastelTheme.titulo(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: RegentaColors.ink,
-                        ),
-                      ),
-                      Text(
-                        plan,
-                        style: PastelTheme.cuerpo(
-                          fontSize: 11,
-                          color: RegentaColors.ink2,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Lista de Menú
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                for (final grupo in GrupoDeMenu.values)
-                  if (visibles.any((e) => grupoDeRuta[e.ruta] == grupo)) ...[
-                    _TituloDeGrupo(grupo.titulo),
-                    for (final entrada in visibles.where(
-                      (e) => grupoDeRuta[e.ruta] == grupo,
-                    ))
-                      _ItemMenu(
-                        icono: iconoDeRuta[entrada.ruta] ?? Icons.apps,
-                        titulo: entrada.titulo,
-                        activo: rutaActiva == entrada.ruta,
-                        badge: entrada.modulo == 'INVENTARIO' ? '7' : null,
-                        onTap: () => onNavegar(entrada.ruta),
-                      ),
-                    const SizedBox(height: 10),
-                  ],
-              ],
-            ),
-          ),
-
-          // Perfil de Usuario en el pie
-          InkWell(
-            onTap: onCerrarSesion,
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: const BoxDecoration(
-                      color: RegentaColors.warn,
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      _iniciales(nombreUsuario),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          nombreUsuario,
-                          style: PastelTheme.titulo(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13.5,
-                            color: RegentaColors.ink,
-                          ),
-                        ),
-                        Text(
-                          'Administrador',
-                          style: PastelTheme.cuerpo(
-                            fontSize: 11.5,
-                            color: RegentaColors.ink2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.logout_rounded,
-                    size: 18,
-                    color: RegentaColors.faint,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TituloDeGrupo extends StatelessWidget {
-  const _TituloDeGrupo(this.titulo);
-
-  final String titulo;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-      child: Text(
-        titulo.toUpperCase(),
-        style: PastelTheme.cuerpo(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.8,
-          color: RegentaColors.ink2,
-        ),
-      ),
-    );
-  }
-}
-
-class _ItemMenu extends StatelessWidget {
-  const _ItemMenu({
-    required this.icono,
-    required this.titulo,
-    required this.activo,
-    required this.onTap,
-    this.badge,
-  });
-
-  final IconData icono;
-  final String titulo;
-  final bool activo;
-  final VoidCallback onTap;
-  final String? badge;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Material(
-        color: activo ? RegentaColors.accentSoft : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            height: 44,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              children: [
-                Icon(
-                  icono,
-                  size: 20,
-                  color: activo ? RegentaColors.ink : RegentaColors.ink2,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    titulo,
-                    style: PastelTheme.cuerpo(
-                      fontSize: 14,
-                      fontWeight: activo ? FontWeight.bold : FontWeight.w500,
-                      color: RegentaColors.ink,
-                    ),
-                  ),
-                ),
-                if (badge != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: RegentaColors.critSoft,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      badge!,
-                      style: const TextStyle(
-                        color: RegentaColors.crit,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
