@@ -1,54 +1,50 @@
 import 'package:flutter/painting.dart';
 
-/// Paleta de Regenta. Neutros calidos y un solo acento ocre.
+/// Paleta de Regenta adaptada a la identidad Aurora.
 ///
-/// Los hex son los mismos que usan los mockups de `design/pantallas/`. Si
-/// cambia uno aqui, cambia tambien alla o dejaran de coincidir. Ningun widget
-/// escribe un `Color(0x...)` a mano: sale de aqui.
+/// Paleta unificada con AuroraTheme.
 abstract final class RegentaColors {
-  static const paper = Color(0xFFFBFAF7);
+  static const paper = Color(0xFFF3F2FB);
   static const surface = Color(0xFFFFFFFF);
-  static const sunken = Color(0xFFF3F1EB);
-  static const ink = Color(0xFF1A1815);
-  static const ink2 = Color(0xFF4A4740);
-  static const muted = Color(0xFF7C776C);
-  static const faint = Color(0xFFA39D91);
-  static const line = Color(0xFFE4E0D8);
-  static const line2 = Color(0xFFD2CCC0);
-  static const accent = Color(0xFF9A5709);
-  static const accentSoft = Color(0xFFF6EBD9);
+  static const sunken = Color(0xFFECEBF3);
+  static const ink = Color(0xFF1B1838);
+  static const ink2 = Color(0xFF55527A);
+  static const muted = Color(0xFFA2A0B6);
+  static const faint = Color(0xFFE4E3EC);
+  static const line = Color(0xFFE3E0F5);
+  static const line2 = Color(0xFFE4E3EC);
+  static const accent = Color(0xFF5B3FD9);
+  static const accentSoft = Color(0xFFE8E4FA);
 
-  // Un color por patron operativo: permite cruzar cualquier pantalla con su
-  // parte del modelo.
-  static const core = Color(0xFF4A5C6D);
-  static const coreSoft = Color(0xFFE7ECF0);
-  static const venta = Color(0xFF9A5709);
-  static const ventaSoft = Color(0xFFF6EBD9);
-  static const reserva = Color(0xFF0C6473);
-  static const reservaSoft = Color(0xFFDFEFF2);
-  static const comanda = Color(0xFFA03325);
-  static const comandaSoft = Color(0xFFF8E6E3);
+  // Un color por patrón operativo:
+  static const core = Color(0xFF5B3FD9);
+  static const coreSoft = Color(0xFFE8E4FA);
+  static const venta = Color(0xFF7B5CFF);
+  static const ventaSoft = Color(0xFFE8E4FA);
+  static const reserva = Color(0xFF0B7F7A);
+  static const reservaSoft = Color(0xFFDDEDEC);
+  static const comanda = Color(0xFFCC3359);
+  static const comandaSoft = Color(0xFFF8E2E8);
 
-  // Semanticos: separados del acento a proposito.
-  static const ok = Color(0xFF1E6B45);
-  static const okSoft = Color(0xFFE4F0E9);
-  static const warn = Color(0xFF8A5B06);
-  static const warnSoft = Color(0xFFFAF0DC);
-  static const crit = Color(0xFFA0271B);
-  static const critSoft = Color(0xFFF9E7E4);
-  static const info = Color(0xFF0C6473);
-  static const infoSoft = Color(0xFFDFEFF2);
+  // Semánticos:
+  static const ok = Color(0xFF12784A);
+  static const okSoft = Color(0xFFDEECE6);
+  static const warn = Color(0xFF9A5800);
+  static const warnSoft = Color(0xFFF1E8DB);
+  static const crit = Color(0xFFC42840);
+  static const critSoft = Color(0xFFF7E1E4);
+  static const info = Color(0xFF2459C7);
+  static const infoSoft = Color(0xFFE0E8F7);
 
-  // KDS (HU-088): la unica pantalla de fondo oscuro a proposito, se mira de
-  // lejos en una cocina. No son parte del tema claro general.
-  static const kdsFondo = Color(0xFF1B1916);
-  static const kdsBarra = Color(0xFF22201C);
-  static const kdsBorde = Color(0xFF33302B);
-  static const kdsPestanaInactiva = Color(0xFF2C2925);
-  static const kdsPestanaInactivaTexto = Color(0xFFB9B3A6);
-  static const kdsTexto = Color(0xFFF2EFE9);
-  static const kdsNota = Color(0xFFE8A08F);
-  static const kdsVacioBorde = Color(0xFF3A362F);
+  // KDS
+  static const kdsFondo = Color(0xFF0F0E1D);
+  static const kdsBarra = Color(0xFF1A1830);
+  static const kdsBorde = Color(0xFF2F2C4D);
+  static const kdsPestanaInactiva = Color(0xFF24223D);
+  static const kdsPestanaInactivaTexto = Color(0xFFB3AFD6);
+  static const kdsTexto = Color(0xFFF1EFFF);
+  static const kdsNota = Color(0xFFFF8BA3);
+  static const kdsVacioBorde = Color(0xFF3E3D54);
   static const kdsDivisor = Color(0x14FFFFFF);
   static const kdsBotonNeutral = Color(0x17FFFFFF);
 }

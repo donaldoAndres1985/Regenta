@@ -77,7 +77,9 @@ class _RegentaAppState extends State<RegentaApp> {
     return MaterialApp.router(
       title: 'Regenta',
       debugShowCheckedModeBanner: false,
-      theme: regentaTheme(patron),
+      theme: AuroraTheme.light(patron: patron),
+      darkTheme: AuroraTheme.dark(patron: patron),
+      themeMode: ThemeMode.system,
       routerConfig: _enrutador,
     );
   }
