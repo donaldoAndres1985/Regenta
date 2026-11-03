@@ -13,12 +13,15 @@ import 'linea_de_carrito.dart';
 /// entra igual pero marcada: el botón *Cobrar* queda deshabilitado con el aviso
 /// "Hay líneas sin stock" hasta que se quite (HU-045, criterio 3).
 class ControladorDelPos extends StateNotifier<EstadoDelPos> {
-  ControladorDelPos(this._repo,
-      {required String bodegaId, Duration? rebote, num? montoParaIdentificar})
-      : _bodegaId = bodegaId,
-        _rebote = rebote ?? const Duration(milliseconds: 300),
-        _montoParaIdentificar = montoParaIdentificar,
-        super(EstadoDelPos(montoParaIdentificar: montoParaIdentificar));
+  ControladorDelPos(
+    this._repo, {
+    required String bodegaId,
+    Duration? rebote,
+    num? montoParaIdentificar,
+  }) : _bodegaId = bodegaId,
+       _rebote = rebote ?? const Duration(milliseconds: 250),
+       _montoParaIdentificar = montoParaIdentificar,
+       super(EstadoDelPos(montoParaIdentificar: montoParaIdentificar));
 
   final RepositorioDeVentas _repo;
   final String _bodegaId;
@@ -28,14 +31,26 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
   int _generacion = 0;
 
   /// R12: las ventas que no se están mostrando, tal como quedaron.
-  final List<EstadoDelPos?> _guardadas = List.filled(ventasEnParalelo, null);
+  final List<EstadoDelPos?> _guardadas = List.filled(
+    ventasAlAbrir,
+    null,
+    growable: true,
+  );
 
-  EstadoDelPos _ventaNueva() => EstadoDelPos(montoParaIdentificar: _montoParaIdentificar);
+  /// El término al que corresponden los resultados que hay en pantalla.
+  String? _terminoDeResultados;
+
+  EstadoDelPos _ventaNueva() =>
+      EstadoDelPos(montoParaIdentificar: _montoParaIdentificar);
 
   /// R12: guarda la venta activa y muestra [venta]: la que había, o una en
   /// blanco si nunca se usó. La búsqueda no viaja entre ventas.
   void cambiarDeVenta(int venta) {
-    if (venta == state.ventaActiva || venta < 0 || venta >= ventasEnParalelo) return;
+    if (venta == state.ventaActiva ||
+        venta < 0 ||
+        venta >= state.ventasAbiertas) {
+      return;
+    }
     _temporizador?.cancel();
     _generacion++;
     final actual = state.ventaActiva;
@@ -48,8 +63,10 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
       ventaEnCola: false,
     );
     final conteo = [
-      for (var k = 0; k < ventasEnParalelo; k++)
-        k == actual ? state.lineas.length : (k == venta ? 0 : state.productosPorVenta[k]),
+      for (var k = 0; k < state.ventasAbiertas; k++)
+        k == actual
+            ? state.lineas.length
+            : (k == venta ? 0 : state.productosPorVenta[k]),
     ];
     final siguiente = _guardadas[venta] ?? _ventaNueva();
     _guardadas[venta] = null;
@@ -60,8 +77,113 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     );
   }
 
+  /// R12: abre otra venta (hasta [ventasMaximas]) y la deja activa.
+  void nuevaVenta() {
+    final n = state.ventasAbiertas;
+    if (n >= ventasMaximas) return;
+    _guardadas.add(null);
+    state = state.copiar(productosPorVenta: [...state.productosPorVenta, 0]);
+    cambiarDeVenta(n);
+  }
+
+  /// R12: deja la venta activa guardada y pasa a una en blanco: la primera
+  /// vacía que haya, o una nueva.
+  void ponerEnEspera() {
+    for (var k = 0; k < state.ventasAbiertas; k++) {
+      if (k != state.ventaActiva && state.productosEnVenta(k) == 0) {
+        cambiarDeVenta(k);
+        return;
+      }
+    }
+    nuevaVenta();
+  }
+
+  /// R7c: `Esc` cierra la lista sin borrar lo escrito.
+  void cerrarDesplegable() => state = state.copiar(desplegableCerrado: true);
+
+  static final _codigoNumerico = RegExp(r'^\d{6,}$');
+
+  /// R7 y R7b: Enter en el buscador. Un número largo es un código (así
+  /// escriben los lectores USB/Bluetooth); cualquier otro texto agrega el
+  /// resultado [resaltado] —el primero, si nadie se movió con las flechas—.
+  Future<void> confirmarBusqueda({int resaltado = 0}) async {
+    final texto = state.termino.trim();
+    if (texto.isEmpty) return;
+    if (_codigoNumerico.hasMatch(texto)) {
+      await _agregarPorCodigoExacto(texto);
+      return;
+    }
+    if (texto.length < 3) {
+      _noSeEncontro(texto);
+      return;
+    }
+    // Enter antes del rebote: se busca ya, una sola vez.
+    if (_temporizador?.isActive ?? false) {
+      _temporizador!.cancel();
+      await _buscar();
+    } else if (state.buscando || _terminoDeResultados != state.termino) {
+      await _buscar();
+    }
+    if (state.termino.trim() != texto) return;
+    final resultados = state.resultados;
+    if (resultados.isEmpty) {
+      _noSeEncontro(texto);
+      return;
+    }
+    agregar(resultados[resaltado.clamp(0, resultados.length - 1)]);
+  }
+
+  void _noSeEncontro(String texto) => state = state.copiar(
+    mensaje: 'No se encontró «$texto»',
+    desplegableCerrado: true,
+  );
+
+  /// R7: resuelve el código de barras (propio o alterno) y, si no hay, la
+  /// referencia o el código exactos entre los resultados de la búsqueda.
+  /// Nunca abre el desplegable.
+  Future<void> _agregarPorCodigoExacto(String codigo) async {
+    _temporizador?.cancel();
+    _generacion++;
+    state = state.copiar(
+      resultados: const [],
+      buscando: false,
+      desplegableCerrado: true,
+    );
+    try {
+      final resuelto = await _repo.resolverCodigo(codigo);
+      final candidatos = await _repo.buscar(
+        resuelto.sku.isNotEmpty ? resuelto.sku : codigo,
+      );
+      final producto =
+          candidatos.where((p) => p.id == resuelto.productoId).firstOrNull ??
+          await _repo.verProducto(resuelto.productoId);
+      agregar(producto);
+      return;
+    } on ErrorDeRed catch (e) {
+      state = state.copiar(mensaje: e.mensaje);
+      return;
+    } on ErrorDeApi {
+      // Ningún código de barras: se prueba por la referencia exacta.
+    } on StateError {
+      // El código existe pero el producto no apareció: igual que no hallarlo.
+    }
+    try {
+      final candidatos = await _repo.buscar(codigo);
+      final exacto = candidatos
+          .where((p) => p.sku == codigo || p.codigoBarras == codigo)
+          .firstOrNull;
+      if (exacto != null) {
+        agregar(exacto);
+      } else {
+        _noSeEncontro(codigo);
+      }
+    } on ErrorDeApi catch (e) {
+      state = state.copiar(mensaje: e.mensaje);
+    }
+  }
+
   void cambiarTermino(String termino) {
-    state = state.copiar(termino: termino);
+    state = state.copiar(termino: termino, desplegableCerrado: false);
     _temporizador?.cancel();
     if (termino.trim().length < 3) {
       state = state.copiar(resultados: const [], buscando: false);
@@ -76,6 +198,7 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     try {
       final resultados = await _repo.buscar(state.termino);
       if (gen != _generacion) return;
+      _terminoDeResultados = state.termino;
       state = state.copiar(resultados: resultados, buscando: false);
     } on ErrorDeApi catch (e) {
       if (gen != _generacion) return;
@@ -91,27 +214,24 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     } else {
       lineas.add(LineaDeCarrito(producto: producto, cantidad: 1));
     }
+    _temporizador?.cancel();
+    _generacion++;
+    _terminoDeResultados = null;
     state = state.copiar(
       lineas: lineas,
       resultados: const [],
       termino: '',
+      buscando: false,
+      desplegableCerrado: false,
       mensaje: producto.sinStock
           ? 'Agregaste "${producto.nombre}" sin stock: no se puede cobrar hasta quitarlo.'
           : null,
     );
   }
 
-  Future<void> agregarPorCodigo(String codigo) async {
-    try {
-      final resuelto = await _repo.resolverCodigo(codigo);
-      final producto = await _repo.verProducto(resuelto.productoId);
-      agregar(producto);
-    } on ErrorDeApi {
-      state = state.copiar(mensaje: 'Ningún producto tiene el código «$codigo».');
-    } on StateError {
-      state = state.copiar(mensaje: 'Ningún producto tiene el código «$codigo».');
-    }
-  }
+  /// Un código leído por cámara o escrito a mano: mismo camino que Enter (R7).
+  Future<void> agregarPorCodigo(String codigo) =>
+      _agregarPorCodigoExacto(codigo.trim());
 
   void cambiarCantidad(int indice, int delta) {
     final lineas = [...state.lineas];

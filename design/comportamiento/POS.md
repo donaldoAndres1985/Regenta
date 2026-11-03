@@ -55,20 +55,33 @@ el cliente primero: el cupo y la cartera son de alguien.
 ### R5 · La búsqueda arranca en el tercer carácter
 **Dado** el campo *Buscar o escanear*, **cuando** escribo menos de 3 caracteres, **entonces** no
 se llama al backend y la lista de resultados queda vacía. **Con** 3 o más, se consulta
-`/api/inventario/productos/buscar?q=…` con un rebote de 300 ms: sólo la última pulsación de una
+`/api/inventario/productos/buscar?q=…` con un rebote de 250 ms: sólo la última pulsación de una
 ráfaga dispara la llamada.
 
-### R6 · Agregar un producto lo lleva al carrito y limpia la búsqueda
-**Dado** un resultado de búsqueda, **cuando** lo toco, **entonces** se suma como línea con
-cantidad 1, el término y la lista de resultados se limpian, y el foco vuelve al carrito. Si el
-mismo producto ya estaba, **entonces** no se duplica la línea: se le suma 1 a la cantidad.
+### R6 · Agregar un producto lo lleva a la venta y deja la búsqueda lista
+**Dado** un resultado de búsqueda, **cuando** lo toco (o lo elijo con Enter), **entonces** se
+suma como línea con cantidad 1, el término y la lista de resultados se limpian y el foco
+**se queda en el buscador**, listo para el siguiente producto. Si el mismo producto ya estaba,
+**entonces** no se duplica la línea: se le suma 1 a la cantidad.
 
-### R7 · El escáner cae al ingreso manual cuando no hay cámara
-**Dado** el botón de escanear, **cuando** lo toco y hay cámara disponible, **entonces** abro el
-lector y el código leído resuelve contra `/api/inventario/productos/codigo/{codigo}`. **Cuando**
-no hay cámara (web, o permiso negado), **entonces** abro un diálogo *Ingresar código* con un
-campo de texto; al confirmar, ese código resuelve por la misma vía. El código que no resuelve a
-ningún producto muestra el mensaje de error del backend y no agrega nada.
+### R7 · El mismo buscador lee códigos de barras
+No hay botón de escanear: el buscador recibe el código. Los lectores USB/Bluetooth escriben
+el código y mandan Enter, así que el camino es el mismo que el de una persona.
+**Dado** un texto de 6 o más dígitos, **cuando** pulso Enter, **entonces** se resuelve como
+código exacto contra `/api/inventario/productos/codigo/{codigo}` (código propio o alterno) y,
+si no, contra la referencia (SKU) o el código exactos entre los resultados de
+`/api/inventario/productos/buscar`. Si hay coincidencia exacta, se agrega directo sin abrir el
+desplegable. Si no, aviso *No se encontró «texto»* y no se agrega nada.
+
+### R7b · Enter agrega sin tocar el mouse
+**Dado** un texto que no es un código, **cuando** pulso Enter, **entonces** se agrega el
+producto resaltado del desplegable: el primero, salvo que me haya movido con ↑ ↓. Si la
+búsqueda todavía no había salido (Enter antes del rebote), se busca en ese momento y se agrega
+el primero. Sin resultados, aviso *No se encontró «texto»* y no se agrega nada.
+
+### R7c · Atajos de teclado
+`F2` lleva el foco al buscador, `F12` cobra (si se puede cobrar) y `Esc` cierra el desplegable
+sin borrar lo escrito.
 
 ### R8 · Un producto sin stock se agrega igual y bloquea el cobro
 **Dado** un producto con nivel de stock CERO, **cuando** lo agrego, **entonces** la línea entra
@@ -77,26 +90,32 @@ igual con el fondo `critSoft` y el subtítulo *SKU · sin stock*, aparece el avi
 línea (o bajo su cantidad a 0), **entonces** el aviso desaparece y *Cobrar* se rehabilita si
 queda al menos una línea.
 
-### R9 · El stepper y el escáner cumplen el objetivo de toque de 44 px
-**Dado** el POS en móvil, **cuando** mido el botón de escanear y los botones `+` / `−` de cada
-línea, **entonces** cada uno mide al menos 44 px (`RegentaSpacing.hitTarget`) de lado. Se opera
+### R9 · Buscador, stepper y Cobrar cumplen el objetivo de toque de 44 px
+**Dado** el POS en móvil, **cuando** mido el buscador, los botones `+` / `−` de cada línea y
+*Cobrar*, **entonces** cada uno mide al menos 44 px (`RegentaSpacing.hitTarget`) de lado. Se opera
 de pie y con una mano.
 
-### R10 · Una sola pantalla, dos ramas por `LayoutBuilder`
-**Dado** el mismo widget `PantallaPos`, **cuando** el ancho disponible es menor a 900 px
-(`kBreakpointEscritorio`), **entonces** se muestra la rama móvil (`Key('pos-movil')`): buscador
-y escáner arriba, y debajo los resultados o el carrito según haya búsqueda activa. **Cuando** es
-900 px o más, **entonces** la rama escritorio (`Key('pos-escritorio')`) da el panel principal a
-la factura (`Key('pos-carrito')`): una tabla con código, descripción, cantidad, precio, IVA y
-total por línea. El panel derecho (380 px) lleva el cliente, el resumen y los totales. No son
-dos widgets: es un `if` sobre las restricciones.
+### R10 · Cliente, buscador y venta, de arriba hacia abajo
+**Dado** el mismo widget `PantallaPos`, en cualquier ancho, **entonces** se ve de arriba hacia
+abajo: la franja de cliente, el buscador a todo el ancho y la venta a todo el ancho
+(`Key('pos-carrito')`). No hay columna lateral. **Cuando** el ancho es 900 px o más
+(`Key('pos-escritorio')`), la venta es una tabla —código, descripción, cantidad, precio, IVA,
+total, quitar— y debajo del listado, dentro de la misma tarjeta, van *Descuento*, *Nota* y
+*Poner en espera* a la izquierda y subtotal, IVA, total y *Cobrar* a la derecha. **Cuando** es
+menor (`Key('pos-movil')`), cada línea es una tarjeta y el total con *Cobrar* queda fijo abajo.
 
-### R10b · En escritorio la búsqueda se despliega sobre la factura
-**Dado** el POS en escritorio, **cuando** no hay búsqueda activa, **entonces** no se ve ninguna
-lista de resultados: la factura usa todo el panel. **Cuando** escribo 3 o más caracteres,
-**entonces** los resultados (`Key('pos-resultados')`) se despliegan como una lista flotante
-justo debajo del buscador, encima de la factura, sin moverla. **Cuando** agrego un producto o
-borro la búsqueda, **entonces** la lista se cierra.
+### R10a · La franja de cliente
+**Sin cliente:** ícono, *CLIENTE*, *Consumidor final* y el botón *Agregar cliente*. **Con
+cliente:** iniciales, nombre, documento y condición de crédito, con *Cambiar cliente* y
+*Quitar*. *Agregar*/*Cambiar* abre el selector de cliente (HU-113/114), que busca y permite
+crear uno rápido; lo elegido queda en la venta activa.
+
+### R10b · Los resultados se despliegan sobre la venta
+**Dado** el POS, **cuando** no hay búsqueda activa, **entonces** no se ve ninguna lista de
+resultados. **Cuando** escribo 3 o más caracteres, **entonces** los resultados
+(`Key('pos-resultados')`) se despliegan bajo el buscador, encima de la venta, con código,
+nombre, precio y existencia. **Cuando** agrego un producto, borro la búsqueda o pulso `Esc`,
+**entonces** la lista se cierra.
 
 ### R11 · Cobrar arma la venta de una y la confirma
 **Dado** un carrito con al menos una línea y sin líneas sin stock, **cuando** toco *Cobrar*,
@@ -106,8 +125,9 @@ corre, el botón dice *Cobrando…* y no se puede volver a tocar. Al terminar, e
 vacío, se avisa *Venta {número} cobrada* y se dispara `onVentaCobrada`.
 
 ### R12 · Varias ventas a la vez
-**Dado** el POS, **cuando** se abre, **entonces** arriba a la derecha hay tres botones *1*, *2*
-y *3* (`Key('venta-1')`…) y está activa la venta 1. **Cuando** tengo productos en la venta 1 y
+**Dado** el POS, **cuando** se abre, **entonces** arriba a la derecha hay tres pestañas *1*, *2*
+y *3* (`Key('venta-1')`…) y un *+* (`Key('venta-nueva')`) que abre otra (hasta 9); está activa
+la venta 1. *Poner en espera* deja la venta activa guardada y pasa a una en blanco. **Cuando** tengo productos en la venta 1 y
 toco *2*, **entonces** veo una venta en blanco, con su propio carrito y su propio cliente.
 **Cuando** vuelvo a *1*, **entonces** está tal como la dejé. Cobrar o vaciar una venta sólo
 afecta a esa venta. Un botón cuya venta tiene productos muestra cuántos lleva, para que no se
@@ -168,15 +188,12 @@ se ocultan en móvil, acciones que solo tienen sentido con teclado o solo con el
 
 - **Corte:** `kBreakpointEscritorio` (900 px) sobre el ancho que da `LayoutBuilder`, no sobre
   el tamaño del dispositivo. Una ventana web angosta usa la rama móvil.
-- **Móvil** (`< 900`): buscador + escáner fijos arriba; debajo, un solo panel que muestra los
-  resultados mientras hay búsqueda y el carrito cuando no. Totales y *Cobrar* fijos abajo.
-  Objetivo de toque de 44 px en escáner y steppers (R9).
-- **Escritorio** (`>= 900`): la factura en el panel principal y, a la derecha (380 px),
-  cliente, resumen y totales. Los resultados de búsqueda flotan sobre la factura sólo mientras
-  hay búsqueda (R10b).
-- **Escáner con cámara:** sólo tiene sentido en móvil/Android. En web el botón abre directo el
-  diálogo de ingreso manual (R7).
-- Atajos de teclado y orden de tabulación en escritorio: _sin definir_.
+- **Móvil** (`< 900`): cliente y buscador arriba; las líneas como tarjetas; total y *Cobrar*
+  fijos abajo. Objetivo de toque de 44 px en buscador, steppers y *Cobrar* (R9).
+- **Escritorio** (`>= 900`): cliente, buscador y la venta como tabla a todo el ancho, con los
+  totales y *Cobrar* debajo del listado en la misma tarjeta (R10).
+- **Escáner:** sin botón de cámara; el código entra por el buscador (R7).
+- Atajos: `F2`, `F12` y `Esc` (R7c). Orden de tabulación: _sin definir_.
 - La barra de navegación inferior y la tarjeta de *sin conexión* de los mockups son
   presentacionales; las cablea el shell de la app, no esta pantalla.
 
@@ -196,8 +213,11 @@ que más se olvida. -->
   ambos casos (R8).
 - **No** dispararse dos veces si se toca *Cobrar* rápido: mientras confirma, el botón queda
   deshabilitado y con texto *Cobrando…* (R11).
-- **No** llamar al backend en cada tecla: la búsqueda tiene rebote de 300 ms y mínimo de 3
+- **No** llamar al backend en cada tecla: la búsqueda tiene rebote de 250 ms y mínimo de 3
   caracteres (R5).
+- **No** agregar nada cuando Enter no encuentra producto: sólo el aviso (R7, R7b).
+- *Descuento* y *Nota* se ven pero están deshabilitados: el contrato de `/api/ventas/offline`
+  no lleva descuento ni nota todavía (pendiente de backend).
 - **No** duplicar una línea al agregar dos veces el mismo producto: se suma la cantidad (R6).
 - **No** confiar en el nivel de stock del cliente para autorizar la venta: el descuento real y
   el anti-overbooking los resuelve la saga de confirmación contra Inventario. El aviso de
