@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 import '../arranque/proveedores.dart';
 import '../navegacion/catalogo.dart';
 
-/// Pantalla de Inicio basada en la propuesta Aurora.
+/// Pantalla de Inicio basada en la propuesta Pastel.
 ///
 /// Refleja fielmente el diseño del panel de control de Regenta:
 /// métricas en tiempo real, gráfico de ventas de los últimos 7 días,
@@ -28,10 +27,13 @@ class _PantallaInicioState extends ConsumerState<PantallaInicio> {
 
     final claims = perfil.claims;
     final entradas = menuDe(claims);
-    final destinos = entradas.where((e) => e.ruta != GuardiaDeRutas.inicio).toList();
+    final destinos = entradas
+        .where((e) => e.ruta != GuardiaDeRutas.inicio)
+        .toList();
     final bool sinModulos = claims != null && destinos.isEmpty;
 
-    final nombreNegocio = (claims?.nombreNegocio != null && claims!.nombreNegocio!.isNotEmpty)
+    final nombreNegocio =
+        (claims?.nombreNegocio != null && claims!.nombreNegocio!.isNotEmpty)
         ? claims.nombreNegocio!
         : 'Ferretería El Tornillo';
 
@@ -111,47 +113,9 @@ class _EscritorioLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F2FB),
+      backgroundColor: RegentaColors.paper,
       body: Stack(
         children: [
-          // Resplandor Aurora de fondo
-          Positioned(
-            top: -100,
-            right: -100,
-            child: Container(
-              width: 500,
-              height: 500,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFF4FD8CF).withValues(alpha: 0.18),
-                    const Color(0xFF5B3FD9).withValues(alpha: 0.05),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -80,
-            right: 200,
-            child: Container(
-              width: 450,
-              height: 450,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFFFF7A93).withValues(alpha: 0.15),
-                    const Color(0xFF7B5CFF).withValues(alpha: 0.05),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-
           // Contenedor principal con barra lateral y panel
           Row(
             children: [
@@ -172,7 +136,12 @@ class _EscritorioLayout extends StatelessWidget {
               // Área de Contenido Principal
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(left: 24, right: 32, top: 24, bottom: 32),
+                  padding: const EdgeInsets.only(
+                    left: 24,
+                    right: 32,
+                    top: 24,
+                    bottom: 32,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -187,7 +156,9 @@ class _EscritorioLayout extends StatelessWidget {
                         const SizedBox(height: 16),
                       ],
 
-                      if (resumenCola != null && (resumenCola!.hayConflictos || resumenCola!.pendientes > 0)) ...[
+                      if (resumenCola != null &&
+                          (resumenCola!.hayConflictos ||
+                              resumenCola!.pendientes > 0)) ...[
                         _AvisoCola(resumen: resumenCola!),
                         const SizedBox(height: 16),
                       ],
@@ -206,7 +177,9 @@ class _EscritorioLayout extends StatelessWidget {
                               children: [
                                 const _TarjetaGraficoVentas(),
                                 const SizedBox(height: 24),
-                                _TarjetaUltimasVentas(onVerTodas: () => onNavegar('/ventas')),
+                                _TarjetaUltimasVentas(
+                                  onVerTodas: () => onNavegar('/ventas'),
+                                ),
                               ],
                             ),
                           ),
@@ -260,10 +233,12 @@ class _MovilLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final modulosActivos = entradas.where((e) => e.ruta != GuardiaDeRutas.inicio).toList();
+    final modulosActivos = entradas
+        .where((e) => e.ruta != GuardiaDeRutas.inicio)
+        .toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F2FB),
+      backgroundColor: RegentaColors.paper,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -273,27 +248,41 @@ class _MovilLayout extends StatelessWidget {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: const Color(0xFF5B3FD9),
+                color: RegentaColors.accent,
                 borderRadius: BorderRadius.circular(8),
               ),
               alignment: Alignment.center,
-              child: const Text('R',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              child: const Text(
+                'R',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
             ),
             const SizedBox(width: 8),
-            Text('Regenta',
-                style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.bold, fontSize: 18, color: const Color(0xFF1B1838))),
+            Text(
+              'Regenta',
+              style: PastelTheme.titulo(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: RegentaColors.ink,
+              ),
+            ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_shopping_cart, color: Color(0xFF5B3FD9)),
+            icon: const Icon(
+              Icons.add_shopping_cart,
+              color: RegentaColors.accent,
+            ),
             tooltip: 'Nueva venta',
             onPressed: () => onNavegar('/ventas'),
           ),
           IconButton(
-            icon: const Icon(Icons.logout, size: 20, color: Color(0xFF55527A)),
+            icon: const Icon(Icons.logout, size: 20, color: RegentaColors.ink2),
             tooltip: 'Cerrar sesión',
             onPressed: onCerrarSesion,
           ),
@@ -319,11 +308,21 @@ class _MovilLayout extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Título
-            Text('Inicio',
-                style: GoogleFonts.plusJakartaSans(
-                    fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF1B1838))),
-            Text('Lunes 2 de noviembre · Sede Centro',
-                style: GoogleFonts.manrope(fontSize: 13, color: const Color(0xFF55527A))),
+            Text(
+              'Inicio',
+              style: PastelTheme.titulo(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: RegentaColors.ink,
+              ),
+            ),
+            Text(
+              'Lunes 2 de noviembre · Sede Centro',
+              style: PastelTheme.cuerpo(
+                fontSize: 13,
+                color: RegentaColors.ink2,
+              ),
+            ),
             const SizedBox(height: 16),
 
             if (sinModulos) ...[
@@ -337,7 +336,9 @@ class _MovilLayout extends StatelessWidget {
               const SizedBox(height: 16),
             ],
 
-            if (resumenCola != null && (resumenCola!.hayConflictos || resumenCola!.pendientes > 0)) ...[
+            if (resumenCola != null &&
+                (resumenCola!.hayConflictos ||
+                    resumenCola!.pendientes > 0)) ...[
               _AvisoCola(resumen: resumenCola!),
               const SizedBox(height: 16),
             ],
@@ -391,22 +392,29 @@ class _AccesosRapidosModulos extends StatelessWidget {
               onTap: () => onNavegar(e.ruta),
               borderRadius: BorderRadius.circular(14),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE3E0F5)),
+                  border: Border.all(color: RegentaColors.line),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(iconoDeRuta[e.ruta] ?? Icons.apps, size: 18, color: const Color(0xFF5B3FD9)),
+                    Icon(
+                      iconoDeRuta[e.ruta] ?? Icons.apps,
+                      size: 18,
+                      color: RegentaColors.accent,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       e.titulo,
-                      style: GoogleFonts.manrope(
+                      style: PastelTheme.cuerpo(
                         fontSize: 13.5,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF1B1838),
+                        color: RegentaColors.ink,
                       ),
                     ),
                   ],
@@ -451,7 +459,9 @@ class _BarraLateral extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final modulosActivos = entradas.where((e) => e.ruta != GuardiaDeRutas.inicio).toList();
+    final modulosActivos = entradas
+        .where((e) => e.ruta != GuardiaDeRutas.inicio)
+        .toList();
 
     return Container(
       margin: const EdgeInsets.only(left: 16, top: 16, bottom: 16),
@@ -477,7 +487,7 @@ class _BarraLateral extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF5B3FD9),
+                  color: RegentaColors.accent,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
@@ -493,10 +503,10 @@ class _BarraLateral extends StatelessWidget {
               const SizedBox(width: 12),
               Text(
                 'Regenta',
-                style: GoogleFonts.plusJakartaSans(
+                style: PastelTheme.titulo(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1B1838),
+                  color: RegentaColors.ink,
                 ),
               ),
             ],
@@ -507,7 +517,7 @@ class _BarraLateral extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF9F8FD),
+              color: RegentaColors.paper,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
@@ -516,7 +526,7 @@ class _BarraLateral extends StatelessWidget {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF5B3FD9),
+                    color: RegentaColors.accent,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   alignment: Alignment.center,
@@ -538,17 +548,17 @@ class _BarraLateral extends StatelessWidget {
                         nombreNegocio,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.plusJakartaSans(
+                        style: PastelTheme.titulo(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
-                          color: const Color(0xFF1B1838),
+                          color: RegentaColors.ink,
                         ),
                       ),
                       Text(
                         plan,
-                        style: GoogleFonts.manrope(
+                        style: PastelTheme.cuerpo(
                           fontSize: 11,
-                          color: const Color(0xFF55527A),
+                          color: RegentaColors.ink2,
                         ),
                       ),
                     ],
@@ -571,7 +581,7 @@ class _BarraLateral extends StatelessWidget {
                   onTap: () => onNavegar('/'),
                 ),
                 if (entradas.isEmpty) ...[
-                  // Muestra de diseño completa de la propuesta Aurora
+                  // Muestra de diseño completa de la propuesta Pastel
                   _ItemMenu(
                     icono: Icons.shopping_cart_outlined,
                     titulo: 'Ventas',
@@ -648,7 +658,7 @@ class _BarraLateral extends StatelessWidget {
                     width: 36,
                     height: 36,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFFFA000),
+                      color: RegentaColors.warn,
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
@@ -668,23 +678,27 @@ class _BarraLateral extends StatelessWidget {
                       children: [
                         Text(
                           nombreUsuario,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: PastelTheme.titulo(
                             fontWeight: FontWeight.bold,
                             fontSize: 13.5,
-                            color: const Color(0xFF1B1838),
+                            color: RegentaColors.ink,
                           ),
                         ),
                         Text(
                           'Administrador',
-                          style: GoogleFonts.manrope(
+                          style: PastelTheme.cuerpo(
                             fontSize: 11.5,
-                            color: const Color(0xFF55527A),
+                            color: RegentaColors.ink2,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.logout_rounded, size: 18, color: Color(0xFFA2A0B6)),
+                  const Icon(
+                    Icons.logout_rounded,
+                    size: 18,
+                    color: RegentaColors.muted,
+                  ),
                 ],
               ),
             ),
@@ -715,7 +729,7 @@ class _ItemMenu extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
-        color: activo ? const Color(0xFF5B3FD9) : Colors.transparent,
+        color: activo ? RegentaColors.accentSoft : Colors.transparent,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onTap,
@@ -728,30 +742,33 @@ class _ItemMenu extends StatelessWidget {
                 Icon(
                   icono,
                   size: 20,
-                  color: activo ? Colors.white : const Color(0xFF55527A),
+                  color: activo ? RegentaColors.ink : RegentaColors.ink2,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     titulo,
-                    style: GoogleFonts.manrope(
+                    style: PastelTheme.cuerpo(
                       fontSize: 14,
                       fontWeight: activo ? FontWeight.bold : FontWeight.w500,
-                      color: activo ? Colors.white : const Color(0xFF1B1838),
+                      color: RegentaColors.ink,
                     ),
                   ),
                 ),
                 if (badge != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF7E1E4),
+                      color: RegentaColors.critSoft,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       badge!,
                       style: const TextStyle(
-                        color: Color(0xFFC42840),
+                        color: RegentaColors.crit,
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
                       ),
@@ -785,18 +802,18 @@ class _EncabezadoSuperior extends StatelessWidget {
           children: [
             Text(
               'Inicio',
-              style: GoogleFonts.plusJakartaSans(
+              style: PastelTheme.titulo(
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF1B1838),
+                color: RegentaColors.ink,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               'Lunes 2 de noviembre · Sede Centro',
-              style: GoogleFonts.manrope(
+              style: PastelTheme.cuerpo(
                 fontSize: 13,
-                color: const Color(0xFF55527A),
+                color: RegentaColors.ink2,
               ),
             ),
           ],
@@ -811,35 +828,35 @@ class _EncabezadoSuperior extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFE3E0F5)),
+            border: Border.all(color: RegentaColors.line),
           ),
           child: Row(
             children: [
-              const Icon(Icons.search, size: 18, color: Color(0xFFA2A0B6)),
+              const Icon(Icons.search, size: 18, color: RegentaColors.muted),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Buscar productos, clientes, fa...',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: PastelTheme.cuerpo(
                     fontSize: 12.5,
-                    color: const Color(0xFFA2A0B6),
+                    color: RegentaColors.muted,
                   ),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3F2FB),
+                  color: RegentaColors.paper,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   'Ctrl K',
-                  style: GoogleFonts.manrope(
+                  style: PastelTheme.cuerpo(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF55527A),
+                    color: RegentaColors.ink2,
                   ),
                 ),
               ),
@@ -855,22 +872,30 @@ class _EncabezadoSuperior extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFE3E0F5)),
+            border: Border.all(color: RegentaColors.line),
           ),
           child: Row(
             children: [
-              const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF55527A)),
+              const Icon(
+                Icons.location_on_outlined,
+                size: 16,
+                color: RegentaColors.ink2,
+              ),
               const SizedBox(width: 6),
               Text(
                 'Sede Centro',
-                style: GoogleFonts.manrope(
+                style: PastelTheme.cuerpo(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1B1838),
+                  color: RegentaColors.ink,
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF55527A)),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: RegentaColors.ink2,
+              ),
             ],
           ),
         ),
@@ -883,12 +908,16 @@ class _EncabezadoSuperior extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFE3E0F5)),
+            border: Border.all(color: RegentaColors.line),
           ),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              const Icon(Icons.notifications_none_rounded, size: 20, color: Color(0xFF55527A)),
+              const Icon(
+                Icons.notifications_none_rounded,
+                size: 20,
+                color: RegentaColors.ink2,
+              ),
               Positioned(
                 top: 10,
                 right: 11,
@@ -896,7 +925,7 @@ class _EncabezadoSuperior extends StatelessWidget {
                   width: 7,
                   height: 7,
                   decoration: const BoxDecoration(
-                    color: Color(0xFFC42840),
+                    color: RegentaColors.crit,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -912,13 +941,13 @@ class _EncabezadoSuperior extends StatelessWidget {
           icon: const Icon(Icons.add, size: 18),
           label: Text(
             'Nueva venta',
-            style: GoogleFonts.plusJakartaSans(
+            style: PastelTheme.titulo(
               fontSize: 13.5,
               fontWeight: FontWeight.bold,
             ),
           ),
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF5B3FD9),
+            backgroundColor: RegentaColors.accent,
             foregroundColor: Colors.white,
             shape: const StadiumBorder(),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -941,90 +970,15 @@ class _FilaKpis extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tarjetas = [
-      // 1. Ventas hoy (Tarjeta destacada púrpura)
-      Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF5B3FD9), Color(0xFF7B5CFF)],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF5B3FD9).withValues(alpha: 0.25),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Ventas hoy',
-                  style: GoogleFonts.manrope(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.trending_up, color: Colors.white, size: 18),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              r'$ 4.182.900',
-              style: GoogleFonts.manrope(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    '↑ 12%',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '23 ventas · vs. ayer',
-                  style: GoogleFonts.manrope(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+      // 1. Ventas hoy
+      _KpiBlanca(
+        titulo: 'Ventas hoy',
+        valor: r'$ 4.182.900',
+        subtitulo: '23 ventas · vs. ayer',
+        variacion: '12 %',
+        icono: Icons.trending_up,
+        colorIcono: RegentaColors.accent,
+        fondo: RegentaColors.moduloVentas,
       ),
 
       // 2. Margen bruto
@@ -1033,8 +987,8 @@ class _FilaKpis extends StatelessWidget {
         valor: '38,4 %',
         subtitulo: r'$ 1.606.234 de ganancia',
         icono: Icons.bar_chart_rounded,
-        colorIcono: const Color(0xFF0B7F7A),
-        fondoIcono: const Color(0xFFDDEDEC),
+        colorIcono: RegentaColors.ok,
+        fondo: RegentaColors.moduloInventario,
       ),
 
       // 3. Ticket promedio
@@ -1043,8 +997,8 @@ class _FilaKpis extends StatelessWidget {
         valor: r'$ 181.865',
         subtitulo: 'sobre ventas confirmadas',
         icono: Icons.shopping_cart_outlined,
-        colorIcono: const Color(0xFF9A5800),
-        fondoIcono: const Color(0xFFF1E8DB),
+        colorIcono: RegentaColors.comanda,
+        fondo: RegentaColors.moduloClientes,
       ),
 
       // 4. Caja abierta
@@ -1053,8 +1007,8 @@ class _FilaKpis extends StatelessWidget {
         valor: r'$ 612.400',
         subtitulo: 'Caja 1 · desde 7:12 a. m.',
         icono: Icons.point_of_sale_outlined,
-        colorIcono: const Color(0xFFC42840),
-        fondoIcono: const Color(0xFFF7E1E4),
+        colorIcono: RegentaColors.accent,
+        fondo: RegentaColors.moduloCaja,
       ),
     ];
 
@@ -1088,7 +1042,8 @@ class _KpiBlanca extends StatelessWidget {
     required this.subtitulo,
     required this.icono,
     required this.colorIcono,
-    required this.fondoIcono,
+    required this.fondo,
+    this.variacion,
   });
 
   final String titulo;
@@ -1096,23 +1051,16 @@ class _KpiBlanca extends StatelessWidget {
   final String subtitulo;
   final IconData icono;
   final Color colorIcono;
-  final Color fondoIcono;
+  final Color fondo;
+  final String? variacion;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE3E0F5)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: fondo,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1123,8 +1071,8 @@ class _KpiBlanca extends StatelessWidget {
             children: [
               Text(
                 titulo,
-                style: GoogleFonts.manrope(
-                  color: const Color(0xFF55527A),
+                style: PastelTheme.cuerpo(
+                  color: RegentaColors.ink2,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1133,8 +1081,8 @@ class _KpiBlanca extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: fondoIcono,
-                  shape: BoxShape.circle,
+                  color: RegentaColors.surface,
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icono, color: colorIcono, size: 18),
               ),
@@ -1143,22 +1091,60 @@ class _KpiBlanca extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             valor,
-            style: GoogleFonts.manrope(
+            style: PastelTheme.cuerpo(
               fontSize: 26,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF1B1838),
+              color: RegentaColors.ink,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            subtitulo,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
-              color: const Color(0xFF55527A),
-              fontSize: 12,
-            ),
+          Row(
+            children: [
+              if (variacion != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: RegentaColors.okSoft,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.arrow_upward,
+                        size: 11,
+                        color: RegentaColors.ok,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        variacion!,
+                        style: PastelTheme.cuerpo(
+                          color: RegentaColors.ok,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Text(
+                  subtitulo,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: PastelTheme.cuerpo(
+                    color: RegentaColors.ink2,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1190,7 +1176,7 @@ class _TarjetaGraficoVentas extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE3E0F5)),
+        border: Border.all(color: RegentaColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1201,19 +1187,19 @@ class _TarjetaGraficoVentas extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Ventas de los últimos 7 días',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: PastelTheme.titulo(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1B1838),
+                    color: RegentaColors.ink,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 'millones de pesos',
-                style: GoogleFonts.manrope(
+                style: PastelTheme.cuerpo(
                   fontSize: 12.5,
-                  color: const Color(0xFFA2A0B6),
+                  color: RegentaColors.muted,
                 ),
               ),
             ],
@@ -1231,9 +1217,27 @@ class _TarjetaGraficoVentas extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('4 M', style: GoogleFonts.manrope(fontSize: 11, color: const Color(0xFFA2A0B6))),
-                    Text('2 M', style: GoogleFonts.manrope(fontSize: 11, color: const Color(0xFFA2A0B6))),
-                    Text('0', style: GoogleFonts.manrope(fontSize: 11, color: const Color(0xFFA2A0B6))),
+                    Text(
+                      '4 M',
+                      style: PastelTheme.cuerpo(
+                        fontSize: 11,
+                        color: RegentaColors.muted,
+                      ),
+                    ),
+                    Text(
+                      '2 M',
+                      style: PastelTheme.cuerpo(
+                        fontSize: 11,
+                        color: RegentaColors.muted,
+                      ),
+                    ),
+                    Text(
+                      '0',
+                      style: PastelTheme.cuerpo(
+                        fontSize: 11,
+                        color: RegentaColors.muted,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(width: 14),
@@ -1246,9 +1250,21 @@ class _TarjetaGraficoVentas extends StatelessWidget {
                       Column(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: const [
-                          Divider(color: Color(0xFFE4E3EC), thickness: 1, height: 1),
-                          Divider(color: Color(0xFFE4E3EC), thickness: 1, height: 1),
-                          Divider(color: Color(0xFFE4E3EC), thickness: 1, height: 1),
+                          Divider(
+                            color: RegentaColors.faint,
+                            thickness: 1,
+                            height: 1,
+                          ),
+                          Divider(
+                            color: RegentaColors.faint,
+                            thickness: 1,
+                            height: 1,
+                          ),
+                          Divider(
+                            color: RegentaColors.faint,
+                            thickness: 1,
+                            height: 1,
+                          ),
                         ],
                       ),
 
@@ -1299,10 +1315,10 @@ class _BarraItem extends StatelessWidget {
       children: [
         Text(
           valor.toString().replaceAll('.', ','),
-          style: GoogleFonts.manrope(
+          style: PastelTheme.cuerpo(
             fontSize: 11,
             fontWeight: esHoy ? FontWeight.bold : FontWeight.w500,
-            color: esHoy ? const Color(0xFF5B3FD9) : const Color(0xFF55527A),
+            color: esHoy ? RegentaColors.accent : RegentaColors.ink2,
           ),
         ),
         const SizedBox(height: 6),
@@ -1310,27 +1326,22 @@ class _BarraItem extends StatelessWidget {
           width: 30,
           height: alturaBarra,
           decoration: BoxDecoration(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-            gradient: esHoy
-                ? const LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [Color(0xFF5B3FD9), Color(0xFFCC3359)],
-                  )
-                : const LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [Color(0xFF4FD8CF), Color(0xFFA897FF)],
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            color: esHoy ? RegentaColors.accent : RegentaColors.accentSoft,
+            border: esHoy
+                ? null
+                : Border.all(
+                    color: RegentaColors.accent.withValues(alpha: 0.35),
                   ),
           ),
         ),
         const SizedBox(height: 8),
         Text(
           dia,
-          style: GoogleFonts.manrope(
+          style: PastelTheme.cuerpo(
             fontSize: 12,
             fontWeight: esHoy ? FontWeight.bold : FontWeight.w500,
-            color: esHoy ? const Color(0xFF1B1838) : const Color(0xFF55527A),
+            color: esHoy ? RegentaColors.ink : RegentaColors.ink2,
           ),
         ),
       ],
@@ -1350,10 +1361,38 @@ class _TarjetaUltimasVentas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ventas = [
-      (doc: 'FV-1047', cliente: 'Materiales Cruz S.A.S.', hora: '10:42', medio: 'Tarjeta', total: r'$ 1.284.500', estado: EstadoDocumento.pagado),
-      (doc: 'FV-1046', cliente: 'Consumidor final', hora: '10:31', medio: 'Efectivo', total: r'$ 86.900', estado: EstadoDocumento.pagado),
-      (doc: 'FV-1045', cliente: 'Jorge Rendón', hora: '10:05', medio: 'Crédito 30 d', total: r'$ 412.000', estado: EstadoDocumento.pendiente),
-      (doc: 'FV-1044', cliente: 'Constructora Andes', hora: '09:48', medio: 'Transferencia', total: r'$ 245.300', estado: EstadoDocumento.anulado),
+      (
+        doc: 'FV-1047',
+        cliente: 'Materiales Cruz S.A.S.',
+        hora: '10:42',
+        medio: 'Tarjeta',
+        total: r'$ 1.284.500',
+        estado: EstadoDocumento.pagado,
+      ),
+      (
+        doc: 'FV-1046',
+        cliente: 'Consumidor final',
+        hora: '10:31',
+        medio: 'Efectivo',
+        total: r'$ 86.900',
+        estado: EstadoDocumento.pagado,
+      ),
+      (
+        doc: 'FV-1045',
+        cliente: 'Jorge Rendón',
+        hora: '10:05',
+        medio: 'Crédito 30 d',
+        total: r'$ 412.000',
+        estado: EstadoDocumento.pendiente,
+      ),
+      (
+        doc: 'FV-1044',
+        cliente: 'Constructora Andes',
+        hora: '09:48',
+        medio: 'Transferencia',
+        total: r'$ 245.300',
+        estado: EstadoDocumento.anulado,
+      ),
     ];
 
     return Container(
@@ -1361,7 +1400,7 @@ class _TarjetaUltimasVentas extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE3E0F5)),
+        border: Border.all(color: RegentaColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1372,10 +1411,10 @@ class _TarjetaUltimasVentas extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Últimas ventas',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: PastelTheme.titulo(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1B1838),
+                    color: RegentaColors.ink,
                   ),
                 ),
               ),
@@ -1384,10 +1423,10 @@ class _TarjetaUltimasVentas extends StatelessWidget {
                 onTap: onVerTodas,
                 child: Text(
                   'Ver todas',
-                  style: GoogleFonts.manrope(
+                  style: PastelTheme.cuerpo(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF5B3FD9),
+                    color: RegentaColors.accent,
                   ),
                 ),
               ),
@@ -1416,7 +1455,7 @@ class _TarjetaUltimasVentas extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Divider(color: Color(0xFFE3E0F5), height: 1),
+                  const Divider(color: RegentaColors.line, height: 1),
 
                   // Filas
                   for (final v in ventas) ...[
@@ -1428,10 +1467,10 @@ class _TarjetaUltimasVentas extends StatelessWidget {
                             flex: 2,
                             child: Text(
                               v.doc,
-                              style: GoogleFonts.manrope(
+                              style: PastelTheme.cuerpo(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF1B1838),
+                                color: RegentaColors.ink,
                               ),
                             ),
                           ),
@@ -1441,9 +1480,9 @@ class _TarjetaUltimasVentas extends StatelessWidget {
                               v.cliente,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
+                              style: PastelTheme.cuerpo(
                                 fontSize: 13,
-                                color: const Color(0xFF1B1838),
+                                color: RegentaColors.ink,
                               ),
                             ),
                           ),
@@ -1451,9 +1490,9 @@ class _TarjetaUltimasVentas extends StatelessWidget {
                             flex: 2,
                             child: Text(
                               v.hora,
-                              style: GoogleFonts.manrope(
+                              style: PastelTheme.cuerpo(
                                 fontSize: 13,
-                                color: const Color(0xFF55527A),
+                                color: RegentaColors.ink2,
                               ),
                             ),
                           ),
@@ -1461,9 +1500,9 @@ class _TarjetaUltimasVentas extends StatelessWidget {
                             flex: 3,
                             child: Text(
                               v.medio,
-                              style: GoogleFonts.manrope(
+                              style: PastelTheme.cuerpo(
                                 fontSize: 13,
-                                color: const Color(0xFF55527A),
+                                color: RegentaColors.ink2,
                               ),
                             ),
                           ),
@@ -1472,14 +1511,16 @@ class _TarjetaUltimasVentas extends StatelessWidget {
                             child: Text(
                               v.total,
                               textAlign: TextAlign.right,
-                              style: GoogleFonts.manrope(
+                              style: PastelTheme.cuerpo(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: const Color(0xFF1B1838),
+                                color: RegentaColors.ink,
                                 decoration: v.estado == EstadoDocumento.anulado
                                     ? TextDecoration.lineThrough
                                     : null,
-                                fontFeatures: const [FontFeature.tabularFigures()],
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
                               ),
                             ),
                           ),
@@ -1493,7 +1534,7 @@ class _TarjetaUltimasVentas extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Divider(color: Color(0xFFE4E3EC), height: 1),
+                    const Divider(color: RegentaColors.faint, height: 1),
                   ],
                 ],
               ),
@@ -1504,16 +1545,20 @@ class _TarjetaUltimasVentas extends StatelessWidget {
     );
   }
 
-  Widget _columnaCabecera(String texto, {required int flex, bool derecha = false}) {
+  Widget _columnaCabecera(
+    String texto, {
+    required int flex,
+    bool derecha = false,
+  }) {
     return Expanded(
       flex: flex,
       child: Text(
         texto,
         textAlign: derecha ? TextAlign.right : TextAlign.left,
-        style: GoogleFonts.manrope(
+        style: PastelTheme.cuerpo(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: const Color(0xFFA2A0B6),
+          color: RegentaColors.muted,
         ),
       ),
     );
@@ -1533,18 +1578,18 @@ class _ChipEstado extends StatelessWidget {
 
     switch (estado) {
       case EstadoDocumento.pagado:
-        fondo = const Color(0xFFDEECE6);
-        texto = const Color(0xFF12784A);
+        fondo = RegentaColors.okSoft;
+        texto = RegentaColors.ok;
         etiqueta = '• Pagado';
         break;
       case EstadoDocumento.pendiente:
-        fondo = const Color(0xFFF1E8DB);
-        texto = const Color(0xFF9A5800);
+        fondo = RegentaColors.warnSoft;
+        texto = RegentaColors.warn;
         etiqueta = '• Pendiente';
         break;
       case EstadoDocumento.anulado:
-        fondo = const Color(0xFFEEEEF2);
-        texto = const Color(0xFF55527A);
+        fondo = RegentaColors.anuladoSoft;
+        texto = RegentaColors.ink2;
         etiqueta = '- Anulado';
         break;
     }
@@ -1557,7 +1602,7 @@ class _ChipEstado extends StatelessWidget {
       ),
       child: Text(
         etiqueta,
-        style: GoogleFonts.manrope(
+        style: PastelTheme.cuerpo(
           fontSize: 11.5,
           fontWeight: FontWeight.bold,
           color: texto,
@@ -1604,7 +1649,7 @@ class _TarjetaAlertas extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE3E0F5)),
+        border: Border.all(color: RegentaColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1614,22 +1659,22 @@ class _TarjetaAlertas extends StatelessWidget {
             children: [
               Text(
                 'Alertas',
-                style: GoogleFonts.plusJakartaSans(
+                style: PastelTheme.titulo(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1B1838),
+                  color: RegentaColors.ink,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7E1E4),
+                  color: RegentaColors.critSoft,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Text(
                   '• 4 nuevas',
                   style: TextStyle(
-                    color: Color(0xFFC42840),
+                    color: RegentaColors.crit,
                     fontWeight: FontWeight.bold,
                     fontSize: 11.5,
                   ),
@@ -1650,14 +1695,18 @@ class _TarjetaAlertas extends StatelessWidget {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: a.esCritica ? const Color(0xFFF7E1E4) : const Color(0xFFF1E8DB),
+                      color: a.esCritica
+                          ? RegentaColors.critSoft
+                          : RegentaColors.warnSoft,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     alignment: Alignment.center,
                     child: Icon(
                       Icons.warning_amber_rounded,
                       size: 20,
-                      color: a.esCritica ? const Color(0xFFC42840) : const Color(0xFF9A5800),
+                      color: a.esCritica
+                          ? RegentaColors.crit
+                          : RegentaColors.warn,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1671,18 +1720,18 @@ class _TarjetaAlertas extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 a.titulo,
-                                style: GoogleFonts.manrope(
+                                style: PastelTheme.cuerpo(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
-                                  color: const Color(0xFF1B1838),
+                                  color: RegentaColors.ink,
                                 ),
                               ),
                             ),
                             Text(
                               a.tiempo,
-                              style: GoogleFonts.manrope(
+                              style: PastelTheme.cuerpo(
                                 fontSize: 10.5,
-                                color: const Color(0xFFA2A0B6),
+                                color: RegentaColors.muted,
                               ),
                             ),
                           ],
@@ -1690,9 +1739,9 @@ class _TarjetaAlertas extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           a.subtitulo,
-                          style: GoogleFonts.manrope(
+                          style: PastelTheme.cuerpo(
                             fontSize: 11.5,
-                            color: const Color(0xFF55527A),
+                            color: RegentaColors.ink2,
                           ),
                         ),
                       ],
@@ -1712,14 +1761,14 @@ class _TarjetaAlertas extends StatelessWidget {
               icon: const Icon(Icons.local_shipping_outlined, size: 18),
               label: Text(
                 'Generar orden de compra',
-                style: GoogleFonts.plusJakartaSans(
+                style: PastelTheme.titulo(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFE8E4FA),
-                foregroundColor: const Color(0xFF5B3FD9),
+                backgroundColor: RegentaColors.accentSoft,
+                foregroundColor: RegentaColors.accent,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -1744,16 +1793,16 @@ class _AvisoSinModulos extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1E8DB),
+        color: RegentaColors.warnSoft,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF9A5800).withValues(alpha: 0.3)),
+        border: Border.all(color: RegentaColors.warn.withValues(alpha: 0.3)),
       ),
       child: Text(
         'Tu plan todavía no tiene módulos activos. Pídele a un administrador que los habilite.',
-        style: GoogleFonts.manrope(
+        style: PastelTheme.cuerpo(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: const Color(0xFF9A5800),
+          color: RegentaColors.warn,
         ),
       ),
     );
@@ -1772,7 +1821,7 @@ class _AvisoCola extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: alerta ? const Color(0xFFF7E1E4) : const Color(0xFFF1E8DB),
+        color: alerta ? RegentaColors.critSoft : RegentaColors.warnSoft,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -1780,7 +1829,7 @@ class _AvisoCola extends StatelessWidget {
           Icon(
             alerta ? Icons.error_outline : Icons.cloud_upload_outlined,
             size: 18,
-            color: alerta ? const Color(0xFFC42840) : const Color(0xFF9A5800),
+            color: alerta ? RegentaColors.crit : RegentaColors.warn,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1788,10 +1837,10 @@ class _AvisoCola extends StatelessWidget {
               alerta
                   ? '${resumen.conflictos} operación(es) chocaron al subir y hay que revisarlas.'
                   : '${resumen.pendientes} operación(es) esperan conexión para sincronizar.',
-              style: GoogleFonts.manrope(
+              style: PastelTheme.cuerpo(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: const Color(0xFF1B1838),
+                color: RegentaColors.ink,
               ),
             ),
           ),

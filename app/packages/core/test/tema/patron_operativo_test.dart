@@ -28,7 +28,7 @@ void main() {
       expect(tema.colorScheme.secondary, patron.color,
           reason: 'el secundario es el color del patron $patron');
       expect(tema.colorScheme.primary, RegentaColors.accent,
-          reason: 'el primario es el ocre de Regenta, no cambia con el patron');
+          reason: 'el primario es el azul de Regenta, no cambia con el patron');
       expect(tema.scaffoldBackgroundColor, RegentaColors.paper);
     }
   });

@@ -13,7 +13,6 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.6.1
   dio: ^5.7.0
-  google_fonts: ^6.2.1
   # El despachador del isolate de fondo es de la app: el nucleo pone las piezas
   # pero no sabe con que URL ni con que sesion armarlas (HU-120).
   workmanager: ^0.10.0

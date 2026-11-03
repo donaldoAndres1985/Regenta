@@ -3,22 +3,33 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 /// HU-106 criterio 1: el nucleo expone RegentaColors, RegentaType,
-/// RegentaSpacing y PatronOperativo, con los valores literales de
-/// design/tokens/regenta_theme.dart.
+/// RegentaSpacing y PatronOperativo. La paleta es la de Pastel Profesional.
 void main() {
   test('RegentaColors trae la paleta con sus hex exactos', () {
-    expect(RegentaColors.paper, const Color(0xFFFBFAF7));
-    expect(RegentaColors.ink, const Color(0xFF1A1815));
-    expect(RegentaColors.accent, const Color(0xFF9A5709));
-    expect(RegentaColors.line, const Color(0xFFE4E0D8));
-    expect(RegentaColors.crit, const Color(0xFFA0271B));
+    expect(RegentaColors.paper, const Color(0xFFF8F8FD));
+    expect(RegentaColors.ink, const Color(0xFF25253A));
+    expect(RegentaColors.ink2, const Color(0xFF5D5D78));
+    expect(RegentaColors.accent, const Color(0xFF2E62C0));
+    expect(RegentaColors.line, const Color(0xFFE7E7F2));
+    expect(RegentaColors.crit, const Color(0xFFB3304F));
+    expect(RegentaColors.ok, const Color(0xFF1D7550));
+    expect(RegentaColors.warn, const Color(0xFF935700));
   });
 
   test('RegentaColors trae un color y su suave por patron', () {
-    expect(RegentaColors.venta, const Color(0xFF9A5709));
-    expect(RegentaColors.ventaSoft, const Color(0xFFF6EBD9));
-    expect(RegentaColors.reserva, const Color(0xFF0C6473));
-    expect(RegentaColors.comanda, const Color(0xFFA03325));
+    expect(RegentaColors.venta, const Color(0xFF257A6A));
+    expect(RegentaColors.ventaSoft, const Color(0xFFE0ECEA));
+    expect(RegentaColors.reserva, const Color(0xFF5B57C2));
+    expect(RegentaColors.comanda, const Color(0xFFC2416F));
+  });
+
+  test('RegentaColors trae el color pastel de cada modulo', () {
+    expect(RegentaColors.moduloVentas, const Color(0xFFECEBFF));
+    expect(RegentaColors.moduloInventario, const Color(0xFFDDF5EE));
+    expect(RegentaColors.moduloCaja, const Color(0xFFE0F0FF));
+    expect(RegentaColors.moduloClientes, const Color(0xFFFFE4EE));
+    expect(RegentaColors.moduloCompras, const Color(0xFFFFF4C7));
+    expect(RegentaColors.moduloReportes, const Color(0xFFFFE9DC));
   });
 
   test('RegentaSpacing trae la escala de los mockups, no una malla de 4/8', () {

@@ -37,12 +37,13 @@ export 'src/sincronizacion/cola_de_salida_local.dart';
 export 'src/sincronizacion/resumen_de_cola.dart';
 export 'src/sincronizacion/sincronizacion_en_segundo_plano.dart';
 export 'src/sincronizacion/trabajador_de_sincronizacion.dart';
-export 'src/tema/aurora_theme.dart';
+export 'src/tema/pastel_theme.dart';
 export 'src/tema/fuentes_de_regenta.dart';
 export 'src/tema/patron_operativo.dart';
 export 'src/tema/regenta_colors.dart';
 export 'src/tema/regenta_spacing.dart';
 export 'src/tema/regenta_theme.dart';
+export 'src/tema/regenta_tokens.dart';
 export 'src/tema/regenta_type.dart';
 
 /// Version del contrato del nucleo. Sube cuando cambia algo que los modulos
