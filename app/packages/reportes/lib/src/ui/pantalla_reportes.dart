@@ -176,37 +176,36 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
   void _mostrarDetalleSesion(BuildContext context, SesionDeCajaVista sesion) {
     unawaited(
       showDialog<void>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: Text('Detalle de Turno ${sesion.cajaCodigo}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Fecha apertura: ${sesion.apertura}'),
-            if (sesion.cierre != null) Text('Fecha cierre: ${sesion.cierre}'),
-            const SizedBox(height: 8),
-            Text('Efectivo inicial: \$ ${sesion.montoApertura}'),
-            Text('Efectivo esperado: \$ ${sesion.efectivoEsperado}'),
-            Text('Efectivo contado: \$ ${sesion.efectivoContado}'),
-            const SizedBox(height: 8),
-            Text(
-              'Diferencia: \$ ${sesion.diferencia}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: sesion.descuadrada ? RegentaColors.crit : RegentaColors.ok,
+        context: context,
+        builder: (dialogCtx) => AlertDialog(
+          title: Text('Detalle de Turno ${sesion.numero}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Fecha apertura: ${sesion.abiertaEn}'),
+              if (sesion.cerradaEn != null) Text('Fecha cierre: ${sesion.cerradaEn}'),
+              const SizedBox(height: 8),
+              Text('Monto esperado: \$ ${sesion.montoEsperado ?? 0}'),
+              Text('Monto declarado: \$ ${sesion.montoDeclarado ?? 0}'),
+              const SizedBox(height: 8),
+              Text(
+                'Diferencia: \$ ${sesion.diferencia ?? 0}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: sesion.descuadrada ? RegentaColors.crit : RegentaColors.ok,
+                ),
               ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: const Text('Cerrar'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(),
-            child: const Text('Cerrar'),
-          ),
-        ],
       ),
-    ),
     );
   }
 }

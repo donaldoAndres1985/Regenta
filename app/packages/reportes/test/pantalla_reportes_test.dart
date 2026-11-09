@@ -21,31 +21,29 @@ void main() {
   testWidgets('Muestra la pantalla de reportes con métricas y lista de sesiones',
       (tester) async {
     final fakeSesiones = [
-      const SesionDeCajaVista(
+      SesionDeCajaVista(
         id: 's1',
+        numero: 'TURNO-1',
         cajaId: 'c1',
-        cajaCodigo: 'CAJA-1',
-        cajeroNombre: 'Ana Pérez',
-        apertura: '2026-11-08 08:00',
-        cierre: '2026-11-08 17:00',
-        montoApertura: 50000,
-        efectivoEsperado: 350000,
-        efectivoContado: 350000,
+        descuadrada: false,
+        abiertaEn: DateTime(2026, 11, 8, 8, 0),
+        cerradaEn: DateTime(2026, 11, 8, 17, 0),
+        montoEsperado: 350000,
+        montoDeclarado: 350000,
         diferencia: 0,
-        estado: 'CERRADA',
+        estado: EstadoSesionCaja.cuadrada,
       ),
-      const SesionDeCajaVista(
+      SesionDeCajaVista(
         id: 's2',
+        numero: 'TURNO-2',
         cajaId: 'c2',
-        cajaCodigo: 'CAJA-2',
-        cajeroNombre: 'Carlos Ruiz',
-        apertura: '2026-11-08 09:00',
-        cierre: '2026-11-08 18:00',
-        montoApertura: 50000,
-        efectivoEsperado: 280000,
-        efectivoContado: 270000,
+        descuadrada: true,
+        abiertaEn: DateTime(2026, 11, 8, 9, 0),
+        cerradaEn: DateTime(2026, 11, 8, 18, 0),
+        montoEsperado: 280000,
+        montoDeclarado: 270000,
         diferencia: -10000,
-        estado: 'CERRADA',
+        estado: EstadoSesionCaja.descuadrada,
       ),
     ];
 
@@ -66,7 +64,7 @@ void main() {
     expect(find.text('Turnos Evaluados'), findsOneWidget);
     expect(find.text('Turnos Cuadrados'), findsOneWidget);
     expect(find.text('Turnos Descuadrados'), findsOneWidget);
-    expect(find.text('CAJA-1'), findsOneWidget);
-    expect(find.text('CAJA-2'), findsOneWidget);
+    expect(find.text('TURNO-1'), findsOneWidget);
+    expect(find.text('TURNO-2'), findsOneWidget);
   });
 }
