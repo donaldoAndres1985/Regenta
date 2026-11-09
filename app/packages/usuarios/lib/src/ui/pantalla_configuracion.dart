@@ -157,8 +157,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                 const Icon(Icons.error_outline, size: 48, color: RegentaColors.crit),
                 const SizedBox(height: 16),
                 Text(
-                  'No se pudo cargar la configuración:
-$err',
+                  'No se pudo cargar la configuración: $err',
                   textAlign: TextAlign.center,
                   style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
                 ),

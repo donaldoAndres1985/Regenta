@@ -66,8 +66,7 @@ class PantallaCompras extends ConsumerWidget {
                 const Icon(Icons.error_outline, size: 48, color: RegentaColors.crit),
                 const SizedBox(height: 16),
                 Text(
-                  'No se pudieron cargar las órdenes de compra:
-$err',
+                  'No se pudieron cargar las órdenes de compra: $err',
                   textAlign: TextAlign.center,
                   style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
                 ),
