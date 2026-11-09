@@ -340,47 +340,49 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       }
     });
 
-    final esMovil = MediaQuery.sizeOf(context).width < 500;
+    return LayoutBuilder(
+      builder: (context, restricciones) {
+        final escritorio = restricciones.maxWidth >= kBreakpointEscritorio;
+        final esMovil = restricciones.maxWidth < 600;
 
-    return Scaffold(
-      backgroundColor: RegentaColors.paper,
-      appBar: AppBar(
-        backgroundColor: RegentaColors.surface,
-        surfaceTintColor: RegentaColors.surface,
-        elevation: 0,
-        shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
-        title: Text(
-          'Nueva venta',
-          style: PastelTheme.titulo(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: RegentaColors.ink,
-          ),
-        ),
-        actions: [
-          if (!esMovil)
-            _PestanasHeader(
-              estado: estado,
-              onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
-              onCerrar: _confirmarCerrarVenta,
-              onNueva: estado.ventasAbiertas >= ventasMaximas
-                  ? null
-                  : () => _cambiarDeVenta(pos.nuevaVenta),
-            )
-          else
-            _SelectorVentasMovil(
-              estado: estado,
-              onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
-              onNueva: estado.ventasAbiertas >= ventasMaximas
-                  ? null
-                  : () => _cambiarDeVenta(pos.nuevaVenta),
+        return Scaffold(
+          backgroundColor: RegentaColors.paper,
+          appBar: AppBar(
+            backgroundColor: RegentaColors.surface,
+            surfaceTintColor: RegentaColors.surface,
+            elevation: 0,
+            shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
+            title: Text(
+              'Nueva venta',
+              style: PastelTheme.titulo(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: RegentaColors.ink,
+              ),
             ),
-        ],
-      ),
-      body: LayoutBuilder(
-        builder: (context, restricciones) {
-          final escritorio = restricciones.maxWidth >= kBreakpointEscritorio;
-          final desplegable =
+            actions: [
+              if (!esMovil)
+                _PestanasHeader(
+                  estado: estado,
+                  onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
+                  onCerrar: _confirmarCerrarVenta,
+                  onNueva: estado.ventasAbiertas >= ventasMaximas
+                      ? null
+                      : () => _cambiarDeVenta(pos.nuevaVenta),
+                )
+              else
+                _SelectorVentasMovil(
+                  estado: estado,
+                  onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
+                  onNueva: estado.ventasAbiertas >= ventasMaximas
+                      ? null
+                      : () => _cambiarDeVenta(pos.nuevaVenta),
+                ),
+            ],
+          ),
+          body: Builder(
+            builder: (context) {
+              final desplegable =
               !estado.desplegableCerrado &&
               (estado.buscando || estado.termino.trim().length >= 3);
 
@@ -489,6 +491,8 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
           );
         },
       ),
+    );
+      },
     );
   }
 }
