@@ -401,7 +401,6 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                 color: RegentaColors.surface,
                 elevation: 12,
                 shadowColor: RegentaColors.ink.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: const BorderSide(color: RegentaColors.line),
