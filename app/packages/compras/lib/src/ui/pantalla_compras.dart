@@ -101,7 +101,7 @@ class PantallaCompras extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: ordenes.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final oc = ordenes[i];
               final badgeColor = _colorEstado(oc.estado);

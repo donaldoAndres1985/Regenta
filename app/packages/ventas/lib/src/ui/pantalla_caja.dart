@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
-import '../caja/controlador_de_caja.dart';
 import '../caja/datos/sesion_caja_modelos.dart';
 import '../caja/estado_de_caja.dart';
 import '../caja/proveedores.dart';
@@ -547,7 +546,7 @@ class _ListaDeMovimientos extends StatelessWidget {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: movimientos.length,
-                separatorBuilder: (_, __) => const Divider(color: RegentaColors.line, height: 1),
+                separatorBuilder: (context, index) => const Divider(color: RegentaColors.line, height: 1),
                 itemBuilder: (context, i) {
                   final mov = movimientos[i];
                   final esIngreso = mov.tipo.toUpperCase() == 'INGRESO' ||

@@ -102,10 +102,12 @@ jobs:
       - name: Publicar error de test
         if: failure()
         run: |
-          echo "### Fallos en pruebas" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          cat test.log >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f test.log ]; then
+            echo "### Fallos en pruebas" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat test.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # HU-128 criterio 2: cuando un golden falla, la imagen esperada, la
       # obtenida y la diferencia quedan como artefacto de la corrida.

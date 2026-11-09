@@ -101,7 +101,7 @@ class PantallaListaFacturas extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: facturas.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final fac = facturas[i];
               final badgeColor = _colorEstado(fac.estado);

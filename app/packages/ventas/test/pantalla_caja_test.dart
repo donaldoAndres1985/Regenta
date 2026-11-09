@@ -4,20 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:regenta_ventas/regenta_ventas.dart';
 
 class _RepoCajaFake implements RepositorioDeCaja {
-  _RepoCajaFake({
-    this.cajas = const [
-      CajaVista(id: 'caja-1', codigo: 'CAJA-01', nombre: 'Caja Principal'),
-    ],
-    this.sesionActiva,
-    this.movimientosIniciales = const [],
-  }) {
-    _movs = List.of(movimientosIniciales);
-  }
+  _RepoCajaFake({this.sesionActiva});
 
-  final List<CajaVista> cajas;
+  final List<CajaVista> cajas = const [
+    CajaVista(id: 'caja-1', codigo: 'CAJA-01', nombre: 'Caja Principal'),
+  ];
   SesionCajaActiva? sesionActiva;
-  final List<MovimientoCajaVista> movimientosIniciales;
-  late List<MovimientoCajaVista> _movs;
+  final List<MovimientoCajaVista> _movs = [];
 
   @override
   Future<List<CajaVista>> listarCajas() async => cajas;
