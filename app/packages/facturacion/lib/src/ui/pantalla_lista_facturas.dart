@@ -112,7 +112,7 @@ class PantallaListaFacturas extends ConsumerWidget {
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   leading: CircleAvatar(
-                    backgroundColor: badgeColor.withOpacity(0.15),
+                    backgroundColor: badgeColor.withValues(alpha: 0.15),
                     child: Icon(Icons.description, color: badgeColor, size: 20),
                   ),
                   title: Row(
@@ -128,9 +128,9 @@ class PantallaListaFacturas extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: badgeColor.withOpacity(0.12),
+                          color: badgeColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: badgeColor.withOpacity(0.4)),
+                          border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
                         ),
                         child: Text(
                           fac.estado.toUpperCase(),

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:regenta_clientes/regenta_clientes.dart';
 import 'package:regenta_comandas/regenta_comandas.dart';
 import 'package:regenta_core/regenta_core.dart';
@@ -6,24 +6,24 @@ import 'package:regenta_facturacion/regenta_facturacion.dart';
 import 'package:regenta_inventario/regenta_inventario.dart';
 import 'package:regenta_mesas/regenta_mesas.dart';
 import 'package:regenta_reportes/regenta_reportes.dart';
-import 'package:regenta_usuarios/regenta_usuarios.dart';
 import 'package:regenta_compras/regenta_compras.dart';
+import 'package:regenta_usuarios/regenta_usuarios.dart';
 import 'package:regenta_ventas/regenta_ventas.dart';
 
-/// QuÃ© mÃ³dulos hay y dÃ³nde vive cada uno (HU-119).
+/// Qué módulos hay y dónde vive cada uno (HU-119).
 ///
-/// Es el Ãºnico sitio del monorepo donde se nombran todos: un paquete de mÃ³dulo
-/// no sabe de los demÃ¡s, pero la carcasa tiene que saber de todos para armar la
-/// navegaciÃ³n.
+/// Es el único sitio del monorepo donde se nombran todos: un paquete de módulo
+/// no sabe de los demás, pero la carcasa tiene que saber de todos para armar la
+/// navegación.
 ///
-/// Cada ruta declara **el mÃ³dulo que exige**, y de ahÃ­ salen dos cosas a la vez:
-/// lo que se ve en el menÃº y lo que la guardia deja pasar. Si fueran dos listas
-/// distintas, tarde o temprano dirÃ­an cosas distintas.
+/// Cada ruta declara **el módulo que exige**, y de ahí salen dos cosas a la vez:
+/// lo que se ve en el menú y lo que la guardia deja pasar. Si fueran dos listas
+/// distintas, tarde o temprano dirían cosas distintas.
 
-/// El permiso mÃ­nimo para que un mÃ³dulo aparezca en el menÃº.
+/// El permiso mínimo para que un módulo aparezca en el menú.
 ///
-/// No basta con que el negocio tenga el mÃ³dulo en su plan: un cajero no tiene
-/// por quÃ© ver *Inventario* aunque la ferreterÃ­a lo haya pagado.
+/// No basta con que el negocio tenga el módulo en su plan: un cajero no tiene
+/// por qué ver *Inventario* aunque la ferretería lo haya pagado.
 const Map<String, String> permisoParaVer = {
   'VENTAS': 'VENTAS_VENTA_VER',
   'INVENTARIO': 'INVENTARIO_PRODUCTO_VER',
@@ -37,9 +37,9 @@ const Map<String, String> permisoParaVer = {
   'CONFIGURACION': 'CONFIGURACION_NEGOCIO_VER',
 };
 
-/// Las pantallas enrutables, con el mÃ³dulo que cada una exige.
+/// Las pantallas enrutables, con el módulo que cada una exige.
 ///
-/// `crearEnrutador` genera ademÃ¡s `/<ruta>/:id` para cada una, que es por donde
+/// `crearEnrutador` genera además `/<ruta>/:id` para cada una, que es por donde
 /// entran las que necesitan un identificador.
 final List<RutaProtegida> rutasDeLaApp = [
   RutaProtegida(
@@ -82,7 +82,7 @@ final List<RutaProtegida> rutasDeLaApp = [
     modulo: 'FACTURACION',
     builder: (context, parametros) {
       final id = parametros['id'];
-            if (id == null) {
+      if (id == null) {
         return PantallaListaFacturas(
           onFacturaSeleccionada: (facturaId) {
             Navigator.of(context).pushNamed('/facturas/' + facturaId);
@@ -92,15 +92,15 @@ final List<RutaProtegida> rutasDeLaApp = [
       return PantallaFactura(facturaId: id);
     },
   ),
-  // MÃ³dulos que ya tienen backend pero todavÃ­a no su pantalla en la app: la
-  // entrada existe para que el menÃº sea el del diseÃ±o, y la guardia los trata
-  // igual que a los demÃ¡s.
+  // Módulos que ya tienen backend pero todavía no su pantalla en la app: la
+  // entrada existe para que el menú sea el del diseño, y la guardia los trata
+  // igual que a los demás.
   RutaProtegida(
     ruta: '/caja',
     modulo: 'CAJA',
     builder: (context, parametros) => const PantallaCaja(),
   ),
-    RutaProtegida(
+  RutaProtegida(
     ruta: '/compras',
     modulo: 'COMPRAS',
     builder: (context, parametros) {
@@ -118,8 +118,7 @@ final List<RutaProtegida> rutasDeLaApp = [
   RutaProtegida(
     ruta: '/reportes',
     modulo: 'REPORTES',
-    builder: (context, parametros) =>
-        const PantallaReportes(),
+    builder: (context, parametros) => const PantallaReportes(),
   ),
   RutaProtegida(
     ruta: '/configuracion',
@@ -128,7 +127,7 @@ final List<RutaProtegida> rutasDeLaApp = [
   ),
 ];
 
-/// El menÃº completo, antes de filtrar por lo que tiene el negocio.
+/// El menú completo, antes de filtrar por lo que tiene el negocio.
 /// En el orden en que se pintan, grupo por grupo.
 const List<EntradaDeNavegacion> menuCompleto = [
   EntradaDeNavegacion(ruta: GuardiaDeRutas.inicio, titulo: 'Inicio'),
@@ -149,7 +148,7 @@ const List<EntradaDeNavegacion> menuCompleto = [
   ),
   EntradaDeNavegacion(
     ruta: '/facturas',
-    titulo: 'FacturaciÃ³n',
+    titulo: 'Facturación',
     modulo: 'FACTURACION',
   ),
   EntradaDeNavegacion(
@@ -159,22 +158,22 @@ const List<EntradaDeNavegacion> menuCompleto = [
   ),
   EntradaDeNavegacion(
     ruta: '/configuracion',
-    titulo: 'ConfiguraciÃ³n',
+    titulo: 'Configuración',
     modulo: 'CONFIGURACION',
-    builder: (context, parametros) => const PantallaConfiguracion(),
+  ),
 ];
 
-/// Los grupos del menÃº lateral.
+/// Los grupos del menú lateral.
 enum GrupoDeMenu {
-  operacion('OperaciÃ³n'),
-  gestion('GestiÃ³n'),
-  analisis('AnÃ¡lisis');
+  operacion('Operación'),
+  gestion('Gestión'),
+  analisis('Análisis');
 
   const GrupoDeMenu(this.titulo);
   final String titulo;
 }
 
-/// A quÃ© grupo va cada entrada del menÃº. Es presentaciÃ³n, como los iconos.
+/// A qué grupo va cada entrada del menú. Es presentación, como los iconos.
 const Map<String, GrupoDeMenu> grupoDeRuta = {
   GuardiaDeRutas.inicio: GrupoDeMenu.operacion,
   '/ventas': GrupoDeMenu.operacion,
@@ -189,10 +188,10 @@ const Map<String, GrupoDeMenu> grupoDeRuta = {
   '/configuracion': GrupoDeMenu.analisis,
 };
 
-/// El menÃº de este negocio y de esta persona (criterio 3).
+/// El menú de este negocio y de esta persona (criterio 3).
 ///
-/// Dos filtros encadenados, y los dos hacen falta: el mÃ³dulo dice quÃ© comprÃ³ el
-/// negocio, el permiso dice quÃ© le toca a quien entrÃ³.
+/// Dos filtros encadenados, y los dos hacen falta: el módulo dice qué compró el
+/// negocio, el permiso dice qué le toca a quien entró.
 List<EntradaDeNavegacion> menuDe(ClaimsDeSesion? claims) {
   if (claims == null) return const [];
   final activos = ModulosActivos.deClaims(claims);
@@ -205,7 +204,7 @@ List<EntradaDeNavegacion> menuDe(ClaimsDeSesion? claims) {
   }).toList();
 }
 
-/// Iconos del menÃº, por ruta. Separado del catÃ¡logo porque es presentaciÃ³n.
+/// Iconos del menú, por ruta. Separado del catálogo porque es presentación.
 const Map<String, IconData> iconoDeRuta = {
   GuardiaDeRutas.inicio: Icons.home_outlined,
   '/ventas': Icons.shopping_cart_outlined,
@@ -220,7 +219,7 @@ const Map<String, IconData> iconoDeRuta = {
   '/facturas': Icons.receipt_long_outlined,
 };
 
-/// Cuando se entra a una pantalla de detalle sin decir a cuÃ¡l.
+/// Cuando se entra a una pantalla de detalle sin decir a cuál.
 class _SinDocumento extends StatelessWidget {
   const _SinDocumento({required this.que});
 
@@ -260,7 +259,9 @@ class _SinDocumento extends StatelessWidget {
   }
 }
 
-/// Un mÃ³dulo del menÃº cuya pantalla todavÃ­a no existe en la app.
+/// Un módulo del menú cuya pantalla todavía no existe en la app.
+class _SinPantallaTodavia extends StatelessWidget {
+  const _SinPantallaTodavia({required this.modulo});
 
   final String modulo;
 
@@ -285,7 +286,7 @@ class _SinDocumento extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'La pantalla de $modulo todavÃ­a no estÃ¡ disponible en la app.',
+            'La pantalla de $modulo todavía no está disponible en la app.',
             textAlign: TextAlign.center,
             style: RegentaType.cuerpo.copyWith(
               fontSize: 14,
@@ -297,9 +298,3 @@ class _SinDocumento extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-

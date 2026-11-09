@@ -111,7 +111,7 @@ class PantallaCompras extends ConsumerWidget {
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   leading: CircleAvatar(
-                    backgroundColor: colorBadge.withOpacity(0.15),
+                    backgroundColor: colorBadge.withValues(alpha: 0.15),
                     child: Icon(Icons.receipt, color: colorBadge, size: 20),
                   ),
                   title: Row(
@@ -127,9 +127,9 @@ class PantallaCompras extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: colorBadge.withOpacity(0.12),
+                          color: colorBadge.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: colorBadge.withOpacity(0.4)),
+                          border: Border.all(color: colorBadge.withValues(alpha: 0.4)),
                         ),
                         child: Text(
                           ord.estado.toUpperCase(),
