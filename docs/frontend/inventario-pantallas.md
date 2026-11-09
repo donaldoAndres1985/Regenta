@@ -40,8 +40,8 @@ probarlo con MockMvc (negocio con y sin el módulo).
 | Ventas | Detalle de venta / anulación | **Falta** | `GET /api/ventas/{id}`, `POST /api/ventas/{id}/anulacion` | P1 |
 | Ventas | Devoluciones | **Falta** | `POST /api/ventas/{ventaId}/devoluciones` (depende del detalle de venta) | P1 |
 | Ventas | Cotizaciones | **Falta** | `POST /api/cotizaciones`, `GET /api/cotizaciones/{id}`, `POST /api/cotizaciones/{id}/conversion`; **no hay listado** → pendiente de backend | P3 |
-| Caja | Abrir / cerrar caja, sesión activa | **Falta** (ruta `/caja` con aviso) | `GET /api/caja/cajas`, `GET /api/caja/sesiones/activa`, `POST /api/caja/sesiones`, `POST /api/caja/sesiones/{id}/cierre` | P1 |
-| Caja | Arqueo, ingresos y retiros | **Falta** | `GET/PUT /api/caja/sesiones/{id}/arqueo`, `POST /api/caja/sesiones/{id}/ingresos`, `POST /api/caja/sesiones/{id}/retiros`, `GET /api/caja/sesiones/{id}/movimientos` | P1 |
+| Caja | Abrir / cerrar caja, sesión activa | **Completa** (`PantallaCaja` en `/caja`) | `GET /api/caja/cajas`, `GET /api/caja/sesiones/activa`, `POST /api/caja/sesiones`, `POST /api/caja/sesiones/{id}/cierre` | P1 |
+| Caja | Arqueo, ingresos y retiros | **Completa** (`PantallaCaja` en `/caja`) | `GET/PUT /api/caja/sesiones/{id}/arqueo`, `POST /api/caja/sesiones/{id}/ingresos`, `POST /api/caja/sesiones/{id}/retiros`, `GET /api/caja/sesiones/{id}/movimientos` | P1 |
 | Caja | Configuración de caja | **Falta** | `GET/PUT /api/caja/config`, `POST /api/caja/cajas` | P3 |
 | Inventario | Productos (`PantallaInventario`) | **Incompleta**: busca y escanea; no crea, no edita, sin detalle | `GET /api/inventario/productos/buscar`, `GET /api/inventario/productos/codigo/{codigo}`. Debería: `POST /api/inventario/productos`, `GET /api/inventario/productos/{id}`. **No hay `PUT` de producto** → editar es **pendiente de backend** | P2 |
 | Inventario | Categorías y atributos configurables | **Falta** | `GET/POST/PUT/DELETE /api/inventario/categorias`, `GET/POST /api/inventario/categorias/{id}/atributos`, `PUT/DELETE /api/inventario/categorias/atributos/{id}` | P2 |
@@ -55,13 +55,13 @@ probarlo con MockMvc (negocio con y sin el módulo).
 | Clientes | Detalle / CRM (interacciones, métricas) | **Falta** | `GET/POST /api/clientes/{id}/interacciones`, `GET /api/clientes/{id}/metricas` | P2 |
 | Clientes | Cartera y cuentas por cobrar | **Falta** | `GET /api/clientes/{id}/cartera`, `PUT /api/clientes/{id}/credito`; **no hay listado global de cartera** → pendiente de backend | P2 |
 | Clientes | Recaudos | **Falta** | `POST /api/clientes/cuentas/{cuentaId}/recaudos` | P2 |
-| Compras | Recepción de mercancía (`PantallaRecepcion`) | **Incompleta**: funciona, pero solo si se llega con el id de una orden; no está en ninguna ruta | `GET /api/compras/ordenes/{id}`, `POST /api/compras/recepciones`, `POST /api/compras/recepciones/{id}/confirmacion` | P2 |
-| Compras | Órdenes de compra (listado, crear, aprobar, enviar) | **Falta** (ruta `/compras` con aviso) | `GET/POST /api/compras/ordenes`, `PUT /{id}/lineas`, `POST /{id}/aprobacion`, `POST /{id}/envio` | P2 |
+| Compras | Recepción de mercancía (`PantallaRecepcion`) | **Completa**: enlazada desde listado `/compras/:id` | `GET /api/compras/ordenes/{id}`, `POST /api/compras/recepciones`, `POST /api/compras/recepciones/{id}/confirmacion` | P2 |
+| Compras | Órdenes de compra (listado y recepción) | **Completa** (`PantallaCompras` en `/compras`) | `GET/POST /api/compras/ordenes`, `PUT /{id}/lineas`, `POST /{id}/aprobacion`, `POST /{id}/envio` | P2 |
 | Compras | Proveedores | **Falta** | `GET/POST/PUT/DELETE /api/compras/proveedores`, `GET/POST /{id}/productos` | P2 |
 | Compras | Cuentas por pagar | **Falta** | `GET/POST /api/compras/cuentas-por-pagar`, `POST /{id}/pagos` | P3 |
 | Compras | Sugerencias de compra | **Falta** | `GET /api/compras/sugerencias`, `POST /aceptacion`, `POST /{id}/descarte` | P3 |
 | Facturación | Detalle de factura (`PantallaFactura`) | **Completa** para el detalle | `GET /api/facturacion/facturas/{id}`, `POST /{id}/envio-cliente`, `GET /{id}/transmisiones` | P2 |
-| Facturación | Listado de facturas | **Falta** (`/facturas` sin id muestra "Elige una factura") | `GET /api/facturacion/facturas` | P2 |
+| Facturación | Listado de facturas | **Completa** (`PantallaListaFacturas` en `/facturas`) | `GET /api/facturacion/facturas` | P2 |
 | Facturación | Notas crédito | **Falta** | `POST /api/facturacion/facturas/{id}/notas-credito` | P3 |
 | Facturación | Resoluciones, certificados, contingencias | **Falta** | `/api/facturacion/resoluciones`, `/certificados`, `/contingencias` (DIAN va con proveedor tecnológico: ver memoria del proyecto) | P4 |
 | Mesas | Plano y sesiones (`PantallaMesas`) | **Completa** | `/api/mesas`, `/api/mesas/plano`, `/api/mesas/zonas`, sesiones | P4 |
@@ -70,11 +70,11 @@ probarlo con MockMvc (negocio con y sin el módulo).
 | Menú | Cartas, ítems, modificadores, estaciones, recetas | **Falta** (sin ruta) | `/api/menu/cartas/**`, `/api/menu/items/**`, `/api/menu/modificadores/**`, `/api/menu/estaciones/**`, recetas | P4 |
 | Reservas | Calendario de ocupación (`PantallaCalendario`) | **Incompleta**: muestra el calendario; no crea, confirma ni cancela; **no está en el catálogo de rutas** | `GET /api/reservas/calendario`. Debería: `POST /api/reservas`, `/{id}/confirmacion`, `/cancelacion`, `/check-in`, `/check-out` | P4 |
 | Recursos | Recursos, tipos, tarifas, bloqueos | **Falta** | `/api/recursos/**` | P4 |
-| Reportes | Sesiones de caja (`ListaDeSesionesDeCaja`) | **Incompleta**: el widget existe, pero no está en ninguna ruta (`/reportes` muestra aviso) | `GET /api/caja/reportes/sesiones`, `GET /api/caja/reportes/sesiones/{id}` | P3 |
+| Reportes | Sesiones de caja y analítica de turnos | **Completa** (`PantallaReportes` en `/reportes`) | `GET /api/caja/reportes/sesiones`, `GET /api/caja/reportes/sesiones/{id}` | P3 |
 | Reportes | Ventas por categoría, rotación, métricas por patrón, exportaciones | **Falta** | `/api/reportes/ventas/**`, `/api/reportes/metricas/**`, `/api/reportes/exportaciones` | P3 |
 | Alertas | Centro de alertas (campana, en el núcleo) | **Completa** | `/api/alertas/mias`, `/vistas`, `/{id}/resolucion` | P3 |
 | Alertas | Reglas de alerta (stock bajo, vencimientos) | **Falta** | `/api/alertas/reglas/**`, `/api/alertas/preferencias` | P3 |
-| Configuración | Datos del negocio, impuestos | **Falta** (ruta `/configuracion` con aviso) | `GET/PUT /api/usuarios/configuracion`, `/api/usuarios/impuestos/**` | P3 |
+| Configuración | Datos del negocio, impuestos y stock | **Completa** (`PantallaConfiguracion` en `/configuracion`) | `GET/PUT /api/usuarios/configuracion`, `/api/usuarios/impuestos/**` | P3 |
 | Configuración | Sucursales | **Falta** | `/api/usuarios/sucursales/**` | P3 |
 | Configuración | Módulos y plan | **Falta** | `GET /api/usuarios/modulos`, `POST /modulos/{codigo}/activar`, `DELETE /modulos/{codigo}`, `POST /negocios/plan` | P3 |
 | Usuarios | Usuarios e invitaciones | **Falta** | `/api/usuarios/usuarios/**` | P3 |
