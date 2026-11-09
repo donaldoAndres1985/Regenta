@@ -41,6 +41,7 @@ class LineaParaEnviar {
     required this.precioUnitario,
     this.impuestoPct = 0,
     this.costoUnitario = 0,
+    this.descuentoPct = 0,
   });
 
   final String productoId;
@@ -50,6 +51,7 @@ class LineaParaEnviar {
   final num precioUnitario;
   final num impuestoPct;
   final num costoUnitario;
+  final num descuentoPct;
 
   Map<String, dynamic> aJson() => {
         'productoId': productoId,
@@ -59,6 +61,7 @@ class LineaParaEnviar {
         'precioUnitario': precioUnitario,
         'impuestoPct': impuestoPct,
         'costoUnitario': costoUnitario,
+        'descuentoPct': descuentoPct,
       };
 }
 
@@ -75,73 +78,80 @@ class RepositorioDeVentas {
   /// copia: la configuración del negocio pide un permiso que quien cobra no
   /// suele tener.
   Future<num?> montoParaIdentificarComprador() async {
-    final cuerpo = await _http.get<Map<String, dynamic>>('/api/ventas/reglas-de-cobro');
-    return cuerpo['montoIdentificarComprador'] as num?;
+    final cuerpo = await _http.get<dynamic>('/api/ventas/reglas-de-cobro');
+    if (cuerpo is Map) {
+      return cuerpo['montoIdentificarComprador'] as num?;
+    }
+    return null;
   }
 
   Future<List<ProductoBuscado>> buscar(String termino) async {
     final q = termino.trim();
     if (q.length < 3) return const [];
-    final cuerpo = await _http.get<Map<String, dynamic>>(
+    final cuerpo = await _http.get<dynamic>(
       '/api/inventario/productos/buscar',
       query: {'q': q},
     );
-    return ((cuerpo['productos'] ?? const []) as List<dynamic>)
-        .map((e) => ProductoBuscado.desdeJson((e as Map).cast<String, dynamic>()))
-        .toList();
+    if (cuerpo is Map) {
+      final lista = (cuerpo['productos'] ?? cuerpo['content'] ?? const []) as List<dynamic>;
+      return lista
+          .map((e) => ProductoBuscado.desdeJson((e as Map).cast<String, dynamic>()))
+          .toList();
+    } else if (cuerpo is List) {
+      return cuerpo
+          .map((e) => ProductoBuscado.desdeJson((e as Map).cast<String, dynamic>()))
+          .toList();
+    }
+    return const [];
   }
 
   Future<CodigoResuelto> resolverCodigo(String codigo) async {
-    final cuerpo = await _http.get<Map<String, dynamic>>(
+    final cuerpo = await _http.get<dynamic>(
       '/api/inventario/productos/codigo/${Uri.encodeComponent(codigo.trim())}',
     );
-    return CodigoResuelto.desdeJson(cuerpo);
+    return CodigoResuelto.desdeJson((cuerpo as Map).cast<String, dynamic>());
   }
 
   Future<ProductoBuscado> verProducto(String productoId) async {
-    // La búsqueda por SKU exacto es la vía más directa que hay hoy; el POS la
-    // usa para hidratar un producto escaneado.
-    final cuerpo = await _http.get<Map<String, dynamic>>(
+    final cuerpo = await _http.get<dynamic>(
       '/api/inventario/productos/buscar',
       query: {'q': productoId},
     );
-    final lista = ((cuerpo['productos'] ?? const []) as List<dynamic>);
+    List<dynamic> lista = const [];
+    if (cuerpo is Map) {
+      lista = (cuerpo['productos'] ?? cuerpo['content'] ?? const []) as List<dynamic>;
+    } else if (cuerpo is List) {
+      lista = cuerpo;
+    }
     return ProductoBuscado.desdeJson((lista.first as Map).cast<String, dynamic>());
   }
 
   /// Cobra la venta entera de una sola llamada (HU-043).
-  ///
-  /// Va siempre por el mismo camino, haya señal o no: el id de la venta lo
-  /// pone el celular, así que si no hay red la operación queda en la cola y
-  /// sube sola después, y si la subida se reintenta el servidor la reconoce
-  /// por ese id y devuelve la que ya creó en vez de duplicarla. Armarla en
-  /// tres llamadas —borrador, líneas, confirmación— dejaría ventas a medias
-  /// justo cuando la conexión es mala, que es cuando más importa.
   Future<ResultadoDeCobro> confirmarVenta({
     required String bodegaId,
     required List<LineaParaEnviar> lineas,
     String? clienteId,
   }) async {
-    final origenOfflineId = _uuid.v4();
-    final cuerpo = <String, dynamic>{
-      'origenOfflineId': origenOfflineId,
+    final offlineId = _uuid.v4();
+    final datos = {
+      'origenOfflineId': offlineId,
       'ocurridoEn': DateTime.now().toUtc().toIso8601String(),
       'bodegaId': bodegaId,
-      'lineas': [for (final linea in lineas) linea.aJson()],
+      if (clienteId != null) 'clienteId': clienteId,
+      'lineas': lineas.map((l) => l.aJson()).toList(),
     };
-    if (clienteId != null) cuerpo['clienteId'] = clienteId;
-
-    final respuesta = await _http.post<Map<String, dynamic>>(
+    final respuesta = await _http.post<dynamic>(
       '/api/ventas/offline',
-      datos: cuerpo,
+      datos: datos,
       encolable: true,
     );
     if (respuesta is Encolado) {
-      return ResultadoDeCobro(origenOfflineId: origenOfflineId);
+      return ResultadoDeCobro(origenOfflineId: offlineId);
     }
+    final cuerpo = (respuesta as Map).cast<String, dynamic>();
     return ResultadoDeCobro(
-      origenOfflineId: origenOfflineId,
-      venta: VentaCreada.desdeJson(respuesta as Map<String, dynamic>),
+      origenOfflineId: offlineId,
+      venta: VentaCreada.desdeJson(cuerpo),
     );
   }
 }

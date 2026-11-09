@@ -43,6 +43,33 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
   EstadoDelPos _ventaNueva() =>
       EstadoDelPos(montoParaIdentificar: _montoParaIdentificar);
 
+  List<int> _conteoProductos(int actual, int siguiente) {
+    return [
+      for (var k = 0; k < state.ventasAbiertas; k++)
+        k == actual
+            ? state.lineas.length
+            : (k == siguiente ? 0 : state.productosPorVenta[k]),
+    ];
+  }
+
+  List<num> _totales(int actual, int siguiente) {
+    return [
+      for (var k = 0; k < state.ventasAbiertas; k++)
+        k == actual
+            ? state.total
+            : (k == siguiente ? 0 : (k < state.totalesPorVenta.length ? state.totalesPorVenta[k] : 0)),
+    ];
+  }
+
+  List<String?> _clientes(int actual, int siguiente) {
+    return [
+      for (var k = 0; k < state.ventasAbiertas; k++)
+        k == actual
+            ? state.cliente?.nombre
+            : (k == siguiente ? null : (k < state.clientesPorVenta.length ? state.clientesPorVenta[k] : null)),
+    ];
+  }
+
   /// R12: guarda la venta activa y muestra [venta]: la que había, o una en
   /// blanco si nunca se usó. La búsqueda no viaja entre ventas.
   void cambiarDeVenta(int venta) {
@@ -62,17 +89,17 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
       ventaNumero: null,
       ventaEnCola: false,
     );
-    final conteo = [
-      for (var k = 0; k < state.ventasAbiertas; k++)
-        k == actual
-            ? state.lineas.length
-            : (k == venta ? 0 : state.productosPorVenta[k]),
-    ];
+    final conteo = _conteoProductos(actual, venta);
+    final totales = _totales(actual, venta);
+    final clientes = _clientes(actual, venta);
+
     final siguiente = _guardadas[venta] ?? _ventaNueva();
     _guardadas[venta] = null;
     state = siguiente.copiar(
       ventaActiva: venta,
       productosPorVenta: conteo,
+      totalesPorVenta: totales,
+      clientesPorVenta: clientes,
       montoParaIdentificar: _montoParaIdentificar,
     );
   }
@@ -82,8 +109,41 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     final n = state.ventasAbiertas;
     if (n >= ventasMaximas) return;
     _guardadas.add(null);
-    state = state.copiar(productosPorVenta: [...state.productosPorVenta, 0]);
+    state = state.copiar(
+      productosPorVenta: [...state.productosPorVenta, 0],
+      totalesPorVenta: [...state.totalesPorVenta, 0],
+      clientesPorVenta: [...state.clientesPorVenta, null],
+    );
     cambiarDeVenta(n);
+  }
+
+  /// Cierra una pestaña de venta. Si es la activa, cambia a la anterior o 0.
+  void cerrarVenta(int indice) {
+    if (state.ventasAbiertas <= 1 || indice < 0 || indice >= state.ventasAbiertas) return;
+    _guardadas.removeAt(indice);
+    final nuevoConteo = [...state.productosPorVenta]..removeAt(indice);
+    final nuevosTotales = [...state.totalesPorVenta]..removeAt(indice);
+    final nuevosClientes = [...state.clientesPorVenta]..removeAt(indice);
+
+    if (indice == state.ventaActiva) {
+      final nuevaActiva = (indice > 0 ? indice - 1 : 0).clamp(0, nuevoConteo.length - 1);
+      final siguiente = _guardadas[nuevaActiva] ?? _ventaNueva();
+      _guardadas[nuevaActiva] = null;
+      state = siguiente.copiar(
+        ventaActiva: nuevaActiva,
+        productosPorVenta: nuevoConteo,
+        totalesPorVenta: nuevosTotales,
+        clientesPorVenta: nuevosClientes,
+      );
+    } else {
+      final nuevaActiva = indice < state.ventaActiva ? state.ventaActiva - 1 : state.ventaActiva;
+      state = state.copiar(
+        ventaActiva: nuevaActiva,
+        productosPorVenta: nuevoConteo,
+        totalesPorVenta: nuevosTotales,
+        clientesPorVenta: nuevosClientes,
+      );
+    }
   }
 
   /// R12: deja la venta activa guardada y pasa a una en blanco: la primera
@@ -135,7 +195,8 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
 
   void _noSeEncontro(String texto) => state = state.copiar(
     mensaje: 'No se encontró «$texto»',
-    desplegableCerrado: true,
+    buscando: false,
+    desplegableCerrado: false,
   );
 
   /// R7: resuelve el código de barras (propio o alterno) y, si no hay, la
@@ -166,7 +227,7 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
       // Ningún código de barras: se prueba por la referencia exacta.
     } on StateError {
       // El código existe pero el producto no apareció: igual que no hallarlo.
-    }
+    } catch (_) {}
     try {
       final candidatos = await _repo.buscar(codigo);
       final exacto = candidatos
@@ -179,6 +240,8 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
       }
     } on ErrorDeApi catch (e) {
       state = state.copiar(mensaje: e.mensaje);
+    } catch (_) {
+      _noSeEncontro(codigo);
     }
   }
 
@@ -194,15 +257,24 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
 
   Future<void> _buscar() async {
     final gen = ++_generacion;
-    state = state.copiar(buscando: true);
+    state = state.copiar(buscando: true, desplegableCerrado: false);
     try {
       final resultados = await _repo.buscar(state.termino);
       if (gen != _generacion) return;
       _terminoDeResultados = state.termino;
-      state = state.copiar(resultados: resultados, buscando: false);
-    } on ErrorDeApi catch (e) {
+      state = state.copiar(
+        resultados: resultados,
+        buscando: false,
+        desplegableCerrado: false,
+      );
+    } catch (e) {
       if (gen != _generacion) return;
-      state = state.copiar(buscando: false, mensaje: e.mensaje);
+      state = state.copiar(
+        buscando: false,
+        resultados: const [],
+        desplegableCerrado: false,
+        mensaje: e is ErrorDeApi ? e.mensaje : null,
+      );
     }
   }
 
@@ -234,6 +306,7 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
       _agregarPorCodigoExacto(codigo.trim());
 
   void cambiarCantidad(int indice, int delta) {
+    if (indice < 0 || indice >= state.lineas.length) return;
     final lineas = [...state.lineas];
     final nueva = lineas[indice].cantidad + delta;
     if (nueva <= 0) {
@@ -244,9 +317,39 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     state = state.copiar(lineas: lineas, mensaje: null);
   }
 
+  void fijarCantidad(int indice, int cantidad) {
+    if (indice < 0 || indice >= state.lineas.length) return;
+    final lineas = [...state.lineas];
+    if (cantidad <= 0) {
+      lineas.removeAt(indice);
+    } else {
+      lineas[indice] = lineas[indice].conCantidad(cantidad);
+    }
+    state = state.copiar(lineas: lineas, mensaje: null);
+  }
+
   void quitar(int indice) {
+    if (indice < 0 || indice >= state.lineas.length) return;
     final lineas = [...state.lineas]..removeAt(indice);
     state = state.copiar(lineas: lineas, mensaje: null);
+  }
+
+  void fijarNota(String? nota) {
+    state = state.copiar(nota: nota);
+  }
+
+  void aplicarDescuentoGlobal({num porcentaje = 0, num valor = 0}) {
+    state = state.copiar(
+      descuentoGeneralPct: porcentaje,
+      descuentoGeneralValor: valor,
+    );
+  }
+
+  void aplicarDescuentoLinea(int indice, num porcentaje) {
+    if (indice < 0 || indice >= state.lineas.length) return;
+    final lineas = [...state.lineas];
+    lineas[indice] = lineas[indice].conDescuento(porcentaje);
+    state = state.copiar(lineas: lineas);
   }
 
   /// HU-137: el monto puede llegar después de abrir el POS.
@@ -255,7 +358,13 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     state = state.copiar(montoParaIdentificar: monto);
   }
 
-  void vaciar() => state = state.copiar(lineas: const [], mensaje: null);
+  void vaciar() => state = state.copiar(
+        lineas: const [],
+        nota: null,
+        descuentoGeneralPct: 0,
+        descuentoGeneralValor: 0,
+        mensaje: null,
+      );
 
   /// HU-113: el selector devuelve a quién se le está vendiendo, o `null` si
   /// volvió a consumidor final.
@@ -278,6 +387,7 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
               precioUnitario: l.producto.precioVenta,
               impuestoPct: l.producto.impuestoPct,
               costoUnitario: l.producto.costoUnitario,
+              descuentoPct: l.descuentoPct,
             ),
         ],
         clienteId: state.cliente?.id,
@@ -288,9 +398,13 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
         ventaEnCola: venta.quedoEnLaCola,
         ventaActiva: state.ventaActiva,
         productosPorVenta: state.productosPorVenta,
+        totalesPorVenta: state.totalesPorVenta,
+        clientesPorVenta: state.clientesPorVenta,
       );
     } on ErrorDeApi catch (e) {
       state = state.copiar(cobrando: false, mensaje: e.mensaje);
+    } catch (e) {
+      state = state.copiar(cobrando: false, mensaje: e.toString());
     }
   }
 
