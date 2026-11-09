@@ -80,12 +80,32 @@ jobs:
       - name: Publicar error de analyze
         if: failure()
         run: |
-          tail -n 40 analyze.log | while IFS= read -r line; do
-            echo "::error::$line"
-          done
+          echo "### Resultado de flutter analyze" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat analyze.log >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if grep -q " • " analyze.log; then
+            grep -E " • " analyze.log | head -n 25 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          else
+            tail -n 25 analyze.log | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          fi
 
       - name: test
-        run: melos run test --no-select
+        run: |
+          set -o pipefail
+          melos run test --no-select 2>&1 | tee test.log
+
+      - name: Publicar error de test
+        if: failure()
+        run: |
+          echo "### Fallos en pruebas" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat test.log >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       # HU-128 criterio 2: cuando un golden falla, la imagen esperada, la
       # obtenida y la diferencia quedan como artefacto de la corrida.
