@@ -340,7 +340,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       }
     });
 
-    final esEscritorio = MediaQuery.sizeOf(context).width >= kBreakpointEscritorio;
+    final esMovil = MediaQuery.sizeOf(context).width < 500;
 
     return Scaffold(
       backgroundColor: RegentaColors.paper,
@@ -358,7 +358,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
           ),
         ),
         actions: [
-          if (esEscritorio)
+          if (!esMovil)
             _PestanasHeader(
               estado: estado,
               onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
