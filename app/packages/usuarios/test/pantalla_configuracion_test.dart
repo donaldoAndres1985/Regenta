@@ -57,6 +57,7 @@ void main() {
     expect(find.text('900123456-7'), findsOneWidget);
     expect(find.text('Guardar Configuración'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Guardar Configuración'));
     await tester.tap(find.text('Guardar Configuración'));
     await tester.pumpAndSettle();
 

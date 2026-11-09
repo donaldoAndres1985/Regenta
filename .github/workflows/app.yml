@@ -107,6 +107,9 @@ jobs:
             echo '```' >> "$GITHUB_STEP_SUMMARY"
             cat test.log >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep -C 3 -E "(FAILED|Expected:|Actual:|══╡ EXCEPTION)" test.log | head -n 30 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
           fi
 
       # HU-128 criterio 2: cuando un golden falla, la imagen esperada, la
