@@ -7,7 +7,7 @@ import '../factura/proveedores.dart';
 import 'formato.dart';
 
 final listaFacturasFutureProvider =
-    FutureProvider.autoDispose<List<FacturaResumenVista>>((ref) async {
+    FutureProvider.autoDispose<List<FacturaResumenVista>>((ref) {
   final repo = ref.watch(repositorioDeFacturasProvider);
   return repo.listar();
 });
@@ -48,7 +48,9 @@ class PantallaListaFacturas extends ConsumerWidget {
           IconButton(
             tooltip: 'Refrescar',
             icon: const Icon(Icons.refresh, color: RegentaColors.ink),
-            onPressed: () => ref.refresh(listaFacturasFutureProvider),
+            onPressed: () {
+              ref.invalidate(listaFacturasFutureProvider);
+            },
           ),
           const SizedBox(width: 8),
         ],
@@ -70,7 +72,9 @@ class PantallaListaFacturas extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => ref.refresh(listaFacturasFutureProvider),
+                  onPressed: () {
+                    ref.invalidate(listaFacturasFutureProvider);
+                  },
                   child: const Text('Reintentar'),
                 ),
               ],
@@ -105,9 +109,9 @@ class PantallaListaFacturas extends ConsumerWidget {
               return Card(
                 elevation: 0,
                 color: RegentaColors.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: const BorderSide(color: RegentaColors.line),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(8)),
+                  side: BorderSide(color: RegentaColors.line),
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

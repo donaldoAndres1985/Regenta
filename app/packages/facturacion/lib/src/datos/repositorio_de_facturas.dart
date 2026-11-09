@@ -13,7 +13,7 @@ class RepositorioDeFacturas {
   Future<List<FacturaResumenVista>> listar() async {
     final lista = await _http.get<List<dynamic>>('/api/facturacion/facturas');
     return lista
-        .map((e) => FacturaResumenVista.desdeJson(Map<String, dynamic>.from(e as Map)))
+        .map((e) => FacturaResumenVista.desdeJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
 

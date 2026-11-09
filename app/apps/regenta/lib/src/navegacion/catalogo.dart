@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:regenta_clientes/regenta_clientes.dart';
 import 'package:regenta_comandas/regenta_comandas.dart';
@@ -82,7 +83,7 @@ final List<RutaProtegida> rutasDeLaApp = [
       if (id == null) {
         return PantallaListaFacturas(
           onFacturaSeleccionada: (facturaId) {
-            Navigator.of(context).pushNamed('/facturas/$facturaId');
+            unawaited(Navigator.of(context).pushNamed('/facturas/$facturaId'));
           },
         );
       }
