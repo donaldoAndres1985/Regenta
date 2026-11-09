@@ -13,6 +13,9 @@ class _RepoFake implements RepositorioDeFacturas {
   final List<String> enviosRealizados = [];
 
   @override
+  Future<List<FacturaResumenVista>> listar() async => const [];
+
+  @override
   Future<FacturaVista> ver(String facturaId) async => _factura;
 
   @override

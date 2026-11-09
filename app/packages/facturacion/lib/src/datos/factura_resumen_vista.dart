@@ -16,9 +16,9 @@ class FacturaResumenVista {
 
   factory FacturaResumenVista.desdeJson(Map<String, dynamic> j) => FacturaResumenVista(
         id: j['id'] as String,
-        numeroCompleto: (j['numeroCompleto'] ?? '') as String,
-        origenTipo: (j['origenTipo'] ?? '') as String,
-        estado: (j['estado'] ?? 'BORRADOR') as String,
+        numeroCompleto: (j['numeroCompleto'] as String?) ?? '',
+        origenTipo: (j['origenTipo'] as String?) ?? '',
+        estado: (j['estado'] as String?) ?? 'BORRADOR',
         total: (j['total'] as num?) ?? 0,
       );
 }

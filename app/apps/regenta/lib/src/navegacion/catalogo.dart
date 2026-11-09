@@ -82,7 +82,7 @@ final List<RutaProtegida> rutasDeLaApp = [
       if (id == null) {
         return PantallaListaFacturas(
           onFacturaSeleccionada: (facturaId) {
-            Navigator.of(context).pushNamed('/facturas/' + facturaId);
+            Navigator.of(context).pushNamed('/facturas/$facturaId');
           },
         );
       }
