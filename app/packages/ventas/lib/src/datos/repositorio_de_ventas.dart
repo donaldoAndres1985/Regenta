@@ -61,7 +61,6 @@ class LineaParaEnviar {
         'precioUnitario': precioUnitario,
         'impuestoPct': impuestoPct,
         'costoUnitario': costoUnitario,
-        'descuentoPct': descuentoPct,
       };
 }
 
@@ -132,26 +131,26 @@ class RepositorioDeVentas {
     required List<LineaParaEnviar> lineas,
     String? clienteId,
   }) async {
-    final offlineId = _uuid.v4();
-    final datos = {
-      'origenOfflineId': offlineId,
+    final origenOfflineId = _uuid.v4();
+    final cuerpo = <String, dynamic>{
+      'origenOfflineId': origenOfflineId,
       'ocurridoEn': DateTime.now().toUtc().toIso8601String(),
       'bodegaId': bodegaId,
-      'clienteId': ?clienteId,
-      'lineas': lineas.map((l) => l.aJson()).toList(),
+      'lineas': [for (final linea in lineas) linea.aJson()],
     };
-    final respuesta = await _http.post<dynamic>(
+    if (clienteId != null) cuerpo['clienteId'] = clienteId;
+
+    final respuesta = await _http.post<Map<String, dynamic>>(
       '/api/ventas/offline',
-      datos: datos,
+      datos: cuerpo,
       encolable: true,
     );
     if (respuesta is Encolado) {
-      return ResultadoDeCobro(origenOfflineId: offlineId);
+      return ResultadoDeCobro(origenOfflineId: origenOfflineId);
     }
-    final cuerpo = (respuesta as Map).cast<String, dynamic>();
     return ResultadoDeCobro(
-      origenOfflineId: offlineId,
-      venta: VentaCreada.desdeJson(cuerpo),
+      origenOfflineId: origenOfflineId,
+      venta: VentaCreada.desdeJson(respuesta as Map<String, dynamic>),
     );
   }
 }

@@ -340,6 +340,8 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       }
     });
 
+    final esEscritorio = MediaQuery.sizeOf(context).width >= kBreakpointEscritorio;
+
     return Scaffold(
       backgroundColor: RegentaColors.paper,
       appBar: AppBar(
@@ -356,14 +358,23 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
           ),
         ),
         actions: [
-          _PestanasHeader(
-            estado: estado,
-            onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
-            onCerrar: _confirmarCerrarVenta,
-            onNueva: estado.ventasAbiertas >= ventasMaximas
-                ? null
-                : () => _cambiarDeVenta(pos.nuevaVenta),
-          ),
+          if (esEscritorio)
+            _PestanasHeader(
+              estado: estado,
+              onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
+              onCerrar: _confirmarCerrarVenta,
+              onNueva: estado.ventasAbiertas >= ventasMaximas
+                  ? null
+                  : () => _cambiarDeVenta(pos.nuevaVenta),
+            )
+          else
+            _SelectorVentasMovil(
+              estado: estado,
+              onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
+              onNueva: estado.ventasAbiertas >= ventasMaximas
+                  ? null
+                  : () => _cambiarDeVenta(pos.nuevaVenta),
+            ),
         ],
       ),
       body: LayoutBuilder(
@@ -570,6 +581,68 @@ class _PestanasHeader extends StatelessWidget {
             padding: const EdgeInsets.only(left: 8),
             child: _BotonNuevaVenta(onTap: onNueva),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectorVentasMovil extends StatelessWidget {
+  const _SelectorVentasMovil({
+    required this.estado,
+    required this.onSeleccionar,
+    required this.onNueva,
+  });
+
+  final EstadoDelPos estado;
+  final ValueChanged<int> onSeleccionar;
+  final VoidCallback? onNueva;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PopupMenuButton<int>(
+            tooltip: 'Cambiar venta',
+            onSelected: onSeleccionar,
+            itemBuilder: (ctx) => [
+              for (var v = 0; v < estado.ventasAbiertas; v++)
+                PopupMenuItem(
+                  value: v,
+                  child: Text(
+                    'Venta ${v + 1}${estado.productosEnVenta(v) > 0 ? ' · ${formatearPesos(estado.totalEnVenta(v))}' : ''}',
+                  ),
+                ),
+            ],
+            child: Container(
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: RegentaColors.accent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Venta ${estado.ventaActiva + 1}',
+                    style: PastelTheme.cuerpo(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: RegentaColors.surface,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_drop_down, size: 18, color: RegentaColors.surface),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          _BotonNuevaVenta(onTap: onNueva),
         ],
       ),
     );
@@ -2091,8 +2164,8 @@ class _BotonStepper extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: SizedBox(
-          width: 40,
-          height: 44,
+          width: RegentaSpacing.hitTarget,
+          height: RegentaSpacing.hitTarget,
           child: Icon(icono, size: 18, color: RegentaColors.ink2),
         ),
       ),
