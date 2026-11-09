@@ -3,6 +3,8 @@ library;
 
 import 'package:regenta_core/regenta_core.dart';
 
+export 'src/ui/pantalla_configuracion.dart';
+
 /// Nombre del modulo, para el registro de paquetes activos por patron/plan.
 const String nombreDelModulo = 'usuarios';
 

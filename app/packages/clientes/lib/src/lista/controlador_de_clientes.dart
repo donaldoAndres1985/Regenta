@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/repositorio_de_clientes.dart';
@@ -6,8 +6,8 @@ import 'estado_de_clientes.dart';
 import 'filtro_de_clientes.dart';
 
 /// Maneja el listado de clientes: primero la copia local (para que la pantalla
-/// tenga algo al instante y funcione sin señal), y en cuanto llega la red, la
-/// versión fresca. El texto y los filtros nunca vuelven a pedir nada.
+/// tenga algo al instante y funcione sin seÃ±al), y en cuanto llega la red, la
+/// versiÃ³n fresca. El texto y los filtros nunca vuelven a pedir nada.
 class ControladorDeClientes extends StateNotifier<EstadoDeClientes> {
   ControladorDeClientes(this._repo) : super(const EstadoDeClientes()) {
     cargar();
@@ -28,11 +28,11 @@ class ControladorDeClientes extends StateNotifier<EstadoDeClientes> {
       await _repo.guardarEnCache(frescos);
       state = state.copiar(todos: frescos, desdeCache: false, cargando: false);
     } on ErrorDeApi catch (error) {
-      // Criterio 2: sin conexión, se sigue mostrando lo cacheado.
+      // Criterio 2: sin conexiÃ³n, se sigue mostrando lo cacheado.
       state = state.copiar(
         cargando: false,
         desdeCache: true,
-        mensaje: cacheados.isEmpty ? 'No hay clientes guardados para mostrar sin conexión' : null,
+        mensaje: cacheados.isEmpty ? 'No hay clientes guardados para mostrar sin conexiÃ³n' : null,
       );
       if (cacheados.isEmpty && error is! ErrorDeRed) rethrow;
     }
@@ -46,5 +46,32 @@ class ControladorDeClientes extends StateNotifier<EstadoDeClientes> {
   /// Criterio 3: aplica el filtro en memoria.
   void cambiarFiltro(FiltroDeClientes filtro) {
     state = state.copiar(filtro: filtro);
+  }
+
+  /// Crea un nuevo cliente y recarga el listado.
+  Future<bool> crearCliente({
+    required String tipoPersona,
+    required String tipoDocumento,
+    required String numeroDocumento,
+    required String nombreOrazonSocial,
+    String? correo,
+    String? telefono,
+    String? direccion,
+  }) async {
+    try {
+      await _repo.crear(
+        tipoPersona: tipoPersona,
+        tipoDocumento: tipoDocumento,
+        numeroDocumento: numeroDocumento,
+        nombreOrazonSocial: nombreOrazonSocial,
+        correo: correo,
+        telefono: telefono,
+        direccion: direccion,
+      );
+      await cargar();
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 }

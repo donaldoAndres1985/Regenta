@@ -45,6 +45,31 @@ class RepositorioDeClientes {
         ));
   }
 
+  /// Crea un nuevo cliente con sus datos fiscales y de contacto.
+  Future<ClienteEnLista> crear({
+    required String tipoPersona, // NATURAL o JURIDICA
+    required String tipoDocumento, // CC, NIT, etc.
+    required String numeroDocumento,
+    required String nombreOrazonSocial,
+    String? correo,
+    String? telefono,
+    String? direccion,
+  }) async {
+    final cuerpo = await _http.post<Map<String, dynamic>>(
+      '/api/clientes',
+      datos: {
+        'tipoPersona': tipoPersona,
+        'tipoDocumento': tipoDocumento,
+        'numeroDocumento': numeroDocumento,
+        'nombreOrazonSocial': nombreOrazonSocial,
+        if (correo != null && correo.isNotEmpty) 'correo': correo,
+        if (telefono != null && telefono.isNotEmpty) 'telefono': telefono,
+        if (direccion != null && direccion.isNotEmpty) 'direccion': direccion,
+      },
+    );
+    return ClienteEnLista.desdeJson(cuerpo);
+  }
+
   static List<ClienteEnLista> _parsear(String contenido) {
     final lista = jsonDecode(contenido) as List<dynamic>;
     return lista

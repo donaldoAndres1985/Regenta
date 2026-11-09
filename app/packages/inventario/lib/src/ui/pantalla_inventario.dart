@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
@@ -11,9 +11,9 @@ import 'fila_de_producto.dart';
 
 /// La pantalla de inventario del vendedor. HU-035.
 ///
-/// Buscar por nombre, SKU o código; escanear (en Android) o teclear el código
-/// (siempre disponible, y en la web el único camino). Al resolver un código
-/// llama a [onProductoSeleccionado] con el id y el factor de conversión — quien
+/// Buscar por nombre, SKU o cÃ³digo; escanear (en Android) o teclear el cÃ³digo
+/// (siempre disponible, y en la web el Ãºnico camino). Al resolver un cÃ³digo
+/// llama a [onProductoSeleccionado] con el id y el factor de conversiÃ³n â€” quien
 /// monta la pantalla decide si abre la ficha o lo agrega a la venta.
 class PantallaInventario extends ConsumerStatefulWidget {
   const PantallaInventario({
@@ -55,9 +55,9 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
         if (!mounted) return;
         final codigo = await escaner.escanearUnCodigo(context);
         if (codigo != null && codigo.isNotEmpty) await _resolver(codigo);
-        return; // escaneó, o canceló la cámara a propósito
+        return; // escaneÃ³, o cancelÃ³ la cÃ¡mara a propÃ³sito
       } on EscaneoNoDisponible {
-        // la cámara falló: cae al ingreso manual
+        // la cÃ¡mara fallÃ³: cae al ingreso manual
       }
     }
     if (!mounted) return;
@@ -75,7 +75,7 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
       final sinCodigo = e is ErrorDesconocido && e.codigo == 404;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(sinCodigo
-            ? 'Ningún producto tiene el código «$codigo».'
+            ? 'NingÃºn producto tiene el cÃ³digo Â«$codigoÂ».'
             : e.mensaje),
       ));
     }
@@ -88,7 +88,7 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
 
     return Scaffold(
       backgroundColor: RegentaColors.paper,
-      appBar: _AppBar(titulo: widget.titulo),
+      appBar: _AppBar(titulo: widget.titulo, onNuevoProducto: _mostrarDialogoNuevoProducto),
       bottomNavigationBar: _BottomNav(onNavegar: widget.onNavegar),
       body: Column(
         children: [
@@ -113,8 +113,9 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
 }
 
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _AppBar({required this.titulo});
+  const _AppBar({required this.titulo, required this.onNuevoProducto});
   final String titulo;
+  final VoidCallback onNuevoProducto;
 
   @override
   Size get preferredSize => const Size.fromHeight(56);
@@ -147,11 +148,13 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
                   .copyWith(fontSize: 16, color: RegentaColors.ink)),
         ],
       ),
-      actions: const [
-        Icon(Icons.filter_list, size: 20, color: RegentaColors.ink2),
-        SizedBox(width: 14),
-        Icon(Icons.add, size: 22, color: RegentaColors.ink2),
-        SizedBox(width: 14),
+      actions: [
+        IconButton(
+          tooltip: 'Nuevo Producto',
+          icon: const Icon(Icons.add_box_outlined, color: RegentaColors.accent),
+          onPressed: onNuevoProducto,
+        ),
+        const SizedBox(width: 8),
       ],
     );
   }
@@ -192,7 +195,7 @@ class _BarraDeBusqueda extends StatelessWidget {
                   isDense: true,
                   prefixIcon:
                       const Icon(Icons.search, size: 18, color: RegentaColors.faint),
-                  hintText: 'Nombre, SKU o código…',
+                  hintText: 'Nombre, SKU o cÃ³digoâ€¦',
                   hintStyle:
                       RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.faint),
                   contentPadding: const EdgeInsets.symmetric(vertical: 11),
@@ -211,7 +214,7 @@ class _BarraDeBusqueda extends StatelessWidget {
           const SizedBox(width: 9),
           Semantics(
             button: true,
-            label: 'Escanear código',
+            label: 'Escanear cÃ³digo',
             child: InkWell(
               onTap: onEscanear,
               borderRadius: BorderRadius.circular(RegentaSpacing.radius),
@@ -255,7 +258,7 @@ class _Chips extends StatelessWidget {
           _Chip(texto: 'Todas', activo: !soloBajoMinimo, onTap: onTodas),
           const SizedBox(width: 7),
           _Chip(
-            texto: 'Bajo mínimo',
+            texto: 'Bajo mÃ­nimo',
             activo: soloBajoMinimo,
             critico: true,
             onTap: onBajoMinimo,
@@ -316,15 +319,15 @@ class _Cuerpo extends StatelessWidget {
         return const Center(child: CircularProgressIndicator());
       case FaseBusqueda.error:
         return _Mensaje(
-          texto: estado.mensajeError ?? 'Algo salió mal.',
+          texto: estado.mensajeError ?? 'Algo saliÃ³ mal.',
           accion: 'Reintentar',
           onAccion: controlador.reintentar,
         );
       case FaseBusqueda.sinResultados:
         return _Mensaje(
           texto: estado.termino.trim().isEmpty
-              ? 'No hay productos todavía.'
-              : 'No hay productos que coincidan con «${estado.termino.trim()}».',
+              ? 'No hay productos todavÃ­a.'
+              : 'No hay productos que coincidan con Â«${estado.termino.trim()}Â».',
         );
       case FaseBusqueda.conDatos:
         return Column(
@@ -438,3 +441,4 @@ class _BottomNav extends StatelessWidget {
     );
   }
 }
+

@@ -20,6 +20,10 @@ export 'src/pos/proveedores.dart';
 export 'src/ui/formato.dart';
 export 'src/ui/pantalla_cliente_de_venta.dart';
 export 'src/ui/pantalla_pos.dart';
+export 'src/ui/pantalla_caja.dart';
+export 'src/caja/controlador_de_caja.dart';
+export 'src/caja/datos/sesion_caja_modelos.dart';
+export 'src/caja/datos/repositorio_de_caja.dart';
 
 /// Nombre del modulo, para el registro de paquetes activos por patron/plan.
 const String nombreDelModulo = 'ventas';
