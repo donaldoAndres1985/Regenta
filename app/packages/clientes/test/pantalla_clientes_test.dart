@@ -28,6 +28,19 @@ class _RepoFake implements RepositorioDeClientes {
     guardados++;
     cache = clientes;
   }
+
+  @override
+  Future<ClienteEnLista> crear({
+    required String nombre,
+    required String documento,
+    String tipoDocumento = 'CC',
+    String? telefono,
+    String? email,
+  }) async {
+    final nuevo = _c(id: 'nuevo', nombre: nombre, numDoc: documento, tipoDoc: tipoDocumento);
+    red = [nuevo, ...red];
+    return nuevo;
+  }
 }
 
 ClienteEnLista _c({

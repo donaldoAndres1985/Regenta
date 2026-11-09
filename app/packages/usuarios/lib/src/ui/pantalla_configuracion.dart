@@ -206,9 +206,12 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                               const Divider(color: RegentaColors.line, height: 24),
                               TextFormField(
                                 controller: _razonSocialCtrl,
+                                style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
                                 decoration: const InputDecoration(
                                   labelText: 'Razón Social *',
-                                  border: OutlineInputBorder(),
+                                  labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
+                                  border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
+                                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
                                 ),
                                 validator: (v) =>
                                     (v == null || v.trim().isEmpty) ? 'Requerido' : null,
@@ -216,17 +219,23 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _nombreComercialCtrl,
+                                style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
                                 decoration: const InputDecoration(
                                   labelText: 'Nombre Comercial',
-                                  border: OutlineInputBorder(),
+                                  labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
+                                  border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
+                                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
                                 ),
                               ),
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _documentoCtrl,
+                                style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
                                 decoration: const InputDecoration(
                                   labelText: 'NIT / Número de Documento *',
-                                  border: OutlineInputBorder(),
+                                  labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
+                                  border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
+                                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
                                 ),
                                 validator: (v) =>
                                     (v == null || v.trim().isEmpty) ? 'Requerido' : null,
@@ -257,9 +266,12 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                               const Divider(color: RegentaColors.line, height: 24),
                               TextFormField(
                                 controller: _direccionCtrl,
+                                style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
                                 decoration: const InputDecoration(
                                   labelText: 'Dirección Comercial',
-                                  border: OutlineInputBorder(),
+                                  labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
+                                  border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
+                                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -268,9 +280,12 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                                   Expanded(
                                     child: TextFormField(
                                       controller: _ciudadCtrl,
+                                      style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
                                       decoration: const InputDecoration(
                                         labelText: 'Ciudad',
-                                        border: OutlineInputBorder(),
+                                        labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
+                                        border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
+                                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
                                       ),
                                     ),
                                   ),
@@ -278,9 +293,12 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                                   Expanded(
                                     child: TextFormField(
                                       controller: _telefonoCtrl,
+                                      style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
                                       decoration: const InputDecoration(
                                         labelText: 'Teléfono',
-                                        border: OutlineInputBorder(),
+                                        labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
+                                        border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
+                                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
                                       ),
                                     ),
                                   ),
@@ -289,9 +307,12 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _emailCtrl,
+                                style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
                                 decoration: const InputDecoration(
                                   labelText: 'Correo Electrónico',
-                                  border: OutlineInputBorder(),
+                                  labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
+                                  border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
+                                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
                                 ),
                               ),
                             ],
@@ -319,20 +340,20 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                               ),
                               const Divider(color: RegentaColors.line, height: 24),
                               SwitchListTile(
-                                title: const Text('Los precios de venta incluyen impuestos'),
+                                title: const Text('Los precios de venta incluyen impuestos', style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600)),
                                 subtitle: Text(
                                   'Si se desactiva, el IVA se sumará sobre el precio al cobrar.',
-                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.muted),
+                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
                                 ),
                                 value: _preciosConIva,
                                 onChanged: (val) => setState(() => _preciosConIva = val),
                               ),
                               const Divider(color: RegentaColors.line, height: 16),
                               SwitchListTile(
-                                title: const Text('Permitir venta con inventario en negativo'),
+                                title: const Text('Permitir venta con inventario en negativo', style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600)),
                                 subtitle: Text(
                                   'Permite completar ventas aunque el stock registrado sea 0.',
-                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.muted),
+                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
                                 ),
                                 value: _stockNegativo,
                                 onChanged: (val) => setState(() => _stockNegativo = val),

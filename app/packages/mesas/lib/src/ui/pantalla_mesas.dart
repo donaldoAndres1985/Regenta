@@ -44,6 +44,11 @@ class _PantallaMesasState extends ConsumerState<PantallaMesas> {
         title: Text('Mesas',
             style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
         actions: [
+          IconButton(
+            tooltip: 'Añadir mesa',
+            icon: const Icon(Icons.add, color: RegentaColors.accent),
+            onPressed: () => _abrirFormularioMesa(context, estado),
+          ),
           if (widget.puedeEditar)
             TextButton(
               key: const Key('mesas-toggle-edicion'),
@@ -51,9 +56,10 @@ class _PantallaMesasState extends ConsumerState<PantallaMesas> {
               child: Text(estado.modoEdicion ? 'Listo' : 'Editar plano',
                   style: RegentaType.item.copyWith(color: RegentaColors.accent)),
             ),
+          const SizedBox(width: 8),
         ],
       ),
-      floatingActionButton: estado.modoEdicion
+      floatingActionButton: (estado.modoEdicion || (estado.plano.zonas.isEmpty && estado.plano.sinZona.isEmpty))
           ? FloatingActionButton.extended(
               key: const Key('mesas-anadir'),
               backgroundColor: RegentaColors.accent,
@@ -73,6 +79,12 @@ class _PantallaMesasState extends ConsumerState<PantallaMesas> {
             onEliminar: (mesa) => _confirmarEliminar(context, ctrl, mesa),
             onTocarMesa: (mesa) => _abrirHojaDeMesa(context, mesa),
             onCerrarMensaje: ctrl.limpiarMensaje,
+            onAnadirMesa: () => _abrirFormularioMesa(context, estado),
+            onGenerarDemo: () async {
+              for (int i = 1; i <= 4; i++) {
+                await ctrl.crearMesa(codigo: 'Mesa $i', capacidad: 4);
+              }
+            },
           );
           return KeyedSubtree(
             key: Key(escritorio ? 'mesas-escritorio' : 'mesas-movil'),
@@ -262,11 +274,47 @@ class _Cuerpo extends StatelessWidget {
       seccion('Sin zona', sinZona);
     }
     if (bloques.isEmpty) {
-      bloques.add(Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text('Ninguna mesa en esta zona',
-            textAlign: TextAlign.center,
-            style: RegentaType.cuerpo.copyWith(color: RegentaColors.muted)),
+      bloques.add(Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.table_restaurant_outlined, size: 64, color: RegentaColors.ink2),
+              const SizedBox(height: 16),
+              Text(
+                'No hay mesas en el salón',
+                style: RegentaType.seccion.copyWith(fontSize: 18, color: RegentaColors.ink),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Añade mesas individuales o genera una distribución de prueba para gestionar comandas y salones.',
+                textAlign: TextAlign.center,
+                style: RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.ink2),
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  if (onAnadirMesa != null)
+                    FilledButton.icon(
+                      icon: const Icon(Icons.add),
+                      label: const Text('Añadir Mesa'),
+                      onPressed: onAnadirMesa,
+                    ),
+                  if (onGenerarDemo != null)
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.auto_awesome),
+                      label: const Text('Generar 4 Mesas Demo'),
+                      onPressed: onGenerarDemo,
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ));
     }
     return bloques;

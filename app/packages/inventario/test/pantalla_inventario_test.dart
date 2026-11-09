@@ -37,6 +37,18 @@ class _RepoFake implements RepositorioDeInventario {
     }
     return this.codigo!;
   }
+
+  @override
+  Future<ProductoEncontrado> crearProducto({
+    required String nombre,
+    required String sku,
+    String? codigoBarras,
+    required num precioVenta,
+    num stock = 0,
+    String? categoriaNombre,
+  }) async {
+    return _producto(nombre: nombre, sku: sku, precio: precioVenta, stock: stock);
+  }
 }
 
 class _EscanerFake implements EscanerDeCodigos {

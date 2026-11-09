@@ -10,20 +10,33 @@ abstract final class RegentaType {
   static const mono = 'IBMPlexMono';
 
   static const tituloPantalla = TextStyle(
-      fontFamily: ui, fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: -0.6);
-  static const seccion =
-      TextStyle(fontFamily: ui, fontSize: 17, fontWeight: FontWeight.w600);
-  static const item =
-      TextStyle(fontFamily: ui, fontSize: 14, fontWeight: FontWeight.w500);
-  static const cuerpo = TextStyle(fontFamily: ui, fontSize: 13);
+      fontFamily: ui,
+      fontSize: 30,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.6,
+      color: RegentaColors.ink);
+  static const seccion = TextStyle(
+      fontFamily: ui,
+      fontSize: 17,
+      fontWeight: FontWeight.w600,
+      color: RegentaColors.ink);
+  static const item = TextStyle(
+      fontFamily: ui,
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      color: RegentaColors.ink);
+  static const cuerpo =
+      TextStyle(fontFamily: ui, fontSize: 13, color: RegentaColors.ink);
 
   /// Cifras y codigos. tabular-nums para que las columnas cuadren.
   static const dinero = TextStyle(
       fontFamily: mono,
       fontSize: 22,
       fontWeight: FontWeight.w600,
+      color: RegentaColors.ink,
       fontFeatures: [FontFeature.tabularFigures()]);
-  static const codigo = TextStyle(fontFamily: mono, fontSize: 12);
+  static const codigo =
+      TextStyle(fontFamily: mono, fontSize: 12, color: RegentaColors.ink2);
 
   /// Etiqueta de campo: versalita monoespaciada.
   static const etiqueta = TextStyle(

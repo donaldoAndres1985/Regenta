@@ -12,6 +12,9 @@ final listaFacturasFutureProvider =
   return repo.listar();
 });
 
+final facturasCreadasLocalProvider =
+    StateProvider<List<FacturaResumenVista>>((ref) => []);
+
 class PantallaListaFacturas extends ConsumerWidget {
   const PantallaListaFacturas({
     super.key,
@@ -23,6 +26,7 @@ class PantallaListaFacturas extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final facturasAsync = ref.watch(listaFacturasFutureProvider);
+    final locales = ref.watch(facturasCreadasLocalProvider);
 
     return Scaffold(
       backgroundColor: RegentaColors.paper,
@@ -45,6 +49,11 @@ class PantallaListaFacturas extends ConsumerWidget {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Factura Demo',
+            icon: const Icon(Icons.post_add, color: RegentaColors.accent),
+            onPressed: () => _generarFacturaDemo(ref),
+          ),
           IconButton(
             tooltip: 'Refrescar',
             icon: const Icon(Icons.refresh, color: RegentaColors.ink),
@@ -81,19 +90,57 @@ class PantallaListaFacturas extends ConsumerWidget {
             ),
           ),
         ),
-        data: (facturas) {
+        data: (remotas) {
+          final facturas = [...locales, ...remotas];
           if (facturas.isEmpty) {
             return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.receipt_outlined, size: 48, color: RegentaColors.faint),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No hay facturas emitidas todavía.',
-                    style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.receipt_long_outlined, size: 48, color: RegentaColors.accent),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No hay facturas emitidas todavía.',
+                      style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Módulo de Facturación Electrónica DIAN. Emite facturas fiscales válidas con CUFE y código QR desde las ventas.',
+                      textAlign: TextAlign.center,
+                      style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                    ),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(backgroundColor: RegentaColors.accent),
+                          onPressed: () => _generarFacturaDemo(ref),
+                          icon: const Icon(Icons.bolt, size: 18),
+                          label: const Text('Generar Factura Demo'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pushNamed('/pos');
+                          },
+                          icon: const Icon(Icons.point_of_sale, size: 18),
+                          label: const Text('Ir al POS'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -191,3 +238,15 @@ class PantallaListaFacturas extends ConsumerWidget {
     }
   }
 }
+
+  void _generarFacturaDemo(WidgetRef ref) {
+    final sec = (DateTime.now().millisecondsSinceEpoch % 9000) + 1000;
+    final nueva = FacturaResumenVista(
+      id: 'demo-fac-${DateTime.now().millisecondsSinceEpoch}',
+      numeroCompleto: 'SETP-$sec',
+      origenTipo: 'VENTA_POS',
+      estado: 'AUTORIZADA',
+      total: 128500,
+    );
+    ref.read(facturasCreadasLocalProvider.notifier).update((prev) => [nueva, ...prev]);
+  }

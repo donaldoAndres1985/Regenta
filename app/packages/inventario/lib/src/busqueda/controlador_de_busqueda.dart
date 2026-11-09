@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/repositorio_de_inventario.dart';
+import '../datos/producto_encontrado.dart';
 import 'estado_de_busqueda.dart';
 
 /// Maneja la búsqueda de inventario: término (con rebote), filtro de categoría y
@@ -40,6 +41,14 @@ class ControladorDeBusqueda extends StateNotifier<EstadoDeBusqueda> {
   }
 
   void reintentar() => _buscar();
+
+  void agregarProducto(ProductoEncontrado p) {
+    state = state.copiar(
+      resultados: [p, ...state.resultados],
+      total: state.total + 1,
+      fase: FaseBusqueda.conDatos,
+    );
+  }
 
   Future<void> _buscar() async {
     final gen = ++_generacion;

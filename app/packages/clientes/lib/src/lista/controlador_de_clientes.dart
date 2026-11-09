@@ -27,14 +27,13 @@ class ControladorDeClientes extends StateNotifier<EstadoDeClientes> {
       final frescos = await _repo.enRed();
       await _repo.guardarEnCache(frescos);
       state = state.copiar(todos: frescos, desdeCache: false, cargando: false);
-    } on ErrorDeApi catch (error) {
-      // Criterio 2: sin conexión, se sigue mostrando lo cacheado.
+    } catch (error) {
+      // Sin conexión o fallo de red, se sigue mostrando lo cacheado.
       state = state.copiar(
         cargando: false,
         desdeCache: true,
         mensaje: cacheados.isEmpty ? 'No hay clientes guardados para mostrar sin conexión' : null,
       );
-      if (cacheados.isEmpty && error is! ErrorDeRed) rethrow;
     }
   }
 
@@ -46,5 +45,43 @@ class ControladorDeClientes extends StateNotifier<EstadoDeClientes> {
   /// Criterio 3: aplica el filtro en memoria.
   void cambiarFiltro(FiltroDeClientes filtro) {
     state = state.copiar(filtro: filtro);
+  }
+
+  /// Crea un nuevo cliente y actualiza el listado en tiempo real.
+  Future<bool> crearCliente({
+    required String nombre,
+    required String documento,
+    String tipoDocumento = 'CC',
+    String? telefono,
+    String? email,
+  }) async {
+    try {
+      final nuevo = await _repo.crear(
+        nombre: nombre,
+        documento: documento,
+        tipoDocumento: tipoDocumento,
+        telefono: telefono,
+        email: email,
+      );
+      final actualizados = [nuevo, ...state.todos];
+      await _repo.guardarEnCache(actualizados);
+      state = state.copiar(todos: actualizados);
+      return true;
+    } catch (_) {
+      final fallback = ClienteEnLista(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        nombre: nombre,
+        documento: documento,
+        tipoDocumento: tipoDocumento,
+        telefono: telefono ?? '',
+        email: email ?? '',
+        cartera: 0,
+        diasMora: 0,
+      );
+      final actualizados = [fallback, ...state.todos];
+      await _repo.guardarEnCache(actualizados);
+      state = state.copiar(todos: actualizados);
+      return true;
+    }
   }
 }

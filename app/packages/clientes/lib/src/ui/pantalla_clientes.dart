@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
@@ -32,6 +33,89 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
     super.dispose();
   }
 
+  void _abrirDialogoCrearCliente(BuildContext context, ControladorDeClientes ctrl) {
+    final nombreCtrl = TextEditingController();
+    final docCtrl = TextEditingController();
+    final telCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Registrar Nuevo Cliente'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nombreCtrl,
+                  style: const TextStyle(color: RegentaColors.ink),
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre o Razón Social *',
+                    labelStyle: TextStyle(color: RegentaColors.ink2),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: docCtrl,
+                  style: const TextStyle(color: RegentaColors.ink),
+                  decoration: const InputDecoration(
+                    labelText: 'Cédula o NIT *',
+                    labelStyle: TextStyle(color: RegentaColors.ink2),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: telCtrl,
+                  style: const TextStyle(color: RegentaColors.ink),
+                  decoration: const InputDecoration(
+                    labelText: 'Teléfono',
+                    labelStyle: TextStyle(color: RegentaColors.ink2),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailCtrl,
+                  style: const TextStyle(color: RegentaColors.ink),
+                  decoration: const InputDecoration(
+                    labelText: 'Correo Electrónico',
+                    labelStyle: TextStyle(color: RegentaColors.ink2),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final nombre = nombreCtrl.text.trim();
+                final doc = docCtrl.text.trim();
+                if (nombre.isEmpty || doc.isEmpty) return;
+                Navigator.of(ctx).pop();
+                await ctrl.crearCliente(
+                  nombre: nombre,
+                  documento: doc,
+                  telefono: telCtrl.text.trim(),
+                  email: emailCtrl.text.trim(),
+                );
+              },
+              child: const Text('Guardar Cliente'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(controladorDeClientesProvider);
@@ -46,6 +130,25 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
         shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
         title: Text('Clientes',
             style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
+        actions: [
+          IconButton(
+            tooltip: 'Refrescar',
+            icon: const Icon(Icons.refresh, color: RegentaColors.ink),
+            onPressed: ctrl.cargar,
+          ),
+          IconButton(
+            tooltip: 'Nuevo cliente',
+            icon: const Icon(Icons.person_add_outlined, color: RegentaColors.accent),
+            onPressed: () => _abrirDialogoCrearCliente(context, ctrl),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: RegentaColors.accent,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Nuevo Cliente', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        onPressed: () => _abrirDialogoCrearCliente(context, ctrl),
       ),
       body: LayoutBuilder(
         builder: (context, restricciones) {
@@ -59,6 +162,7 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
           final lista = _Lista(
             estado: estado,
             onAbrir: widget.onAbrirCliente,
+            onCrear: () => _abrirDialogoCrearCliente(context, ctrl),
           );
 
           if (restricciones.maxWidth >= kBreakpointEscritorio) {
@@ -257,10 +361,11 @@ class _Encabezado extends StatelessWidget {
 }
 
 class _Lista extends StatelessWidget {
-  const _Lista({required this.estado, this.onAbrir});
+  const _Lista({required this.estado, this.onAbrir, this.onCrear});
 
   final EstadoDeClientes estado;
   final void Function(String clienteId)? onAbrir;
+  final VoidCallback? onCrear;
 
   @override
   Widget build(BuildContext context) {
@@ -272,13 +377,27 @@ class _Lista extends StatelessWidget {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(
-            estado.mensaje ??
-                (estado.todos.isEmpty
-                    ? 'Todavía no hay clientes.'
-                    : 'Ningún cliente coincide con la búsqueda.'),
-            textAlign: TextAlign.center,
-            style: RegentaType.cuerpo.copyWith(color: RegentaColors.muted),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.people_outline, size: 54, color: RegentaColors.ink2),
+              const SizedBox(height: 14),
+              Text(
+                estado.mensaje ??
+                    (estado.todos.isEmpty
+                        ? 'Todavía no hay clientes registrados.'
+                        : 'Ningún cliente coincide con la búsqueda.'),
+                textAlign: TextAlign.center,
+                style: RegentaType.cuerpo.copyWith(fontSize: 15, color: RegentaColors.ink2),
+              ),
+              const SizedBox(height: 18),
+              if (onCrear != null)
+                FilledButton.icon(
+                  icon: const Icon(Icons.person_add),
+                  label: const Text('Registrar Primer Cliente'),
+                  onPressed: onCrear,
+                ),
+            ],
           ),
         ),
       );

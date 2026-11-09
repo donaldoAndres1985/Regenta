@@ -88,7 +88,14 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
 
     return Scaffold(
       backgroundColor: RegentaColors.paper,
-      appBar: _AppBar(titulo: widget.titulo),
+      appBar: _AppBar(titulo: widget.titulo, onNuevo: () => _abrirDialogoCrearProducto(context)),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _abrirDialogoCrearProducto(context),
+        backgroundColor: RegentaColors.accent,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Nuevo Producto'),
+      ),
       bottomNavigationBar: _BottomNav(onNavegar: widget.onNavegar),
       body: Column(
         children: [
@@ -109,12 +116,186 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
     );
   }
 
-  void _abrir(ProductoEncontrado p) => widget.onProductoSeleccionado(p.id, 1);
+  void _abrir(ProductoEncontrado p) {
+    widget.onProductoSeleccionado(p.id, 1);
+    _mostrarDetalleProducto(context, p);
+  }
+
+  void _mostrarDetalleProducto(BuildContext context, ProductoEncontrado p) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    p.nombre,
+                    style: RegentaType.seccion.copyWith(fontSize: 18, color: RegentaColors.ink),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: p.stockTotal > 0 ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    p.stockTotal > 0 ? '${p.stockTotal} en stock' : 'Sin existencias',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: p.stockTotal > 0 ? const Color(0xFF166534) : const Color(0xFF991B1B),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text('SKU: ${p.sku}', style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2)),
+            if (p.codigoBarras != null && p.codigoBarras!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text('Código de barras: ${p.codigoBarras}', style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2)),
+            ],
+            const SizedBox(height: 4),
+            Text('Categoría: ${p.categoriaNombre.isEmpty ? "General" : p.categoriaNombre}', style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2)),
+            const SizedBox(height: 16),
+            Text('Precio: \$ ${p.precioVenta}', style: RegentaType.dinero.copyWith(fontSize: 22, color: RegentaColors.accent)),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Cerrar'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: RegentaColors.accent),
+                    icon: const Icon(Icons.shopping_cart, size: 18),
+                    label: const Text('Agregar a Venta'),
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      widget.onProductoSeleccionado(p.id, 1);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('«${p.nombre}» agregado a la venta actual.')),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _abrirDialogoCrearProducto(BuildContext context) async {
+    final nombreCtrl = TextEditingController();
+    final skuCtrl = TextEditingController();
+    final codigoCtrl = TextEditingController();
+    final precioCtrl = TextEditingController();
+    final stockCtrl = TextEditingController(text: '10');
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text('Nuevo Producto', style: RegentaType.seccion.copyWith(color: RegentaColors.ink)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nombreCtrl,
+                style: const TextStyle(color: RegentaColors.ink),
+                decoration: const InputDecoration(labelText: 'Nombre del producto *'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: skuCtrl,
+                style: const TextStyle(color: RegentaColors.ink),
+                decoration: const InputDecoration(labelText: 'SKU * (ej. PROD-001)'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: codigoCtrl,
+                style: const TextStyle(color: RegentaColors.ink),
+                decoration: const InputDecoration(labelText: 'Código de barras (opcional)'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: precioCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: RegentaColors.ink),
+                decoration: const InputDecoration(labelText: 'Precio de venta * (ej. 15000)'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: stockCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: RegentaColors.ink),
+                decoration: const InputDecoration(labelText: 'Stock inicial (ej. 10)'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: RegentaColors.accent),
+            onPressed: () async {
+              final nombre = nombreCtrl.text.trim();
+              final sku = skuCtrl.text.trim();
+              final precio = double.tryParse(precioCtrl.text.trim()) ?? 0;
+              final stock = double.tryParse(stockCtrl.text.trim()) ?? 0;
+              if (nombre.isEmpty || sku.isEmpty || precio <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Por favor completa nombre, SKU y un precio válido.')),
+                );
+                return;
+              }
+              Navigator.of(dialogCtx).pop();
+              final repo = ref.read(repositorioDeInventarioProvider);
+              final nuevo = await repo.crearProducto(
+                nombre: nombre,
+                sku: sku,
+                codigoBarras: codigoCtrl.text.trim().isEmpty ? null : codigoCtrl.text.trim(),
+                precioVenta: precio,
+                stock: stock,
+              );
+              ref.read(controladorDeBusquedaProvider.notifier).agregarProducto(nuevo);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Producto «$nombre» creado exitosamente.')),
+                );
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _AppBar({required this.titulo});
+  const _AppBar({required this.titulo, this.onNuevo});
   final String titulo;
+  final VoidCallback? onNuevo;
 
   @override
   Size get preferredSize => const Size.fromHeight(56);
@@ -147,11 +328,13 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
                   .copyWith(fontSize: 16, color: RegentaColors.ink)),
         ],
       ),
-      actions: const [
-        Icon(Icons.filter_list, size: 20, color: RegentaColors.ink2),
-        SizedBox(width: 14),
-        Icon(Icons.add, size: 22, color: RegentaColors.ink2),
-        SizedBox(width: 14),
+      actions: [
+        IconButton(
+          tooltip: 'Nuevo producto',
+          icon: const Icon(Icons.add, size: 22, color: RegentaColors.accent),
+          onPressed: onNuevo,
+        ),
+        const SizedBox(width: 8),
       ],
     );
   }
@@ -191,18 +374,18 @@ class _BarraDeBusqueda extends StatelessWidget {
                 decoration: InputDecoration(
                   isDense: true,
                   prefixIcon:
-                      const Icon(Icons.search, size: 18, color: RegentaColors.faint),
+                      const Icon(Icons.search, size: 18, color: RegentaColors.ink2),
                   hintText: 'Nombre, SKU o código…',
                   hintStyle:
-                      RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.faint),
+                      RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.ink2),
                   contentPadding: const EdgeInsets.symmetric(vertical: 11),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-                    borderSide: const BorderSide(color: RegentaColors.line2),
+                    borderSide: const BorderSide(color: Color(0xFFC4C4D4)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-                    borderSide: const BorderSide(color: RegentaColors.line2),
+                    borderSide: const BorderSide(color: Color(0xFFC4C4D4)),
                   ),
                 ),
               ),

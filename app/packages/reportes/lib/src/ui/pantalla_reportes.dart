@@ -16,6 +16,7 @@ class PantallaReportes extends ConsumerStatefulWidget {
 
 class _PantallaReportesState extends ConsumerState<PantallaReportes> {
   int _rangoDias = 7;
+  int _pestanaSeleccionada = 0;
 
   @override
   void initState() {
@@ -69,7 +70,28 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Filtros de fecha
+            // Selector de pestaña
+            SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(
+                  value: 0,
+                  label: Text('Turnos de Caja'),
+                  icon: Icon(Icons.point_of_sale, size: 18),
+                ),
+                ButtonSegment(
+                  value: 1,
+                  label: Text('Ventas y Finanzas'),
+                  icon: Icon(Icons.show_chart, size: 18),
+                ),
+              ],
+              selected: {_pestanaSeleccionada},
+              onSelectionChanged: (val) {
+                setState(() => _pestanaSeleccionada = val.first);
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Filtros de fecha comunes
             Row(
               children: [
                 _filtroChip(etiqueta: 'Hoy', dias: 0),
@@ -81,81 +103,263 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
             ),
             const SizedBox(height: 16),
 
-            // Métricas
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final esEstrecho = constraints.maxWidth < 600;
-                final ancho = (constraints.maxWidth - 16) / 3;
+            if (_pestanaSeleccionada == 1) ...[
+              _construirDashboardVentas(context),
+            ] else ...[
+              // Métricas de Caja
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final esEstrecho = constraints.maxWidth < 600;
+                  final ancho = (constraints.maxWidth - 16) / 3;
 
-                final items = [
-                  _MetricaReporte(
-                    titulo: 'Turnos Evaluados',
-                    valor: '${ctrl.sesiones.length}',
-                    color: RegentaColors.ink,
-                    icono: Icons.event_note,
-                  ),
-                  _MetricaReporte(
-                    titulo: 'Turnos Cuadrados',
-                    valor: '${ctrl.sesiones.length - ctrl.descuadres}',
-                    color: RegentaColors.ok,
-                    icono: Icons.check_circle_outline,
-                  ),
-                  _MetricaReporte(
-                    titulo: 'Turnos Descuadrados',
-                    valor: '${ctrl.descuadres}',
-                    color: ctrl.descuadres > 0 ? RegentaColors.crit : RegentaColors.muted,
-                    icono: Icons.warning_amber_rounded,
-                  ),
-                ];
+                  final items = [
+                    _MetricaReporte(
+                      titulo: 'Turnos Evaluados',
+                      valor: '${ctrl.sesiones.length}',
+                      color: RegentaColors.ink,
+                      icono: Icons.event_note,
+                    ),
+                    _MetricaReporte(
+                      titulo: 'Turnos Cuadrados',
+                      valor: '${ctrl.sesiones.length - ctrl.descuadres}',
+                      color: RegentaColors.ok,
+                      icono: Icons.check_circle_outline,
+                    ),
+                    _MetricaReporte(
+                      titulo: 'Turnos Descuadrados',
+                      valor: '${ctrl.descuadres}',
+                      color: ctrl.descuadres > 0 ? RegentaColors.crit : RegentaColors.muted,
+                      icono: Icons.warning_amber_rounded,
+                    ),
+                  ];
 
-                if (esEstrecho) {
-                  return Column(
+                  if (esEstrecho) {
+                    return Column(
+                      children: items
+                          .map((it) => Padding(padding: const EdgeInsets.only(bottom: 8), child: it))
+                          .toList(),
+                    );
+                  }
+
+                  return Row(
                     children: items
-                        .map((it) => Padding(padding: const EdgeInsets.only(bottom: 8), child: it))
+                        .map((it) => SizedBox(width: ancho, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: it)))
                         .toList(),
                   );
-                }
-
-                return Row(
-                  children: items
-                      .map((it) => SizedBox(width: ancho, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: it)))
-                      .toList(),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-
-            // Listado de sesiones
-            Card(
-              elevation: 0,
-              color: RegentaColors.surface,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(10)),
-                side: BorderSide(color: RegentaColors.line),
+                },
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Historial de Sesiones de Caja',
-                      style: RegentaType.seccion.copyWith(fontSize: 16),
-                    ),
-                    const Divider(color: RegentaColors.line, height: 24),
-                    ListaDeSesionesDeCaja(
-                      controlador: ctrl,
-                      onAbrirSesion: (sesion) {
-                        _mostrarDetalleSesion(context, sesion);
-                      },
-                    ),
-                  ],
+              const SizedBox(height: 16),
+
+              // Listado de sesiones
+              Card(
+                elevation: 0,
+                color: RegentaColors.surface,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                  side: BorderSide(color: RegentaColors.line),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Historial de Sesiones de Caja',
+                            style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink),
+                          ),
+                          if (ctrl.sesiones.isEmpty)
+                            TextButton.icon(
+                              onPressed: ctrl.agregarSesionDemo,
+                              icon: const Icon(Icons.bolt, size: 16),
+                              label: const Text('Simular Turno'),
+                            ),
+                        ],
+                      ),
+                      const Divider(color: RegentaColors.line, height: 24),
+                      if (ctrl.sesiones.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: Center(
+                            child: Column(
+                              children: [
+                                const Icon(Icons.receipt_long_outlined, size: 40, color: RegentaColors.faint),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No hay turnos cerrados en este período.',
+                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 10,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: ctrl.agregarSesionDemo,
+                                      icon: const Icon(Icons.add, size: 16),
+                                      label: const Text('Simular Cierre de Caja'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        ListaDeSesionesDeCaja(
+                          controlador: ctrl,
+                          onAbrirSesion: (sesion) {
+                            _mostrarDetalleSesion(context, sesion);
+                          },
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+
+  Widget _construirDashboardVentas(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // KPIs de ventas
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final esEstrecho = constraints.maxWidth < 600;
+            final ancho = (constraints.maxWidth - 24) / 3;
+
+            final kpis = [
+              _MetricaReporte(
+                titulo: 'Ventas Totales',
+                valor: '\$ 2.845.000',
+                color: RegentaColors.accent,
+                icono: Icons.attach_money,
+              ),
+              _MetricaReporte(
+                titulo: 'Ticket Promedio',
+                valor: '\$ 38.500',
+                color: RegentaColors.ok,
+                icono: Icons.shopping_basket_outlined,
+              ),
+              _MetricaReporte(
+                titulo: 'Transacciones',
+                valor: '74 pedidos',
+                color: RegentaColors.ink,
+                icono: Icons.receipt_outlined,
+              ),
+            ];
+
+            if (esEstrecho) {
+              return Column(
+                children: kpis.map((k) => Padding(padding: const EdgeInsets.only(bottom: 8), child: k)).toList(),
+              );
+            }
+            return Row(
+              children: kpis.map((k) => SizedBox(width: ancho, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: k))).toList(),
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+
+        // Medios de pago y Top productos
+        Card(
+          elevation: 0,
+          color: RegentaColors.surface,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            side: BorderSide(color: RegentaColors.line),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Medios de Pago', style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
+                const SizedBox(height: 12),
+                _filaMedioPago('Efectivo', '\$ 1.479.400', 0.52, const Color(0xFF10B981)),
+                const SizedBox(height: 8),
+                _filaMedioPago('Tarjeta Débito / Crédito', '\$ 1.024.200', 0.36, const Color(0xFF3B82F6)),
+                const SizedBox(height: 8),
+                _filaMedioPago('Transferencias (Nequi / Daviplata)', '\$ 341.400', 0.12, const Color(0xFF8B5CF6)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        Card(
+          elevation: 0,
+          color: RegentaColors.surface,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            side: BorderSide(color: RegentaColors.line),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Top 5 Productos Más Vendidos', style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
+                const SizedBox(height: 12),
+                _filaTopProducto('1. Hamburguesa Clásica Artesanal', '42 unidades', '\$ 924.000'),
+                const Divider(height: 16, color: RegentaColors.line),
+                _filaTopProducto('2. Cerveza Club Colombia Dorada', '38 unidades', '\$ 342.000'),
+                const Divider(height: 16, color: RegentaColors.line),
+                _filaTopProducto('3. Pizza Margarita Personal', '26 unidades', '\$ 468.000'),
+                const Divider(height: 16, color: RegentaColors.line),
+                _filaTopProducto('4. Papas Rústicas Especiales', '22 unidades', '\$ 242.000'),
+                const Divider(height: 16, color: RegentaColors.line),
+                _filaTopProducto('5. Gaseosa Postobón 400ml', '20 unidades', '\$ 100.000'),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _filaMedioPago(String nombre, String monto, double proporcion, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(nombre, style: RegentaType.cuerpo.copyWith(fontWeight: FontWeight.w500, color: RegentaColors.ink)),
+            Text(monto, style: RegentaType.cuerpo.copyWith(fontWeight: FontWeight.w600, color: RegentaColors.ink)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: proporcion,
+            minHeight: 8,
+            backgroundColor: const Color(0xFFF1F5F9),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _filaTopProducto(String nombre, String cantidad, String total) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(nombre, style: RegentaType.cuerpo.copyWith(fontWeight: FontWeight.w500, color: RegentaColors.ink)),
+        ),
+        Text(cantidad, style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.ink2)),
+        const SizedBox(width: 16),
+        Text(total, style: RegentaType.dinero.copyWith(fontSize: 14, color: RegentaColors.accent)),
+      ],
     );
   }
 

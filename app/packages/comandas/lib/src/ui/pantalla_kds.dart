@@ -644,3 +644,41 @@ class _PieInformativo extends StatelessWidget {
     );
   }
 }
+
+
+class _BannerExplicativoKds extends StatefulWidget {
+  const _BannerExplicativoKds();
+
+  @override
+  State<_BannerExplicativoKds> createState() => _BannerExplicativoKdsState();
+}
+
+class _BannerExplicativoKdsState extends State<_BannerExplicativoKds> {
+  bool _mostrar = true;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_mostrar) return const SizedBox.shrink();
+    return Container(
+      color: const Color(0xFF1E293B),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, size: 18, color: Color(0xFF93C5FD)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Pantalla KDS (Cocina): Gestiona comandas en tiempo real en 3 etapas: Nuevos → En Preparación → Listos para servir.',
+              style: RegentaType.cuerpo.copyWith(fontSize: 12, color: const Color(0xFFE2E8F0)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
+            onPressed: () => setState(() => _mostrar = false),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+}

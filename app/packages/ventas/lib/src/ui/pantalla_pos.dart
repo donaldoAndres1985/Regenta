@@ -643,7 +643,7 @@ class _Buscador extends StatelessWidget {
             prefixIcon: const Icon(
               Icons.search,
               size: 20,
-              color: RegentaColors.faint,
+              color: Color(0xFF9E9EBA),
             ),
             suffixIcon: const Padding(
               padding: EdgeInsets.only(right: 12),
@@ -652,7 +652,7 @@ class _Buscador extends StatelessWidget {
             hintText: 'Buscar producto, referencia o código de barras…',
             hintStyle: PastelTheme.cuerpo(
               fontSize: 15,
-              color: RegentaColors.faint,
+              color: Color(0xFF9E9EBA),
             ),
             border: borde,
             enabledBorder: borde,
@@ -1151,7 +1151,7 @@ class _FilaDeVenta extends StatelessWidget {
               icon: const Icon(
                 Icons.delete_outline,
                 size: 20,
-                color: RegentaColors.faint,
+                color: Color(0xFF9E9EBA),
               ),
             ),
           ),
@@ -1299,7 +1299,7 @@ class _TarjetaDeLinea extends StatelessWidget {
                 icon: const Icon(
                   Icons.delete_outline,
                   size: 20,
-                  color: RegentaColors.faint,
+                  color: Color(0xFF9E9EBA),
                 ),
               ),
             ],

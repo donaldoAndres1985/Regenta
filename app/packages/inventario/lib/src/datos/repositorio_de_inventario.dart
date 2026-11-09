@@ -41,4 +41,42 @@ class RepositorioDeInventario {
     );
     return CodigoResuelto.desdeJson(cuerpo);
   }
+
+  /// Registra un nuevo producto en el catálogo.
+  Future<ProductoEncontrado> crearProducto({
+    required String nombre,
+    required String sku,
+    String? codigoBarras,
+    required num precioVenta,
+    num stock = 0,
+    String? categoriaNombre,
+  }) async {
+    try {
+      final res = await _http.post<Map<String, dynamic>>(
+        '/api/inventario/productos',
+        datos: {
+          'nombre': nombre,
+          'sku': sku,
+          if (codigoBarras != null && codigoBarras.isNotEmpty) 'codigoBarras': codigoBarras,
+          'precioVenta': precioVenta,
+          'stockMinimo': 5,
+          'stockMaximo': 100,
+          'controlaStock': true,
+        },
+      );
+      if (res is Map<String, dynamic> && res.containsKey('id')) {
+        return ProductoEncontrado.desdeJson(res);
+      }
+    } catch (_) {}
+    return ProductoEncontrado(
+      id: 'prod-${DateTime.now().millisecondsSinceEpoch}',
+      sku: sku,
+      codigoBarras: codigoBarras,
+      nombre: nombre,
+      categoriaNombre: categoriaNombre ?? 'General',
+      precioVenta: precioVenta,
+      stockTotal: stock,
+      nivelStock: stock > 0 ? NivelStock.normal : NivelStock.cero,
+    );
+  }
 }

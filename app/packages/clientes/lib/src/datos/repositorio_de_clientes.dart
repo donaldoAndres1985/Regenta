@@ -25,14 +25,40 @@ class RepositorioDeClientes {
     return _parsear(fila.contenido);
   }
 
-  /// Lo que devuelve el servidor. Lanza [ErrorDeApi] si no hay red.
+  /// Lo que devuelve el servidor. Maneja tanto List como Map paginado.
   Future<List<ClienteEnLista>> enRed() async {
-    final cuerpo = await _http.get<Map<String, dynamic>>('/api/clientes');
-    final lista = (cuerpo['clientes'] ?? cuerpo['contenido'] ?? const [])
-        as List<dynamic>;
+    final dynamic res = await _http.get<dynamic>('/api/clientes');
+    List<dynamic> lista;
+    if (res is List) {
+      lista = res;
+    } else if (res is Map) {
+      lista = (res['clientes'] ?? res['contenido'] ?? const []) as List<dynamic>;
+    } else {
+      lista = const [];
+    }
     return lista
         .map((e) => ClienteEnLista.desdeJson((e as Map).cast<String, dynamic>()))
         .toList();
+  }
+
+  /// Crea un cliente rápido (HU-021).
+  Future<ClienteEnLista> crear({
+    required String nombre,
+    required String documento,
+    String tipoDocumento = 'CC',
+    String? telefono,
+    String? email,
+  }) async {
+    final body = <String, dynamic>{
+      'tipoPersona': 'NATURAL',
+      'tipoDocumento': tipoDocumento,
+      'numeroDocumento': documento,
+      'nombres': nombre,
+      'telefono': telefono ?? '',
+      'email': (email != null && email.isNotEmpty) ? email : 'cliente@ejemplo.com',
+    };
+    final res = await _http.post<Map<String, dynamic>>('/api/clientes/expres', datos: body);
+    return ClienteEnLista.desdeJson(res);
   }
 
   /// Deja la copia local lista para la próxima vez que no haya señal.

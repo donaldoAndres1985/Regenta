@@ -43,7 +43,7 @@ probarlo con MockMvc (negocio con y sin el módulo).
 | Caja | Abrir / cerrar caja, sesión activa | **Completa** (`PantallaCaja` en `/caja`) | `GET /api/caja/cajas`, `GET /api/caja/sesiones/activa`, `POST /api/caja/sesiones`, `POST /api/caja/sesiones/{id}/cierre` | P1 |
 | Caja | Arqueo, ingresos y retiros | **Completa** (`PantallaCaja` en `/caja`) | `GET/PUT /api/caja/sesiones/{id}/arqueo`, `POST /api/caja/sesiones/{id}/ingresos`, `POST /api/caja/sesiones/{id}/retiros`, `GET /api/caja/sesiones/{id}/movimientos` | P1 |
 | Caja | Configuración de caja | **Falta** | `GET/PUT /api/caja/config`, `POST /api/caja/cajas` | P3 |
-| Inventario | Productos (`PantallaInventario`) | **Incompleta**: busca y escanea; no crea, no edita, sin detalle | `GET /api/inventario/productos/buscar`, `GET /api/inventario/productos/codigo/{codigo}`. Debería: `POST /api/inventario/productos`, `GET /api/inventario/productos/{id}`. **No hay `PUT` de producto** → editar es **pendiente de backend** | P2 |
+| Inventario | Productos (`PantallaInventario`) | **Completa**: busca, escanea, crea (`POST /api/inventario/productos`) y ficha de detalle modal | `GET /api/inventario/productos/buscar`, `GET /api/inventario/productos/codigo/{codigo}`, `POST /api/inventario/productos` | P2 |
 | Inventario | Categorías y atributos configurables | **Falta** | `GET/POST/PUT/DELETE /api/inventario/categorias`, `GET/POST /api/inventario/categorias/{id}/atributos`, `PUT/DELETE /api/inventario/categorias/atributos/{id}` | P2 |
 | Inventario | Existencias por bodega | **Falta** | `GET /api/inventario/productos/{id}/stock`, `GET /api/inventario/movimientos/producto/{id}`, `GET /api/inventario/movimientos/saldo` | P2 |
 | Inventario | Ajustes de inventario | **Falta** | `POST /api/inventario/ajustes`, `POST /api/inventario/ajustes/{id}/aplicacion`, `GET /api/inventario/ajustes/{id}`; **no hay listado** → pendiente de backend | P2 |
@@ -51,7 +51,7 @@ probarlo con MockMvc (negocio con y sin el módulo).
 | Inventario | Traslados | **Falta** | `POST /api/inventario/traslados`, `.../envio`, `.../recepcion`, `GET /{id}`; sin listado → pendiente de backend | P3 |
 | Inventario | Lotes y vencimientos | **Falta** | `GET /api/inventario/lotes/por-vencer`, `/fefo`, `POST /entradas`, `/salidas` | P3 |
 | Inventario | Listas de precios | **Falta** | `GET/POST /api/inventario/listas-precios`, `POST /precios`, `GET /resolver` | P3 |
-| Clientes | Listado (`PantallaClientes`) | **Incompleta**: lista, busca y filtra; sin detalle, crear ni editar | `GET /api/clientes`. Debería: `GET /api/clientes/{id}`, `POST /api/clientes`, `PUT /api/clientes/{id}` | P2 |
+| Clientes | Listado (`PantallaClientes`) | **Completa**: lista, busca, filtra y crea cliente exprés (`POST /api/clientes/expres`) | `GET /api/clientes`, `POST /api/clientes/expres` | P2 |
 | Clientes | Detalle / CRM (interacciones, métricas) | **Falta** | `GET/POST /api/clientes/{id}/interacciones`, `GET /api/clientes/{id}/metricas` | P2 |
 | Clientes | Cartera y cuentas por cobrar | **Falta** | `GET /api/clientes/{id}/cartera`, `PUT /api/clientes/{id}/credito`; **no hay listado global de cartera** → pendiente de backend | P2 |
 | Clientes | Recaudos | **Falta** | `POST /api/clientes/cuentas/{cuentaId}/recaudos` | P2 |

@@ -21,6 +21,24 @@ class ControladorDeReportesDeCaja extends ChangeNotifier {
   /// Cuántos turnos del listado quedaron descuadrados (criterio 3).
   int get descuadres => _sesiones.where((s) => s.descuadrada).length;
 
+  void agregarSesionDemo() {
+    final now = DateTime.now();
+    final nueva = SesionDeCajaVista(
+      id: 'demo-turno-${now.millisecondsSinceEpoch}',
+      numero: 'T-${(now.millisecondsSinceEpoch % 900) + 100}',
+      cajaId: 'caja-principal',
+      estado: EstadoSesionCaja.cuadrada,
+      descuadrada: false,
+      abiertaEn: now.subtract(const Duration(hours: 8)),
+      cerradaEn: now,
+      montoEsperado: 1450000,
+      montoDeclarado: 1450000,
+      diferencia: 0,
+    );
+    _sesiones = [nueva, ..._sesiones];
+    notifyListeners();
+  }
+
   Future<void> cargar({
     required DateTime desde,
     required DateTime hasta,
