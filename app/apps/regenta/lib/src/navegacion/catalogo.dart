@@ -5,6 +5,7 @@ import 'package:regenta_comandas/regenta_comandas.dart';
 import 'package:regenta_core/regenta_core.dart';
 import 'package:regenta_compras/regenta_compras.dart';
 import 'package:regenta_facturacion/regenta_facturacion.dart';
+import 'package:regenta_reportes/regenta_reportes.dart';
 import 'package:regenta_inventario/regenta_inventario.dart';
 import 'package:regenta_mesas/regenta_mesas.dart';
 import 'package:regenta_ventas/regenta_ventas.dart';
@@ -117,8 +118,7 @@ final List<RutaProtegida> rutasDeLaApp = [
   RutaProtegida(
     ruta: '/reportes',
     modulo: 'REPORTES',
-    builder: (context, parametros) =>
-        const _SinPantallaTodavia(modulo: 'Reportes'),
+    builder: (context, parametros) => const PantallaReportes(),
   ),
   RutaProtegida(
     ruta: '/configuracion',
