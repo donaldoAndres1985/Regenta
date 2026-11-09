@@ -33,13 +33,12 @@ jobs:
           set -o pipefail
           flutter build web --release --dart-define=API_BASE_URL=https://regenta-production.up.railway.app 2>&1 | tee build.log
 
-      - name: Publicar error en resumen
+      - name: Publicar error como anotaciones
         if: failure()
         run: |
-          echo "### Error de compilación Web" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          tail -n 60 build.log >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 30 build.log | while IFS= read -r line; do
+            echo "::error::$line"
+          done
 
       - uses: cloudflare/wrangler-action@v3
         with:

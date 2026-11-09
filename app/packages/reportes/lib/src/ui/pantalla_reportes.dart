@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
@@ -27,7 +28,7 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
   void _cargar() {
     final hasta = DateTime.now();
     final desde = hasta.subtract(Duration(days: _rangoDias));
-    ref.read(controladorDeReportesDeCajaProvider).cargar(desde: desde, hasta: hasta);
+    unawaited(ref.read(controladorDeReportesDeCajaProvider).cargar(desde: desde, hasta: hasta));
   }
 
   @override
@@ -173,7 +174,8 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
   }
 
   void _mostrarDetalleSesion(BuildContext context, SesionDeCajaVista sesion) {
-    showDialog<void>(
+    unawaited(
+      showDialog<void>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         title: Text('Detalle de Turno ${sesion.cajaCodigo}'),
@@ -204,6 +206,7 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
           ),
         ],
       ),
+    ),
     );
   }
 }
