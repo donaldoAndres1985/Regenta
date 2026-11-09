@@ -268,6 +268,7 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
                 );
                 return;
               }
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.of(dialogCtx).pop();
               final repo = ref.read(repositorioDeInventarioProvider);
               final nuevo = await repo.crearProducto(
@@ -278,11 +279,9 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
                 stock: stock,
               );
               ref.read(controladorDeBusquedaProvider.notifier).agregarProducto(nuevo);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Producto «$nombre» creado exitosamente.')),
-                );
-              }
+              messenger.showSnackBar(
+                SnackBar(content: Text('Producto «$nombre» creado exitosamente.')),
+              );
             },
             child: const Text('Guardar'),
           ),

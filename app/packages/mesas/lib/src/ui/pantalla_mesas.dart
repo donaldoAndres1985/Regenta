@@ -187,6 +187,8 @@ class _Cuerpo extends StatelessWidget {
     required this.onEliminar,
     required this.onTocarMesa,
     required this.onCerrarMensaje,
+    this.onAnadirMesa,
+    this.onGenerarDemo,
   });
 
   final EstadoDelPlano estado;
@@ -195,6 +197,8 @@ class _Cuerpo extends StatelessWidget {
   final void Function(MesaEnPlano mesa) onEliminar;
   final void Function(MesaEnPlano mesa) onTocarMesa;
   final VoidCallback onCerrarMensaje;
+  final VoidCallback? onAnadirMesa;
+  final VoidCallback? onGenerarDemo;
 
   @override
   Widget build(BuildContext context) {

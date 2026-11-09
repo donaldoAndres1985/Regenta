@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/cliente_en_lista.dart';
+import '../lista/controlador_de_clientes.dart';
 import '../lista/estado_de_clientes.dart';
 import '../lista/filtro_de_clientes.dart';
 import '../lista/proveedores.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:regenta_core/regenta_core.dart';
 
+import '../datos/cliente_en_lista.dart';
 import '../datos/repositorio_de_clientes.dart';
 import 'estado_de_clientes.dart';
 import 'filtro_de_clientes.dart';
@@ -71,12 +71,10 @@ class ControladorDeClientes extends StateNotifier<EstadoDeClientes> {
       final fallback = ClienteEnLista(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         nombre: nombre,
-        documento: documento,
         tipoDocumento: tipoDocumento,
-        telefono: telefono ?? '',
-        email: email ?? '',
-        cartera: 0,
-        diasMora: 0,
+        numeroDocumento: documento,
+        saldo: 0,
+        cupo: 0,
       );
       final actualizados = [fallback, ...state.todos];
       await _repo.guardarEnCache(actualizados);
