@@ -14,8 +14,6 @@ export 'src/recepcion/estado_de_recepcion.dart';
 export 'src/recepcion/proveedores.dart';
 export 'src/ui/formato.dart';
 export 'src/ui/pantalla_recepcion.dart';
-export 'src/ui/pantalla_compras.dart';
-export 'src/datos/orden_compra_resumen.dart';
 
 /// Nombre del modulo, para el registro de paquetes activos por patron/plan.
 const String nombreDelModulo = 'compras';

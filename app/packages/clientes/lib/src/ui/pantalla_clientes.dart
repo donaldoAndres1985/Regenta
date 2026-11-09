@@ -8,11 +8,11 @@ import '../lista/filtro_de_clientes.dart';
 import '../lista/proveedores.dart';
 import 'formato.dart';
 
-/// El listado de clientes en mÃ³vil y en web. HU-025.
+/// El listado de clientes en móvil y en web. HU-025.
 ///
 /// Es **un solo widget** que se adapta con `LayoutBuilder` en
 /// [kBreakpointEscritorio]. El buscador y los filtros trabajan sobre lo que ya
-/// estÃ¡ cargado: nunca vuelven a pedir nada. Si no hay seÃ±al, se muestra la
+/// está cargado: nunca vuelven a pedir nada. Si no hay señal, se muestra la
 /// copia local.
 class PantallaClientes extends ConsumerStatefulWidget {
   const PantallaClientes({super.key, this.onAbrirCliente});
@@ -46,14 +46,6 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
         shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
         title: Text('Clientes',
             style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
-        actions: [
-          IconButton(
-            tooltip: 'Nuevo Cliente',
-            icon: const Icon(Icons.person_add_alt_1, color: RegentaColors.accent),
-            onPressed: () => _mostrarDialogoNuevoCliente(context, ctrl),
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: LayoutBuilder(
         builder: (context, restricciones) {
@@ -99,120 +91,6 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
       ),
     );
   }
-  void _mostrarDialogoNuevoCliente(BuildContext context, ControladorDeClientes ctrl) {
-    final docCtrl = TextEditingController();
-    final nombreCtrl = TextEditingController();
-    final telCtrl = TextEditingController();
-    final correoCtrl = TextEditingController();
-    String tipoDoc = 'CC';
-    String tipoPersona = 'NATURAL';
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDlgState) => AlertDialog(
-          title: const Text('Nuevo Cliente'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: tipoPersona,
-                  decoration: const InputDecoration(labelText: 'Tipo de Persona'),
-                  items: const [
-                    DropdownMenuItem(value: 'NATURAL', child: Text('Persona Natural')),
-                    DropdownMenuItem(value: 'JURIDICA', child: Text('Persona Jurídica')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      setDlgState(() {
-                        tipoPersona = val;
-                        tipoDoc = val == 'JURIDICA' ? 'NIT' : 'CC';
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 90,
-                      child: DropdownButtonFormField<String>(
-                        value: tipoDoc,
-                        decoration: const InputDecoration(labelText: 'Tipo'),
-                        items: const [
-                          DropdownMenuItem(value: 'CC', child: Text('CC')),
-                          DropdownMenuItem(value: 'NIT', child: Text('NIT')),
-                          DropdownMenuItem(value: 'CE', child: Text('CE')),
-                          DropdownMenuItem(value: 'PP', child: Text('Pasaporte')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) setDlgState(() => tipoDoc = val);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: docCtrl,
-                        decoration: const InputDecoration(labelText: 'Número Documento'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: nombreCtrl,
-                  decoration: InputDecoration(
-                    labelText: tipoPersona == 'JURIDICA' ? 'Razón Social' : 'Nombre Completo',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: telCtrl,
-                  decoration: const InputDecoration(labelText: 'Teléfono'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: correoCtrl,
-                  decoration: const InputDecoration(labelText: 'Correo Electrónico'),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-            FilledButton(
-              onPressed: () async {
-                final doc = docCtrl.text.trim();
-                final nom = nombreCtrl.text.trim();
-                if (doc.isNotEmpty && nom.isNotEmpty) {
-                  Navigator.pop(ctx);
-                  final exito = await ctrl.crearCliente(
-                    tipoPersona: tipoPersona,
-                    tipoDocumento: tipoDoc,
-                    numeroDocumento: doc,
-                    nombreOrazonSocial: nom,
-                    telefono: telCtrl.text.trim(),
-                    correo: correoCtrl.text.trim(),
-                  );
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(exito ? 'Cliente creado con éxito' : 'Error al crear cliente'),
-                        backgroundColor: exito ? RegentaColors.ok : RegentaColors.crit,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Crear Cliente'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _Controles extends StatelessWidget {
@@ -249,7 +127,7 @@ class _Controles extends StatelessWidget {
                 isDense: true,
                 prefixIcon:
                     const Icon(Icons.search, size: 18, color: RegentaColors.faint),
-                hintText: 'Nombre, NIT o cÃ©dulaâ€¦',
+                hintText: 'Nombre, NIT o cédula…',
                 hintStyle:
                     RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.faint),
                 contentPadding: const EdgeInsets.symmetric(vertical: 11),
@@ -342,7 +220,7 @@ class _AvisoSinConexion extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       color: RegentaColors.warnSoft,
-      child: Text('Mostrando la copia guardada â€” sin conexiÃ³n',
+      child: Text('Mostrando la copia guardada — sin conexión',
           style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.warn)),
     );
   }
@@ -397,8 +275,8 @@ class _Lista extends StatelessWidget {
           child: Text(
             estado.mensaje ??
                 (estado.todos.isEmpty
-                    ? 'TodavÃ­a no hay clientes.'
-                    : 'NingÃºn cliente coincide con la bÃºsqueda.'),
+                    ? 'Todavía no hay clientes.'
+                    : 'Ningún cliente coincide con la búsqueda.'),
             textAlign: TextAlign.center,
             style: RegentaType.cuerpo.copyWith(color: RegentaColors.muted),
           ),
@@ -503,7 +381,7 @@ class _ChipEstado extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (texto, fondo, tinta) = switch (estado) {
-      EstadoDeCartera.alDia => ('al dÃ­a', RegentaColors.okSoft, RegentaColors.ok),
+      EstadoDeCartera.alDia => ('al día', RegentaColors.okSoft, RegentaColors.ok),
       EstadoDeCartera.excedido => ('excedido', RegentaColors.critSoft, RegentaColors.crit),
       EstadoDeCartera.sinSaldo => ('sin saldo', RegentaColors.sunken, RegentaColors.muted),
     };
@@ -515,4 +393,3 @@ class _ChipEstado extends StatelessWidget {
     );
   }
 }
-

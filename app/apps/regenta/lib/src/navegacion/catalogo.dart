@@ -5,9 +5,6 @@ import 'package:regenta_core/regenta_core.dart';
 import 'package:regenta_facturacion/regenta_facturacion.dart';
 import 'package:regenta_inventario/regenta_inventario.dart';
 import 'package:regenta_mesas/regenta_mesas.dart';
-import 'package:regenta_reportes/regenta_reportes.dart';
-import 'package:regenta_compras/regenta_compras.dart';
-import 'package:regenta_usuarios/regenta_usuarios.dart';
 import 'package:regenta_ventas/regenta_ventas.dart';
 
 /// Qué módulos hay y dónde vive cada uno (HU-119).
@@ -82,13 +79,7 @@ final List<RutaProtegida> rutasDeLaApp = [
     modulo: 'FACTURACION',
     builder: (context, parametros) {
       final id = parametros['id'];
-      if (id == null) {
-        return PantallaListaFacturas(
-          onFacturaSeleccionada: (facturaId) {
-            Navigator.of(context).pushNamed('/facturas/' + facturaId);
-          },
-        );
-      }
+      if (id == null) return const _SinDocumento(que: 'factura');
       return PantallaFactura(facturaId: id);
     },
   ),
@@ -98,32 +89,25 @@ final List<RutaProtegida> rutasDeLaApp = [
   RutaProtegida(
     ruta: '/caja',
     modulo: 'CAJA',
-    builder: (context, parametros) => const PantallaCaja(),
+    builder: (context, parametros) => const _SinPantallaTodavia(modulo: 'Caja'),
   ),
   RutaProtegida(
     ruta: '/compras',
     modulo: 'COMPRAS',
-    builder: (context, parametros) {
-      final id = parametros['id'];
-      if (id != null) {
-        return PantallaRecepcion(ordenId: id);
-      }
-      return PantallaCompras(
-        onRecibirOrden: (ordenId) {
-          Navigator.of(context).pushNamed('/compras/' + ordenId);
-        },
-      );
-    },
+    builder: (context, parametros) =>
+        const _SinPantallaTodavia(modulo: 'Compras'),
   ),
   RutaProtegida(
     ruta: '/reportes',
     modulo: 'REPORTES',
-    builder: (context, parametros) => const PantallaReportes(),
+    builder: (context, parametros) =>
+        const _SinPantallaTodavia(modulo: 'Reportes'),
   ),
   RutaProtegida(
     ruta: '/configuracion',
     modulo: 'CONFIGURACION',
-    builder: (context, parametros) => const PantallaConfiguracion(),
+    builder: (context, parametros) =>
+        const _SinPantallaTodavia(modulo: 'Configuración'),
   ),
 ];
 

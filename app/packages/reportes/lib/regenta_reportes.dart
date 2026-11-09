@@ -7,7 +7,6 @@ export 'src/caja/controlador_de_reportes_de_caja.dart';
 export 'src/caja/lista_de_sesiones_de_caja.dart';
 export 'src/caja/repositorio_de_reportes_de_caja.dart';
 export 'src/caja/sesion_de_caja_vista.dart';
-export 'src/ui/pantalla_reportes.dart';
 
 /// Nombre del modulo, para el registro de paquetes activos por patron/plan.
 const String nombreDelModulo = 'reportes';

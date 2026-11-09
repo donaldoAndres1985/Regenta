@@ -1,6 +1,5 @@
 import 'package:regenta_core/regenta_core.dart';
 
-import 'orden_compra_resumen.dart';
 import 'orden_recibible.dart';
 
 /// Una línea que se va a mandar al backend al registrar la recepción.
@@ -52,13 +51,6 @@ class RepositorioDeRecepciones {
   RepositorioDeRecepciones(this._http);
 
   final ClienteHttp _http;
-
-  Future<List<OrdenCompraResumen>> listarOrdenes() async {
-    final res = await _http.get<List<dynamic>>('/api/compras/ordenes');
-    return res
-        .map((e) => OrdenCompraResumen.desdeJson(Map<String, dynamic>.from(e as Map)))
-        .toList();
-  }
 
   Future<OrdenRecibible> verOrden(String ordenId) async {
     final cuerpo = await _http.get<Map<String, dynamic>>(

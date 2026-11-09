@@ -32,40 +32,6 @@ class RepositorioDeInventario {
     return ResultadoDeBusqueda.desdeJson(cuerpo);
   }
 
-  /// Lista las categorías del negocio para selector o filtrado.
-  Future<List<Map<String, dynamic>>> listarCategorias() async {
-    try {
-      final res = await _http.get<List<dynamic>>('/api/inventario/categorias');
-      return res.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-    } catch (_) {
-      return const [];
-    }
-  }
-
-  /// Crea un nuevo producto básico en el inventario.
-  Future<Map<String, dynamic>> crearProducto({
-    required String sku,
-    required String nombre,
-    required String categoriaId,
-    required String unidadMedidaId,
-    String? codigoBarras,
-    num? precioVenta,
-  }) async {
-    final res = await _http.post<Map<String, dynamic>>(
-      '/api/inventario/productos',
-      datos: {
-        'sku': sku,
-        'nombre': nombre,
-        'categoriaId': categoriaId,
-        'unidadMedidaId': unidadMedidaId,
-        if (codigoBarras != null && codigoBarras.isNotEmpty) 'codigoBarras': codigoBarras,
-        if (precioVenta != null) 'precioVenta': precioVenta,
-        'controlaStock': true,
-      },
-    );
-    return res;
-  }
-
   /// Resuelve un código de barras (propio o alterno) al producto y su factor
   /// (HU-035, criterios 2 y 4). Lanza [ErrorDesconocido] con código 404 si
   /// ningún producto tiene ese código.

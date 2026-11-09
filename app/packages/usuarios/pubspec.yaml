@@ -12,7 +12,6 @@ dependencies:
     sdk: flutter
   regenta_core:
     path: ../core
-  flutter_riverpod: ^2.6.1
 
 dev_dependencies:
   flutter_test:
