@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
-import '../ui/formato.dart';
-import 'controlador_de_caja.dart';
-import 'datos/sesion_caja_modelos.dart';
+import '../caja/controlador_de_caja.dart';
+import '../caja/datos/sesion_caja_modelos.dart';
+import 'formato.dart';
 
 class PantallaCaja extends ConsumerStatefulWidget {
   const PantallaCaja({super.key});
