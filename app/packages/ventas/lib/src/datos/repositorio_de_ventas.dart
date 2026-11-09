@@ -137,7 +137,7 @@ class RepositorioDeVentas {
       'origenOfflineId': offlineId,
       'ocurridoEn': DateTime.now().toUtc().toIso8601String(),
       'bodegaId': bodegaId,
-      if (clienteId != null) 'clienteId': clienteId,
+      'clienteId': ?clienteId,
       'lineas': lineas.map((l) => l.aJson()).toList(),
     };
     final respuesta = await _http.post<dynamic>(

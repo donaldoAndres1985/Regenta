@@ -183,7 +183,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                   const Text('Aplicar a:', style: TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<int>(
-                    value: objetivo,
+                    initialValue: objetivo,
                     isExpanded: true,
                     decoration: const InputDecoration(border: OutlineInputBorder()),
                     items: [
@@ -213,7 +213,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                   const SizedBox(height: 14),
                   TextField(
                     controller: controller,
-                    keyboardType: TextInputAction.done == null ? TextInputType.number : const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
                       labelText: tipo == 'pct' ? 'Porcentaje de descuento' : 'Valor en pesos',
                       prefixText: tipo == 'pct' ? '% ' : '\$ ',
