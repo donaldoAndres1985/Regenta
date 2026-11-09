@@ -36,7 +36,7 @@ jobs:
       - name: Publicar error como anotaciones
         if: failure()
         run: |
-          tail -n 30 build.log | while IFS= read -r line; do
+          grep -i -C 2 -E "(error|exception|failed)" build.log | head -n 35 | while IFS= read -r line; do
             echo "::error::$line"
           done
 
