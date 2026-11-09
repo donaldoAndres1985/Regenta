@@ -73,7 +73,16 @@ jobs:
           git diff --exit-code -- '*.g.dart'
 
       - name: analyze
-        run: melos run analyze --no-select
+        run: |
+          set -o pipefail
+          melos run analyze --no-select 2>&1 | tee analyze.log
+
+      - name: Publicar error de analyze
+        if: failure()
+        run: |
+          grep -i -C 2 -E "(error|warning|info)" analyze.log | head -n 35 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
 
       - name: test
         run: melos run test --no-select
