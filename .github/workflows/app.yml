@@ -154,4 +154,4 @@ jobs:
         with:
           timeout_minutes: 10
           max_attempts: 3
-          command: flutter build apk --debug
+          command: cd app/apps/regenta && flutter build apk --debug
