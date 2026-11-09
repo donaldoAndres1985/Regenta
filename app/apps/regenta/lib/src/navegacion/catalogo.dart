@@ -96,7 +96,7 @@ final List<RutaProtegida> rutasDeLaApp = [
   RutaProtegida(
     ruta: '/caja',
     modulo: 'CAJA',
-    builder: (context, parametros) => const _SinPantallaTodavia(modulo: 'Caja'),
+    builder: (context, parametros) => const PantallaCaja(),
   ),
   RutaProtegida(
     ruta: '/compras',

@@ -98,6 +98,10 @@ void main() {
         contenedor.read(repositorioDeFacturasProvider),
         isA<RepositorioDeFacturas>(),
       );
+      expect(
+        contenedor.read(repositorioDeCajaProvider),
+        isA<RepositorioDeCaja>(),
+      );
       expect(contenedor.read(bodegaDeVentaProvider), isA<String>());
     },
   );

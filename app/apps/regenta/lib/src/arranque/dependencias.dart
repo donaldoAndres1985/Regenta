@@ -125,6 +125,7 @@ class DependenciasDeLaApp {
 
     // Ventas
     repositorioDeVentasProvider.overrideWithValue(RepositorioDeVentas(http)),
+    repositorioDeCajaProvider.overrideWithValue(RepositorioDeCaja(http)),
     repositorioDeClientesDeVentaProvider.overrideWithValue(
       ClientesDelPos(RepositorioDeClientesHttp(http, base)),
     ),

@@ -4,6 +4,11 @@ library;
 
 import 'package:regenta_core/regenta_core.dart';
 
+export 'src/caja/controlador_de_caja.dart';
+export 'src/caja/datos/repositorio_de_caja.dart';
+export 'src/caja/datos/sesion_caja_modelos.dart';
+export 'src/caja/estado_de_caja.dart';
+export 'src/caja/proveedores.dart';
 export 'src/cliente/controlador_de_cliente.dart';
 export 'src/cliente/estado_de_cliente.dart';
 export 'src/cliente/proveedores.dart';
@@ -19,6 +24,7 @@ export 'src/pos/linea_de_carrito.dart';
 export 'src/pos/proveedores.dart';
 export 'src/ui/formato.dart';
 export 'src/ui/pantalla_cliente_de_venta.dart';
+export 'src/ui/pantalla_caja.dart';
 export 'src/ui/pantalla_pos.dart';
 
 /// Nombre del modulo, para el registro de paquetes activos por patron/plan.
