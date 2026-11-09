@@ -7,12 +7,13 @@
 ![Spring Modulith](https://img.shields.io/badge/Spring_Modulith-1.2.4-blue.svg?style=for-the-badge&logo=spring)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue.svg?style=for-the-badge&logo=postgresql)
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B.svg?style=for-the-badge&logo=flutter)
+![Design System](https://img.shields.io/badge/Theme-Pastel_Profesional-B8A9C9.svg?style=for-the-badge)
 ![Railway](https://img.shields.io/badge/Deploy-Railway-black.svg?style=for-the-badge&logo=railway)
 ![Architecture](https://img.shields.io/badge/Architecture-Modular_Monolith-purple.svg?style=for-the-badge)
 
 **Plataforma SaaS de gestión de negocios para Android y Web, multi-tenant y adaptable mediante patrones operativos.**
 
-*Una sola base de código Flutter y un backend en **Monolito Modular con Spring Modulith** listo para operar ferreterías, droguerías, papelerías, restaurantes, hoteles y spas sin duplicar infraestructura ni programar código por cada rubro comercial.*
+*Una sola base de código Flutter con el tema **Pastel Profesional** (Nunito / Nunito Sans) y un backend en **Monolito Modular con Spring Modulith** listo para operar ferreterías, droguerías, papelerías, restaurantes, hoteles y spas sin duplicar infraestructura ni programar código por cada rubro comercial.*
 
 </div>
 
@@ -21,6 +22,7 @@
 ## Índice
 
 - [Visión General](#visión-general)
+- [Sistema de Diseño: Tema Pastel Profesional](#sistema-de-diseño-tema-pastel-profesional)
 - [Showcase Visual del Frontend](#showcase-visual-del-frontend)
   - [Pantalla Principal y Dashboard](#pantalla-principal-y-dashboard)
   - [Patrón Venta Directa (Retail, Ferretería, Droguería)](#patrón-venta-directa-retail-ferretería-droguería)
@@ -36,7 +38,7 @@
 - [Estructura del Repositorio](#estructura-del-repositorio)
 - [Puesta en Marcha y Desarrollo Local](#puesta-en-marcha-y-desarrollo-local)
 - [Despliegue en Producción (Railway)](#despliegue-en-producción-railway)
-- [Documentación Técnica de la Migración](#documentación-técnica-de-la-migración)
+- [Documentación Técnica](#documentación-técnica)
 - [Estado del Proyecto y Roadmap](#estado-del-proyecto-y-roadmap)
 - [Autoría](#autoría)
 
@@ -47,19 +49,38 @@
 El nombre viene de **regentar**: llevar el control completo de la operación de un negocio —inventario, ventas, facturación electrónica, reservas, comandas y reportería— desde una sola aplicación adaptativa, en el celular y en el navegador.
 
 - **Frontend Único (Flutter):** Un solo código compila nativamente a APK (Android) y PWA (Web responsive).
-- **Backend Consolidado (Spring Modulith):** Arquitectura de **Monolito Modular** en Java 17 / Spring Boot 3.3.4 que reemplaza la antigua topología distribuida de 17 microservicios, eliminando el API Gateway y RabbitMQ sin alterar una sola coma de las rutas REST consumidas por la app móvil.
+- **Backend Consolidado (Spring Modulith):** Arquitectura de **Monolito Modular** en Java 17 / Spring Boot 3.3.4 que reemplazó 17 microservicios independientes, eliminando el API Gateway y RabbitMQ sin alterar una sola coma de las rutas REST consumidas por la app cliente.
 - **Ahorro de Infraestructura (> 90%):** De requerir 17 JVMs encendidas 24/7 a operar en **una sola JVM y un solo servicio en Railway** consumiendo entre 512 MB y 1 GB de RAM.
 - **Multi-Tenancy Real:** Aislamiento estricto por `negocio_id` en aplicación y base de datos con **PostgreSQL Row-Level Security (RLS)**. Vender a un cliente nuevo es insertar una fila en la base de datos, nunca levantar contenedores dedicados.
+- **Experiencia Offline-First:** Base de datos local (Drift/SQLite) con cola de sincronización en segundo plano (`workmanager`) para facturar y vender incluso ante caídas de internet.
+
+---
+
+## Sistema de Diseño: Tema Pastel Profesional
+
+Regenta implementa **Pastel Profesional** (`PastelTheme`), un sistema de diseño propio basado en Material 3 concebido para jornadas laborales intensivas:
+
+1. **Paleta Pastel Funcional:** Fondos suaves y tintes tenues (`paper: #F8F8FD`, `surface: #FFFFFF`, `line: #E7E7F2`) con tipografía de alto contraste (`ink: #25253A`, `ink2: #5D5D78`). Los tonos pastel se reservan para contenedores e indicadores, nunca para texto largo.
+2. **Identidad por Módulo:** Cada módulo del sistema cuenta con un tono pastel distintivo para tarjetas y atajos:
+   - **Ventas / POS:** Púrpura suave (`#ECEBFF`)
+   - **Inventario:** Menta fresco (`#DDF5EE`)
+   - **Caja:** Celeste hielo (`#E0F0FF`)
+   - **Clientes (CRM):** Rosa empolvado (`#FFE4EE`)
+   - **Compras:** Arena cálido (`#FFF4C7`)
+3. **Tipografía Empaquetada:** Utiliza **Nunito** para títulos y acentos jerárquicos, y **Nunito Sans** para texto continuo, tablas y cifras numéricas, empaquetadas directamente en `regenta_core` para eliminar cualquier dependencia externa de red al arrancar.
+4. **Composición Adaptativa:**
+   - **Móvil / Android (390×844):** Menú inferior dinámico, botones con área mínima de toque de 44 px, flujo táctil para lectores de código de barras y teclado numérico directo.
+   - **Escritorio / Web (1440×900):** Barra de navegación lateral fija (`MenuFijo`), panel divido maestro-detalle y tablas de alta densidad informativa.
 
 ---
 
 ## Showcase Visual del Frontend
 
-La interfaz de usuario ha sido concebida bajo un sistema de diseño propio adaptativo (`RegentaTheme`), garantizando ergonomía táctil en Android (objetivo mínimo de toque de 44 px) y máxima densidad de información en pantallas de escritorio y tablets (punto de corte a 900 px).
+> *Todas las capturas reflejan el tema **Pastel Profesional** generado en resoluciones Web (1440×900) y Móvil (390×844).*
 
 ### Pantalla Principal y Dashboard
 
-Vista ejecutiva de la operación diaria con métricas en tiempo real, accesos rápidos por rol y estado del negocio.
+Vista ejecutiva de la operación diaria con métricas en tiempo real, accesos directos por rol, alertas de stock mínimo y balance de ventas del día.
 
 | Escritorio / Web (1440×900) | Móvil / Android (390×844) |
 | :---: | :---: |
@@ -83,20 +104,20 @@ Diseñado para transacciones de alta velocidad: apertura de caja, catálogo tác
 | :---: | :---: |
 | ![Cliente Venta Web](design/png/ClienteVentaWeb.png) | ![Cliente Venta Móvil](design/png/ClienteVentaMovil.png) |
 
-#### 3. Pasarela de Cobro Multi-Medio
+#### 3. Pasarela de Cobro y Cierre de Ticket
 
 | Escritorio / Web (1440×900) | Móvil / Android (390×844) |
 | :---: | :---: |
 | ![Cobro Web](design/png/CobroWeb.png) | ![Cobro Móvil](design/png/CobroMovil.png) |
 
-#### 4. Control de Inventario y Ficha de Producto con Atributos Variables
+#### 4. Control de Inventario y Ficha de Producto
 
 | Escritorio / Web (1440×900) | Móvil / Android (390×844) |
 | :---: | :---: |
 | ![Inventario Web](design/png/InventarioWeb.png) | ![Inventario Móvil](design/png/InventarioMovil.png) |
 | ![Ficha Producto Web](design/png/ProductoWeb.png) | ![Ficha Producto Móvil](design/png/ProductoMovil.png) |
 
-#### 5. Facturación Electrónica
+#### 5. Facturación Electrónica DIAN
 
 | Escritorio / Web (1440×900) | Móvil / Android (390×844) |
 | :---: | :---: |
@@ -122,11 +143,18 @@ Especializado en recursos que no se consumen físicamente sino que se bloquean e
 | ![Recepción Web](design/png/RecepcionWeb.png) | ![Recepción Móvil](design/png/RecepcionMovil.png) |
 | ![Estancia Web](design/png/EstanciaWeb.png) | ![Estancia Móvil](design/png/EstanciaMovil.png) |
 
+#### 3. Catálogo de Recursos y Definición de Tarifas
+
+| Escritorio / Web (1440×900) | Móvil / Android (390×844) |
+| :---: | :---: |
+| ![Recurso Web](design/png/RecursoWeb.png) | ![Recurso Móvil](design/png/RecursoMovil.png) |
+| ![Tarifas Web](design/png/TarifasWeb.png) | ![Tarifas Móvil](design/png/TarifasMovil.png) |
+
 ---
 
 ### Patrón Comanda Abierta (Restaurantes, Bares, Cafeterías)
 
-Optimizado para cuentas vivas que acumulan pedidos a lo largo del tiempo. Integra mapa de salones y mesas, comanda digital de meseros y pantalla KDS para cocina.
+Optimizado para cuentas vivas que acumulan pedidos a lo largo del tiempo. Integra mapa de salones y mesas, comanda digital de meseros, división de cuentas y pantalla KDS para cocina.
 
 #### 1. Mapa de Salón y Estado de Mesas
 
@@ -134,11 +162,12 @@ Optimizado para cuentas vivas que acumulan pedidos a lo largo del tiempo. Integr
 | :---: | :---: |
 | ![Mesas Web](design/png/MesasWeb.png) | ![Mesas Móvil](design/png/MesasMovil.png) |
 
-#### 2. Gestión de Comanda por Mesa
+#### 2. Comanda Digital y División de Cuenta
 
 | Escritorio / Web (1440×900) | Móvil / Android (390×844) |
 | :---: | :---: |
 | ![Comanda Web](design/png/ComandaWeb.png) | ![Comanda Móvil](design/png/ComandaMovil.png) |
+| ![Cuenta Web](design/png/CuentaWeb.png) | ![Cuenta Móvil](design/png/CuentaMovil.png) |
 
 #### 3. Pantalla de Cocina / KDS (Kitchen Display System)
 
@@ -213,88 +242,49 @@ Regenta abstrae toda actividad comercial en **tres patrones operativos universal
 
 ## Arquitectura del Sistema
 
-```mermaid
-graph TD
-    subgraph Frontend ["Frontend (Flutter - Un solo código)"]
-        Mobile["APK Móvil (Android)"]
-        Web["PWA Web (Responsive)"]
-        Drift["Offline SQLite / WASM (Drift)"]
-    end
-
-    subgraph Backend ["Backend Monolito Modular (Spring Modulith - 1 Sola JVM)"]
-        Security["Spring Security + Filtro JWT"]
-        TenantCtx["ContextoDeNegocio (ThreadLocal)"]
-        RLSContext["PostgreSQL RLS (SET LOCAL app.negocio_id)"]
-        
-        subgraph Modulos ["15 Módulos de Dominio (com.regenta.*)"]
-            Usuarios["usuarios (core_identidad)"]
-            Clientes["clientes (crm)"]
-            Inventario["inventario (inventario)"]
-            Ventas["ventas (ventas)"]
-            Compras["compras (compras)"]
-            Recursos["recursos (recursos)"]
-            Reservas["reservas (reservas)"]
-            Menu["menu (menu)"]
-            Mesas["mesas (mesas)"]
-            Comandas["comandas (comandas)"]
-            Caja["caja (caja)"]
-            Facturacion["facturacion (facturacion)"]
-            Alertas["alertas (alertas)"]
-            Reportes["reportes (reportes)"]
-            Auditoria["auditoria (auditoria)"]
-        end
-
-        Events["Spring Modulith Event Registry (JPA)"]
-    end
-
-    subgraph BaseDatos ["PostgreSQL 15+ (1 Base de Datos - 15 Schemas)"]
-        Postgres["15 Schemas Aislados + Flyway Multi-Schema + RLS Activo"]
-    end
-
-    Mobile -->|HTTPS / REST| Security
-    Web -->|HTTPS / REST| Security
-    Security --> TenantCtx
-    TenantCtx --> RLSContext
-    RLSContext --> Modulos
-    Modulos -.->|@ApplicationModuleListener| Events
-    Events -.->|Eventos Asíncronos Transaccionales| Modulos
-    Modulos --> Postgres
-```
-
 ### Backend: Monolito Modular con Spring Modulith
 
-El backend está empaquetado en una única aplicación Spring Boot 3.x (`backend/regenta-app-server/`) bajo el paquete raíz `com.regenta`.
+El backend se organiza en **módulos de negocio delimitados** dentro de un único proceso de Spring Boot:
 
-1. **Aislamiento de Módulos:** Cada antiguo microservicio es ahora un paquete de primer nivel (`com.regenta.<modulo>`).
-2. **Encapsulamiento de API:** Ningún módulo puede importar clases internas (`domain`, `application`, `infrastructure`, `web`) de otro módulo. Todo acceso entre módulos se realiza exclusivamente a través de interfaces marcadas en su subpaquete `api/` (`@NamedInterface("api")`).
-3. **Verificación Estructural:** Se ejecutan tests automáticos con `ApplicationModules.of(RegentaApplication.class).verify()` y **ArchUnit** en cada build para garantizar que no existan ciclos ni dependencias indebidas.
-4. **Contratos REST Preservados al 100%:** Los endpoints exponen exactamente las mismas rutas y payloads que antes entregaba el API Gateway (por ejemplo, `/api/v1/usuarios/**`, `/api/v1/inventario/**`, `/api/v1/ventas/**`). El frontend Flutter no experimenta ningún cambio de integración.
+- **Límites Estrictos de Módulo:** Cada módulo (`com.regenta.<modulo>`) encapsula su dominio, repositorio y servicios. La comunicación intermódulo se realiza únicamente a través de interfaces públicas expuestas en `com.regenta.<modulo>.api`.
+- **Verificación en Tiempo de Compilación:** Pruebas automatizadas con `ApplicationModules.of(RegentaApp.class).verify()` garantizan que no existan ciclos de dependencia ni accesos no autorizados al código interno de otros módulos.
+- **Transaccionalidad Confiable:** Las operaciones críticas pueden participar de transacciones locales ACID sin la sobrecarga ni fragilidad de transacciones distribuidas o dos fases de confirmación (2PC).
 
 ### Multi-Tenancy y Seguridad
 
-El aislamiento de inquilinos es impenetrable gracias a un esquema de defensa en tres niveles:
-
-1. **Nivel Web / Filtro:** El `FiltroDeContexto` intercepta cada petición, extrae y valida el JWT (HS256) y puebla el `ContextoDeNegocio` (ThreadLocal seguro) con `negocio_id`, rol y plan.
-2. **Nivel Base de Datos (PostgreSQL RLS):** A través del aspecto `@AislamientoPorNegocio`, se ejecuta `SELECT set_config('app.negocio_id', :negocio, true)` al abrir cada transacción en HikariCP (`SET LOCAL`). Si una consulta omite el filtro de tenant por error en el código Java, el motor de PostgreSQL retorna cero filas de manera segura.
-3. **Guardias de Módulo y Permiso:** Métodos protegidos con `@RequiereModulo` verifican si el plan contratado por el negocio tiene activado dicho módulo antes de ejecutar la lógica de aplicación.
+1. **Aislamiento por Row-Level Security (RLS):** Cada consulta a PostgreSQL evalúa `negocio_id = current_setting('app.current_negocio_id')::uuid`. La seguridad reside en el motor de base de datos, imposibilitando fugas de datos accidentales por filtros `WHERE` omitidos en la aplicación.
+2. **Autenticación sin Estado (JWT):** Tokens firmados con HMAC-SHA256 que viajan en la cabecera `Authorization: Bearer`. Portan los permisos del usuario, rol y el `negocio_id`.
+3. **Control de Acceso Basado en Permisos (RBAC):** Métodos anotados con `@RequierePermiso("MODULO_ACCION")` y validación de activación del módulo por plan contratado.
 
 ### Base de Datos Multi-Schema en PostgreSQL
 
-En lugar de requerir múltiples bases de datos conectadas por red, el monolito opera sobre una única base PostgreSQL organizada en **15 esquemas lógicos independientes**:
+Se utiliza una sola base de datos dividida en schemas lógicos para aislar dominios:
 
-- `core_identidad`, `crm`, `inventario`, `ventas`, `compras`
-- `recursos`, `reservas`, `menu`, `mesas`, `comandas`
-- `caja`, `facturacion`, `alertas`, `reportes`, `auditoria`
-
-Las migraciones DDL se ejecutan de forma automática al arranque mediante `ConfiguracionMultiSchemaFlyway`, ejecutando las migraciones `V1__esquema_inicial.sql` y `V2__rls.sql` sobre cada esquema con checksums verificados.
+```
+postgres (db)
+ ├── core         → Negocios, usuarios, roles, permisos, configuración fiscal
+ ├── inventario   → Productos, existencias, bodegas, movimientos, lotes FEFO
+ ├── ventas       → Ventas directas, líneas, pagos, cobros
+ ├── clientes     → CRM, carteras, cuentas por cobrar
+ ├── caja         → Cajas físicas, sesiones/turnos, arqueo, movimientos de efectivo
+ ├── compras      → Órdenes de compra, recepción de mercancías, proveedores
+ ├── facturacion  → Factura electrónica DIAN, notas crédito, CUFE, XML
+ ├── reservas     → Recursos, disponibilidad TSTZRANGE, check-in / check-out
+ ├── mesas        → Salones, plano de mesas, sesiones
+ ├── comandas     → Comandas vivas, pedidos, cuentas divididas
+ ├── cocina       → Estaciones KDS, tickets de preparación
+ ├── menu         → Cartas, ítems de menú, modificadores
+ ├── reportes     → Vistas materializadas y data marts de analítica
+ ├── alertas      → Reglas de notificación, stock bajo, vencimientos
+ └── auditoria    → Bitácora append-only inmutable de eventos
+```
 
 ### Eventos de Dominio en Proceso
 
-Se eliminó RabbitMQ por completo. Los eventos entre dominios (ej. al completar una venta, descontar inventario, registrar cobro en caja y emitir factura) se gestionan en memoria:
+La comunicación reactiva entre módulos se ejecuta mediante `ApplicationEventPublisher` y `@ApplicationModuleListener`:
 
-- **Publicación:** Mediante `ApplicationEventPublisher.publishEvent(...)` dentro de la transacción original.
-- **Consumo Asíncrono Resiliente:** Oyentes anotados con `@ApplicationModuleListener` de Spring Modulith.
-- **Outbox Transaccional Automático:** Gracias a `spring-modulith-starter-jpa`, los eventos se registran en la tabla `event_publication` de PostgreSQL dentro de la misma transacción del agregado. Si la aplicación se reinicia inesperadamente, los eventos pendientes se reintentan automáticamente.
+- **Event Publication Registry:** Spring Modulith almacena en base de datos los eventos salientes antes de procesarlos. Si el servidor se apaga en medio de una operación, los eventos pendientes se retoman automáticamente al arrancar.
+- **Asincronía Segura:** Procesamiento desacoplado sin depender de brokers externos como RabbitMQ o Kafka.
 
 ---
 
@@ -302,147 +292,113 @@ Se eliminó RabbitMQ por completo. Los eventos entre dominios (ej. al completar 
 
 ```
 Regenta/
-├── backend/                              # Backend en Monolito Modular
-│   ├── pom.xml                           # POM padre que orquesta el backend
-│   ├── Dockerfile                        # Multi-stage build (Alpine + Temurin 17 JRE)
-│   ├── railway.json                      # Configuración de despliegue productivo en Railway
-│   └── regenta-app-server/               # Artefacto único ejecutable (JAR)
-│       ├── pom.xml                       # Dependencias: Spring Boot, Modulith, JPA, Flyway
-│       └── src/main/java/com/regenta/
-│           ├── RegentaApplication.java   # Entrada principal @SpringBootApplication
-│           ├── shared/                   # Seguridad, Multi-Tenancy, RLS, Web Advice
-│           ├── usuarios/                 # Esquema core_identidad (Planes, Roles, JWT)
-│           ├── clientes/                 # Esquema crm
-│           ├── inventario/               # Esquema inventario (Lotes, FEFO, Bodegas)
-│           ├── ventas/                   # Esquema ventas (POS, Facturas)
-│           ├── compras/                  # Esquema compras (Órdenes, Proveedores)
-│           ├── recursos/                 # Esquema recursos (Habitaciones, Canchas)
-│           ├── reservas/                 # Esquema reservas (GIST anti-solape)
-│           ├── menu/                     # Esquema menu (Ítems, Recetas)
-│           ├── mesas/                    # Esquema mesas (Salones)
-│           ├── comandas/                 # Esquema comandas (KDS, Cocina)
-│           ├── caja/                     # Esquema caja (Turnos, Arqueos)
-│           ├── facturacion/              # Esquema facturacion (Dian, Resoluciones)
-│           ├── alertas/                  # Esquema alertas (Stock mínimo, Vencimientos)
-│           ├── reportes/                 # Esquema reportes (Data Mart Dimensional)
-│           └── auditoria/                # Esquema auditoria (Bitácora inmutable)
-├── design/                               # Especificación de pantallas y mockups
-│   ├── png/                              # 46 Capturas de alta resolución (Móvil y Web)
-│   ├── pantallas/                        # Prototipos HTML de referencia
-│   └── tokens/                           # Tokens de diseño en Dart (RegentaTheme)
-├── docs/                                 # Documentación de ingeniería y arquitectura
-│   ├── migracion/                        # Guías y bitácora de la migración (Fases 0 - 8)
-│   └── modulith/                         # Diagramas C4 y especificación Spring Modulith
-├── historias/                            # 112 Historias de usuario en 17 épicas (TDD)
-└── modelo-datos/                         # DDLs SQL puros, diagramas ER y análisis de datos
+├── app/                              # Frontend Flutter (Monorepo con Melos)
+│   ├── apps/
+│   │   └── regenta/                  # Carcasa ejecutable (Android APK y Web PWA)
+│   └── packages/                     # Módulos desacoplados en Flutter
+│       ├── core/                     # Tema Pastel, tokens, navegación, cliente HTTP, Drift DB
+│       ├── clientes/                 # Listado, CRM y alta de clientes
+│       ├── comandas/                 # Comandas, KDS de cocina y división de cuentas
+│       ├── compras/                  # Órdenes de compra y recepción de mercancía
+│       ├── facturacion/              # Listado y detalle de factura electrónica
+│       ├── inventario/               # Catálogo de productos, escáner y creación
+│       ├── mesas/                    # Salón y plano interactivo
+│       ├── reportes/                 # Turnos de caja y analítica
+│       ├── reservas/                 # Calendario de ocupación y reservas
+│       ├── usuarios/                 # Configuración de empresa, usuarios y roles
+│       └── ventas/                   # POS, cobro, clientes y gestión de turnos de caja
+├── backend/                          # Backend Spring Boot (Monolito Modular)
+│   ├── regenta-app-server/           # Servidor ejecutable con Spring Modulith
+│   ├── Dockerfile                    # Multi-stage build para despliegue en contenedores
+│   └── railway.json                  # Especificación de despliegue en Railway
+├── design/                           # Sistema de diseño y prototipado
+│   ├── pantallas/                    # Prototipos interactivos HTML
+│   ├── png/                          # Capturas renderizadas del tema Pastel (Web y Móvil)
+│   └── tokens/                       # Tokens de diseño exportados
+├── docs/                             # Documentación técnica, modularidad y migración
+└── modelo-datos/                     # Especificaciones SQL y esquemas de datos
 ```
 
 ---
 
 ## Puesta en Marcha y Desarrollo Local
 
-### Requisitos
+### Prerrequisitos
 
-- **Java Development Kit (JDK):** Versión 17 o superior.
-- **Maven:** 3.9+ (o utilizar el wrapper `./mvnw` incluido).
-- **Docker / PostgreSQL:** PostgreSQL 15 o superior.
+- Java 17+ (Eclipse Temurin recomendado)
+- Docker Desktop o Docker Compose
+- PostgreSQL 15+ (si se corre sin Docker)
+- Flutter SDK 3.27+
 
-### 1. Clonar el Repositorio
+### 1. Iniciar Base de Datos Local
 
 ```bash
-git clone https://github.com/tu-organizacion/regenta.git
-cd regenta
-git checkout migracion-monolito
+docker run --name regenta-postgres \
+  -e POSTGRES_USER=regenta \
+  -e POSTGRES_PASSWORD=regenta \
+  -e POSTGRES_DB=regenta \
+  -p 5432:5432 -d postgres:15-alpine
 ```
 
-### 2. Configurar Variables de Entorno
-
-Crear un archivo `.env` en `backend/` basado en `.env.example`:
-
-```properties
-SPRING_PROFILES_ACTIVE=dev
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=regenta
-DB_USERNAME=postgres
-DB_PASSWORD=postgres
-JWT_SECRET=tu-clave-secreta-jwt-de-al-menos-256-bits-segura-12345
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
-PORT=8080
-```
-
-### 3. Levantar la Base de Datos
-
-Si tienes Docker instalado:
+### 2. Iniciar el Backend
 
 ```bash
 cd backend
-docker compose up -d postgres
+./mvnw spring-boot:run -pl regenta-app-server
 ```
 
-### 4. Compilar y Ejecutar
+El servidor iniciará en `http://localhost:8080`.
+- Documentación OpenAPI Swagger: `http://localhost:8080/swagger-ui.html`
+- Healthcheck: `http://localhost:8080/actuator/health`
 
-Desde la raíz del backend:
+### 3. Iniciar el Frontend (Flutter Web)
 
 ```bash
-cd backend
-
-# Ejecutar verificación completa (compilación + tests de arquitectura Modulith)
-./mvnw clean verify
-
-# Iniciar el servidor
-./mvnw -pl regenta-app-server spring-boot:run
+cd app/apps/regenta
+flutter run -d chrome
 ```
-
-La aplicación iniciará en `http://localhost:8080` y aplicará automáticamente todas las migraciones Flyway de los 15 esquemas.
 
 ---
 
 ## Despliegue en Producción (Railway)
 
-El backend de Regenta está completamente preparado para desplegarse en **Railway** con un solo clic.
+El backend de Regenta está preparado para desplegarse en **Railway** con un solo clic.
 
 ### Archivos de Despliegue
 
-1. **`backend/Dockerfile`:** Multi-stage build ultraligero basado en `eclipse-temurin:17-jre-alpine`. Optimiza la memoria de la JVM automáticamente con `-XX:MaxRAMPercentage=75.0` y escucha en `$PORT`.
+1. **`backend/Dockerfile`:** Multi-stage build ultraligero basado en `eclipse-temurin:17-jre-alpine`. Optimiza la memoria de la JVM automáticamente con `-XX:MaxRAMPercentage=75.0` y escucha dinámicamente en `$PORT`.
 2. **`backend/railway.json`:** Declara la estrategia Dockerfile y el healthcheck en `/actuator/health`.
 
-### Pasos de Despliegue en Railway
+### Variables de Entorno en Railway
 
-1. Crear un proyecto nuevo en [Railway](https://railway.app/).
-2. Añadir un plugin de **PostgreSQL** al proyecto.
-3. Conectar el repositorio de GitHub y seleccionar la rama `migracion-monolito`.
-4. Establecer como **Root Directory** la carpeta `/backend`.
-5. Configurar las variables de entorno en el panel de Railway:
-   - `SPRING_PROFILES_ACTIVE`: `prod`
-   - `DB_HOST`: `${{Postgres.PGHOST}}`
-   - `DB_PORT`: `${{Postgres.PGPORT}}`
-   - `DB_NAME`: `${{Postgres.PGDATABASE}}`
-   - `DB_USERNAME`: `${{Postgres.PGUSER}}`
-   - `DB_PASSWORD`: `${{Postgres.PGPASSWORD}}`
-   - `JWT_SECRET`: *(Cadena secreta en Base64 o texto seguro)*
-   - `CORS_ALLOWED_ORIGINS`: `https://tu-frontend.pages.dev,https://app.regenta.com`
+| Variable | Valor / Descripción |
+| :--- | :--- |
+| `SPRING_PROFILES_ACTIVE` | `prod` |
+| `DB_HOST` | `${{Postgres.PGHOST}}` |
+| `DB_PORT` | `${{Postgres.PGPORT}}` |
+| `DB_NAME` | `${{Postgres.PGDATABASE}}` |
+| `DB_USERNAME` | `${{Postgres.PGUSER}}` |
+| `DB_PASSWORD` | `${{Postgres.PGPASSWORD}}` |
+| `JWT_SECRET` | *(Clave segura en Base64 o frase secreta de 256 bits)* |
+| `CORS_ALLOWED_ORIGINS` | `https://tu-dominio.com,https://app.regenta.com` |
 
-Railway compilará la imagen en ~2 minutos y levantará el monolito modular con uso estimado de **$7 a $12 USD/mes**.
+Railway compila la imagen en ~2 minutos y levanta el monolito modular con un consumo promedio de **512 MB - 768 MB de RAM**, reduciendo los costos operativos a una fracción del costo de microservicios.
 
 ---
 
-## Documentación Técnica de la Migración
-
-Toda la evidencia, inventario y análisis de la migración de microservicios a monolito modular se encuentra documentada en detalle:
+## Documentación Técnica
 
 | Documento | Descripción |
 | :--- | :--- |
-| [`docs/migracion/00-inventario.md`](docs/migracion/00-inventario.md) | Inventario completo de los 17 microservicios originales, schemas, dependencias y contratos. |
-| [`docs/migracion/02-mapeo-rutas.md`](docs/migracion/02-mapeo-rutas.md) | Catálogo 1:1 de mapeo de rutas públicas del API Gateway a los controladores del monolito. |
-| [`docs/migracion/03-eventos.md`](docs/migracion/03-eventos.md) | Matriz de migración de RabbitMQ a eventos de dominio en proceso con `@ApplicationModuleListener`. |
-| [`docs/migracion/04-seguridad.md`](docs/migracion/04-seguridad.md) | Unificación de Spring Security, JWT, RLS de PostgreSQL y aspecto `@RequiereModulo`. |
-| [`docs/migracion/05-datos.md`](docs/migracion/05-datos.md) | Ejecutor de migraciones multi-schema con Flyway y gestión transaccional HikariCP. |
-| [`docs/migracion/06-modularidad.md`](docs/migracion/06-modularidad.md) | Reglas de empaquetado, verificación con Spring Modulith y ArchUnit, y ciclo de dependencias cero. |
-| [`docs/migracion/07-despliegue.md`](docs/migracion/07-despliegue.md) | Guía técnica para Railway, análisis de optimización de memoria JVM y ahorro de costos. |
-| [`docs/migracion/99-resumen.md`](docs/migracion/99-resumen.md) | Resumen ejecutivo final de la migración y matriz de módulos consolidados. |
-| [`docs/migracion/bugs-detectados.md`](docs/migracion/bugs-detectados.md) | Registro de inconsistencias corregidas durante la refactorización de código legado. |
-| [`docs/modulith/`](docs/modulith/) | Diagramas de componentes PlantUML / C4 y fichas técnicas exportadas por Modulith. |
+| [`docs/frontend/inventario-pantallas.md`](docs/frontend/inventario-pantallas.md) | Inventario y estado de pantallas Flutter frente a endpoints de backend. |
+| [`docs/migracion/00-inventario.md`](docs/migracion/00-inventario.md) | Inventario de schemas, dependencias y contratos de la arquitectura consolidada. |
+| [`docs/migracion/02-mapeo-rutas.md`](docs/migracion/02-mapeo-rutas.md) | Catálogo de rutas REST públicas consumidas por la app cliente. |
+| [`docs/migracion/03-eventos.md`](docs/migracion/03-eventos.md) | Matriz de eventos de dominio con `@ApplicationModuleListener`. |
+| [`docs/migracion/04-seguridad.md`](docs/migracion/04-seguridad.md) | Spring Security, JWT, RLS de PostgreSQL y validaciones de módulo. |
+| [`docs/migracion/05-datos.md`](docs/migracion/05-datos.md) | Migraciones multi-schema con Flyway y pool de conexiones HikariCP. |
+| [`docs/migracion/06-modularidad.md`](docs/migracion/06-modularidad.md) | Reglas de empaquetado y verificación con Spring Modulith. |
+| [`docs/migracion/07-despliegue.md`](docs/migracion/07-despliegue.md) | Guía técnica para Railway y optimización de memoria JVM. |
+| [`docs/modulith/`](docs/modulith/) | Diagramas de arquitectura exportados automáticamente por Spring Modulith. |
 
 ---
 
@@ -450,13 +406,14 @@ Toda la evidencia, inventario y análisis de la migración de microservicios a m
 
 | Hito | Alcance Funcional | Estado |
 | :--- | :--- | :---: |
-| **Hito 1 · Fundación** | Migración a Monolito Modular, Flyway multi-schema, RLS, Event Registry | ✅ Completo |
-| **Hito 2 · Núcleo Operable** | Tenant, planes, usuarios, roles, JWT y paquete Flutter `core` | ✅ Completo |
-| **Hito 3 · MVP Venta Directa** | Catálogo configurable, stock por bodega, lotes FEFO y ventas | ✅ Completo |
-| **Hito 4 · Negocio Completo** | Compras, arqueo de caja, reglas de alerta y data mart de reportes | ✅ Completo |
-| **Hito 5 · Patrón Reserva** | Recursos, estancias, checkout y restricciones GiST anti-solape | ✅ Completo |
-| **Hito 6 · Patrón Comanda** | Salones, mesas en tiempo real, comanda viva y KDS de cocina | ✅ Completo |
-| **Hito 7 · Facturación y Auditoría** | Factura electrónica y bitácora de auditoría inmutable append-only | ✅ Completo |
+| **Hito 1 · Fundación** | Monolito Modular, Flyway multi-schema, RLS, Event Registry | ✅ Completo |
+| **Hito 2 · Núcleo Operable** | Tenant, planes, usuarios, roles, JWT y tema Pastel en Flutter | ✅ Completo |
+| **Hito 3 · Venta Directa (POS)** | POS rediseñado, catálogo táctil, stock, ventas offline y cobro | ✅ Completo |
+| **Hito 4 · Caja y Operación** | Gestión y arqueo de turnos de caja, reportes y configuración fiscal | ✅ Completo |
+| **Hito 5 · Compras e Inventario** | Órdenes de compra, recepción con lector y alta de productos | ✅ Completo |
+| **Hito 6 · Facturación Electrónica** | Listado de facturas, estados DIAN y trazabilidad | ✅ Completo |
+| **Hito 7 · Patrón Reserva** | Recursos, estancias, check-in / check-out y restricciones anti-solape | ✅ Completo |
+| **Hito 8 · Patrón Comanda** | Plano de mesas, comandas digitales por mesa y KDS de cocina | ✅ Completo |
 
 ---
 
