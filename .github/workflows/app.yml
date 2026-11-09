@@ -80,7 +80,7 @@ jobs:
       - name: Publicar error de analyze
         if: failure()
         run: |
-          grep -i -C 2 -E "(error|warning|info)" analyze.log | head -n 35 | while IFS= read -r line; do
+          tail -n 40 analyze.log | while IFS= read -r line; do
             echo "::error::$line"
           done
 
