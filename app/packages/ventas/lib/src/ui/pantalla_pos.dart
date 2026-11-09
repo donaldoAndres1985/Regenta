@@ -1730,6 +1730,7 @@ class _PieEscritorio extends StatelessWidget {
                   ),
                 if (estado.faltaIdentificarComprador)
                   Padding(
+                    key: const Key('aviso-identificar-comprador'),
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       'Supera ${formatearPesos(estado.montoParaIdentificar!)}: identifica al comprador',
@@ -1984,6 +1985,32 @@ class _PieMovil extends StatelessWidget {
               ],
             ),
           ),
+          if (estado.hayLineasSinStock)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                'Hay líneas sin stock',
+                style: PastelTheme.cuerpo(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: RegentaColors.crit,
+                ),
+              ),
+            ),
+          if (estado.faltaIdentificarComprador)
+            Padding(
+              key: const Key('aviso-identificar-comprador'),
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                'Supera ${formatearPesos(estado.montoParaIdentificar!)}: '
+                'identifica al comprador para cobrar',
+                style: PastelTheme.cuerpo(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: RegentaColors.warn,
+                ),
+              ),
+            ),
           const SizedBox(height: 10),
           SizedBox(
             height: 52,
