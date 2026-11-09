@@ -35,6 +35,8 @@ dependencies:
     path: ../../packages/mesas
   regenta_reportes:
     path: ../../packages/reportes
+  regenta_usuarios:
+    path: ../../packages/usuarios
   regenta_reservas:
     path: ../../packages/reservas
   regenta_ventas:
