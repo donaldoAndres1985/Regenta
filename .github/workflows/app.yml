@@ -150,4 +150,8 @@ jobs:
         run: flutter build web --release
 
       - name: build apk
-        run: flutter build apk --debug
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: flutter build apk --debug
