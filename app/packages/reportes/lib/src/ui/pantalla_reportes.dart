@@ -283,11 +283,11 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
               children: [
                 Text('Medios de Pago', style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
                 const SizedBox(height: 12),
-                _filaMedioPago('Efectivo', '\$ 1.479.400', 0.52, const Color(0xFF10B981)),
+                _filaMedioPago('Efectivo', '\$ 1.479.400', 0.52, RegentaColors.ok),
                 const SizedBox(height: 8),
-                _filaMedioPago('Tarjeta Débito / Crédito', '\$ 1.024.200', 0.36, const Color(0xFF3B82F6)),
+                _filaMedioPago('Tarjeta Débito / Crédito', '\$ 1.024.200', 0.36, RegentaColors.accent),
                 const SizedBox(height: 8),
-                _filaMedioPago('Transferencias (Nequi / Daviplata)', '\$ 341.400', 0.12, const Color(0xFF8B5CF6)),
+                _filaMedioPago('Transferencias (Nequi / Daviplata)', '\$ 341.400', 0.12, RegentaColors.reserva),
               ],
             ),
           ),
@@ -342,7 +342,7 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
           child: LinearProgressIndicator(
             value: proporcion,
             minHeight: 8,
-            backgroundColor: const Color(0xFFF1F5F9),
+            backgroundColor: RegentaColors.sunken,
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),

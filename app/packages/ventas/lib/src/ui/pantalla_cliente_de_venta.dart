@@ -213,18 +213,18 @@ class _Buscador extends StatelessWidget {
           style: RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.ink),
           decoration: InputDecoration(
             isDense: true,
-            prefixIcon: const Icon(Icons.search, size: 18, color: RegentaColors.ink2),
+            prefixIcon: const Icon(Icons.search, size: 18, color: RegentaColors.faint),
             hintText: 'Buscar por nombre, NIT o cédula…',
             hintStyle:
-                RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.ink2),
+                RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.faint),
             contentPadding: const EdgeInsets.symmetric(vertical: 13),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-              borderSide: const BorderSide(color: Color(0xFFC4C4D4)),
+              borderSide: const BorderSide(color: RegentaColors.line2),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-              borderSide: const BorderSide(color: Color(0xFFC4C4D4)),
+              borderSide: const BorderSide(color: RegentaColors.line2),
             ),
           ),
         ),
@@ -745,11 +745,11 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-          borderSide: const BorderSide(color: Color(0xFFC4C4D4)),
+          borderSide: const BorderSide(color: RegentaColors.line2),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-          borderSide: const BorderSide(color: Color(0xFFC4C4D4)),
+          borderSide: const BorderSide(color: RegentaColors.line2),
         ),
       );
 }

@@ -660,20 +660,20 @@ class _BannerExplicativoKdsState extends State<_BannerExplicativoKds> {
   Widget build(BuildContext context) {
     if (!_mostrar) return const SizedBox.shrink();
     return Container(
-      color: const Color(0xFF1E293B),
+      color: RegentaColors.kdsBarra,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, size: 18, color: Color(0xFF93C5FD)),
+          const Icon(Icons.info_outline, size: 18, color: RegentaColors.infoSoft),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Pantalla KDS (Cocina): Gestiona comandas en tiempo real en 3 etapas: Nuevos → En Preparación → Listos para servir.',
-              style: RegentaType.cuerpo.copyWith(fontSize: 12, color: const Color(0xFFE2E8F0)),
+              style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.kdsTexto),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
+            icon: const Icon(Icons.close, size: 16, color: RegentaColors.kdsPestanaInactivaTexto),
             onPressed: () => setState(() => _mostrar = false),
             visualDensity: VisualDensity.compact,
           ),

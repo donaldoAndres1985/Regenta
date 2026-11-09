@@ -131,25 +131,6 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
         shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
         title: Text('Clientes',
             style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
-        actions: [
-          IconButton(
-            tooltip: 'Refrescar',
-            icon: const Icon(Icons.refresh, color: RegentaColors.ink),
-            onPressed: ctrl.cargar,
-          ),
-          IconButton(
-            tooltip: 'Nuevo cliente',
-            icon: const Icon(Icons.person_add_outlined, color: RegentaColors.accent),
-            onPressed: () => _abrirDialogoCrearCliente(context, ctrl),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: RegentaColors.accent,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Nuevo Cliente', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        onPressed: () => _abrirDialogoCrearCliente(context, ctrl),
       ),
       body: LayoutBuilder(
         builder: (context, restricciones) {

@@ -145,7 +145,7 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: p.stockTotal > 0 ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                    color: p.stockTotal > 0 ? RegentaColors.okSoft : RegentaColors.critSoft,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -153,7 +153,7 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: p.stockTotal > 0 ? const Color(0xFF166534) : const Color(0xFF991B1B),
+                      color: p.stockTotal > 0 ? RegentaColors.ok : RegentaColors.crit,
                     ),
                   ),
                 ),
@@ -380,11 +380,11 @@ class _BarraDeBusqueda extends StatelessWidget {
                   contentPadding: const EdgeInsets.symmetric(vertical: 11),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-                    borderSide: const BorderSide(color: Color(0xFFC4C4D4)),
+                    borderSide: const BorderSide(color: RegentaColors.line2),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-                    borderSide: const BorderSide(color: Color(0xFFC4C4D4)),
+                    borderSide: const BorderSide(color: RegentaColors.line2),
                   ),
                 ),
               ),

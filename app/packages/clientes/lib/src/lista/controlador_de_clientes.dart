@@ -28,11 +28,11 @@ class ControladorDeClientes extends StateNotifier<EstadoDeClientes> {
       await _repo.guardarEnCache(frescos);
       state = state.copiar(todos: frescos, desdeCache: false, cargando: false);
     } catch (error) {
-      // Sin conexión o fallo de red, se sigue mostrando lo cacheado.
+      // Criterio 2: sin conexión, se sigue mostrando lo cacheado con aviso.
       state = state.copiar(
         cargando: false,
         desdeCache: true,
-        mensaje: cacheados.isEmpty ? 'No hay clientes guardados para mostrar sin conexión' : null,
+        mensaje: 'Estás trabajando sin conexión. Se muestran los clientes guardados en este equipo.',
       );
     }
   }

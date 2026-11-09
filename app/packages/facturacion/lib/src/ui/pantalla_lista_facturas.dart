@@ -102,7 +102,7 @@ class PantallaListaFacturas extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(18),
                       decoration: const BoxDecoration(
-                        color: Color(0xFFF1F5F9),
+                        color: RegentaColors.sunken,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.receipt_long_outlined, size: 48, color: RegentaColors.accent),
