@@ -2160,6 +2160,7 @@ class _StepperEditableState extends State<_StepperEditable> {
                     onSubmitted: (_) => _guardar(),
                   )
                 : InkWell(
+                    key: const Key('stepper-cantidad-tap'),
                     onTap: () {
                       setState(() => _editando = true);
                       _ctrl.text = '${widget.cantidad}';

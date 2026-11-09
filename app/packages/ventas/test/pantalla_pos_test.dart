@@ -906,7 +906,7 @@ void main() {
 
       expect(_estado(tester).lineas.single.cantidad, 1);
 
-      await tester.tap(find.text('1'));
+      await tester.tap(find.byKey(const Key('stepper-cantidad-tap')).first);
       await tester.pump();
 
       final textFields = find.byType(TextField);
