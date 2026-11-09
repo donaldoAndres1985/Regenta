@@ -419,10 +419,13 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                   side: const BorderSide(color: RegentaColors.line),
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: _Resultados(
-                  estado: estado,
-                  resaltado: _resaltado,
-                  onAgregar: pos.agregar,
+                child: KeyedSubtree(
+                  key: const Key('pos-resultados'),
+                  child: _Resultados(
+                    estado: estado,
+                    resaltado: _resaltado,
+                    onAgregar: pos.agregar,
+                  ),
                 ),
               ),
             ),
@@ -678,7 +681,9 @@ class _PestanaVenta extends StatelessWidget {
   Widget build(BuildContext context) {
     final info = productos > 0
         ? formatearPesos(total)
-        : (cliente != null && cliente!.trim().isNotEmpty ? cliente! : 'Mostrador');
+        : (cliente != null && cliente!.trim().isNotEmpty
+            ? (cliente!.length > 12 ? '${cliente!.substring(0, 10)}…' : cliente!)
+            : 'Mostrador');
 
     final etiqueta = productos == 0
         ? 'Venta $numero · $info'
@@ -1150,7 +1155,6 @@ class _Resultados extends StatelessWidget {
         else
           Flexible(
             child: ListView.builder(
-              key: const Key('pos-resultados'),
               shrinkWrap: true,
               padding: EdgeInsets.zero,
               itemCount: estado.resultados.length,
