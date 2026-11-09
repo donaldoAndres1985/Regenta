@@ -12,20 +12,9 @@ import 'formato.dart';
 import 'pantalla_cliente_de_venta.dart';
 
 /// La pantalla de Nueva venta (POS). HU-045 y `design/comportamiento/POS.md`.
-///
-/// De arriba hacia abajo: la franja de cliente, el buscador a todo el ancho y
-/// la venta a todo el ancho, con los totales y *Cobrar* debajo del listado
-/// (R10). Los resultados de la búsqueda se despliegan encima de la venta sólo
-/// mientras se busca (R10b), y Enter agrega sin tocar el mouse (R7, R7b).
-///
-/// Es **un solo widget** que se adapta con `LayoutBuilder` en
-/// [kBreakpointEscritorio]: en escritorio la venta es una tabla; en móvil, una
-/// tarjeta por línea con el total y *Cobrar* fijos abajo. Arriba a la derecha,
-/// las ventas abiertas a la vez (R12).
 class PantallaPos extends ConsumerStatefulWidget {
   const PantallaPos({super.key, this.onAgregarCliente, this.onVentaCobrada});
 
-  /// Si se da, reemplaza al selector de cliente propio del POS.
   final VoidCallback? onAgregarCliente;
   final void Function(String numeroVenta)? onVentaCobrada;
 
@@ -36,8 +25,6 @@ class PantallaPos extends ConsumerStatefulWidget {
 class _PantallaPosState extends ConsumerState<PantallaPos> {
   final TextEditingController _buscador = TextEditingController();
   final FocusNode _foco = FocusNode(debugLabel: 'buscador-pos');
-
-  /// R7b: el resultado que Enter agregaría. Se mueve con ↑ ↓.
   int _resaltado = 0;
 
   @override
@@ -54,8 +41,6 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     super.dispose();
   }
 
-  /// R7c: `F2` y `F12` funcionan aunque el foco no esté en el buscador,
-  /// mientras el POS sea la pantalla de arriba (no con un diálogo encima).
   bool _atajoGlobal(KeyEvent evento) {
     if (evento is! KeyDownEvent || !mounted) return false;
     if (!(ModalRoute.of(context)?.isCurrent ?? true)) return false;
@@ -77,7 +62,6 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     if (ref.read(controladorDelPosProvider).puedeCobrar) await pos.cobrar();
   }
 
-  /// ↑ ↓ mueven el resaltado y `Esc` cierra la lista (R7b, R7c).
   KeyEventResult _teclaEnBuscador(FocusNode _, KeyEvent evento) {
     if (evento is! KeyDownEvent && evento is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -106,6 +90,36 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     accion();
   }
 
+  Future<void> _confirmarCerrarVenta(int indice) async {
+    final estado = ref.read(controladorDelPosProvider);
+    final pos = ref.read(controladorDelPosProvider.notifier);
+    if (estado.productosEnVenta(indice) > 0) {
+      final confirmar = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('¿Cerrar venta?'),
+          content: Text(
+            'La venta ${indice + 1} tiene ${estado.productosEnVenta(indice)} productos. '
+            'Si la cierras, se perderán estos productos.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: FilledButton.styleFrom(backgroundColor: RegentaColors.crit),
+              child: const Text('Cerrar venta'),
+            ),
+          ],
+        ),
+      );
+      if (confirmar != true) return;
+    }
+    _cambiarDeVenta(() => pos.cerrarVenta(indice));
+  }
+
   Future<void> _abrirSelectorDeCliente({required bool escritorio}) async {
     if (widget.onAgregarCliente != null) {
       widget.onAgregarCliente!();
@@ -126,18 +140,177 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
         context: context,
         builder: (contexto) => Dialog(
           clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: SizedBox(width: 560, height: 640, child: selector(contexto)),
         ),
       );
     } else {
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute<void>(builder: selector));
+      await Navigator.of(context).push(MaterialPageRoute<void>(builder: selector));
     }
     if (mounted) _enfocarBuscador();
+  }
+
+  Future<void> _abrirDialogoDescuento() async {
+    final estado = ref.read(controladorDelPosProvider);
+    final pos = ref.read(controladorDelPosProvider.notifier);
+
+    String tipo = 'pct'; // 'pct' o 'val'
+    int objetivo = -1; // -1: Toda la venta, >= 0: índice de línea
+    final controller = TextEditingController();
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final valor = num.tryParse(controller.text.trim()) ?? 0;
+          num descCalc = 0;
+          if (objetivo == -1) {
+            descCalc = tipo == 'pct' ? (estado.subtotalBruto * (valor / 100)) : valor;
+          } else if (objetivo < estado.lineas.length) {
+            final l = estado.lineas[objetivo];
+            descCalc = tipo == 'pct' ? (l.bruto * (valor / 100)) : valor;
+          }
+          final nuevoTotal = (estado.subtotalBruto - descCalc + estado.impuesto).clamp(0, double.infinity);
+
+          return AlertDialog(
+            title: const Text('Aplicar descuento'),
+            content: SizedBox(
+              width: 400,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Aplicar a:', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<int>(
+                    value: objetivo,
+                    isExpanded: true,
+                    decoration: const InputDecoration(border: OutlineInputBorder()),
+                    items: [
+                      const DropdownMenuItem(value: -1, child: Text('Toda la venta')),
+                      for (var i = 0; i < estado.lineas.length; i++)
+                        DropdownMenuItem(
+                          value: i,
+                          child: Text(
+                            '${estado.lineas[i].producto.nombre} (${formatearPesos(estado.lineas[i].bruto)})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    onChanged: (v) => setDialogState(() => objetivo = v ?? -1),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('Tipo de descuento:', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'pct', label: Text('Porcentaje (%)')),
+                      ButtonSegment(value: 'val', label: Text('Valor (\$)')),
+                    ],
+                    selected: {tipo},
+                    onSelectionChanged: (s) => setDialogState(() => tipo = s.first),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputAction.done == null ? TextInputType.number : const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: tipo == 'pct' ? 'Porcentaje de descuento' : 'Valor en pesos',
+                      prefixText: tipo == 'pct' ? '% ' : '\$ ',
+                      border: const OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: RegentaColors.paper,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: RegentaColors.line),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Nuevo total estimado:'),
+                        Text(
+                          formatearPesos(nuevoTotal),
+                          style: RegentaType.codigo.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
+              FilledButton(
+                onPressed: () {
+                  final val = num.tryParse(controller.text.trim()) ?? 0;
+                  if (objetivo == -1) {
+                    if (tipo == 'pct') {
+                      final valPesos = estado.subtotalBruto * (val / 100);
+                      pos.aplicarDescuentoGlobal(porcentaje: val, valor: valPesos);
+                    } else {
+                      pos.aplicarDescuentoGlobal(valor: val);
+                    }
+                  } else {
+                    final pct = tipo == 'pct' ? val : (estado.lineas[objetivo].bruto > 0 ? (val / estado.lineas[objetivo].bruto * 100) : 0);
+                    pos.aplicarDescuentoLinea(objetivo, pct);
+                  }
+                  Navigator.of(ctx).pop();
+                },
+                child: const Text('Aplicar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _abrirDialogoNota() async {
+    final estado = ref.read(controladorDelPosProvider);
+    final pos = ref.read(controladorDelPosProvider.notifier);
+    final controller = TextEditingController(text: estado.nota ?? '');
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nota de la venta'),
+        content: SizedBox(
+          width: 440,
+          child: TextField(
+            controller: controller,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Ej: entregar en obra, calle 25 # 18-40',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          if (estado.nota != null)
+            TextButton(
+              onPressed: () {
+                pos.fijarNota(null);
+                Navigator.of(ctx).pop();
+              },
+              child: const Text('Borrar nota', style: TextStyle(color: RegentaColors.crit)),
+            ),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () {
+              final texto = controller.text.trim();
+              pos.fijarNota(texto.isEmpty ? null : texto);
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -147,32 +320,23 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
 
     ref.listen<EstadoDelPos>(controladorDelPosProvider, (antes, ahora) {
       if (!identical(antes?.resultados, ahora.resultados)) _resaltado = 0;
-      // R6: al agregar, el término se limpia y el foco se queda en el buscador.
       if (ahora.termino.isEmpty && _buscador.text.isNotEmpty) {
         _buscador.clear();
         _enfocarBuscador();
       }
-      if (ahora.ventaNumero != null &&
-          ahora.ventaNumero != antes?.ventaNumero) {
+      if (ahora.ventaNumero != null && ahora.ventaNumero != antes?.ventaNumero) {
         widget.onVentaCobrada?.call(ahora.ventaNumero!);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Venta ${ahora.ventaNumero} cobrada')),
         );
       } else if (ahora.ventaEnCola && !(antes?.ventaEnCola ?? false)) {
-        // HU-043 criterio 1: sin señal la venta igual se cobró; está guardada
-        // en el celular y sube sola. Decirlo importa: el vendedor tiene que
-        // saber que no la perdió, pero también que todavía no tiene número.
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Venta guardada sin señal: sube sola cuando vuelva la conexión',
-            ),
+            content: Text('Venta guardada sin señal: sube sola cuando vuelva la conexión'),
           ),
         );
       } else if (ahora.mensaje != null && ahora.mensaje != antes?.mensaje) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(ahora.mensaje!)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ahora.mensaje!)));
       }
     });
 
@@ -192,23 +356,13 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
           ),
         ),
         actions: [
-          for (var v = 0; v < estado.ventasAbiertas; v++)
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: _BotonDeVenta(
-                numero: v + 1,
-                activa: estado.ventaActiva == v,
-                productos: estado.productosEnVenta(v),
-                onTap: () => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.only(left: 8, right: 14),
-            child: _BotonNuevaVenta(
-              onTap: estado.ventasAbiertas >= ventasMaximas
-                  ? null
-                  : () => _cambiarDeVenta(pos.nuevaVenta),
-            ),
+          _PestanasHeader(
+            estado: estado,
+            onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
+            onCerrar: _confirmarCerrarVenta,
+            onNueva: estado.ventasAbiertas >= ventasMaximas
+                ? null
+                : () => _cambiarDeVenta(pos.nuevaVenta),
           ),
         ],
       ),
@@ -225,6 +379,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             onAgregar: () => _abrirSelectorDeCliente(escritorio: escritorio),
             onQuitar: () => pos.fijarCliente(null),
           );
+
           final buscador = _Buscador(
             controlador: _buscador,
             foco: _foco,
@@ -233,6 +388,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             onEnter: () => pos.confirmarBusqueda(resaltado: _resaltado),
             onTecla: _teclaEnBuscador,
           );
+
           final resultados = Positioned(
             top: 0,
             left: 16,
@@ -243,10 +399,12 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
               ),
               child: Material(
                 color: RegentaColors.surface,
-                elevation: 10,
+                elevation: 12,
                 shadowColor: RegentaColors.ink.withValues(alpha: 0.25),
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(12),
+                borderRadius: BorderRadius.circular(12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: RegentaColors.line),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: _Resultados(
@@ -272,9 +430,12 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                           estado: estado,
                           onMas: (i) => pos.cambiarCantidad(i, 1),
                           onMenos: (i) => pos.cambiarCantidad(i, -1),
+                          onFijarCantidad: pos.fijarCantidad,
                           onQuitar: pos.quitar,
                           onVaciar: pos.vaciar,
                           onEspera: () => _cambiarDeVenta(pos.ponerEnEspera),
+                          onDescuento: _abrirDialogoDescuento,
+                          onNota: _abrirDialogoNota,
                           onCobrar: _cobrar,
                         ),
                       ),
@@ -298,6 +459,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                         estado: estado,
                         onMas: (i) => pos.cambiarCantidad(i, 1),
                         onMenos: (i) => pos.cambiarCantidad(i, -1),
+                        onFijarCantidad: pos.fijarCantidad,
                         onQuitar: pos.quitar,
                         onVaciar: pos.vaciar,
                       ),
@@ -309,6 +471,8 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
               _PieMovil(
                 estado: estado,
                 onEspera: () => _cambiarDeVenta(pos.ponerEnEspera),
+                onDescuento: _abrirDialogoDescuento,
+                onNota: _abrirDialogoNota,
                 onCobrar: _cobrar,
               ),
             ],
@@ -320,34 +484,134 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
 }
 
 // ---------------------------------------------------------------------------
-// Encabezado: ventas abiertas
+// Encabezado: Pestañas de ventas abiertas
 // ---------------------------------------------------------------------------
 
-/// R12: la pestaña de una de las ventas abiertas. Si la venta lleva
-/// productos, lo dice con un globito para que no se olvide a medias.
-class _BotonDeVenta extends StatelessWidget {
-  const _BotonDeVenta({
+class _PestanasHeader extends StatelessWidget {
+  const _PestanasHeader({
+    required this.estado,
+    required this.onSeleccionar,
+    required this.onCerrar,
+    required this.onNueva,
+  });
+
+  final EstadoDelPos estado;
+  final ValueChanged<int> onSeleccionar;
+  final ValueChanged<int> onCerrar;
+  final VoidCallback? onNueva;
+
+  static const maxTabsVisibles = 5;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalVentas = estado.ventasAbiertas;
+    final visibles = totalVentas > maxTabsVisibles ? maxTabsVisibles : totalVentas;
+    final sobrantes = totalVentas > maxTabsVisibles ? totalVentas - maxTabsVisibles : 0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var v = 0; v < visibles; v++)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: _PestanaVenta(
+                numero: v + 1,
+                activa: estado.ventaActiva == v,
+                total: estado.totalEnVenta(v),
+                cliente: estado.clienteEnVenta(v),
+                productos: estado.productosEnVenta(v),
+                puedeCerrar: totalVentas > 1 && estado.ventaActiva == v,
+                onTap: () => onSeleccionar(v),
+                onCerrar: () => onCerrar(v),
+              ),
+            ),
+          if (sobrantes > 0)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: PopupMenuButton<int>(
+                tooltip: 'Más ventas',
+                onSelected: onSeleccionar,
+                itemBuilder: (ctx) => [
+                  for (var v = visibles; v < totalVentas; v++)
+                    PopupMenuItem(
+                      value: v,
+                      child: Text(
+                        'Venta ${v + 1} · ${formatearPesos(estado.totalEnVenta(v))}',
+                      ),
+                    ),
+                ],
+                child: Container(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: RegentaColors.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: RegentaColors.line),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '+$sobrantes más',
+                        style: PastelTheme.cuerpo(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: RegentaColors.ink,
+                        ),
+                      ),
+                      const Icon(Icons.arrow_drop_down, size: 18, color: RegentaColors.ink2),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: _BotonNuevaVenta(onTap: onNueva),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PestanaVenta extends StatelessWidget {
+  const _PestanaVenta({
     required this.numero,
     required this.activa,
+    required this.total,
+    required this.cliente,
     required this.productos,
+    required this.puedeCerrar,
     required this.onTap,
+    required this.onCerrar,
   });
 
   final int numero;
   final bool activa;
+  final num total;
+  final String? cliente;
   final int productos;
+  final bool puedeCerrar;
   final VoidCallback onTap;
+  final VoidCallback onCerrar;
 
   @override
   Widget build(BuildContext context) {
+    final info = productos > 0
+        ? formatearPesos(total)
+        : (cliente != null && cliente!.trim().isNotEmpty ? cliente! : 'Mostrador');
+
     final etiqueta = productos == 0
-        ? 'Venta $numero'
-        : 'Venta $numero · $productos ${productos == 1 ? 'producto' : 'productos'}';
+        ? 'Venta $numero · $info'
+        : 'Venta $numero · $productos ${productos == 1 ? 'producto' : 'productos'} · $info';
+
     return Semantics(
       button: true,
       selected: activa,
       label: etiqueta,
-      excludeSemantics: true,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -356,48 +620,76 @@ class _BotonDeVenta extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
               side: BorderSide(
-                color: activa ? RegentaColors.accent : RegentaColors.line2,
+                color: activa ? RegentaColors.accent : RegentaColors.line,
               ),
             ),
             child: InkWell(
               key: Key('venta-$numero'),
               onTap: onTap,
               borderRadius: BorderRadius.circular(10),
-              child: SizedBox(
-                width: 40,
-                height: 40,
-                child: Center(
-                  child: Text(
-                    '$numero',
-                    style: PastelTheme.cuerpo(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: activa ? RegentaColors.surface : RegentaColors.ink,
-                    ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 44, minWidth: 80),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$numero',
+                        style: PastelTheme.cuerpo(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: activa ? RegentaColors.surface : RegentaColors.ink,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        info,
+                        style: (productos > 0 ? RegentaType.codigo : PastelTheme.cuerpo()).copyWith(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: activa ? RegentaColors.surface : RegentaColors.ink2,
+                        ),
+                      ),
+                      if (puedeCerrar) ...[
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: onCerrar,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(
+                              Icons.close,
+                              size: 16,
+                              color: activa ? RegentaColors.surface : RegentaColors.ink2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
             ),
           ),
-          if (productos > 0)
+          if (activa && productos > 0)
             Positioned(
-              top: -5,
-              right: -5,
+              top: -6,
+              right: -6,
               child: Container(
-                constraints: const BoxConstraints(minWidth: 18),
-                height: 18,
-                padding: const EdgeInsets.symmetric(horizontal: 5),
+                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
                 decoration: BoxDecoration(
                   color: RegentaColors.warn,
-                  borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: RegentaColors.surface, width: 1.5),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: RegentaColors.surface, width: 2),
                 ),
                 child: Center(
                   child: Text(
                     '$productos',
                     style: PastelTheme.cuerpo(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
                       color: RegentaColors.surface,
                     ),
                   ),
@@ -420,7 +712,6 @@ class _BotonNuevaVenta extends StatelessWidget {
     return Semantics(
       button: true,
       label: 'Abrir otra venta',
-      excludeSemantics: true,
       child: Material(
         color: RegentaColors.accentSoft,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -428,14 +719,10 @@ class _BotonNuevaVenta extends StatelessWidget {
           key: const Key('venta-nueva'),
           onTap: onTap,
           borderRadius: BorderRadius.circular(10),
-          child: SizedBox(
-            width: 40,
-            height: 40,
-            child: Icon(
-              Icons.add,
-              size: 20,
-              color: onTap == null ? RegentaColors.faint : RegentaColors.accent,
-            ),
+          child: const SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(Icons.add, size: 22, color: RegentaColors.accent),
           ),
         ),
       ),
@@ -464,42 +751,39 @@ class _FranjaCliente extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = cliente;
     final avatar = Container(
-      width: 40,
-      height: 40,
+      width: 42,
+      height: 42,
       decoration: BoxDecoration(
-        color: c == null ? RegentaColors.sunken : RegentaColors.moduloClientes,
+        color: c == null ? RegentaColors.sunken : RegentaColors.accentSoft,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
       child: c == null
-          ? const Icon(
-              Icons.person_outline,
-              size: 20,
-              color: RegentaColors.ink2,
-            )
+          ? const Icon(Icons.person_outline, size: 22, color: RegentaColors.ink2)
           : Text(
               c.iniciales,
               style: PastelTheme.cuerpo(
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: FontWeight.w800,
-                color: RegentaColors.comanda,
+                color: RegentaColors.accent,
               ),
             ),
     );
+
     final datos = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          'CLIENTE',
-          style: PastelTheme.cuerpo(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
-            color: RegentaColors.ink2,
+        if (c == null)
+          Text(
+            'CLIENTE',
+            style: PastelTheme.cuerpo(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: RegentaColors.ink2,
+            ),
           ),
-        ),
-        const SizedBox(height: 2),
         Text(
           c?.nombre ?? 'Consumidor final',
           maxLines: 1,
@@ -510,22 +794,55 @@ class _FranjaCliente extends StatelessWidget {
             color: RegentaColors.ink,
           ),
         ),
-        if (c != null)
-          Text(
-            [c.documento, if (c.condicion != null) c.condicion!].join(' · '),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: PastelTheme.cuerpo(
-              fontSize: 12.5,
-              color: RegentaColors.ink2,
-            ),
+        if (c != null) ...[
+          const SizedBox(height: 3),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              Text(
+                c.documento,
+                style: PastelTheme.cuerpo(fontSize: 13, color: RegentaColors.ink2),
+              ),
+              if (c.condicion != null && c.condicion!.trim().isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: RegentaColors.okSoft,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    c.condicion!.startsWith('Crédito') ? c.condicion! : 'Crédito disp. ${c.condicion!}',
+                    style: PastelTheme.cuerpo(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: RegentaColors.ok,
+                    ),
+                  ),
+                ),
+            ],
           ),
+        ],
       ],
     );
+
     final botones = Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
+        if (c != null)
+          OutlinedButton(
+            onPressed: onQuitar,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(44, 44),
+              foregroundColor: RegentaColors.ink,
+              backgroundColor: RegentaColors.surface,
+              side: const BorderSide(color: RegentaColors.line),
+              shape: const StadiumBorder(),
+            ),
+            child: const Text('Quitar'),
+          ),
         OutlinedButton.icon(
           onPressed: onAgregar,
           icon: Icon(
@@ -538,26 +855,20 @@ class _FranjaCliente extends StatelessWidget {
             backgroundColor: RegentaColors.accentSoft,
             foregroundColor: RegentaColors.accent,
             side: const BorderSide(color: RegentaColors.accent),
+            shape: const StadiumBorder(),
           ),
         ),
-        if (c != null)
-          TextButton(
-            onPressed: onQuitar,
-            style: TextButton.styleFrom(
-              minimumSize: const Size(44, 44),
-              foregroundColor: RegentaColors.crit,
-            ),
-            child: const Text('Quitar'),
-          ),
       ],
     );
 
     return Container(
       key: const Key('pos-cliente'),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      decoration: const BoxDecoration(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
         color: RegentaColors.surface,
-        border: Border(bottom: BorderSide(color: RegentaColors.line)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: RegentaColors.line),
       ),
       child: compacta
           ? Column(
@@ -577,9 +888,9 @@ class _FranjaCliente extends StatelessWidget {
           : Row(
               children: [
                 avatar,
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(child: datos),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 botones,
               ],
             ),
@@ -626,8 +937,6 @@ class _Buscador extends StatelessWidget {
           autofocus: autofocus,
           onChanged: onCambio,
           textInputAction: TextInputAction.done,
-          // Sin esto, Enter soltaría el foco y el siguiente código del lector
-          // se perdería.
           onEditingComplete: () {},
           onSubmitted: (_) => onEnter(),
           cursorColor: RegentaColors.surface,
@@ -636,17 +945,14 @@ class _Buscador extends StatelessWidget {
             filled: true,
             fillColor: RegentaColors.ink,
             isDense: false,
-            contentPadding: const EdgeInsets.symmetric(
-              vertical: 16,
-              horizontal: 12,
-            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
             prefixIcon: const Icon(
               Icons.search,
-              size: 20,
+              size: 22,
               color: RegentaColors.faint,
             ),
             suffixIcon: const Padding(
-              padding: EdgeInsets.only(right: 12),
+              padding: EdgeInsets.only(right: 14),
               child: Center(widthFactor: 1, child: _Atajo('F2', oscuro: true)),
             ),
             hintText: 'Buscar producto, referencia o código de barras…',
@@ -658,10 +964,7 @@ class _Buscador extends StatelessWidget {
             enabledBorder: borde,
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: RegentaColors.accent,
-                width: 2,
-              ),
+              borderSide: const BorderSide(color: RegentaColors.accent, width: 2),
             ),
           ),
         ),
@@ -670,7 +973,6 @@ class _Buscador extends StatelessWidget {
   }
 }
 
-/// La etiqueta de un atajo de teclado: `F2`, `F12`.
 class _Atajo extends StatelessWidget {
   const _Atajo(this.tecla, {this.oscuro = false});
 
@@ -681,7 +983,7 @@ class _Atajo extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = oscuro ? RegentaColors.faint : RegentaColors.surface;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color.withValues(alpha: 0.7)),
@@ -698,7 +1000,10 @@ class _Atajo extends StatelessWidget {
   }
 }
 
-/// R10b: la lista que se despliega bajo el buscador, encima de la venta.
+// ---------------------------------------------------------------------------
+// Desplegable de Resultados
+// ---------------------------------------------------------------------------
+
 class _Resultados extends StatelessWidget {
   const _Resultados({
     required this.estado,
@@ -712,116 +1017,152 @@ class _Resultados extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (estado.buscando && estado.resultados.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(20),
-        child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          color: RegentaColors.sunken,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${estado.resultados.length} resultados · Enter agrega el resaltado',
+                style: PastelTheme.cuerpo(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: RegentaColors.ink2,
+                ),
+              ),
+              Text(
+                '↑ ↓ para moverte · Esc cierra',
+                style: PastelTheme.cuerpo(
+                  fontSize: 12,
+                  color: RegentaColors.ink2,
+                ),
+              ),
+            ],
           ),
         ),
-      );
-    }
-    if (estado.resultados.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(20),
-        child: Text(
-          'No se encontró «${estado.termino.trim()}»',
-          style: PastelTheme.cuerpo(fontSize: 14, color: RegentaColors.ink2),
-        ),
-      );
-    }
-    return ListView.builder(
-      key: const Key('pos-resultados'),
-      shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      itemCount: estado.resultados.length,
-      itemBuilder: (context, i) {
-        final p = estado.resultados[i];
-        final existencia = p.sinStock
-            ? 'Sin stock'
-            : p.existencia != null
-            ? formatearCantidad(p.existencia!)
-            : (p.nivelStock == NivelStock.bajo ? 'Stock bajo' : 'Disponible');
-        return Material(
-          color: i == resaltado
-              ? RegentaColors.accentSoft
-              : RegentaColors.surface,
-          child: InkWell(
-            onTap: () => onAgregar(p),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                minHeight: RegentaSpacing.hitTarget,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 110,
-                      child: Text(
-                        p.sku,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: RegentaType.codigo.copyWith(
-                          fontSize: 12,
-                          color: RegentaColors.ink2,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        p.nombre,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: PastelTheme.cuerpo(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: RegentaColors.ink,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      formatearPesos(p.precioVenta),
-                      style: RegentaType.codigo.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: RegentaColors.ink,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    SizedBox(
-                      width: 84,
-                      child: Text(
-                        existencia,
-                        textAlign: TextAlign.right,
-                        style: RegentaType.codigo.copyWith(
-                          fontSize: 11.5,
-                          color: p.sinStock
-                              ? RegentaColors.crit
-                              : RegentaColors.ink2,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+        if (estado.buscando && estado.resultados.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(
+              child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator()),
+            ),
+          )
+        else if (estado.resultados.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Text(
+                'No se encontró «${estado.termino.trim()}»',
+                style: PastelTheme.cuerpo(fontSize: 14, color: RegentaColors.ink2),
               ),
             ),
+          )
+        else
+          Flexible(
+            child: ListView.builder(
+              key: const Key('pos-resultados'),
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              itemCount: estado.resultados.length,
+              itemBuilder: (context, i) {
+                final p = estado.resultados[i];
+                final esSeleccionado = i == resaltado;
+                final chipColor = p.sinStock
+                    ? RegentaColors.crit
+                    : (p.nivelStock == NivelStock.bajo ? RegentaColors.warn : RegentaColors.ok);
+                final chipBg = p.sinStock
+                    ? RegentaColors.critSoft
+                    : (p.nivelStock == NivelStock.bajo ? RegentaColors.warnSoft : RegentaColors.okSoft);
+                final existStr = p.sinStock
+                    ? '0 und'
+                    : (p.existencia != null ? '${p.existencia} und' : 'Disponible');
+
+                return Material(
+                  color: esSeleccionado ? RegentaColors.accentSoft : RegentaColors.surface,
+                  child: InkWell(
+                    onTap: () => onAgregar(p),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(
+                            color: esSeleccionado ? RegentaColors.accent : Colors.transparent,
+                            width: 4,
+                          ),
+                          bottom: const BorderSide(color: RegentaColors.line),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 100,
+                            child: Text(
+                              p.sku,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: RegentaType.codigo.copyWith(
+                                fontSize: 13,
+                                color: RegentaColors.ink2,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              p.nombre,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: PastelTheme.cuerpo(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w600,
+                                color: RegentaColors.ink,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Text(
+                            formatearPesos(p.precioVenta),
+                            style: RegentaType.codigo.copyWith(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: RegentaColors.ink,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: chipBg,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              existStr,
+                              style: RegentaType.codigo.copyWith(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: chipColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
-        );
-      },
+      ],
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Venta en escritorio: tabla + pie con totales (R10)
+// Venta en escritorio: Tabla + Pie (R10)
 // ---------------------------------------------------------------------------
 
 class _VentaEscritorio extends StatelessWidget {
@@ -829,24 +1170,30 @@ class _VentaEscritorio extends StatelessWidget {
     required this.estado,
     required this.onMas,
     required this.onMenos,
+    required this.onFijarCantidad,
     required this.onQuitar,
     required this.onVaciar,
     required this.onEspera,
+    required this.onDescuento,
+    required this.onNota,
     required this.onCobrar,
   });
 
   final EstadoDelPos estado;
   final void Function(int) onMas;
   final void Function(int) onMenos;
+  final void Function(int, int) onFijarCantidad;
   final void Function(int) onQuitar;
   final VoidCallback onVaciar;
   final VoidCallback onEspera;
+  final VoidCallback onDescuento;
+  final VoidCallback onNota;
   final Future<void> Function() onCobrar;
 
-  static const anchoCodigo = 130.0;
+  static const anchoCodigo = 120.0;
   static const anchoCantidad = 150.0;
   static const anchoPrecio = 120.0;
-  static const anchoIva = 70.0;
+  static const anchoIva = 75.0;
   static const anchoTotal = 140.0;
   static const anchoAccion = 52.0;
 
@@ -858,105 +1205,68 @@ class _VentaEscritorio extends StatelessWidget {
       letterSpacing: 0.6,
       color: RegentaColors.ink2,
     );
-    Widget celda(
-      String texto,
-      double ancho, {
-      TextAlign alinear = TextAlign.left,
-    }) => SizedBox(
-      width: ancho,
-      child: Text(texto, textAlign: alinear, style: cabecera),
-    );
+    Widget celda(String texto, double ancho, {TextAlign alinear = TextAlign.left}) =>
+        SizedBox(width: ancho, child: Text(texto, textAlign: alinear, style: cabecera));
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Container(
-        key: const Key('pos-carrito'),
-        decoration: BoxDecoration(
-          color: RegentaColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: RegentaColors.line),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _CabeceraDeVenta(estado: estado, onVaciar: onVaciar),
-            Container(
-              color: RegentaColors.sunken,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-              child: Row(
-                children: [
-                  celda('CÓDIGO', anchoCodigo),
-                  Expanded(child: Text('DESCRIPCIÓN', style: cabecera)),
-                  celda('CANT.', anchoCantidad, alinear: TextAlign.center),
-                  celda('PRECIO', anchoPrecio, alinear: TextAlign.right),
-                  celda('% IVA', anchoIva, alinear: TextAlign.right),
-                  celda('TOTAL', anchoTotal, alinear: TextAlign.right),
-                  const SizedBox(width: anchoAccion),
-                ],
-              ),
-            ),
-            Expanded(
-              child: estado.lineas.isEmpty
-                  ? const _VentaVacia()
-                  : ListView.builder(
-                      itemCount: estado.lineas.length,
-                      itemBuilder: (context, i) => _FilaDeVenta(
-                        linea: estado.lineas[i],
-                        onMas: () => onMas(i),
-                        onMenos: () => onMenos(i),
-                        onQuitar: () => onQuitar(i),
-                      ),
-                    ),
-            ),
-            Container(
-              decoration: const BoxDecoration(
+      child: Column(
+        children: [
+          Expanded(
+            child: Container(
+              key: const Key('pos-carrito'),
+              decoration: BoxDecoration(
                 color: RegentaColors.surface,
-                border: Border(top: BorderSide(color: RegentaColors.line)),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: RegentaColors.line),
               ),
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                  _CabeceraDeVenta(estado: estado, onVaciar: onVaciar),
+                  Container(
+                    color: RegentaColors.paper,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: Row(
                       children: [
-                        const _BotonSecundario(
-                          icono: Icons.percent,
-                          texto: 'Descuento',
-                          onTap: null,
-                          proximamente: true,
-                        ),
-                        const _BotonSecundario(
-                          icono: Icons.sticky_note_2_outlined,
-                          texto: 'Nota',
-                          onTap: null,
-                          proximamente: true,
-                        ),
-                        _BotonSecundario(
-                          icono: Icons.pause_circle_outline,
-                          texto: 'Poner en espera',
-                          onTap: estado.lineas.isEmpty ? null : onEspera,
-                        ),
+                        celda('CÓDIGO', anchoCodigo),
+                        Expanded(child: Text('DESCRIPCIÓN', style: cabecera)),
+                        celda('CANT.', anchoCantidad, alinear: TextAlign.center),
+                        celda('PRECIO', anchoPrecio, alinear: TextAlign.right),
+                        celda('% IVA', anchoIva, alinear: TextAlign.right),
+                        celda('TOTAL', anchoTotal, alinear: TextAlign.right),
+                        const SizedBox(width: anchoAccion),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 24),
-                  SizedBox(
-                    width: 380,
-                    child: _Totales(
-                      estado: estado,
-                      onCobrar: onCobrar,
-                      grande: true,
-                    ),
+                  Expanded(
+                    child: estado.lineas.isEmpty
+                        ? const _VentaVacia()
+                        : ListView.builder(
+                            itemCount: estado.lineas.length,
+                            itemBuilder: (context, i) => _FilaDeVenta(
+                              linea: estado.lineas[i],
+                              onMas: () => onMas(i),
+                              onMenos: () => onMenos(i),
+                              onFijarCantidad: (c) => onFijarCantidad(i, c),
+                              onQuitar: () => onQuitar(i),
+                            ),
+                          ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          _PieEscritorio(
+            estado: estado,
+            onDescuento: onDescuento,
+            onNota: onNota,
+            onEspera: onEspera,
+            onCobrar: onCobrar,
+          ),
+        ],
       ),
     );
   }
@@ -971,7 +1281,7 @@ class _CabeceraDeVenta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
       child: Row(
         children: [
           Expanded(
@@ -979,7 +1289,7 @@ class _CabeceraDeVenta extends StatelessWidget {
               '${estado.lineas.length} ${estado.lineas.length == 1 ? 'producto' : 'productos'}'
               ' · ${estado.unidades} ${estado.unidades == 1 ? 'unidad' : 'unidades'}',
               style: PastelTheme.cuerpo(
-                fontSize: 14,
+                fontSize: 14.5,
                 fontWeight: FontWeight.w700,
                 color: RegentaColors.ink,
               ),
@@ -987,10 +1297,11 @@ class _CabeceraDeVenta extends StatelessWidget {
           ),
           TextButton.icon(
             onPressed: estado.lineas.isEmpty ? null : onVaciar,
-            icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+            icon: const Icon(Icons.delete_outline, size: 18),
             label: const Text('Vaciar venta'),
             style: TextButton.styleFrom(
               foregroundColor: RegentaColors.crit,
+              disabledForegroundColor: RegentaColors.faint,
               minimumSize: const Size(44, 44),
             ),
           ),
@@ -1012,26 +1323,19 @@ class _VentaVacia extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 64,
-              height: 64,
+              width: 68,
+              height: 68,
               decoration: const BoxDecoration(
-                color: RegentaColors.moduloVentas,
+                color: RegentaColors.paper,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.qr_code_scanner,
-                size: 28,
-                color: RegentaColors.accent,
-              ),
+              child: const Icon(Icons.search, size: 32, color: RegentaColors.faint),
             ),
             const SizedBox(height: 14),
             Text(
               'Busca o escanea un producto para empezar la venta.',
               textAlign: TextAlign.center,
-              style: PastelTheme.cuerpo(
-                fontSize: 14,
-                color: RegentaColors.ink2,
-              ),
+              style: PastelTheme.cuerpo(fontSize: 14, color: RegentaColors.ink2),
             ),
           ],
         ),
@@ -1045,22 +1349,24 @@ class _FilaDeVenta extends StatelessWidget {
     required this.linea,
     required this.onMas,
     required this.onMenos,
+    required this.onFijarCantidad,
     required this.onQuitar,
   });
 
   final LineaDeCarrito linea;
   final VoidCallback onMas;
   final VoidCallback onMenos;
+  final ValueChanged<int> onFijarCantidad;
   final VoidCallback onQuitar;
 
   @override
   Widget build(BuildContext context) {
-    final dinero = RegentaType.codigo.copyWith(
-      fontSize: 13.5,
-      color: RegentaColors.ink2,
-    );
+    final dinero = RegentaType.codigo.copyWith(fontSize: 13.5, color: RegentaColors.ink2);
+    final esBajoStock = linea.producto.nivelStock == NivelStock.bajo ||
+        (linea.producto.existencia != null && linea.producto.existencia! <= 5);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
         color: linea.sinStock ? RegentaColors.critSoft : null,
         border: const Border(bottom: BorderSide(color: RegentaColors.line)),
@@ -1073,10 +1379,7 @@ class _FilaDeVenta extends StatelessWidget {
               linea.producto.sku,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: RegentaType.codigo.copyWith(
-                fontSize: 12.5,
-                color: RegentaColors.ink2,
-              ),
+              style: RegentaType.codigo.copyWith(fontSize: 12.5, color: RegentaColors.ink2),
             ),
           ),
           Expanded(
@@ -1097,9 +1400,17 @@ class _FilaDeVenta extends StatelessWidget {
                 if (linea.sinStock)
                   Text(
                     'Sin stock',
-                    style: RegentaType.codigo.copyWith(
+                    style: RegentaType.codigo.copyWith(fontSize: 11, color: RegentaColors.crit),
+                  )
+                else if (esBajoStock)
+                  Text(
+                    linea.producto.existencia != null
+                        ? 'Quedan ${linea.producto.existencia} en bodega'
+                        : 'Stock bajo',
+                    style: PastelTheme.cuerpo(
                       fontSize: 11,
-                      color: RegentaColors.crit,
+                      fontWeight: FontWeight.w600,
+                      color: RegentaColors.warn,
                     ),
                   ),
               ],
@@ -1108,10 +1419,11 @@ class _FilaDeVenta extends StatelessWidget {
           SizedBox(
             width: _VentaEscritorio.anchoCantidad,
             child: Center(
-              child: _Stepper(
+              child: _StepperEditable(
                 cantidad: linea.cantidad,
                 onMas: onMas,
                 onMenos: onMenos,
+                onFijar: onFijarCantidad,
               ),
             ),
           ),
@@ -1133,14 +1445,29 @@ class _FilaDeVenta extends StatelessWidget {
           ),
           SizedBox(
             width: _VentaEscritorio.anchoTotal,
-            child: Text(
-              formatearPesos(linea.total),
-              textAlign: TextAlign.right,
-              style: RegentaType.codigo.copyWith(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: RegentaColors.ink,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  formatearPesos(linea.total),
+                  textAlign: TextAlign.right,
+                  style: RegentaType.codigo.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: RegentaColors.ink,
+                  ),
+                ),
+                if (linea.descuentoPct > 0)
+                  Text(
+                    '−${linea.descuentoPct}% desc.',
+                    style: PastelTheme.cuerpo(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: RegentaColors.ok,
+                    ),
+                  ),
+              ],
             ),
           ),
           SizedBox(
@@ -1148,11 +1475,7 @@ class _FilaDeVenta extends StatelessWidget {
             child: IconButton(
               tooltip: 'Quitar línea',
               onPressed: onQuitar,
-              icon: const Icon(
-                Icons.delete_outline,
-                size: 20,
-                color: RegentaColors.faint,
-              ),
+              icon: const Icon(Icons.delete_outline, size: 20, color: RegentaColors.faint),
             ),
           ),
         ],
@@ -1161,42 +1484,221 @@ class _FilaDeVenta extends StatelessWidget {
   }
 }
 
-class _BotonSecundario extends StatelessWidget {
-  const _BotonSecundario({
+// ---------------------------------------------------------------------------
+// Pie de la venta en Escritorio (Imagen 1)
+// ---------------------------------------------------------------------------
+
+class _PieEscritorio extends StatelessWidget {
+  const _PieEscritorio({
+    required this.estado,
+    required this.onDescuento,
+    required this.onNota,
+    required this.onEspera,
+    required this.onCobrar,
+  });
+
+  final EstadoDelPos estado;
+  final VoidCallback onDescuento;
+  final VoidCallback onNota;
+  final VoidCallback onEspera;
+  final Future<void> Function() onCobrar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: RegentaColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: RegentaColors.line),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Izquierda: Nota y Botones píldora
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (estado.nota != null && estado.nota!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.description_outlined, size: 16, color: RegentaColors.ink2),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Nota: ${estado.nota}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: PastelTheme.cuerpo(fontSize: 12.5, color: RegentaColors.ink2),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    _BotonPildora(
+                      icono: Icons.percent,
+                      texto: 'Descuento',
+                      onTap: estado.lineas.isEmpty ? null : onDescuento,
+                    ),
+                    _BotonPildora(
+                      icono: Icons.sticky_note_2_outlined,
+                      texto: 'Nota',
+                      onTap: onNota,
+                    ),
+                    _BotonPildora(
+                      icono: Icons.pause_circle_outline,
+                      texto: 'Poner en espera',
+                      onTap: estado.lineas.isEmpty ? null : onEspera,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Centro-Derecha: Botón grande Cobrar
+          SizedBox(
+            width: 220,
+            height: 62,
+            child: FilledButton(
+              key: const Key('pos-cobrar'),
+              onPressed: estado.puedeCobrar ? () => onCobrar() : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: RegentaColors.accent,
+                disabledBackgroundColor: RegentaColors.accent.withValues(alpha: 0.35),
+                shape: const StadiumBorder(),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    estado.cobrando ? 'Cobrando…' : 'Cobrar',
+                    style: PastelTheme.cuerpo(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: RegentaColors.surface,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const _Atajo('F12'),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 28),
+          // Derecha: Resumen de totales
+          SizedBox(
+            width: 260,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _Fila('Subtotal', formatearPesos(estado.subtotalBruto)),
+                if (estado.descuentoTotal > 0)
+                  _Fila(
+                    'Descuentos',
+                    '− ${formatearPesos(estado.descuentoTotal)}',
+                    colorValor: RegentaColors.ok,
+                  ),
+                _Fila('IVA', formatearPesos(estado.impuesto)),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      'Total',
+                      style: PastelTheme.titulo(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: RegentaColors.ink,
+                      ),
+                    ),
+                    Text(
+                      formatearPesos(estado.total),
+                      style: RegentaType.dinero.copyWith(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: RegentaColors.ink,
+                      ),
+                    ),
+                  ],
+                ),
+                if (estado.hayLineasSinStock)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Hay líneas sin stock',
+                      textAlign: TextAlign.right,
+                      style: PastelTheme.cuerpo(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: RegentaColors.crit,
+                      ),
+                    ),
+                  ),
+                if (estado.faltaIdentificarComprador)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Supera ${formatearPesos(estado.montoParaIdentificar!)}: identifica al comprador',
+                      textAlign: TextAlign.right,
+                      style: PastelTheme.cuerpo(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: RegentaColors.warn,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BotonPildora extends StatelessWidget {
+  const _BotonPildora({
     required this.icono,
     required this.texto,
     required this.onTap,
-    this.proximamente = false,
   });
 
   final IconData icono;
   final String texto;
   final VoidCallback? onTap;
 
-  /// Descuento y Nota: se ven, pero esperan contrato del backend.
-  final bool proximamente;
-
   @override
   Widget build(BuildContext context) {
-    final boton = OutlinedButton.icon(
-      onPressed: proximamente ? null : onTap,
-      icon: Icon(icono, size: 18),
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icono, size: 17),
       label: Text(texto),
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(44, 44),
         foregroundColor: RegentaColors.ink,
-        side: const BorderSide(color: RegentaColors.line2),
+        backgroundColor: RegentaColors.surface,
+        side: const BorderSide(color: RegentaColors.line),
+        shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(horizontal: 14),
       ),
     );
-    return proximamente
-        ? Tooltip(message: 'Próximamente', child: boton)
-        : boton;
   }
 }
 
 // ---------------------------------------------------------------------------
-// Venta en móvil: tarjetas + pie fijo
+// Venta en móvil (390 px)
 // ---------------------------------------------------------------------------
 
 class _VentaMovil extends StatelessWidget {
@@ -1204,6 +1706,7 @@ class _VentaMovil extends StatelessWidget {
     required this.estado,
     required this.onMas,
     required this.onMenos,
+    required this.onFijarCantidad,
     required this.onQuitar,
     required this.onVaciar,
   });
@@ -1211,6 +1714,7 @@ class _VentaMovil extends StatelessWidget {
   final EstadoDelPos estado;
   final void Function(int) onMas;
   final void Function(int) onMenos;
+  final void Function(int, int) onFijarCantidad;
   final void Function(int) onQuitar;
   final VoidCallback onVaciar;
 
@@ -1225,10 +1729,11 @@ class _VentaMovil extends StatelessWidget {
       children: [
         _CabeceraDeVenta(estado: estado, onVaciar: onVaciar),
         for (var i = 0; i < estado.lineas.length; i++)
-          _TarjetaDeLinea(
+          _TarjetaDeLineaMovil(
             linea: estado.lineas[i],
             onMas: () => onMas(i),
             onMenos: () => onMenos(i),
+            onFijarCantidad: (c) => onFijarCantidad(i, c),
             onQuitar: () => onQuitar(i),
           ),
       ],
@@ -1236,33 +1741,36 @@ class _VentaMovil extends StatelessWidget {
   }
 }
 
-class _TarjetaDeLinea extends StatelessWidget {
-  const _TarjetaDeLinea({
+class _TarjetaDeLineaMovil extends StatelessWidget {
+  const _TarjetaDeLineaMovil({
     required this.linea,
     required this.onMas,
     required this.onMenos,
+    required this.onFijarCantidad,
     required this.onQuitar,
   });
 
   final LineaDeCarrito linea;
   final VoidCallback onMas;
   final VoidCallback onMenos;
+  final ValueChanged<int> onFijarCantidad;
   final VoidCallback onQuitar;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: linea.sinStock ? RegentaColors.critSoft : RegentaColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: RegentaColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -1274,21 +1782,14 @@ class _TarjetaDeLinea extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: PastelTheme.cuerpo(
                         fontSize: 14.5,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: RegentaColors.ink,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
-                      linea.sinStock
-                          ? '${linea.producto.sku} · sin stock'
-                          : '${linea.producto.sku} · ${formatearPesos(linea.producto.precioVenta)}',
-                      style: RegentaType.codigo.copyWith(
-                        fontSize: 11,
-                        color: linea.sinStock
-                            ? RegentaColors.crit
-                            : RegentaColors.ink2,
-                      ),
+                      '${linea.producto.sku} · ${formatearPesos(linea.producto.precioVenta)} · ${linea.producto.impuestoPct}% IVA',
+                      style: RegentaType.codigo.copyWith(fontSize: 11.5, color: RegentaColors.ink2),
                     ),
                   ],
                 ),
@@ -1296,33 +1797,37 @@ class _TarjetaDeLinea extends StatelessWidget {
               IconButton(
                 tooltip: 'Quitar línea',
                 onPressed: onQuitar,
-                icon: const Icon(
-                  Icons.delete_outline,
-                  size: 20,
-                  color: RegentaColors.faint,
-                ),
+                icon: const Icon(Icons.delete_outline, size: 20, color: RegentaColors.faint),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           Row(
             children: [
-              _Stepper(
+              _StepperEditable(
                 cantidad: linea.cantidad,
                 onMas: onMas,
                 onMenos: onMenos,
+                onFijar: onFijarCantidad,
               ),
               const Spacer(),
-              Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: Text(
-                  formatearPesos(linea.total),
-                  style: RegentaType.codigo.copyWith(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: RegentaColors.ink,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    formatearPesos(linea.total),
+                    style: RegentaType.codigo.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: RegentaColors.ink,
+                    ),
                   ),
-                ),
+                  if (linea.descuentoPct > 0)
+                    Text(
+                      '−${linea.descuentoPct}% desc.',
+                      style: PastelTheme.cuerpo(fontSize: 11, color: RegentaColors.ok),
+                    ),
+                ],
               ),
             ],
           ),
@@ -1336,11 +1841,15 @@ class _PieMovil extends StatelessWidget {
   const _PieMovil({
     required this.estado,
     required this.onEspera,
+    required this.onDescuento,
+    required this.onNota,
     required this.onCobrar,
   });
 
   final EstadoDelPos estado;
   final VoidCallback onEspera;
+  final VoidCallback onDescuento;
+  final VoidCallback onNota;
   final Future<void> Function() onCobrar;
 
   @override
@@ -1355,34 +1864,71 @@ class _PieMovil extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Total · ${estado.unidades} und',
+                style: PastelTheme.cuerpo(fontSize: 14, color: RegentaColors.ink2),
+              ),
+              Text(
+                formatearPesos(estado.total),
+                style: RegentaType.dinero.copyWith(fontSize: 22, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                const _BotonSecundario(
+                _BotonPildora(
                   icono: Icons.percent,
-                  texto: 'Descuento',
-                  onTap: null,
-                  proximamente: true,
+                  texto: 'Desc.',
+                  onTap: estado.lineas.isEmpty ? null : onDescuento,
                 ),
                 const SizedBox(width: 8),
-                const _BotonSecundario(
+                _BotonPildora(
                   icono: Icons.sticky_note_2_outlined,
                   texto: 'Nota',
-                  onTap: null,
-                  proximamente: true,
+                  onTap: onNota,
                 ),
                 const SizedBox(width: 8),
-                _BotonSecundario(
+                _BotonPildora(
                   icono: Icons.pause_circle_outline,
-                  texto: 'En espera',
+                  texto: 'Espera',
                   onTap: estado.lineas.isEmpty ? null : onEspera,
                 ),
               ],
             ),
           ),
           const SizedBox(height: 10),
-          _Totales(estado: estado, onCobrar: onCobrar, grande: false),
+          SizedBox(
+            height: 52,
+            child: FilledButton(
+              key: const Key('pos-cobrar'),
+              onPressed: estado.puedeCobrar ? () => onCobrar() : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: RegentaColors.accent,
+                shape: const StadiumBorder(),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    estado.cobrando ? 'Cobrando…' : 'Cobrar',
+                    style: PastelTheme.cuerpo(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: RegentaColors.surface,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const _Atajo('F12'),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1390,55 +1936,136 @@ class _PieMovil extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Piezas compartidas
+// Stepper con cantidad editable por teclado y halo azul
 // ---------------------------------------------------------------------------
 
-class _Stepper extends StatelessWidget {
-  const _Stepper({
+class _StepperEditable extends StatefulWidget {
+  const _StepperEditable({
     required this.cantidad,
     required this.onMas,
     required this.onMenos,
+    required this.onFijar,
   });
 
   final int cantidad;
   final VoidCallback onMas;
   final VoidCallback onMenos;
+  final ValueChanged<int> onFijar;
+
+  @override
+  State<_StepperEditable> createState() => _StepperEditableState();
+}
+
+class _StepperEditableState extends State<_StepperEditable> {
+  bool _editando = false;
+  late final TextEditingController _ctrl;
+  final FocusNode _foco = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: '${widget.cantidad}');
+    _foco.addListener(() {
+      if (!_foco.hasFocus && _editando) {
+        _guardar();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _StepperEditable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_editando && oldWidget.cantidad != widget.cantidad) {
+      _ctrl.text = '${widget.cantidad}';
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _foco.dispose();
+    super.dispose();
+  }
+
+  void _guardar() {
+    setState(() => _editando = false);
+    final nueva = int.tryParse(_ctrl.text.trim());
+    if (nueva != null) {
+      widget.onFijar(nueva);
+    } else {
+      _ctrl.text = '${widget.cantidad}';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Sin alto fijo: los botones de 44 px (RegentaSpacing.hitTarget) marcan la
-    // altura. Fijarla aquí les restaría los 2 px del borde y bajarían de 44.
     return Container(
+      height: 44,
       decoration: BoxDecoration(
         color: RegentaColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: RegentaColors.line2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: _editando ? RegentaColors.accent : RegentaColors.line,
+          width: _editando ? 1.8 : 1.0,
+        ),
+        boxShadow: _editando
+            ? [
+                BoxShadow(
+                  color: RegentaColors.accent.withValues(alpha: 0.25),
+                  blurRadius: 4,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _BotonStepper(
-            icono: Icons.remove,
-            onTap: onMenos,
-            semantica: 'Quitar uno',
-          ),
+          _BotonStepper(icono: Icons.remove, onTap: widget.onMenos, semantica: 'Quitar uno'),
           SizedBox(
-            width: 36,
-            child: Text(
-              '$cantidad',
-              textAlign: TextAlign.center,
-              style: RegentaType.codigo.copyWith(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: RegentaColors.ink,
-              ),
-            ),
+            width: 44,
+            child: _editando
+                ? TextField(
+                    controller: _ctrl,
+                    focusNode: _foco,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: RegentaType.codigo.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: RegentaColors.ink,
+                    ),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      isDense: true,
+                    ),
+                    onSubmitted: (_) => _guardar(),
+                  )
+                : InkWell(
+                    onTap: () {
+                      setState(() => _editando = true);
+                      _ctrl.text = '${widget.cantidad}';
+                      _foco.requestFocus();
+                      _ctrl.selection = TextSelection(
+                        baseOffset: 0,
+                        extentOffset: _ctrl.text.length,
+                      );
+                    },
+                    child: Center(
+                      child: Text(
+                        '${widget.cantidad}',
+                        textAlign: TextAlign.center,
+                        style: RegentaType.codigo.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: RegentaColors.ink,
+                        ),
+                      ),
+                    ),
+                  ),
           ),
-          _BotonStepper(
-            icono: Icons.add,
-            onTap: onMas,
-            semantica: 'Agregar uno',
-          ),
+          _BotonStepper(icono: Icons.add, onTap: widget.onMas, semantica: 'Agregar uno'),
         ],
       ),
     );
@@ -1463,10 +2090,10 @@ class _BotonStepper extends StatelessWidget {
       label: semantica,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: SizedBox(
-          width: RegentaSpacing.hitTarget,
-          height: RegentaSpacing.hitTarget,
+          width: 40,
+          height: 44,
           child: Icon(icono, size: 18, color: RegentaColors.ink2),
         ),
       ),
@@ -1474,148 +2101,30 @@ class _BotonStepper extends StatelessWidget {
   }
 }
 
-class _Totales extends StatelessWidget {
-  const _Totales({
-    required this.estado,
-    required this.onCobrar,
-    required this.grande,
-  });
-
-  final EstadoDelPos estado;
-  final Future<void> Function() onCobrar;
-  final bool grande;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (grande) ...[
-          _Fila('Subtotal', formatearPesos(estado.subtotal)),
-          _Fila('IVA', formatearPesos(estado.impuesto)),
-          const SizedBox(height: 6),
-        ],
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              'Total',
-              style: PastelTheme.titulo(
-                fontSize: grande ? 18 : 16,
-                fontWeight: FontWeight.w700,
-                color: RegentaColors.ink,
-              ),
-            ),
-            if (!grande) ...[
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  'IVA ${formatearPesos(estado.impuesto)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: RegentaType.codigo.copyWith(
-                    fontSize: 11.5,
-                    color: RegentaColors.ink2,
-                  ),
-                ),
-              ),
-            ],
-            const Spacer(),
-            Text(
-              formatearPesos(estado.total),
-              style: RegentaType.dinero.copyWith(
-                fontSize: grande ? 30 : 24,
-                fontWeight: FontWeight.w700,
-                color: RegentaColors.ink,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        if (estado.hayLineasSinStock)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Hay líneas sin stock',
-              style: PastelTheme.cuerpo(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: RegentaColors.crit,
-              ),
-            ),
-          ),
-        // HU-137 criterio 4: se avisa antes de llegar al botón, no después
-        // de tocarlo.
-        if (estado.faltaIdentificarComprador)
-          Padding(
-            key: const Key('aviso-identificar-comprador'),
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Supera ${formatearPesos(estado.montoParaIdentificar!)}: '
-              'identifica al comprador para cobrar',
-              style: PastelTheme.cuerpo(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: RegentaColors.warn,
-              ),
-            ),
-          ),
-        SizedBox(
-          height: 54,
-          child: FilledButton(
-            onPressed: estado.puedeCobrar ? () => onCobrar() : null,
-            style: FilledButton.styleFrom(
-              backgroundColor: RegentaColors.accent,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  estado.cobrando ? 'Cobrando…' : 'Cobrar',
-                  style: PastelTheme.cuerpo(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: RegentaColors.surface,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const _Atajo('F12'),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _Fila extends StatelessWidget {
-  const _Fila(this.etiqueta, this.valor);
+  const _Fila(this.etiqueta, this.valor, {this.colorValor});
+
   final String etiqueta;
   final String valor;
+  final Color? colorValor;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             etiqueta,
-            style: PastelTheme.cuerpo(
-              fontSize: 13.5,
-              color: RegentaColors.ink2,
-            ),
+            style: PastelTheme.cuerpo(fontSize: 13, color: RegentaColors.ink2),
           ),
-          const Spacer(),
           Text(
             valor,
             style: RegentaType.codigo.copyWith(
               fontSize: 13.5,
-              fontWeight: FontWeight.w500,
-              color: RegentaColors.ink2,
+              fontWeight: FontWeight.w600,
+              color: colorValor ?? RegentaColors.ink2,
             ),
           ),
         ],
