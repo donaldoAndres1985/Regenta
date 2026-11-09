@@ -2082,7 +2082,7 @@ class _StepperEditableState extends State<_StepperEditable> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 44,
+      constraints: const BoxConstraints(minHeight: 46),
       decoration: BoxDecoration(
         color: RegentaColors.surface,
         borderRadius: BorderRadius.circular(10),
