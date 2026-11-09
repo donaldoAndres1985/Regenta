@@ -22,15 +22,18 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: "3.38.9"
           channel: stable
           cache: true
 
       - run: flutter pub get
 
-      # Si el proyecto usa code generation (Riverpod generator, Drift, freezed, json_serializable), ejecutar:
-      # - run: dart run build_runner build --delete-conflicting-outputs
-
-      - run: flutter build web --release --dart-define=API_BASE_URL=https://regenta-production.up.railway.app
+      - name: Build Web
+        run: |
+          flutter build web --release --dart-define=API_BASE_URL=https://regenta-production.up.railway.app || {
+            flutter analyze
+            exit 1
+          }
 
       - uses: cloudflare/wrangler-action@v3
         with:
