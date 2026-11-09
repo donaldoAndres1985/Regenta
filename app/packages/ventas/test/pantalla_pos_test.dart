@@ -821,4 +821,97 @@ void main() {
       expect(find.text('Cemento gris 50 kg'), findsOneWidget);
     });
   });
+
+  group('Rediseño POS e interacción mejorada', () {
+    testWidgets('Enter con 1 resultado agrega a la venta', (tester) async {
+      final repo = _RepoFake();
+      repo.porTermino['cemen'] = [_prod(id: 'p1', nombre: 'Cemento gris 50 kg')];
+      await _montar(tester, repo, size: const Size(1280, 900));
+
+      await _escribir(tester, 'cemen');
+      await tester.pump(_rebote);
+      await _enter(tester);
+
+      expect(_estado(tester).lineas.length, 1);
+      expect(_estado(tester).lineas.single.producto.nombre, 'Cemento gris 50 kg');
+      expect(_textoDelBuscador(tester), isEmpty);
+    });
+
+    testWidgets('Enter con varios resultados agrega el resaltado (por defecto el primero)', (tester) async {
+      final repo = _RepoFake();
+      repo.porTermino['cemen'] = [
+        _prod(id: 'p1', nombre: 'Cemento gris 50 kg'),
+        _prod(id: 'p2', nombre: 'Cemento blanco 1 kg'),
+      ];
+      await _montar(tester, repo, size: const Size(1280, 900));
+
+      await _escribir(tester, 'cemen');
+      await tester.pump(_rebote);
+      await _enter(tester);
+
+      expect(_estado(tester).lineas.length, 1);
+      expect(_estado(tester).lineas.single.producto.id, 'p1');
+    });
+
+    testWidgets('código numérico exacto (6+ dígitos) busca por código y agrega directo sin desplegable', (tester) async {
+      final repo = _RepoFake();
+      repo.codigos['10001204'] = const CodigoResuelto(productoId: 'p1', factor: 1, sku: '10001204');
+      repo.porTermino['10001204'] = [_prod(id: 'p1', nombre: 'Cemento gris 50 kg', sku: '10001204')];
+      await _montar(tester, repo, size: const Size(1280, 900));
+
+      await _escribir(tester, '10001204');
+      await _enter(tester);
+
+      expect(_estado(tester).lineas.length, 1);
+      expect(_estado(tester).lineas.single.producto.sku, '10001204');
+      expect(find.byKey(const Key('pos-resultados')), findsNothing);
+    });
+
+    testWidgets('producto repetido suma 1 a la cantidad existente en vez de crear otra fila', (tester) async {
+      final repo = _RepoFake();
+      final prod = _prod(id: 'p1', nombre: 'Cemento gris 50 kg');
+      repo.resultados = [prod];
+      await _montar(tester, repo, size: const Size(1280, 900));
+
+      await _agregar(tester, repo, prod);
+      expect(_estado(tester).lineas.length, 1);
+      expect(_estado(tester).lineas.single.cantidad, 1);
+
+      await _agregar(tester, repo, prod);
+      expect(_estado(tester).lineas.length, 1);
+      expect(_estado(tester).lineas.single.cantidad, 2);
+    });
+
+    testWidgets('búsqueda sin resultados muestra mensaje dentro del desplegable', (tester) async {
+      final repo = _RepoFake();
+      repo.porTermino['inexistente'] = const [];
+      await _montar(tester, repo, size: const Size(1280, 900));
+
+      await _escribir(tester, 'inexistente');
+      await tester.pump(_rebote);
+
+      expect(find.text('No se encontró «inexistente»'), findsOneWidget);
+    });
+
+    testWidgets('cantidad es editable por teclado', (tester) async {
+      final repo = _RepoFake();
+      await _montar(tester, repo, size: const Size(1280, 900));
+      await _agregar(tester, repo, _prod(id: 'p1', nombre: 'Cemento gris 50 kg'));
+
+      expect(_estado(tester).lineas.single.cantidad, 1);
+
+      await tester.tap(find.text('1'));
+      await tester.pump();
+
+      final textFields = find.byType(TextField);
+      expect(textFields, findsNWidgets(2));
+      final stepperInput = textFields.last;
+
+      await tester.enterText(stepperInput, '12');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(_estado(tester).lineas.single.cantidad, 12);
+    });
+  });
 }
