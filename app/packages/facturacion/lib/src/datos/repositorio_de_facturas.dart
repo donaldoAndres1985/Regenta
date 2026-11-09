@@ -1,13 +1,21 @@
 import 'package:regenta_core/regenta_core.dart';
 
+import 'factura_resumen_vista.dart';
 import 'factura_vista.dart';
 
 /// Acceso a `servicio-facturacion` desde la app: ver una factura, su
-/// trazabilidad y enviarla al cliente (HU-058).
+/// trazabilidad, listar facturas y enviarla al cliente (HU-053, HU-058).
 class RepositorioDeFacturas {
   RepositorioDeFacturas(this._http);
 
   final ClienteHttp _http;
+
+  Future<List<FacturaResumenVista>> listar() async {
+    final lista = await _http.get<List<dynamic>>('/api/facturacion/facturas');
+    return lista
+        .map((e) => FacturaResumenVista.desdeJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
 
   Future<FacturaVista> ver(String facturaId) async {
     final cuerpo = await _http.get<Map<String, dynamic>>('/api/facturacion/facturas/$facturaId');

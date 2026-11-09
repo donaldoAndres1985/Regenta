@@ -79,7 +79,13 @@ final List<RutaProtegida> rutasDeLaApp = [
     modulo: 'FACTURACION',
     builder: (context, parametros) {
       final id = parametros['id'];
-      if (id == null) return const _SinDocumento(que: 'factura');
+      if (id == null) {
+        return PantallaListaFacturas(
+          onFacturaSeleccionada: (facturaId) {
+            Navigator.of(context).pushNamed('/facturas/' + facturaId);
+          },
+        );
+      }
       return PantallaFactura(facturaId: id);
     },
   ),

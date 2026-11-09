@@ -4,6 +4,7 @@ library;
 
 import 'package:regenta_core/regenta_core.dart';
 
+export 'src/datos/factura_resumen_vista.dart';
 export 'src/datos/factura_vista.dart';
 export 'src/datos/repositorio_de_facturas.dart';
 export 'src/factura/controlador_de_factura.dart';
@@ -11,6 +12,7 @@ export 'src/factura/estado_de_factura.dart';
 export 'src/factura/proveedores.dart';
 export 'src/ui/formato.dart';
 export 'src/ui/pantalla_factura.dart';
+export 'src/ui/pantalla_lista_facturas.dart';
 
 /// Nombre del modulo, para el registro de paquetes activos por patron/plan.
 const String nombreDelModulo = 'facturacion';
