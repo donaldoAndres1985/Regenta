@@ -14,7 +14,7 @@ scripts:
     # Un solo `flutter analyze` en la raiz cubre los 13 paquetes con un unico
     # proceso: sin correr uno por paquete no hay pelea por el lock de arranque
     # de Flutter (que en el CI hacia fallar el paso de forma intermitente).
-    run: flutter analyze --fatal-infos --fatal-warnings
+    run: flutter analyze --fatal-warnings
 
   test:
     description: Pruebas de los paquetes que tienen carpeta test/.

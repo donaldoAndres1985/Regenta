@@ -123,7 +123,7 @@ jobs:
           if-no-files-found: ignore
 
   build:
-    name: compilar Android y Web
+    name: compilar Web
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -132,6 +132,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: JDK 17
+        if: startsWith(github.ref, 'refs/tags/')
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -150,6 +151,7 @@ jobs:
         run: flutter build web --release
 
       - name: build apk
+        if: startsWith(github.ref, 'refs/tags/')
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 10

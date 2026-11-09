@@ -1095,26 +1095,35 @@ class _Resultados extends StatelessWidget {
       children: [
         Container(
           color: RegentaColors.sunken,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${estado.resultados.length} resultados · Enter agrega el resaltado',
-                style: PastelTheme.cuerpo(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: RegentaColors.ink2,
-                ),
-              ),
-              Text(
-                '↑ ↓ para moverte · Esc cierra',
-                style: PastelTheme.cuerpo(
-                  fontSize: 12,
-                  color: RegentaColors.ink2,
-                ),
-              ),
-            ],
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: LayoutBuilder(
+            builder: (context, box) {
+              final estrecho = box.maxWidth < 450;
+              return Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${estado.resultados.length} resultados · Enter agrega el resaltado',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: PastelTheme.cuerpo(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: RegentaColors.ink2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    estrecho ? '↑ ↓ · Esc' : '↑ ↓ para moverte · Esc cierra',
+                    style: PastelTheme.cuerpo(
+                      fontSize: 12,
+                      color: RegentaColors.ink2,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
         if (estado.buscando && estado.resultados.isEmpty)
@@ -1168,45 +1177,46 @@ class _Resultados extends StatelessWidget {
                           bottom: const BorderSide(color: RegentaColors.line),
                         ),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       child: Row(
                         children: [
                           SizedBox(
-                            width: 100,
+                            width: 80,
                             child: Text(
                               p.sku,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: RegentaType.codigo.copyWith(
-                                fontSize: 13,
+                                fontSize: 12.5,
                                 color: RegentaColors.ink2,
                               ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               p.nombre,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: PastelTheme.cuerpo(
-                                fontSize: 14.5,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: RegentaColors.ink,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 14),
+                          const SizedBox(width: 8),
                           Text(
                             formatearPesos(p.precioVenta),
                             style: RegentaType.codigo.copyWith(
-                              fontSize: 14,
+                              fontSize: 13.5,
                               fontWeight: FontWeight.w700,
                               color: RegentaColors.ink,
                             ),
                           ),
-                          const SizedBox(width: 14),
+                          const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: chipBg,
                               borderRadius: BorderRadius.circular(6),
@@ -1214,7 +1224,7 @@ class _Resultados extends StatelessWidget {
                             child: Text(
                               existStr,
                               style: RegentaType.codigo.copyWith(
-                                fontSize: 11.5,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 color: chipColor,
                               ),
@@ -1283,10 +1293,10 @@ class _VentaEscritorio extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
+        key: const Key('pos-carrito'),
         children: [
           Expanded(
             child: Container(
-              key: const Key('pos-carrito'),
               decoration: BoxDecoration(
                 color: RegentaColors.surface,
                 borderRadius: BorderRadius.circular(12),
