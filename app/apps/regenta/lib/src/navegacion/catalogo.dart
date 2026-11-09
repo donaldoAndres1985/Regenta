@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:regenta_clientes/regenta_clientes.dart';
 import 'package:regenta_comandas/regenta_comandas.dart';
 import 'package:regenta_core/regenta_core.dart';
+import 'package:regenta_compras/regenta_compras.dart';
 import 'package:regenta_facturacion/regenta_facturacion.dart';
 import 'package:regenta_inventario/regenta_inventario.dart';
 import 'package:regenta_mesas/regenta_mesas.dart';
@@ -101,8 +102,17 @@ final List<RutaProtegida> rutasDeLaApp = [
   RutaProtegida(
     ruta: '/compras',
     modulo: 'COMPRAS',
-    builder: (context, parametros) =>
-        const _SinPantallaTodavia(modulo: 'Compras'),
+    builder: (context, parametros) {
+      final id = parametros['id'];
+      if (id == null) {
+        return PantallaCompras(
+          onOrdenSeleccionada: (ordenId) {
+            unawaited(Navigator.of(context).pushNamed('/compras/$ordenId'));
+          },
+        );
+      }
+      return PantallaRecepcion(ordenId: id);
+    },
   ),
   RutaProtegida(
     ruta: '/reportes',

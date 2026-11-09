@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_clientes/regenta_clientes.dart';
 import 'package:regenta_comandas/regenta_comandas.dart';
 import 'package:regenta_core/regenta_core.dart';
+import 'package:regenta_compras/regenta_compras.dart';
 import 'package:regenta_facturacion/regenta_facturacion.dart';
 import 'package:regenta_inventario/regenta_inventario.dart';
 import 'package:regenta_mesas/regenta_mesas.dart';
@@ -156,6 +157,11 @@ class DependenciasDeLaApp {
     ),
     repositorioDeCuentasProvider.overrideWithValue(RepositorioDeCuentas(http)),
     repositorioDeCocinaProvider.overrideWithValue(RepositorioDeCocina(http)),
+
+    // Compras
+    repositorioDeRecepcionesProvider.overrideWithValue(
+      RepositorioDeRecepciones(http),
+    ),
 
     // Facturación
     repositorioDeFacturasProvider.overrideWithValue(

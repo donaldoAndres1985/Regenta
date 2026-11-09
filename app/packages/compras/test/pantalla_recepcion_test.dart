@@ -42,6 +42,9 @@ class _RepoFake implements RepositorioDeRecepciones {
   );
 
   @override
+  Future<List<OrdenResumenVista>> listarOrdenes() async => const [];
+
+  @override
   Future<OrdenRecibible> verOrden(String ordenId) async => orden;
 
   @override

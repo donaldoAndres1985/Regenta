@@ -1,6 +1,7 @@
 import 'package:regenta_core/regenta_core.dart';
 
 import 'orden_recibible.dart';
+import 'orden_resumen_vista.dart';
 
 /// Una línea que se va a mandar al backend al registrar la recepción.
 class LineaParaRecibir {
@@ -51,6 +52,13 @@ class RepositorioDeRecepciones {
   RepositorioDeRecepciones(this._http);
 
   final ClienteHttp _http;
+
+  Future<List<OrdenResumenVista>> listarOrdenes() async {
+    final res = await _http.get<List<dynamic>>('/api/compras/ordenes');
+    return res
+        .map((e) => OrdenResumenVista.desdeJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
 
   Future<OrdenRecibible> verOrden(String ordenId) async {
     final cuerpo = await _http.get<Map<String, dynamic>>(

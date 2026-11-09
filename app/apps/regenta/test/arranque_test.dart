@@ -5,6 +5,7 @@ import 'package:regenta/src/arranque/dependencias.dart';
 import 'package:regenta_clientes/regenta_clientes.dart';
 import 'package:regenta_comandas/regenta_comandas.dart';
 import 'package:regenta_core/regenta_core.dart';
+import 'package:regenta_compras/regenta_compras.dart';
 import 'package:regenta_facturacion/regenta_facturacion.dart';
 import 'package:regenta_inventario/regenta_inventario.dart';
 import 'package:regenta_mesas/regenta_mesas.dart';
@@ -93,6 +94,10 @@ void main() {
       expect(
         contenedor.read(repositorioDeCocinaProvider),
         isA<RepositorioDeCocina>(),
+      );
+      expect(
+        contenedor.read(repositorioDeRecepcionesProvider),
+        isA<RepositorioDeRecepciones>(),
       );
       expect(
         contenedor.read(repositorioDeFacturasProvider),
