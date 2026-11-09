@@ -24,7 +24,12 @@ class EstadoDelPos {
     this.montoParaIdentificar,
     this.ventaActiva = 0,
     this.productosPorVenta = const [0, 0, 0],
+    this.totalesPorVenta = const [0, 0, 0],
+    this.clientesPorVenta = const [null, null, null],
     this.desplegableCerrado = false,
+    this.nota,
+    this.descuentoGeneralPct = 0,
+    this.descuentoGeneralValor = 0,
   });
 
   /// R7c: `Esc` cerró la lista de resultados sin borrar lo escrito.
@@ -40,8 +45,20 @@ class EstadoDelPos {
   /// [lineas]; usa [productosEnVenta].
   final List<int> productosPorVenta;
 
+  /// Totales de las ventas abiertas para mostrar en las pestañas.
+  final List<num> totalesPorVenta;
+
+  /// Nombre de cliente o mostrador de cada venta abierta.
+  final List<String?> clientesPorVenta;
+
   int productosEnVenta(int venta) =>
-      venta == ventaActiva ? lineas.length : productosPorVenta[venta];
+      venta == ventaActiva ? lineas.length : (venta < productosPorVenta.length ? productosPorVenta[venta] : 0);
+
+  num totalEnVenta(int venta) =>
+      venta == ventaActiva ? total : (venta < totalesPorVenta.length ? totalesPorVenta[venta] : 0);
+
+  String? clienteEnVenta(int venta) =>
+      venta == ventaActiva ? cliente?.nombre : (venta < clientesPorVenta.length ? clientesPorVenta[venta] : null);
 
   final List<LineaDeCarrito> lineas;
   final String termino;
@@ -49,6 +66,13 @@ class EstadoDelPos {
   final bool buscando;
   final bool cobrando;
   final String? mensaje;
+
+  /// Nota opcional de la venta (ej. "entregar en obra...").
+  final String? nota;
+
+  /// Descuento global aplicado a la venta.
+  final num descuentoGeneralPct;
+  final num descuentoGeneralValor;
 
   /// Número de la venta creada tras un cobro exitoso.
   final String? ventaNumero;
@@ -66,7 +90,10 @@ class EstadoDelPos {
   final num? montoParaIdentificar;
 
   int get unidades => lineas.fold(0, (a, l) => a + l.cantidad);
-  num get subtotal => lineas.fold<num>(0, (a, l) => a + l.subtotal);
+  num get subtotalBruto => lineas.fold<num>(0, (a, l) => a + l.bruto);
+  num get descuentoLineas => lineas.fold<num>(0, (a, l) => a + l.descuento);
+  num get descuentoTotal => descuentoLineas + descuentoGeneralValor;
+  num get subtotal => (subtotalBruto - descuentoTotal).clamp(0, double.infinity);
   num get impuesto => lineas.fold<num>(0, (a, l) => a + l.impuesto);
   num get total => subtotal + impuesto;
 
@@ -99,7 +126,12 @@ class EstadoDelPos {
     Object? montoParaIdentificar = _sinCambio,
     int? ventaActiva,
     List<int>? productosPorVenta,
+    List<num>? totalesPorVenta,
+    List<String?>? clientesPorVenta,
     bool? desplegableCerrado,
+    Object? nota = _sinCambio,
+    num? descuentoGeneralPct,
+    num? descuentoGeneralValor,
   }) => EstadoDelPos(
     lineas: lineas ?? this.lineas,
     termino: termino ?? this.termino,
@@ -119,7 +151,12 @@ class EstadoDelPos {
         : montoParaIdentificar as num?,
     ventaActiva: ventaActiva ?? this.ventaActiva,
     productosPorVenta: productosPorVenta ?? this.productosPorVenta,
+    totalesPorVenta: totalesPorVenta ?? this.totalesPorVenta,
+    clientesPorVenta: clientesPorVenta ?? this.clientesPorVenta,
     desplegableCerrado: desplegableCerrado ?? this.desplegableCerrado,
+    nota: nota == _sinCambio ? this.nota : nota as String?,
+    descuentoGeneralPct: descuentoGeneralPct ?? this.descuentoGeneralPct,
+    descuentoGeneralValor: descuentoGeneralValor ?? this.descuentoGeneralValor,
   );
 
   static const _sinCambio = Object();
