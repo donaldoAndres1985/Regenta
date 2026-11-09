@@ -193,10 +193,10 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     agregar(resultados[resaltado.clamp(0, resultados.length - 1)]);
   }
 
-  void _noSeEncontro(String texto) => state = state.copiar(
+  void _noSeEncontro(String texto, {bool cerrarDesplegable = false}) => state = state.copiar(
     mensaje: 'No se encontró «$texto»',
     buscando: false,
-    desplegableCerrado: false,
+    desplegableCerrado: cerrarDesplegable,
   );
 
   /// R7: resuelve el código de barras (propio o alterno) y, si no hay, la
@@ -236,12 +236,12 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
       if (exacto != null) {
         agregar(exacto);
       } else {
-        _noSeEncontro(codigo);
+        _noSeEncontro(codigo, cerrarDesplegable: true);
       }
     } on ErrorDeApi catch (e) {
-      state = state.copiar(mensaje: e.mensaje);
+      state = state.copiar(mensaje: e.mensaje, desplegableCerrado: true);
     } catch (_) {
-      _noSeEncontro(codigo);
+      _noSeEncontro(codigo, cerrarDesplegable: true);
     }
   }
 
