@@ -10,7 +10,7 @@ class LineaDeCarrito {
   });
 
   final ProductoBuscado producto;
-  final int cantidad;
+  final num cantidad;
   final num descuentoPct;
 
   bool get sinStock => producto.sinStock;
@@ -21,7 +21,7 @@ class LineaDeCarrito {
   num get impuesto => subtotal * producto.impuestoPct / 100;
   num get total => subtotal + impuesto;
 
-  LineaDeCarrito conCantidad(int nueva) => LineaDeCarrito(
+  LineaDeCarrito conCantidad(num nueva) => LineaDeCarrito(
         producto: producto,
         cantidad: nueva,
         descuentoPct: descuentoPct,

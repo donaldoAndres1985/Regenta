@@ -305,7 +305,7 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
   Future<void> agregarPorCodigo(String codigo) =>
       _agregarPorCodigoExacto(codigo.trim());
 
-  void cambiarCantidad(int indice, int delta) {
+  void cambiarCantidad(int indice, num delta) {
     if (indice < 0 || indice >= state.lineas.length) return;
     final lineas = [...state.lineas];
     final nueva = lineas[indice].cantidad + delta;
@@ -317,7 +317,7 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     state = state.copiar(lineas: lineas, mensaje: null);
   }
 
-  void fijarCantidad(int indice, int cantidad) {
+  void fijarCantidad(int indice, num cantidad) {
     if (indice < 0 || indice >= state.lineas.length) return;
     final lineas = [...state.lineas];
     if (cantidad <= 0) {

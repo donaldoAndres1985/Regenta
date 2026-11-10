@@ -89,7 +89,7 @@ class EstadoDelPos {
   /// es que el negocio no lo configuró, y entonces no se exige nada.
   final num? montoParaIdentificar;
 
-  int get unidades => lineas.fold(0, (a, l) => a + l.cantidad);
+  num get unidades => lineas.fold<num>(0, (a, l) => a + l.cantidad);
   num get subtotalBruto => lineas.fold<num>(0, (a, l) => a + l.bruto);
   num get descuentoLineas => lineas.fold<num>(0, (a, l) => a + l.descuento);
   num get descuentoTotal => descuentoLineas + descuentoGeneralValor;

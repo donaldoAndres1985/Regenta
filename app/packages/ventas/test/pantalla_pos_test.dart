@@ -919,5 +919,58 @@ void main() {
 
       expect(_estado(tester).lineas.single.cantidad, 12);
     });
+
+    testWidgets('cantidad acepta decimales con punto o coma', (tester) async {
+      final repo = _RepoFake();
+      await _montar(tester, repo, size: const Size(1280, 900));
+      await _agregar(tester, repo, _prod(id: 'p1', nombre: 'Tubo PVC 1/2'));
+
+      expect(_estado(tester).lineas.single.cantidad, 1);
+
+      await tester.tap(find.byKey(const Key('stepper-cantidad-tap')).first);
+      await tester.pump();
+
+      final textFields = find.byType(TextField);
+      final stepperInput = textFields.last;
+
+      await tester.enterText(stepperInput, '2.5');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(_estado(tester).lineas.single.cantidad, 2.5);
+
+      await tester.tap(find.byKey(const Key('stepper-cantidad-tap')).first);
+      await tester.pump();
+
+      final stepperInput2 = find.byType(TextField).last;
+      await tester.enterText(stepperInput2, '0,75');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(_estado(tester).lineas.single.cantidad, 0.75);
+    });
+
+    testWidgets('doble clic en nombre de producto abre modal de detalle', (tester) async {
+      final repo = _RepoFake();
+      await _montar(tester, repo, size: const Size(1280, 900));
+      await _agregar(tester, repo, _prod(id: 'p1', nombre: 'Varilla corrugada 1/2'));
+
+      final nombreProducto = find.text('Varilla corrugada 1/2');
+      expect(nombreProducto, findsOneWidget);
+
+      await tester.tap(nombreProducto);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(nombreProducto);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Estado de stock'), findsOneWidget);
+      expect(find.text('SKU / Referencia'), findsOneWidget);
+      expect(find.text('Cerrar'), findsOneWidget);
+
+      await tester.tap(find.text('Cerrar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Estado de stock'), findsNothing);
+    });
   });
 }
