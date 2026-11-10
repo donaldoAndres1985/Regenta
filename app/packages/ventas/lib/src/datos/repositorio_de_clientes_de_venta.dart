@@ -50,9 +50,15 @@ class RepositorioDeClientesHttp implements RepositorioDeClientesDeVenta {
       final clientes = lista
           .map((c) => ClienteDeLaVenta.desdeJson(c as Map<String, dynamic>))
           .toList();
-      await _guardarEnCache(clientes);
+      if (clientes.isNotEmpty) {
+        await _guardarEnCache(clientes);
+      }
+      if (termino.trim().isNotEmpty) {
+        return clientes.where((c) => c.coincideCon(termino)).toList();
+      }
       return clientes;
-    } on ErrorDeRed {
+    } catch (_) {
+      // Si la red falla, no hay sesión o el endpoint no responde, se recurre al cache local.
       return _enCache(termino);
     }
   }
@@ -80,13 +86,34 @@ class RepositorioDeClientesHttp implements RepositorioDeClientesDeVenta {
       // el reintento devuelve el mismo cliente en vez de crear otro.
       encolable: true,
     );
+    final cliente = respuesta is Encolado
+        ? ClienteDeLaVenta(
+            id: nuevo.id,
+            nombre: nuevo.nombre,
+            tipoDocumento: nuevo.tipoDocumento,
+            numeroDocumento: nuevo.numeroDocumento,
+            digitoVerificacion: nuevo.digitoVerificacion,
+          )
+        : ClienteDeLaVenta.desdeJson(respuesta as Map<String, dynamic>);
+    await _agregarAlCache(cliente);
     if (respuesta is Encolado) {
-      return ResultadoDeAlta(id: nuevo.id, quedoEnLaCola: true);
+      return ResultadoDeAlta(id: nuevo.id, cliente: cliente, quedoEnLaCola: true);
     }
     return ResultadoDeAlta(
       id: nuevo.id,
-      cliente: ClienteDeLaVenta.desdeJson(respuesta as Map<String, dynamic>),
+      cliente: cliente,
     );
+  }
+
+  Future<void> _agregarAlCache(ClienteDeLaVenta nuevoCliente) async {
+    try {
+      final existentes = await _enCache('');
+      final actualizados = [
+        nuevoCliente,
+        ...existentes.where((c) => c.id != nuevoCliente.id),
+      ];
+      await _guardarEnCache(actualizados);
+    } catch (_) {}
   }
 
   /// Un id nuevo para un cliente que se crea desde la venta.

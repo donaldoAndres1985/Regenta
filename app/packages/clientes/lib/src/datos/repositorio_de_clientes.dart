@@ -58,7 +58,20 @@ class RepositorioDeClientes {
       'email': (email != null && email.isNotEmpty) ? email : 'cliente@ejemplo.com',
     };
     final res = await _http.post<Map<String, dynamic>>('/api/clientes/expres', datos: body);
-    return ClienteEnLista.desdeJson(res);
+    final nuevo = ClienteEnLista.desdeJson(res);
+    await _agregarAlCache(nuevo);
+    return nuevo;
+  }
+
+  Future<void> _agregarAlCache(ClienteEnLista nuevo) async {
+    try {
+      final existentes = await enCache();
+      final actualizados = [
+        nuevo,
+        ...existentes.where((c) => c.id != nuevo.id),
+      ];
+      await guardarEnCache(actualizados);
+    } catch (_) {}
   }
 
   /// Deja la copia local lista para la próxima vez que no haya señal.

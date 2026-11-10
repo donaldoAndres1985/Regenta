@@ -46,11 +46,25 @@ class ClienteDeLaVenta {
   /// Busca por nombre o por documento, sin puntos: en el mostrador el NIT se
   /// escribe de las dos formas.
   bool coincideCon(String termino) {
-    final t = termino.trim().toLowerCase();
+    final t = _normalizar(termino.trim());
     if (t.isEmpty) return true;
+    final nomNorm = _normalizar(nombre);
+    final docNorm = _normalizar(numeroDocumento);
     final soloDigitos = t.replaceAll(RegExp('[^0-9]'), '');
-    return nombre.toLowerCase().contains(t) ||
-        (soloDigitos.isNotEmpty && numeroDocumento.contains(soloDigitos));
+    return nomNorm.contains(t) ||
+        docNorm.contains(t) ||
+        (soloDigitos.isNotEmpty && docNorm.replaceAll(RegExp('[^0-9]'), '').contains(soloDigitos));
+  }
+
+  static String _normalizar(String texto) {
+    var res = texto.toLowerCase();
+    res = res.replaceAll(RegExp(r'[áàäâ]'), 'a');
+    res = res.replaceAll(RegExp(r'[éèëê]'), 'e');
+    res = res.replaceAll(RegExp(r'[íìïî]'), 'i');
+    res = res.replaceAll(RegExp(r'[óòöô]'), 'o');
+    res = res.replaceAll(RegExp(r'[úùüû]'), 'u');
+    res = res.replaceAll(RegExp(r'[ñ]'), 'n');
+    return res;
   }
 
   factory ClienteDeLaVenta.desdeJson(Map<String, dynamic> json) => ClienteDeLaVenta(

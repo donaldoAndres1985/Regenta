@@ -48,10 +48,25 @@ class ClienteEnLista {
 
   /// Une nombre y documento para el filtro por texto (criterio 1).
   bool coincideCon(String termino) {
-    final q = termino.trim().toLowerCase();
+    final q = _normalizar(termino.trim());
     if (q.isEmpty) return true;
-    return nombre.toLowerCase().contains(q) ||
-        (numeroDocumento ?? '').toLowerCase().contains(q);
+    final nomNorm = _normalizar(nombre);
+    final docNorm = _normalizar(numeroDocumento ?? '');
+    final soloDigitos = q.replaceAll(RegExp('[^0-9]'), '');
+    return nomNorm.contains(q) ||
+        docNorm.contains(q) ||
+        (soloDigitos.isNotEmpty && docNorm.replaceAll(RegExp('[^0-9]'), '').contains(soloDigitos));
+  }
+
+  static String _normalizar(String texto) {
+    var res = texto.toLowerCase();
+    res = res.replaceAll(RegExp(r'[áàäâ]'), 'a');
+    res = res.replaceAll(RegExp(r'[éèëê]'), 'e');
+    res = res.replaceAll(RegExp(r'[íìïî]'), 'i');
+    res = res.replaceAll(RegExp(r'[óòöô]'), 'o');
+    res = res.replaceAll(RegExp(r'[úùüû]'), 'u');
+    res = res.replaceAll(RegExp(r'[ñ]'), 'n');
+    return res;
   }
 
   factory ClienteEnLista.desdeJson(Map<String, dynamic> json) => ClienteEnLista(

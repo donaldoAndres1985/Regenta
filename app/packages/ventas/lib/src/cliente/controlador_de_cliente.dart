@@ -48,6 +48,8 @@ class ControladorDeCliente extends StateNotifier<EstadoDeCliente> {
     } on ErrorDeApi catch (fallo) {
       // No poder buscar nunca bloquea el cobro: se avisa y se sigue.
       state = state.copiar(buscando: false, mensaje: fallo.mensaje);
+    } catch (_) {
+      state = state.copiar(buscando: false);
     }
   }
 
@@ -109,8 +111,13 @@ class ControladorDeCliente extends StateNotifier<EstadoDeCliente> {
       if (!alta.quedoEnLaCola) {
         await _repo.asignar(ventaId: ventaId, clienteId: cliente.id);
       }
+      final resultadosActualizados = [
+        cliente,
+        ...state.resultados.where((c) => c.id != cliente.id),
+      ];
       state = state.copiar(
         asignado: cliente,
+        resultados: resultadosActualizados,
         trabajando: false,
         creando: false,
         mensaje: alta.quedoEnLaCola
