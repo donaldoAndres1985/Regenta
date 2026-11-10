@@ -74,91 +74,104 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
 
     showDialog<void>(
       context: ctx,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.inventory_2_outlined, size: 22, color: RegentaColors.accent),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                p.nombre,
-                style: PastelTheme.titulo(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: RegentaColors.ink,
-                ),
-              ),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: 440,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+      builder: (dialogCtx) {
+        final esOscuro = Theme.of(dialogCtx).brightness == Brightness.dark;
+        final colorFondo = esOscuro ? const Color(0xFF232332) : RegentaColors.surface;
+        final colorTitulo = esOscuro ? const Color(0xFFF2F2FA) : RegentaColors.ink;
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: colorFondo,
+          title: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: chipBg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Estado de stock',
-                      style: PastelTheme.cuerpo(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: RegentaColors.ink2,
-                      ),
-                    ),
-                    Text(
-                      nivelTexto,
-                      style: PastelTheme.cuerpo(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: chipColor,
-                      ),
-                    ),
-                  ],
+              const Icon(Icons.inventory_2_outlined, size: 24, color: RegentaColors.accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  p.nombre,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: colorTitulo,
+                  ),
                 ),
               ),
-              const SizedBox(height: 14),
-              _FilaDetalle('SKU / Referencia', p.sku.isNotEmpty ? p.sku : '—'),
-              const Divider(height: 1),
-              _FilaDetalle(
-                'Existencia total / Stock',
-                p.existencia != null ? '${p.existencia} unidades' : 'No especificado',
-                valorColor: chipColor,
-              ),
-              const Divider(height: 1),
-              const _FilaDetalle('Ubicación / Sección', 'Bodega Principal · Pasillo'),
-              const Divider(height: 1),
-              _FilaDetalle('Precio de venta', formatearPesos(p.precioVenta)),
-              const Divider(height: 1),
-              _FilaDetalle('IVA', '${p.impuestoPct}%'),
-              if (p.costoUnitario > 0) ...[
-                const Divider(height: 1),
-                _FilaDetalle('Costo unitario', formatearPesos(p.costoUnitario)),
-              ],
-              if (p.codigoBarras != null && p.codigoBarras!.isNotEmpty) ...[
-                const Divider(height: 1),
-                _FilaDetalle('Código de barras', p.codigoBarras!),
-              ],
             ],
           ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(),
-            style: FilledButton.styleFrom(shape: const StadiumBorder()),
-            child: const Text('Cerrar'),
+          content: SizedBox(
+            width: 460,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: chipBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Estado de stock',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: RegentaColors.ink,
+                        ),
+                      ),
+                      Text(
+                        nivelTexto,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: chipColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _FilaDetalle('SKU / Referencia', p.sku.isNotEmpty ? p.sku : '—'),
+                Divider(height: 1, color: esOscuro ? const Color(0xFF38384D) : RegentaColors.line),
+                _FilaDetalle(
+                  'Existencia total / Stock',
+                  p.existencia != null
+                      ? '${_StepperEditableState._formatearCantidad(p.existencia!)} unidades'
+                      : 'No especificado',
+                  valorColor: chipColor,
+                ),
+                Divider(height: 1, color: esOscuro ? const Color(0xFF38384D) : RegentaColors.line),
+                const _FilaDetalle('Ubicación / Sección', 'Bodega Principal · Pasillo'),
+                Divider(height: 1, color: esOscuro ? const Color(0xFF38384D) : RegentaColors.line),
+                _FilaDetalle('Precio de venta', formatearPesos(p.precioVenta)),
+                Divider(height: 1, color: esOscuro ? const Color(0xFF38384D) : RegentaColors.line),
+                _FilaDetalle('IVA', '${p.impuestoPct}%'),
+                if (p.costoUnitario > 0) ...[
+                  Divider(height: 1, color: esOscuro ? const Color(0xFF38384D) : RegentaColors.line),
+                  _FilaDetalle('Costo unitario', formatearPesos(p.costoUnitario)),
+                ],
+                if (p.codigoBarras != null && p.codigoBarras!.isNotEmpty) ...[
+                  Divider(height: 1, color: esOscuro ? const Color(0xFF38384D) : RegentaColors.line),
+                  _FilaDetalle('Código de barras', p.codigoBarras!),
+                ],
+              ],
+            ),
           ),
-        ],
-      ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              style: FilledButton.styleFrom(
+                backgroundColor: RegentaColors.accent,
+                foregroundColor: Colors.white,
+                shape: const StadiumBorder(),
+              ),
+              child: const Text('Cerrar', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        );
+      },
     ).then((_) {
       if (mounted) _enfocarBuscador();
     });
@@ -1609,10 +1622,12 @@ class _FilaDeVenta extends StatelessWidget {
                           linea.producto.nombre,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: PastelTheme.cuerpo(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w600,
-                            color: RegentaColors.ink,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFFF2F2FA)
+                                : const Color(0xFF151522),
                           ),
                         ),
                       ),
@@ -2026,10 +2041,12 @@ class _TarjetaDeLineaMovil extends StatelessWidget {
                               linea.producto.nombre,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: PastelTheme.cuerpo(
-                                fontSize: 14.5,
+                              style: TextStyle(
+                                fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                color: RegentaColors.ink,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFFF2F2FA)
+                                    : const Color(0xFF151522),
                               ),
                             ),
                           ),
@@ -2252,7 +2269,7 @@ class _StepperEditableState extends State<_StepperEditable> {
 
   static String _formatearCantidad(num c) {
     if (c == c.truncate()) return c.toInt().toString();
-    final texto = c.toStringAsFixed(4);
+    final texto = c.toStringAsFixed(5);
     return texto.replaceAll(RegExp(r'0+\$'), '').replaceAll(RegExp(r'\.\$'), '');
   }
 
@@ -2297,16 +2314,13 @@ class _StepperEditableState extends State<_StepperEditable> {
 
   void _abrirSelectorFracciones() {
     final nombre = (widget.nombreProducto ?? '').toLowerCase();
-    final esPinturaOGalon = nombre.contains('galon') ||
-        nombre.contains('galón') ||
-        nombre.contains('vinilo') ||
-        nombre.contains('esmalte') ||
-        nombre.contains('pintura') ||
-        nombre.contains('laca') ||
-        nombre.contains('tinner') ||
-        nombre.contains('thinner');
     final esMetro = nombre.contains('metro') ||
+        nombre.contains(' m ') ||
+        nombre.endsWith(' m') ||
+        nombre.contains('mts') ||
+        nombre.contains('mt') ||
         nombre.contains('m.') ||
+        nombre.contains('manto') ||
         nombre.contains('cable') ||
         nombre.contains('tubo') ||
         nombre.contains('manguera') ||
@@ -2314,14 +2328,29 @@ class _StepperEditableState extends State<_StepperEditable> {
         nombre.contains('cuerda') ||
         nombre.contains('varilla');
 
+    final esPinturaOGalon = !esMetro && (
+        nombre.contains('galon') ||
+        nombre.contains('galón') ||
+        nombre.contains('vinilo') ||
+        nombre.contains('esmalte') ||
+        nombre.contains('pintura') ||
+        nombre.contains('laca') ||
+        nombre.contains('tinner') ||
+        nombre.contains('thinner') ||
+        nombre.contains('cuñete') ||
+        nombre.contains('cunete') ||
+        nombre.contains('balde') ||
+        nombre.contains('valde'));
+
     showModalBottomSheet<void>(
       context: context,
+      backgroundColor: const Color(0xFF232332),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2329,35 +2358,36 @@ class _StepperEditableState extends State<_StepperEditable> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'Seleccionar fracción / medida',
-                    style: PastelTheme.titulo(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: RegentaColors.ink,
+                      color: Color(0xFFF2F2FA),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close, color: Color(0xFFB5B5CC)),
                     onPressed: () => Navigator.of(ctx).pop(),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               if (esPinturaOGalon || (!esMetro && !esPinturaOGalon)) ...[
-                Text(
-                  'Fracciones de galón (pinturas / líquidos):',
-                  style: PastelTheme.cuerpo(
-                    fontSize: 13,
+                const Text(
+                  'Fracciones de galón y cuñete (pinturas / líquidos):',
+                  style: TextStyle(
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w600,
-                    color: RegentaColors.ink2,
+                    color: Color(0xFFB5B5CC),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 10,
+                  runSpacing: 10,
                   children: [
+                    _chipFraccion(ctx, '1 Cuñete · Balde (5 gal)', 5.0),
                     _chipFraccion(ctx, '1 Galón (1.0)', 1.0),
                     _chipFraccion(ctx, '1/2 Galón (0.5)', 0.5),
                     _chipFraccion(ctx, '1/4 Galón (0.25)', 0.25),
@@ -2369,27 +2399,29 @@ class _StepperEditableState extends State<_StepperEditable> {
                 const SizedBox(height: 14),
               ],
               if (esMetro || (!esMetro && !esPinturaOGalon)) ...[
-                Text(
-                  'Fracciones de metro / longitud:',
-                  style: PastelTheme.cuerpo(
-                    fontSize: 13,
+                const Text(
+                  'Fracciones de metro / longitud (manto, cable, tubo...):',
+                  style: TextStyle(
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w600,
-                    color: RegentaColors.ink2,
+                    color: Color(0xFFB5B5CC),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 10,
+                  runSpacing: 10,
                   children: [
-                    _chipFraccion(ctx, '1 metro (1.0 m)', 1.0),
+                    _chipFraccion(ctx, '1 metro (1 m)', 1.0),
                     _chipFraccion(ctx, '1/2 m · 50 cm (0.5 m)', 0.5),
                     _chipFraccion(ctx, '1/4 m · 25 cm (0.25 m)', 0.25),
                     _chipFraccion(ctx, '3/4 m · 75 cm (0.75 m)', 0.75),
                     _chipFraccion(ctx, '10 cm (0.1 m)', 0.1),
                     _chipFraccion(ctx, '20 cm (0.2 m)', 0.2),
-                    _chipFraccion(ctx, '1.5 metros (1.5 m)', 1.5),
-                    _chipFraccion(ctx, '2.5 metros (2.5 m)', 2.5),
+                    _chipFraccion(ctx, '1.5 metros', 1.5),
+                    _chipFraccion(ctx, '2 metros', 2.0),
+                    _chipFraccion(ctx, '2.5 metros', 2.5),
+                    _chipFraccion(ctx, '3 metros', 3.0),
                   ],
                 ),
               ],
@@ -2402,37 +2434,56 @@ class _StepperEditableState extends State<_StepperEditable> {
 
   Widget _chipFraccion(BuildContext ctx, String etiqueta, num valor) {
     final seleccionada = (widget.cantidad - valor).abs() < 0.0001;
-    return ChoiceChip(
-      label: Text(etiqueta),
-      selected: seleccionada,
-      selectedColor: RegentaColors.accentSoft,
-      labelStyle: TextStyle(
-        fontSize: 12,
-        fontWeight: seleccionada ? FontWeight.w700 : FontWeight.w500,
-        color: seleccionada ? RegentaColors.accent : RegentaColors.ink,
-      ),
-      onSelected: (_) {
+    return InkWell(
+      onTap: () {
         widget.onFijar(valor);
         Navigator.of(ctx).pop();
       },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: seleccionada ? const Color(0xFF2E62C0) : const Color(0xFF323246),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: seleccionada ? const Color(0xFFA9C4FF) : const Color(0xFF4C4C66),
+            width: 1.2,
+          ),
+        ),
+        child: Text(
+          etiqueta,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: seleccionada ? FontWeight.w800 : FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final esOscuro = Theme.of(context).brightness == Brightness.dark;
+    final colorFondo = esOscuro ? const Color(0xFF28283A) : RegentaColors.surface;
+    final colorTexto = esOscuro ? const Color(0xFFF2F2FA) : const Color(0xFF151522);
+    final colorBorde = _editando
+        ? RegentaColors.accent
+        : (esOscuro ? const Color(0xFF4C4C66) : RegentaColors.line);
+
     return Container(
       constraints: const BoxConstraints(minHeight: 46),
       decoration: BoxDecoration(
-        color: RegentaColors.surface,
+        color: colorFondo,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: _editando ? RegentaColors.accent : RegentaColors.line,
+          color: colorBorde,
           width: _editando ? 1.8 : 1.0,
         ),
         boxShadow: _editando
             ? [
                 BoxShadow(
-                  color: RegentaColors.accent.withValues(alpha: 0.25),
+                  color: RegentaColors.accent.withValues(alpha: 0.35),
                   blurRadius: 4,
                   spreadRadius: 1,
                 ),
@@ -2444,17 +2495,18 @@ class _StepperEditableState extends State<_StepperEditable> {
         children: [
           _BotonStepper(icono: Icons.remove, onTap: widget.onMenos, semantica: 'Quitar uno'),
           SizedBox(
-            width: 50,
+            width: 54,
             child: _editando
                 ? TextField(
                     controller: _ctrl,
                     focusNode: _foco,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     textAlign: TextAlign.center,
+                    cursorColor: esOscuro ? Colors.white : RegentaColors.accent,
                     style: RegentaType.codigo.copyWith(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: RegentaColors.ink,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: colorTexto,
                     ),
                     decoration: const InputDecoration(
                       border: InputBorder.none,
@@ -2479,9 +2531,9 @@ class _StepperEditableState extends State<_StepperEditable> {
                         _formatearCantidad(widget.cantidad),
                         textAlign: TextAlign.center,
                         style: RegentaType.codigo.copyWith(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: RegentaColors.ink,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: colorTexto,
                         ),
                       ),
                     ),
@@ -2497,7 +2549,7 @@ class _StepperEditableState extends State<_StepperEditable> {
                 padding: EdgeInsets.symmetric(horizontal: 5, vertical: 8),
                 child: Icon(
                   Icons.pie_chart_outline,
-                  size: 16,
+                  size: 17,
                   color: RegentaColors.accent,
                 ),
               ),
@@ -2548,6 +2600,11 @@ class _FilaDetalle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final esOscuro = Theme.of(context).brightness == Brightness.dark;
+    final colorEtiqueta = esOscuro ? cs.onSurfaceVariant : RegentaColors.ink2;
+    final colorValor = valorColor ?? (esOscuro ? cs.onSurface : RegentaColors.ink);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
       child: Row(
@@ -2555,14 +2612,14 @@ class _FilaDetalle extends StatelessWidget {
         children: [
           Text(
             etiqueta,
-            style: PastelTheme.cuerpo(fontSize: 13, color: RegentaColors.ink2),
+            style: PastelTheme.cuerpo(fontSize: 13.5, color: colorEtiqueta, fontWeight: FontWeight.w600),
           ),
           Text(
             valor,
             style: RegentaType.codigo.copyWith(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w600,
-              color: valorColor ?? RegentaColors.ink,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: colorValor,
             ),
           ),
         ],
