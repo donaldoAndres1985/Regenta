@@ -130,10 +130,12 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
               _FilaDetalle('SKU / Referencia', p.sku.isNotEmpty ? p.sku : '—'),
               const Divider(height: 1),
               _FilaDetalle(
-                'Existencia / Stock',
-                p.existencia != null ? '${p.existencia}' : 'No especificado',
+                'Existencia total / Stock',
+                p.existencia != null ? '${p.existencia} unidades' : 'No especificado',
                 valorColor: chipColor,
               ),
+              const Divider(height: 1),
+              const _FilaDetalle('Ubicación / Sección', 'Bodega Principal · Pasillo'),
               const Divider(height: 1),
               _FilaDetalle('Precio de venta', formatearPesos(p.precioVenta)),
               const Divider(height: 1),
@@ -1398,7 +1400,7 @@ class _VentaEscritorio extends StatelessWidget {
   final void Function(ProductoBuscado) onDetalle;
 
   static const anchoCodigo = 120.0;
-  static const anchoCantidad = 150.0;
+  static const anchoCantidad = 180.0;
   static const anchoPrecio = 120.0;
   static const anchoIva = 75.0;
   static const anchoTotal = 140.0;
@@ -1614,9 +1616,16 @@ class _FilaDeVenta extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const Tooltip(
-                        message: 'Doble clic para ver stock y detalle',
-                        child: Icon(Icons.info_outline, size: 14, color: RegentaColors.ink2),
+                      Tooltip(
+                        message: 'Ver stock por bodega y detalle',
+                        child: InkWell(
+                          onTap: onDetalle,
+                          borderRadius: BorderRadius.circular(12),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(Icons.info_outline, size: 18, color: RegentaColors.accent),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -1645,6 +1654,7 @@ class _FilaDeVenta extends StatelessWidget {
             child: Center(
               child: _StepperEditable(
                 cantidad: linea.cantidad,
+                nombreProducto: linea.producto.nombre,
                 onMas: onMas,
                 onMenos: onMenos,
                 onFijar: onFijarCantidad,
@@ -2009,15 +2019,31 @@ class _TarjetaDeLineaMovil extends StatelessWidget {
                     GestureDetector(
                       onDoubleTap: onDetalle,
                       behavior: HitTestBehavior.opaque,
-                      child: Text(
-                        linea.producto.nombre,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: PastelTheme.cuerpo(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: RegentaColors.ink,
-                        ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              linea.producto.nombre,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: PastelTheme.cuerpo(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w700,
+                                color: RegentaColors.ink,
+                              ),
+                            ),
+                          ),
+                          Tooltip(
+                            message: 'Ver stock y detalle',
+                            child: InkWell(
+                              onTap: onDetalle,
+                              child: const Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(Icons.info_outline, size: 18, color: RegentaColors.accent),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -2040,6 +2066,7 @@ class _TarjetaDeLineaMovil extends StatelessWidget {
             children: [
               _StepperEditable(
                 cantidad: linea.cantidad,
+                nombreProducto: linea.producto.nombre,
                 onMas: onMas,
                 onMenos: onMenos,
                 onFijar: onFijarCantidad,
@@ -2205,12 +2232,14 @@ class _StepperEditable extends StatefulWidget {
     required this.onMas,
     required this.onMenos,
     required this.onFijar,
+    this.nombreProducto,
   });
 
   final num cantidad;
   final VoidCallback onMas;
   final VoidCallback onMenos;
   final ValueChanged<num> onFijar;
+  final String? nombreProducto;
 
   @override
   State<_StepperEditable> createState() => _StepperEditableState();
@@ -2223,7 +2252,8 @@ class _StepperEditableState extends State<_StepperEditable> {
 
   static String _formatearCantidad(num c) {
     if (c == c.truncate()) return c.toInt().toString();
-    return c.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+    final texto = c.toStringAsFixed(4);
+    return texto.replaceAll(RegExp(r'0+\$'), '').replaceAll(RegExp(r'\.\$'), '');
   }
 
   @override
@@ -2265,6 +2295,129 @@ class _StepperEditableState extends State<_StepperEditable> {
     }
   }
 
+  void _abrirSelectorFracciones() {
+    final nombre = (widget.nombreProducto ?? '').toLowerCase();
+    final esPinturaOGalon = nombre.contains('galon') ||
+        nombre.contains('galón') ||
+        nombre.contains('vinilo') ||
+        nombre.contains('esmalte') ||
+        nombre.contains('pintura') ||
+        nombre.contains('laca') ||
+        nombre.contains('tinner') ||
+        nombre.contains('thinner');
+    final esMetro = nombre.contains('metro') ||
+        nombre.contains('m.') ||
+        nombre.contains('cable') ||
+        nombre.contains('tubo') ||
+        nombre.contains('manguera') ||
+        nombre.contains('alambre') ||
+        nombre.contains('cuerda') ||
+        nombre.contains('varilla');
+
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Seleccionar fracción / medida',
+                    style: PastelTheme.titulo(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: RegentaColors.ink,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (esPinturaOGalon || (!esMetro && !esPinturaOGalon)) ...[
+                Text(
+                  'Fracciones de galón (pinturas / líquidos):',
+                  style: PastelTheme.cuerpo(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: RegentaColors.ink2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _chipFraccion(ctx, '1 Galón (1.0)', 1.0),
+                    _chipFraccion(ctx, '1/2 Galón (0.5)', 0.5),
+                    _chipFraccion(ctx, '1/4 Galón (0.25)', 0.25),
+                    _chipFraccion(ctx, '1/8 Galón (0.125)', 0.125),
+                    _chipFraccion(ctx, '1/16 Galón (0.0625)', 0.0625),
+                    _chipFraccion(ctx, '1/32 Galón (0.03125)', 0.03125),
+                  ],
+                ),
+                const SizedBox(height: 14),
+              ],
+              if (esMetro || (!esMetro && !esPinturaOGalon)) ...[
+                Text(
+                  'Fracciones de metro / longitud:',
+                  style: PastelTheme.cuerpo(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: RegentaColors.ink2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _chipFraccion(ctx, '1 metro (1.0 m)', 1.0),
+                    _chipFraccion(ctx, '1/2 m · 50 cm (0.5 m)', 0.5),
+                    _chipFraccion(ctx, '1/4 m · 25 cm (0.25 m)', 0.25),
+                    _chipFraccion(ctx, '3/4 m · 75 cm (0.75 m)', 0.75),
+                    _chipFraccion(ctx, '10 cm (0.1 m)', 0.1),
+                    _chipFraccion(ctx, '20 cm (0.2 m)', 0.2),
+                    _chipFraccion(ctx, '1.5 metros (1.5 m)', 1.5),
+                    _chipFraccion(ctx, '2.5 metros (2.5 m)', 2.5),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chipFraccion(BuildContext ctx, String etiqueta, num valor) {
+    final seleccionada = (widget.cantidad - valor).abs() < 0.0001;
+    return ChoiceChip(
+      label: Text(etiqueta),
+      selected: seleccionada,
+      selectedColor: RegentaColors.accentSoft,
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: seleccionada ? FontWeight.w700 : FontWeight.w500,
+        color: seleccionada ? RegentaColors.accent : RegentaColors.ink,
+      ),
+      onSelected: (_) {
+        widget.onFijar(valor);
+        Navigator.of(ctx).pop();
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -2291,7 +2444,7 @@ class _StepperEditableState extends State<_StepperEditable> {
         children: [
           _BotonStepper(icono: Icons.remove, onTap: widget.onMenos, semantica: 'Quitar uno'),
           SizedBox(
-            width: 52,
+            width: 50,
             child: _editando
                 ? TextField(
                     controller: _ctrl,
@@ -2299,7 +2452,7 @@ class _StepperEditableState extends State<_StepperEditable> {
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     textAlign: TextAlign.center,
                     style: RegentaType.codigo.copyWith(
-                      fontSize: 14,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w700,
                       color: RegentaColors.ink,
                     ),
@@ -2326,7 +2479,7 @@ class _StepperEditableState extends State<_StepperEditable> {
                         _formatearCantidad(widget.cantidad),
                         textAlign: TextAlign.center,
                         style: RegentaType.codigo.copyWith(
-                          fontSize: 14,
+                          fontSize: 13.5,
                           fontWeight: FontWeight.w700,
                           color: RegentaColors.ink,
                         ),
@@ -2335,6 +2488,21 @@ class _StepperEditableState extends State<_StepperEditable> {
                   ),
           ),
           _BotonStepper(icono: Icons.add, onTap: widget.onMas, semantica: 'Agregar uno'),
+          Tooltip(
+            message: 'Fraccionar (galón, metros...)',
+            child: InkWell(
+              onTap: _abrirSelectorFracciones,
+              borderRadius: BorderRadius.circular(8),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+                child: Icon(
+                  Icons.pie_chart_outline,
+                  size: 16,
+                  color: RegentaColors.accent,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

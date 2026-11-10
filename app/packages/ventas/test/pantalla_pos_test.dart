@@ -972,5 +972,24 @@ void main() {
 
       expect(find.text('Estado de stock'), findsNothing);
     });
+    testWidgets('selector de fracciones asigna valores fraccionados exactos', (tester) async {
+      final repo = _RepoFake();
+      await _montar(tester, repo, size: const Size(1280, 900));
+      await _agregar(tester, repo, _prod(id: 'p1', nombre: 'Vinilo tipo 1 - galon azul'));
+
+      // Abrir selector de fracciones
+      final iconoFraccion = find.byIcon(Icons.pie_chart_outline);
+      expect(iconoFraccion, findsOneWidget);
+      await tester.tap(iconoFraccion);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Seleccionar fracción / medida'), findsOneWidget);
+      expect(find.text('1/4 Galón (0.25)'), findsOneWidget);
+
+      await tester.tap(find.text('1/4 Galón (0.25)'));
+      await tester.pumpAndSettle();
+
+      expect(_estado(tester).lineas.single.cantidad, 0.25);
+    });
   });
 }
