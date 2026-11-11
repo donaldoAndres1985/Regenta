@@ -75,18 +75,23 @@ public class ConsumidorDeLaSagaDeVentas {
 
         DIAG.info("recibir() procesando tipo={} mensajeId={} negocioId={}", tipoEvento, mensajeId, negocioId);
         final UUID tenantId = negocioId;
-        boolean[] seProceso = new boolean[1];
         try {
-            ContextoDeNegocio.en(contextoDe(tenantId), () -> seProceso[0] = inbox.procesarUnaVez(
-                    mensajeId, tenantId, tipoEvento, cuerpo, payload -> {
-                        if ("venta_completada".equals(tipoEvento)) {
-                            Object ventaIdObj = datos.get("venta_id") != null ? datos.get("venta_id") : eventoGenerico.agregadoId();
-                            reservas.confirmar("VENTA", UUID.fromString(ventaIdObj.toString()));
-                        } else {
-                            reservas.solicitar(solicitudDe(datos));
-                        }
-                    }));
-            DIAG.info("recibir() inbox.procesarUnaVez termino, seProceso={}", seProceso[0]);
+            // Lambda de bloque con return explicito a proposito: con un
+            // lambda de expresion aqui, ContextoDeNegocio.en(...) tiene dos
+            // sobrecargas (Runnable y Supplier<T>) y el compilador puede
+            // elegir cualquiera de las dos sin avisar. Esta forma solo
+            // encaja en la que devuelve valor.
+            boolean seProceso = ContextoDeNegocio.en(contextoDe(tenantId), () -> {
+                return inbox.procesarUnaVez(mensajeId, tenantId, tipoEvento, cuerpo, payload -> {
+                    if ("venta_completada".equals(tipoEvento)) {
+                        Object ventaIdObj = datos.get("venta_id") != null ? datos.get("venta_id") : eventoGenerico.agregadoId();
+                        reservas.confirmar("VENTA", UUID.fromString(ventaIdObj.toString()));
+                    } else {
+                        reservas.solicitar(solicitudDe(datos));
+                    }
+                });
+            });
+            DIAG.info("recibir() inbox.procesarUnaVez termino, seProceso={}", seProceso);
         } catch (RuntimeException e) {
             DIAG.info("recibir() exploto: {}: {}", e.getClass().getSimpleName(), e.getMessage());
             throw e;
