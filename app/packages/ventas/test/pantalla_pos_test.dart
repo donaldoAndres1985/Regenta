@@ -101,6 +101,20 @@ class _RepoFake implements RepositorioDeVentas {
   Future<void> anularVenta(String ventaId, String motivo) async {}
 
   @override
+  Future<DevolucionRegistrada> registrarDevolucion(
+    String ventaId,
+    SolicitudDeDevolucionParaEnviar solicitud,
+  ) async =>
+      const DevolucionRegistrada(
+        id: 'dev-1',
+        numero: 'DEV-1',
+        tipo: 'TOTAL',
+        motivo: 'OTRO',
+        reintegraStock: true,
+        total: 0,
+      );
+
+  @override
   Future<List<VentaEnProceso>> buscarVentas({String? q}) async => const [];
 
   @override

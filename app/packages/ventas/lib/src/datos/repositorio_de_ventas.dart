@@ -65,6 +65,78 @@ class LineaParaEnviar {
       };
 }
 
+/// Motivos reconocidos por el backend (HU-042).
+enum MotivoDevolucion {
+  defectuoso('DEFECTUOSO', 'Producto defectuoso'),
+  errorDespacho('ERROR_DESPACHO', 'Error en despacho'),
+  arrepentimiento('ARREPENTIMIENTO', 'Arrepentimiento del cliente'),
+  garantia('GARANTIA', 'Aplicación de garantía'),
+  otro('OTRO', 'Otro motivo');
+
+  const MotivoDevolucion(this.codigo, this.etiqueta);
+  final String codigo;
+  final String etiqueta;
+}
+
+class LineaDevueltaParaEnviar {
+  const LineaDevueltaParaEnviar({required this.linea, required this.cantidad});
+  final int linea;
+  final num cantidad;
+
+  Map<String, dynamic> aJson() => {'linea': linea, 'cantidad': cantidad};
+}
+
+class SolicitudDeDevolucionParaEnviar {
+  const SolicitudDeDevolucionParaEnviar({
+    required this.motivo,
+    this.detalle,
+    this.reintegraStock = true,
+    this.bodegaDestinoId,
+    required this.lineas,
+  });
+
+  final String motivo;
+  final String? detalle;
+  final bool reintegraStock;
+  final String? bodegaDestinoId;
+  final List<LineaDevueltaParaEnviar> lineas;
+
+  Map<String, dynamic> aJson() => {
+        'motivo': motivo,
+        if (detalle != null && detalle!.trim().isNotEmpty) 'detalle': detalle!.trim(),
+        'reintegraStock': reintegraStock,
+        if (bodegaDestinoId != null) 'bodegaDestinoId': bodegaDestinoId,
+        'lineas': [for (final l in lineas) l.aJson()],
+      };
+}
+
+class DevolucionRegistrada {
+  const DevolucionRegistrada({
+    required this.id,
+    required this.numero,
+    required this.tipo,
+    required this.motivo,
+    required this.reintegraStock,
+    required this.total,
+  });
+
+  final String id;
+  final String numero;
+  final String tipo;
+  final String motivo;
+  final bool reintegraStock;
+  final num total;
+
+  factory DevolucionRegistrada.desdeJson(Map<String, dynamic> json) => DevolucionRegistrada(
+        id: json['id'] as String,
+        numero: (json['numero'] ?? '') as String,
+        tipo: (json['tipo'] ?? '') as String,
+        motivo: (json['motivo'] ?? '') as String,
+        reintegraStock: (json['reintegraStock'] ?? false) as bool,
+        total: (json['total'] ?? 0) as num,
+      );
+}
+
 /// Una línea leída del backend con su snapshot.
 class LineaDeVentaResumen {
   const LineaDeVentaResumen({
@@ -378,6 +450,18 @@ class RepositorioDeVentas {
       '/api/ventas/$ventaId/anulacion',
       datos: {'motivo': motivo.trim()},
     );
+  }
+
+  /// HU-042: registra una devolución total o parcial contra la venta.
+  Future<DevolucionRegistrada> registrarDevolucion(
+    String ventaId,
+    SolicitudDeDevolucionParaEnviar solicitud,
+  ) async {
+    final respuesta = await _http.post<Map<String, dynamic>>(
+      '/api/ventas/$ventaId/devoluciones',
+      datos: solicitud.aJson(),
+    );
+    return DevolucionRegistrada.desdeJson(respuesta as Map<String, dynamic>);
   }
 
   /// Lista o busca ventas por consecutivo o nombre de cliente.

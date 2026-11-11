@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../datos/repositorio_de_ventas.dart';
 import '../pos/proveedores.dart';
 import 'formato.dart';
+import 'pantalla_devolucion.dart';
 
 /// Pantalla para buscar ventas previas, consultar su estado, anularlas
 /// (HU-041) o iniciar una devolución (HU-042).
@@ -417,14 +418,25 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (widget.onSeleccionarParaDevolucion != null &&
-                                      v.confirmada) ...[
+                                  if (v.confirmada) ...[
                                     OutlinedButton.icon(
                                       key: Key('boton-devolver-venta-${v.id}'),
                                       icon: const Icon(Icons.assignment_return, size: 16),
                                       label: const Text('Devolver'),
-                                      onPressed: () =>
-                                          widget.onSeleccionarParaDevolucion!(v),
+                                      onPressed: () {
+                                        if (widget.onSeleccionarParaDevolucion != null) {
+                                          widget.onSeleccionarParaDevolucion!(v);
+                                        } else {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) => PantallaDevolucion(
+                                                venta: v,
+                                                onDevolucionExitosa: (_) => _cargarVentas(),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
                                     ),
                                     const SizedBox(width: 8),
                                   ],
