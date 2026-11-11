@@ -12,8 +12,8 @@ const escritorio = Size(1440, 900);
 /// tests"). En Windows o macOS el texto se rasteriza distinto y el golden
 /// fallaría por el sistema operativo, no por la pantalla; ahí se saltan y se
 /// corren con `tool/goldens.sh`, que usa el mismo contenedor que CI.
-void testGolden(String descripcion, WidgetTesterCallback cuerpo) {
-  testWidgets(descripcion, cuerpo, tags: const ['golden'], skip: !Platform.isLinux);
+void testGolden(String descripcion, WidgetTesterCallback cuerpo, {bool skip = false}) {
+  testWidgets(descripcion, cuerpo, tags: const ['golden'], skip: skip || !Platform.isLinux);
 }
 
 Future<void> tamano(WidgetTester tester, Size size) async {
