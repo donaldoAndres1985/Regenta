@@ -256,6 +256,11 @@ que más se olvida. -->
 - **No** confiar en el nivel de stock del cliente para autorizar la venta: el descuento real y
   el anti-overbooking los resuelve la saga de confirmación contra Inventario. El aviso de
   *sin stock* del POS es una ayuda visual, no la validación.
+- **No** mostrar como "Disponible" una cantidad que la saga de HU-038 no aceptaría: el backend
+  (`BusquedaDeProductos.buscar`) reporta `cantidad - cantidad_reservada` (lo mismo que valida
+  `GestionDeReservasStock`), no la cantidad bruta de la bodega. Mostrar la cantidad bruta hacía
+  que un producto ya reservado por otra venta en curso se viera "Disponible" en el buscador y
+  recién rebotara al cobrar, sin ningún aviso previo.
 - Golden test contra los mockups: pendiente (la CI no corre goldens por la brecha de
   baseline en Linux). Por ahora, tests de estructura de widget.
 
