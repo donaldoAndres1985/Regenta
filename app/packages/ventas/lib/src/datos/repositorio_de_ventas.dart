@@ -65,6 +65,37 @@ class LineaParaEnviar {
       };
 }
 
+/// Una línea leída del backend con su snapshot.
+class LineaDeVentaResumen {
+  const LineaDeVentaResumen({
+    required this.linea,
+    required this.productoId,
+    required this.sku,
+    required this.nombre,
+    required this.cantidad,
+    required this.precioUnitario,
+    required this.total,
+  });
+
+  final int linea;
+  final String productoId;
+  final String sku;
+  final String nombre;
+  final num cantidad;
+  final num precioUnitario;
+  final num total;
+
+  factory LineaDeVentaResumen.desdeJson(Map<String, dynamic> json) => LineaDeVentaResumen(
+        linea: ((json['linea'] ?? 1) as num).toInt(),
+        productoId: (json['productoId'] ?? '') as String,
+        sku: (json['sku'] ?? '') as String,
+        nombre: (json['nombre'] ?? '') as String,
+        cantidad: (json['cantidad'] ?? 0) as num,
+        precioUnitario: (json['precioUnitario'] ?? 0) as num,
+        total: (json['total'] ?? 0) as num,
+      );
+}
+
 /// Una venta armada contra el flujo real por pasos (no el de una sola llamada
 /// de `/offline`): lo que hace falta para seguirla mientras la saga de stock
 /// la confirma.
@@ -75,6 +106,9 @@ class VentaEnProceso {
     required this.estado,
     required this.total,
     this.notaCliente,
+    this.facturada = false,
+    this.clienteSnapshot,
+    this.lineas = const [],
   });
 
   final String id;
@@ -84,17 +118,30 @@ class VentaEnProceso {
   final String estado;
   final num total;
   final String? notaCliente;
+  final bool facturada;
+  final String? clienteSnapshot;
+  final List<LineaDeVentaResumen> lineas;
 
   bool get confirmada => estado == 'CONFIRMADA';
   bool get enEspera => estado == 'PENDIENTE_STOCK';
+  bool get anulada => estado == 'ANULADA';
+  bool get devuelta => estado == 'DEVUELTA' || estado == 'DEVUELTA_PARCIAL';
 
-  factory VentaEnProceso.desdeJson(Map<String, dynamic> json) => VentaEnProceso(
-        id: json['id'] as String,
-        numero: (json['numero'] ?? '') as String,
-        estado: (json['estado'] ?? '') as String,
-        total: (json['total'] ?? 0) as num,
-        notaCliente: json['notaCliente'] as String?,
-      );
+  factory VentaEnProceso.desdeJson(Map<String, dynamic> json) {
+    final rawLineas = json['lineas'] as List<dynamic>? ?? const [];
+    return VentaEnProceso(
+      id: json['id'] as String,
+      numero: (json['numero'] ?? '') as String,
+      estado: (json['estado'] ?? '') as String,
+      total: (json['total'] ?? 0) as num,
+      notaCliente: json['notaCliente'] as String?,
+      facturada: (json['facturada'] ?? false) as bool,
+      clienteSnapshot: json['clienteSnapshot'] as String?,
+      lineas: rawLineas
+          .map((e) => LineaDeVentaResumen.desdeJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+    );
+  }
 }
 
 /// Un pago a registrar (HU-039): para EFECTIVO va [montoRecibido] y el cambio
@@ -317,6 +364,29 @@ class RepositorioDeVentas {
     final respuesta = await _http.get<dynamic>(
       '/api/ventas/borradores',
       query: {'bodegaId': bodegaId},
+    );
+    final lista = respuesta is List ? respuesta : const [];
+    return lista
+        .map((e) => VentaEnProceso.desdeJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// HU-041: anula una venta confirmada enviando el motivo obligatorio.
+  /// Reintegra automáticamente el stock reservado en el inventario.
+  Future<void> anularVenta(String ventaId, String motivo) async {
+    await _http.post<void>(
+      '/api/ventas/$ventaId/anulacion',
+      datos: {'motivo': motivo.trim()},
+    );
+  }
+
+  /// Lista o busca ventas por consecutivo o nombre de cliente.
+  Future<List<VentaEnProceso>> buscarVentas({String? q}) async {
+    final respuesta = await _http.get<dynamic>(
+      '/api/ventas',
+      query: {
+        if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+      },
     );
     final lista = respuesta is List ? respuesta : const [];
     return lista

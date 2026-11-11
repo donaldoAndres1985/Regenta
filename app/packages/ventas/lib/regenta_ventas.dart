@@ -29,6 +29,7 @@ export 'src/ui/formato.dart';
 export 'src/ui/pantalla_cliente_de_venta.dart';
 export 'src/ui/pantalla_caja.dart';
 export 'src/ui/pantalla_cobro.dart';
+export 'src/ui/pantalla_buscar_venta.dart';
 export 'src/ui/pantalla_pos.dart';
 
 /// Nombre del modulo, para el registro de paquetes activos por patron/plan.

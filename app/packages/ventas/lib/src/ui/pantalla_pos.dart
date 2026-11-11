@@ -9,6 +9,7 @@ import '../pos/estado_del_pos.dart';
 import '../pos/linea_de_carrito.dart';
 import '../pos/proveedores.dart';
 import 'formato.dart';
+import 'pantalla_buscar_venta.dart';
 import 'pantalla_cliente_de_venta.dart';
 import 'pantalla_cobro.dart';
 
@@ -509,6 +510,18 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
               ),
             ),
             actions: [
+              IconButton(
+                key: const Key('boton-historial-ventas'),
+                tooltip: 'Historial y anulación de ventas',
+                icon: const Icon(Icons.history, color: RegentaColors.ink),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const PantallaBuscarVenta(),
+                    ),
+                  );
+                },
+              ),
               if (!esMovil)
                 _PestanasHeader(
                   estado: estado,

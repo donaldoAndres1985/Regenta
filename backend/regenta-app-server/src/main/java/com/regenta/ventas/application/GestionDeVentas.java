@@ -181,13 +181,23 @@ public class GestionDeVentas {
         return venta;
     }
 
+    @Transactional(readOnly = true)
+    @RequierePermiso("VENTAS_VENTA_VER")
+    public List<VentaDelNegocio> buscarVentas(String q) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        return ventas.buscar(negocioId, q).stream()
+                .map(this::comoDto)
+                .toList();
+    }
+
     private VentaDelNegocio comoDto(Venta v) {
         List<LineaDeVenta> dto = lineas.findByVentaIdOrderByLinea(v.getId()).stream()
                 .map(GestionDeVentas::comoDtoLinea)
                 .toList();
         return new VentaDelNegocio(v.getId(), v.getNumero(), v.getEstado(), v.getSubtotal(),
                 v.getDescuentoTotal(), v.getBaseGravable(), v.getImpuestoTotal(), v.getTotal(),
-                v.getCostoTotal(), v.getClienteId(), v.getClienteSnapshot(), v.getNotaCliente(), dto);
+                v.getCostoTotal(), v.getClienteId(), v.getClienteSnapshot(), v.getNotaCliente(),
+                v.estaFacturada(), dto);
     }
 
     private static LineaDeVenta comoDtoLinea(VentaLinea l) {

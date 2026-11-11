@@ -98,6 +98,12 @@ class _RepoFake implements RepositorioDeVentas {
   Future<List<VentaEnProceso>> listarBorradoresAbiertos(String bodegaId) async => const [];
 
   @override
+  Future<void> anularVenta(String ventaId, String motivo) async {}
+
+  @override
+  Future<List<VentaEnProceso>> buscarVentas({String? q}) async => const [];
+
+  @override
   Future<List<ProductoBuscado>> buscar(String termino) async {
     terminos.add(termino);
     if (porTermino.containsKey(termino)) return porTermino[termino]!;

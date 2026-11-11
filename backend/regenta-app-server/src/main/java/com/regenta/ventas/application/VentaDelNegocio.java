@@ -23,5 +23,6 @@ public record VentaDelNegocio(
         UUID clienteId,
         String clienteSnapshot,
         String notaCliente,
+        boolean facturada,
         List<LineaDeVenta> lineas) {
 }

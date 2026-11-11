@@ -120,6 +120,12 @@ public class VentasControlador {
         anulaciones.anular(ventaId, cuerpo.motivo());
     }
 
+    @GetMapping
+    @Operation(summary = "Lista o busca ventas recientes del negocio")
+    public List<VentaDelNegocio> buscar(@RequestParam(required = false) String q) {
+        return ventas.buscarVentas(q);
+    }
+
     @GetMapping("/{ventaId}")
     @Operation(summary = "Una venta con sus líneas y sus totales guardados")
     public VentaDelNegocio ver(@PathVariable UUID ventaId) {

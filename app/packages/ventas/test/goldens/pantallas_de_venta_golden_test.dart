@@ -93,6 +93,12 @@ class _VentasFijas implements RepositorioDeVentas {
 
   @override
   Future<List<VentaEnProceso>> listarBorradoresAbiertos(String bodegaId) async => const [];
+
+  @override
+  Future<void> anularVenta(String ventaId, String motivo) async {}
+
+  @override
+  Future<List<VentaEnProceso>> buscarVentas({String? q}) async => const [];
 }
 
 class _EscanerApagado implements EscanerDeCodigos {

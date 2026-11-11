@@ -6,6 +6,12 @@ import 'package:regenta_ventas/regenta_ventas.dart';
 /// (Etapa 0): controla cómo responde cada paso para ejercitar las ramas de
 /// `ControladorDeCobro` sin levantar widgets ni red real.
 class _RepoDeCobroFake implements RepositorioDeVentas {
+  @override
+  Future<void> anularVenta(String ventaId, String motivo) async {}
+
+  @override
+  Future<List<VentaEnProceso>> buscarVentas({String? q}) async => const [];
+
   bool sinRedAlCrear = false;
   String estadoTrasConfirmar = 'CONFIRMADA';
   bool rechazaCreditoPorCarteraVencida = false;
