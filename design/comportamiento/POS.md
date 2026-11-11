@@ -117,12 +117,16 @@ resultados. **Cuando** escribo 3 o más caracteres, **entonces** los resultados
 nombre, precio y existencia. **Cuando** agrego un producto, borro la búsqueda o pulso `Esc`,
 **entonces** la lista se cierra.
 
-### R11 · Cobrar arma la venta de una y la confirma
-**Dado** un carrito con al menos una línea y sin líneas sin stock, **cuando** toco *Cobrar*,
-**entonces** se crea el borrador (`POST /api/ventas` con la bodega activa), se mandan las líneas
-(`POST /api/ventas/{id}/lineas`) y se confirma (`POST /api/ventas/{id}/confirmacion`). Mientras
-corre, el botón dice *Cobrando…* y no se puede volver a tocar. Al terminar, el carrito queda
-vacío, se avisa *Venta {número} cobrada* y se dispara `onVentaCobrada`.
+### R11 · Cobrar abre la pantalla de Cobro; ahí se arma la venta de verdad
+**Dado** un carrito con al menos una línea y sin líneas sin stock, **cuando** toco *Cobrar* (o
+`F12`), **entonces** se abre `PantallaCobro` con el carrito ya congelado (líneas, cliente, nota,
+descuento) — ver `design/comportamiento/Cobro.md` R5-R10 para el método de pago, el pago mixto,
+la venta a crédito y el camino sin conexión. Al terminar con éxito, la pestaña queda vacía, se
+avisa *Venta {número} cobrada* y se dispara `onVentaCobrada`, igual que antes.
+
+Esto reemplaza el camino anterior (una sola llamada a `/api/ventas/offline` sin pedir método de
+pago): ese llamado sigue existiendo tal cual —y se sigue usando— pero solo como red de seguridad
+cuando no hay conexión (R10 de `Cobro.md`), no como el camino normal con señal.
 
 ### R12 · Varias ventas a la vez
 **Dado** el POS, **cuando** se abre, **entonces** arriba a la derecha hay tres pestañas *1*, *2*
@@ -135,6 +139,23 @@ olvide una venta a medias. El término de búsqueda no viaja entre ventas.
 
 Las ventas en paralelo viven en memoria: recargar la pantalla las vacía todas, igual que hoy
 pasa con la única venta (ver *Al abrir · pendiente*).
+
+### R13 · Venta rápida: efectivo exacto sin pasar por Cobro
+**Dado** un carrito que ya puede cobrarse (sin líneas sin stock, y con el comprador
+identificado si HU-137 lo exige), **cuando** se pulsa el botón *Efectivo exacto* (junto a
+*Descuento*/*Nota*/*Poner en espera*) o `Shift+F12`, **entonces** se arma la venta por el mismo
+flujo real por pasos de R11 pero sin abrir `PantallaCobro`: se crea el borrador, se mandan las
+líneas, se confirma y, si la saga de HU-038 la deja `CONFIRMADA`, se registra un único pago en
+`EFECTIVO` por el total exacto —sin pedir monto recibido, así que nunca hay cambio— y se cierra.
+La pestaña queda vacía y se avisa *⚡ Venta {número} cobrada en efectivo exacto*, disparando
+`onVentaCobrada` igual que R11.
+
+**Cuando** el carrito no puede cobrarse todavía, **entonces** se avisa el motivo exacto que
+daría *Cobrar* (líneas sin stock, o el aviso de HU-137 si falta identificar al comprador) y no
+se intenta nada contra el backend. **Cuando** la saga no confirma por falta de stock,
+**entonces** se avisa *No hay stock suficiente para completar la venta* y no se registra pago ni
+se cierra nada: el carrito sigue intacto, igual que R7 de `Cobro.md`. **Sin conexión**, el primer
+paso falla y cae al mismo camino `/api/ventas/offline` que usa *Cobrar* (R10 de `Cobro.md`).
 
 ## Al abrir
 
@@ -151,7 +172,11 @@ teclado encima del carrito); en escritorio, _sin definir_ — resolver al cablea
 
 - Qué campo toma el foco en escritorio.
 - Si se recuerda un borrador de venta a medio armar entre sesiones. Por ahora no: recargar
-  la pantalla vacía el carrito.
+  la pantalla vacía el carrito. El backend ya expone `GET /api/ventas/borradores` (los
+  borradores abiertos del cajero en su bodega) pensado para esto, pero el POS todavía no lo
+  consume: el carrito en construcción solo llega al servidor al tocar *Cobrar*, no mientras se
+  arma. Conectar esto de verdad pide además poder borrar una línea ya mandada al servidor
+  (`DELETE /api/ventas/{id}/lineas/{linea}`), que tampoco existe hoy.
 
 ## Validaciones
 
@@ -193,7 +218,11 @@ se ocultan en móvil, acciones que solo tienen sentido con teclado o solo con el
 - **Escritorio** (`>= 900`): cliente, buscador y la venta como tabla a todo el ancho, con los
   totales y *Cobrar* debajo del listado en la misma tarjeta (R10).
 - **Escáner:** sin botón de cámara; el código entra por el buscador (R7).
-- Atajos: `F2`, `F12` y `Esc` (R7c). Orden de tabulación: _sin definir_.
+- Atajos: `F2`, `F12`, `Shift+F12` (venta rápida, R13) y `Esc` (R7c). Orden de tabulación:
+  _sin definir_.
+- No se portaron más atajos del sistema legado (`FUNCIONALIDADES.md`): esa pantalla no tenía
+  aceleradores de teclado documentados más allá del teclado numérico en pantalla del login, que
+  no aplica aquí.
 - La barra de navegación inferior y la tarjeta de *sin conexión* de los mockups son
   presentacionales; las cablea el shell de la app, no esta pantalla.
 
@@ -216,11 +245,35 @@ que más se olvida. -->
 - **No** llamar al backend en cada tecla: la búsqueda tiene rebote de 250 ms y mínimo de 3
   caracteres (R5).
 - **No** agregar nada cuando Enter no encuentra producto: sólo el aviso (R7, R7b).
-- *Descuento* y *Nota* se ven pero están deshabilitados: el contrato de `/api/ventas/offline`
-  no lleva descuento ni nota todavía (pendiente de backend).
+- *Descuento* y *Nota* ya viajan de verdad cuando hay conexión (Etapa 0 del cobro real): el
+  descuento por línea se manda tal cual, y el descuento general se prorratea entre las líneas
+  según su bruto antes de mandarlas (`EstadoDelPos.lineasParaEnviar`), porque el contrato de
+  ventas solo tiene descuento por línea. La nota viaja como `notaCliente` al crear el borrador.
+  El camino `/api/ventas/offline` (sin conexión) sí manda el descuento por línea desde este
+  cambio, pero **no** la nota: ese contrato no tiene ese campo todavía — pendiente si hace falta
+  para ventas genuinamente sin señal.
 - **No** duplicar una línea al agregar dos veces el mismo producto: se suma la cantidad (R6).
 - **No** confiar en el nivel de stock del cliente para autorizar la venta: el descuento real y
   el anti-overbooking los resuelve la saga de confirmación contra Inventario. El aviso de
   *sin stock* del POS es una ayuda visual, no la validación.
 - Golden test contra los mockups: pendiente (la CI no corre goldens por la brecha de
   baseline en Linux). Por ahora, tests de estructura de widget.
+
+---
+
+## Fracciones, unidades de medida y detalle de producto (Etapa 5 y 6)
+
+### Regla: Unidad de medida y selector de fracciones adaptativo
+- **Dado** un producto en el carrito del POS:
+  - Si es por metros (ej. manto, cable, manguera, tubo): su unidad es `MTS` y al pulsar el icono de fracción muestra **exclusivamente** medidas de longitud en metros (1 m, 1/2 m / 50 cm, 1/4 m / 25 cm, 3/4 m / 75 cm, 10 cm, 20 cm, 1.5 m, 2.5 m, etc.), sin mostrar opciones de galón.
+  - Si es pintura o líquido (ej. vinilo, esmalte, pintura, cuñete, balde): su unidad es `GL` y muestra opciones de galón y cuñete (1 Cuñete / Balde = 5.0 galones, 1/2 Cuñete = 2.5 gal, 1 Galón = 1.0, 1/2 Galón = 0.5, 1/4 Galón = 0.25, 1/8 Galón = 0.125, 1/16 Galón = 0.0625, 1/32 Galón = 0.03125).
+  - Si es cemento o producto en kilogramos: su unidad es `KG` y muestra fracciones de peso (1 kg, 1/2 kg, 1/4 kg, 100 g, 2 kg, 5 kg, 25 kg, 50 kg).
+- **Formato de números (truncado de ceros redundantes):**
+  - Todo valor numérico entero se muestra sin decimales (ej. `1.0` -> `1`, `5.0` -> `5`).
+  - Todo decimal significativo se conserva pero se truncan los ceros sobrantes a la derecha (ej. `0.2500` -> `0.25`, `0.03125` -> `0.03125`, `0.2563` -> `0.2563`, `29.9700` -> `29.97`).
+- **Contraste visual garantizado:**
+  - En los diálogos modales (detalle de producto y fracciones), los fondos y textos manejan alto contraste: textos en blanco nítido y gris claro (`#CBD5E1`), chips no seleccionados con fondo oscuro y texto claro legible, y chips seleccionados con fondo azul vibrante y borde brillante.
+  - El campo de edición manual de cantidad en el stepper muestra fondo claro / visible con borde azul y texto de alto contraste.
+- **Foco permanente en el buscador:**
+  - Al escoger cliente, quitar cliente, agregar producto, modificar cantidad en stepper, eliminar línea, cerrar modales de detalle o fracción, el foco regresa inmediatamente a la caja de búsqueda del producto.
+

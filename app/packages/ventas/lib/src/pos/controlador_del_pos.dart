@@ -328,6 +328,29 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     state = state.copiar(lineas: lineas, mensaje: null);
   }
 
+  /// Carga líneas desde una venta existente o cotización convertida (HU-044).
+  void cargarLineasDesdeVenta(List<LineaDeVentaResumen> lineasVenta) {
+    final nuevasLineas = <LineaDeCarrito>[];
+    for (final l in lineasVenta) {
+      final producto = ProductoBuscado(
+        id: l.productoId,
+        sku: l.sku,
+        nombre: l.nombre,
+        precioVenta: l.precioUnitario,
+        existencia: l.cantidad,
+        nivelStock: NivelStock.normal,
+      );
+      nuevasLineas.add(LineaDeCarrito(
+        producto: producto,
+        cantidad: l.cantidad,
+      ));
+    }
+    state = state.copiar(
+      lineas: nuevasLineas,
+      mensaje: null,
+    );
+  }
+
   void quitar(int indice) {
     if (indice < 0 || indice >= state.lineas.length) return;
     final lineas = [...state.lineas]..removeAt(indice);
@@ -358,6 +381,17 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     state = state.copiar(montoParaIdentificar: monto);
   }
 
+  /// La venta se cobró por el flujo real por pasos (pantalla de Cobro, no el
+  /// `/offline` de [cobrar]): deja la pestaña activa en blanco y avisa el
+  /// número, igual que hace [cobrar] al terminar.
+  void vaciarTrasCobro(String numero) => state = _ventaNueva().copiar(
+        ventaNumero: numero,
+        ventaActiva: state.ventaActiva,
+        productosPorVenta: state.productosPorVenta,
+        totalesPorVenta: state.totalesPorVenta,
+        clientesPorVenta: state.clientesPorVenta,
+      );
+
   void vaciar() => state = state.copiar(
         lineas: const [],
         nota: null,
@@ -377,19 +411,7 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     try {
       final venta = await _repo.confirmarVenta(
         bodegaId: _bodegaId,
-        lineas: [
-          for (final l in state.lineas)
-            LineaParaEnviar(
-              productoId: l.producto.id,
-              sku: l.producto.sku,
-              nombre: l.producto.nombre,
-              cantidad: l.cantidad,
-              precioUnitario: l.producto.precioVenta,
-              impuestoPct: l.producto.impuestoPct,
-              costoUnitario: l.producto.costoUnitario,
-              descuentoPct: l.descuentoPct,
-            ),
-        ],
+        lineas: state.lineasParaEnviar(),
         clienteId: state.cliente?.id,
       );
       // Sólo se vacía la venta cobrada; las otras siguen guardadas (R12).

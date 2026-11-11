@@ -34,10 +34,13 @@ class RecursoDuplicado extends ErrorDeApi {
   const RecursoDuplicado([super.mensaje = 'Ya existe algo asi']);
 }
 
-/// 422: hay campos que no cumplen. Se pintan campo por campo en el formulario.
+/// 422: hay campos que no cumplen, o una regla de negocio que no es de
+/// formulario (ej. "ese cliente no tiene credito habilitado"). Sin `campos`
+/// no hay nada que pintar junto a un input: [mensaje] es lo que hay que
+/// mostrar, y es el detalle que mando el backend, no el generico de validacion.
 class ErroresDeValidacion extends ErrorDeApi {
-  const ErroresDeValidacion(this.porCampo)
-      : super('Hay campos que no cumplen el contrato');
+  const ErroresDeValidacion(this.porCampo, [String? mensaje])
+      : super(mensaje ?? 'Hay campos que no cumplen el contrato');
 
   final Map<String, List<String>> porCampo;
 
@@ -91,7 +94,7 @@ ErrorDeApi mapearError(DioException fallo) {
         ? 'No tienes permiso para esta accion'
         : 'No tienes permiso para esta accion: $detalle'),
     409 => RecursoDuplicado(detalle.isEmpty ? 'Ya existe algo asi' : detalle),
-    422 => ErroresDeValidacion(_camposDe(cuerpo)),
+    422 => ErroresDeValidacion(_camposDe(cuerpo), detalle.isEmpty ? null : detalle),
     >= 500 => ErrorDelServidor(codigo),
     _ => ErrorDesconocido(codigo, detalle.isEmpty ? null : detalle),
   };

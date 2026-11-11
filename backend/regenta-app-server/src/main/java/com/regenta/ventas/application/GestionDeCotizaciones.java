@@ -2,6 +2,7 @@ package com.regenta.ventas.application;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -79,7 +80,7 @@ public class GestionDeCotizaciones {
         }
 
         VentaDelNegocio venta = ventas.crearBorrador(new SolicitudDeVenta(bodegaId,
-                cotizacion.getClienteId(), null, "MOSTRADOR"));
+                cotizacion.getClienteId(), null, "MOSTRADOR", null));
         for (CotizacionLinea cl : lineas.findByCotizacionIdOrderByLinea(cotizacionId)) {
             ventas.agregarLinea(venta.id(), new SolicitudDeLinea(cl.getProductoId(),
                     cl.getSkuSnapshot(), cl.getNombreSnapshot(), cl.getUnidadSnapshot(),
@@ -91,6 +92,15 @@ public class GestionDeCotizaciones {
         cotizacion.marcarConvertida(venta.id());
         cotizaciones.save(cotizacion);
         return new ResultadoDeConversion(venta.id(), venta.numero(), preciosDesactualizados);
+    }
+
+    @Transactional(readOnly = true)
+    @RequierePermiso("VENTAS_COTIZACION_VER")
+    public List<CotizacionDelNegocio> listarCotizaciones() {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        return cotizaciones.findByNegocioIdOrderByCreadoEnDesc(negocioId).stream()
+                .map(GestionDeCotizaciones::comoDto)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -110,6 +120,6 @@ public class GestionDeCotizaciones {
 
     private static CotizacionDelNegocio comoDto(Cotizacion c) {
         return new CotizacionDelNegocio(c.getId(), c.getNumero(), c.getEstado(), c.getValidaHasta(),
-                c.getTotal(), c.getVentaId());
+                c.getTotal(), c.getVentaId(), c.getClienteId());
     }
 }

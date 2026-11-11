@@ -1214,7 +1214,16 @@ class $$CatalogosTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$CatalogosTable, Catalogo>(table),
+                  BaseReferences<_$BaseLocal, $CatalogosTable, Catalogo>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -1485,7 +1494,19 @@ class $$OperacionesPendientesTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $OperacionesPendientesTable,
+                    OperacionesPendiente
+                  >(table),
+                  BaseReferences<
+                    _$BaseLocal,
+                    $OperacionesPendientesTable,
+                    OperacionesPendiente
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -1629,7 +1650,16 @@ class $$MetaLocalTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$MetaLocalTable, MetaLocalData>(table),
+                  BaseReferences<_$BaseLocal, $MetaLocalTable, MetaLocalData>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),

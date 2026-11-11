@@ -22,5 +22,7 @@ public record VentaDelNegocio(
         // despues en el CRM.
         UUID clienteId,
         String clienteSnapshot,
+        String notaCliente,
+        boolean facturada,
         List<LineaDeVenta> lineas) {
 }

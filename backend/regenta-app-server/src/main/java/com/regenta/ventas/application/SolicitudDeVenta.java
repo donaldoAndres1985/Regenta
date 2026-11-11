@@ -10,5 +10,6 @@ public record SolicitudDeVenta(
         @NotNull UUID bodegaId,
         UUID clienteId,
         UUID listaPreciosId,
-        @Size(max = 20) String canal) {
+        @Size(max = 20) String canal,
+        @Size(max = 2000) String notaCliente) {
 }
