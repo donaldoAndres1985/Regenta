@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 /**
  * La puerta de entrada de todo consumidor: procesa una vez, o no procesa.
@@ -43,7 +44,15 @@ public class InboxIdempotente {
             // tiene que perder.
             inbox.saveAndFlush(registro);
         } catch (DataIntegrityViolationException e) {
+            // El flush ya dejo la sesion de Hibernate de esta transaccion inservible:
+            // seguir devolviendo false sin mas no alcanza, porque Spring de todas
+            // formas intenta hacer commit al volver -y ESE commit es el que revienta
+            // con la sesion rota, no el insert. Hay que decirle a Spring que haga
+            // rollback en vez de intentar el commit: no se pierde nada (el efecto
+            // real todavia no corrio), y el otro consumidor que si gano la carrera
+            // ya dejo su propio registro en el inbox en su propia transaccion.
             log.debug("Evento {} ({}) llego dos veces a la vez: se descarta", mensajeId, tipoEvento);
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return false;
         }
         efecto.accept(payload);
