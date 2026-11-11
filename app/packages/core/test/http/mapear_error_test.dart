@@ -62,6 +62,17 @@ void main() {
     expect(e.deCampo('telefono'), isNull);
   });
 
+  test('un 422 de regla de negocio sin campos muestra el detalle, no el generico', () {
+    final e = mapearError(_http(422, cuerpo: {
+      'title': 'Regla de negocio',
+      'detail': 'Ese cliente no tiene credito habilitado',
+    }));
+    expect(e, isA<ErroresDeValidacion>());
+    e as ErroresDeValidacion;
+    expect(e.porCampo, isEmpty);
+    expect(e.mensaje, 'Ese cliente no tiene credito habilitado');
+  });
+
   test('un 409 se traduce a RecursoDuplicado', () {
     expect(mapearError(_http(409, cuerpo: {'detail': 'ya existe'})), isA<RecursoDuplicado>());
   });
