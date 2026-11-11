@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
+import 'package:printing/printing.dart';
+
 import '../cobro/estado_del_cobro.dart';
 import '../cobro/proveedores.dart';
 import '../datos/repositorio_de_ventas.dart';
 import 'formato.dart';
+import 'ticket_pos.dart';
 
 /// Los métodos que ofrece la pantalla, en el orden en que se muestran.
 const _metodos = <(String valor, String etiqueta, IconData icono)>[
@@ -36,6 +39,8 @@ class PantallaCobro extends ConsumerStatefulWidget {
     required this.bodegaId,
     required this.lineas,
     this.clienteId,
+    this.clienteNombre,
+    this.clienteDoc,
     this.notaCliente,
   });
 
@@ -44,6 +49,8 @@ class PantallaCobro extends ConsumerStatefulWidget {
   final String bodegaId;
   final List<LineaParaEnviar> lineas;
   final String? clienteId;
+  final String? clienteNombre;
+  final String? clienteDoc;
   final String? notaCliente;
 
   @override
@@ -95,7 +102,27 @@ class _PantallaCobroState extends ConsumerState<PantallaCobro> {
         ),
       ),
       body: estado.terminado
-          ? _VistaDeExito(numero: estado.ventaNumero!)
+          ? _VistaDeExito(
+              numero: estado.ventaNumero!,
+              lineas: widget.lineas
+                  .map((l) => LineaTicket(
+                        nombre: l.nombre,
+                        cantidad: l.cantidad,
+                        precioUnitario: l.precioUnitario,
+                        total: l.cantidad * l.precioUnitario,
+                      ))
+                  .toList(),
+              total: widget.total,
+              clienteNombre: widget.clienteNombre,
+              clienteDoc: widget.clienteDoc,
+              pagos: estado.pagos
+                  .map((p) => PagoTicket(
+                        metodo: p.metodo,
+                        monto: p.monto,
+                      ))
+                  .toList(),
+              cambio: estado.pagos.fold<num>(0, (acc, p) => acc + p.cambio),
+            )
           : SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -359,8 +386,23 @@ class _BotonDeMetodo extends StatelessWidget {
 }
 
 class _VistaDeExito extends StatelessWidget {
-  const _VistaDeExito({required this.numero});
+  const _VistaDeExito({
+    required this.numero,
+    required this.lineas,
+    required this.total,
+    this.clienteNombre,
+    this.clienteDoc,
+    this.pagos = const [],
+    this.cambio = 0,
+  });
+
   final String numero;
+  final List<LineaTicket> lineas;
+  final num total;
+  final String? clienteNombre;
+  final String? clienteDoc;
+  final List<PagoTicket> pagos;
+  final num cambio;
 
   @override
   Widget build(BuildContext context) {
@@ -371,7 +413,41 @@ class _VistaDeExito extends StatelessWidget {
           const Icon(Icons.check_circle, color: RegentaColors.ok, size: 64),
           const SizedBox(height: 12),
           Text('Venta $numero cobrada', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
+          OutlinedButton.icon(
+            key: const Key('boton-imprimir-ticket'),
+            icon: const Icon(Icons.print_outlined),
+            label: const Text('Imprimir ticket'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => Scaffold(
+                    appBar: AppBar(title: Text('Ticket Venta #$numero')),
+                    body: PdfPreview(
+                      build: (format) => GeneradorTicketPos.crearPdf(
+                        nombreNegocio: 'Regenta',
+                        numeroVenta: numero,
+                        fechaHora: DateTime.now().toString().split('.')[0],
+                        nombreCliente: clienteNombre,
+                        identificacionCliente: clienteDoc,
+                        lineas: lineas,
+                        total: total,
+                        pagos: pagos,
+                        cambio: cambio,
+                      ),
+                      canChangeOrientation: false,
+                      canChangePageFormat: false,
+                      initialPageFormat: GeneradorTicketPos.formato80mm,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(numero),
             style: FilledButton.styleFrom(backgroundColor: RegentaColors.accent, foregroundColor: Colors.white),

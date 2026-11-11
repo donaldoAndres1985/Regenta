@@ -193,6 +193,8 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
           bodegaId: ref.read(bodegaDeVentaProvider),
           lineas: estado.lineasParaEnviar(),
           clienteId: estado.cliente?.id,
+          clienteNombre: estado.cliente?.nombre,
+          clienteDoc: estado.cliente?.documento,
           notaCliente: estado.nota,
         ),
       ),

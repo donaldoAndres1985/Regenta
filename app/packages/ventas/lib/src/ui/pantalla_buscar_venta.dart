@@ -6,6 +6,7 @@ import '../datos/repositorio_de_ventas.dart';
 import '../pos/proveedores.dart';
 import 'formato.dart';
 import 'pantalla_devolucion.dart';
+import 'ticket_pos.dart';
 
 /// Pantalla para buscar ventas previas, consultar su estado, anularlas
 /// (HU-041) o iniciar una devolución (HU-042).
@@ -335,7 +336,10 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     Text(
                                       'Venta #${v.numero}',
@@ -343,7 +347,6 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,
@@ -418,6 +421,24 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  IconButton(
+                                    key: Key('boton-ticket-venta-${v.id}'),
+                                    tooltip: 'Imprimir / Ver ticket',
+                                    icon: const Icon(Icons.print_outlined),
+                                    onPressed: () async {
+                                      final repo = ref.read(repositorioDeVentasProvider);
+                                      final ventaCompleta =
+                                          v.lineas.isEmpty ? await repo.verVenta(v.id) : v;
+                                      if (context.mounted) {
+                                        await GeneradorTicketPos.imprimirOPrevisualizar(
+                                          context,
+                                          nombreNegocio: 'Regenta',
+                                          venta: ventaCompleta,
+                                        );
+                                      }
+                                    },
+                                  ),
+                                  const SizedBox(width: 4),
                                   if (v.confirmada) ...[
                                     OutlinedButton.icon(
                                       key: Key('boton-devolver-venta-${v.id}'),
