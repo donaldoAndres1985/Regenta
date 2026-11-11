@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +40,10 @@ import com.regenta.inventario.infrastructure.ReservaStockRepositorio;
  */
 @Service
 public class GestionDeReservasStock {
+
+    // DIAGNOSTICO TEMPORAL: confirmar si la respuesta de la saga (stock_reservado
+    // / stock_reserva_fallida) de verdad sale publicada. Quitar una vez resuelto.
+    private static final Logger DIAG = LoggerFactory.getLogger("DIAG_SAGA");
 
     /** TTL por defecto de una reserva si la solicitud no trae {@code expiraEn}. */
     static final Duration TTL_POR_DEFECTO = Duration.ofMinutes(15);
@@ -87,8 +93,10 @@ public class GestionDeReservasStock {
         }
 
         if (!faltantes.isEmpty()) {
-            eventos.registrar(negocioId, "reserva_stock", solicitud.origenId(),
+            var evt = eventos.registrar(negocioId, "reserva_stock", solicitud.origenId(),
                     "stock_reserva_fallida", payloadFallida(negocioId, solicitud, faltantes));
+            DIAG.info("publicado stock_reserva_fallida id={} correlacion={} faltantes={}",
+                    evt.id(), solicitud.correlacionId(), faltantes.size());
             return new ResultadoDeReserva(false, solicitud.correlacionId(), faltantes, List.of());
         }
 
@@ -103,8 +111,10 @@ public class GestionDeReservasStock {
             ids.add(reserva.getId());
         });
 
-        eventos.registrar(negocioId, "reserva_stock", solicitud.origenId(), "stock_reservado",
+        var evt = eventos.registrar(negocioId, "reserva_stock", solicitud.origenId(), "stock_reservado",
                 payloadReservado(negocioId, solicitud, ids));
+        DIAG.info("publicado stock_reservado id={} correlacion={} reservas={}",
+                evt.id(), solicitud.correlacionId(), ids.size());
         return new ResultadoDeReserva(true, solicitud.correlacionId(), List.of(), ids);
     }
 
