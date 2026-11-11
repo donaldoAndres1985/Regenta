@@ -51,8 +51,13 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       _enfocarBuscador();
       return true;
     }
+    final esShift = HardwareKeyboard.instance.isShiftPressed;
     if (evento.logicalKey == LogicalKeyboardKey.f12) {
-      _cobrar();
+      if (esShift) {
+        _ventaRapidaEfectivo();
+      } else {
+        _cobrar();
+      }
       return true;
     }
     return false;
@@ -65,44 +70,54 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
   }
 
   void _mostrarDetalleProducto(BuildContext ctx, ProductoBuscado p) {
-    final chipColor = p.sinStock
-        ? RegentaColors.crit
-        : (p.nivelStock == NivelStock.bajo ? RegentaColors.warn : RegentaColors.ok);
-    final chipBg = p.sinStock
-        ? RegentaColors.critSoft
-        : (p.nivelStock == NivelStock.bajo ? RegentaColors.warnSoft : RegentaColors.okSoft);
-    final nivelTexto = p.sinStock
-        ? 'Sin stock'
-        : (p.nivelStock == NivelStock.bajo ? 'Stock bajo' : 'Disponible');
+    Color stockBadgeBg;
+    Color stockBadgeBorde;
+    Color stockBadgeTexto;
+    String nivelTexto;
+
+    if (p.sinStock) {
+      stockBadgeBg = const Color(0xFF451A1A);
+      stockBadgeBorde = const Color(0xFFDC2626);
+      stockBadgeTexto = const Color(0xFFFCA5A5);
+      nivelTexto = 'Sin stock';
+    } else if (p.nivelStock == NivelStock.bajo) {
+      stockBadgeBg = const Color(0xFF452B14);
+      stockBadgeBorde = const Color(0xFFD97706);
+      stockBadgeTexto = const Color(0xFFFCD34D);
+      nivelTexto = 'Stock bajo';
+    } else {
+      stockBadgeBg = const Color(0xFF133827);
+      stockBadgeBorde = const Color(0xFF059669);
+      stockBadgeTexto = const Color(0xFF6EE7B7);
+      nivelTexto = 'Disponible';
+    }
+
+    final unidad = unidadParaProducto(p.nombre);
 
     showDialog<void>(
       context: ctx,
       builder: (dialogCtx) {
-        final esOscuro = Theme.of(dialogCtx).brightness == Brightness.dark;
-        final colorFondo = esOscuro ? const Color(0xFF232332) : RegentaColors.surface;
-        final colorTitulo = esOscuro ? const Color(0xFFF2F2FA) : RegentaColors.ink;
-
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          backgroundColor: colorFondo,
+          backgroundColor: const Color(0xFF1E202C),
           title: Row(
             children: [
-              const Icon(Icons.inventory_2_outlined, size: 24, color: RegentaColors.accent),
+              const Icon(Icons.inventory_2_outlined, size: 24, color: Color(0xFF60A5FA)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   p.nombre,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: colorTitulo,
+                    color: Colors.white,
                   ),
                 ),
               ),
             ],
           ),
-          content: SizedBox(
-            width: 460,
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -110,8 +125,9 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: chipBg,
+                    color: stockBadgeBg,
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: stockBadgeBorde, width: 1.2),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -121,7 +137,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                         style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
-                          color: RegentaColors.ink,
+                          color: Color(0xFFF1F5F9),
                         ),
                       ),
                       Text(
@@ -129,7 +145,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                         style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w800,
-                          color: chipColor,
+                          color: stockBadgeTexto,
                         ),
                       ),
                     ],
@@ -137,26 +153,26 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                 ),
                 const SizedBox(height: 14),
                 _FilaDetalle('SKU / Referencia', p.sku.isNotEmpty ? p.sku : '—'),
-                Divider(height: 1, color: esOscuro ? const Color(0xFF38384D) : RegentaColors.line),
+                const Divider(height: 1, color: Color(0xFF334155)),
                 _FilaDetalle(
                   'Existencia total / Stock',
                   p.existencia != null
-                      ? '${_StepperEditableState._formatearCantidad(p.existencia!)} unidades'
+                      ? '${formatearCantidadExacta(p.existencia!)} $unidad'
                       : 'No especificado',
-                  valorColor: chipColor,
+                  valorColor: stockBadgeTexto,
                 ),
-                Divider(height: 1, color: esOscuro ? const Color(0xFF38384D) : RegentaColors.line),
+                const Divider(height: 1, color: Color(0xFF334155)),
                 const _FilaDetalle('Ubicación / Sección', 'Bodega Principal · Pasillo'),
-                Divider(height: 1, color: esOscuro ? const Color(0xFF38384D) : RegentaColors.line),
+                const Divider(height: 1, color: Color(0xFF334155)),
                 _FilaDetalle('Precio de venta', formatearPesos(p.precioVenta)),
-                Divider(height: 1, color: esOscuro ? const Color(0xFF38384D) : RegentaColors.line),
+                const Divider(height: 1, color: Color(0xFF334155)),
                 _FilaDetalle('IVA', '${p.impuestoPct}%'),
                 if (p.costoUnitario > 0) ...[
-                  Divider(height: 1, color: esOscuro ? const Color(0xFF38384D) : RegentaColors.line),
+                  const Divider(height: 1, color: Color(0xFF334155)),
                   _FilaDetalle('Costo unitario', formatearPesos(p.costoUnitario)),
                 ],
                 if (p.codigoBarras != null && p.codigoBarras!.isNotEmpty) ...[
-                  Divider(height: 1, color: esOscuro ? const Color(0xFF38384D) : RegentaColors.line),
+                  const Divider(height: 1, color: Color(0xFF334155)),
                   _FilaDetalle('Código de barras', p.codigoBarras!),
                 ],
               ],
@@ -166,7 +182,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             FilledButton(
               onPressed: () => Navigator.of(dialogCtx).pop(),
               style: FilledButton.styleFrom(
-                backgroundColor: RegentaColors.accent,
+                backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
                 shape: const StadiumBorder(),
               ),
@@ -207,6 +223,90 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       pos.vaciarTrasCobro(resultado);
     }
     if (mounted) _enfocarBuscador();
+  }
+
+  Future<void> _ventaRapidaEfectivo() async {
+    final estado = ref.read(controladorDelPosProvider);
+    final pos = ref.read(controladorDelPosProvider.notifier);
+    if (!estado.puedeCobrar) {
+      if (estado.lineas.isEmpty) return;
+      if (estado.hayLineasSinStock) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hay líneas sin stock: quítalas antes de cobrar')),
+        );
+        return;
+      }
+      if (estado.faltaIdentificarComprador) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'La venta supera \$ ${estado.montoParaIdentificar}: identifica al comprador antes de cobrar',
+            ),
+          ),
+        );
+        return;
+      }
+      return;
+    }
+
+    final repo = ref.read(repositorioDeVentasProvider);
+    final bodegaId = ref.read(bodegaDeVentaProvider);
+
+    try {
+      final borrador = await repo.crearBorrador(
+        bodegaId: bodegaId,
+        clienteId: estado.cliente?.id,
+        notaCliente: estado.nota,
+      );
+
+      for (final l in estado.lineasParaEnviar()) {
+        await repo.agregarLineaAlBorrador(borrador.id, l);
+      }
+
+      await repo.confirmarBorrador(borrador.id);
+      final ventaConfirmada = await repo.esperarConfirmacion(borrador.id);
+
+      if (!ventaConfirmada.confirmada) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No hay stock suficiente para completar la venta')),
+          );
+        }
+        return;
+      }
+
+      await repo.registrarPago(
+        ventaConfirmada.id,
+        PagoParaEnviar(
+          metodo: 'EFECTIVO',
+          montoRecibido: ventaConfirmada.total,
+        ),
+      );
+
+      await repo.cerrarVenta(ventaConfirmada.id);
+
+      if (mounted) {
+        pos.vaciarTrasCobro(ventaConfirmada.numero);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF2E7D32),
+            content: Text('⚡ Venta ${ventaConfirmada.numero} cobrada en efectivo exacto'),
+          ),
+        );
+      }
+    } on ErrorDeRed {
+      // Sin conexión: contingencia a offline
+      await pos.cobrar();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            content: Text('Error al cobrar venta rápida: $e'),
+          ),
+        );
+      }
+    }
   }
 
   KeyEventResult _teclaEnBuscador(FocusNode _, KeyEvent evento) {
@@ -644,7 +744,10 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             cliente: estado.cliente,
             compacta: !escritorio,
             onAgregar: () => _abrirSelectorDeCliente(escritorio: escritorio),
-            onQuitar: () => pos.fijarCliente(null),
+            onQuitar: () {
+              pos.fijarCliente(null);
+              _enfocarBuscador();
+            },
           );
 
           final buscador = _Buscador(
@@ -678,7 +781,10 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                   child: _Resultados(
                     estado: estado,
                     resaltado: _resaltado,
-                    onAgregar: pos.agregar,
+                    onAgregar: (p) {
+                      pos.agregar(p);
+                      _enfocarBuscador();
+                    },
                     onDetalle: (p) => _mostrarDetalleProducto(context, p),
                   ),
                 ),
@@ -698,16 +804,32 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                       Positioned.fill(
                         child: _VentaEscritorio(
                           estado: estado,
-                          onMas: (i) => pos.cambiarCantidad(i, 1),
-                          onMenos: (i) => pos.cambiarCantidad(i, -1),
-                          onFijarCantidad: pos.fijarCantidad,
-                          onQuitar: pos.quitar,
-                          onVaciar: pos.vaciar,
+                          onMas: (i) {
+                            pos.cambiarCantidad(i, 1);
+                            _enfocarBuscador();
+                          },
+                          onMenos: (i) {
+                            pos.cambiarCantidad(i, -1);
+                            _enfocarBuscador();
+                          },
+                          onFijarCantidad: (i, c) {
+                            pos.fijarCantidad(i, c);
+                            _enfocarBuscador();
+                          },
+                          onQuitar: (i) {
+                            pos.quitar(i);
+                            _enfocarBuscador();
+                          },
+                          onVaciar: () {
+                            pos.vaciar();
+                            _enfocarBuscador();
+                          },
                           onEspera: () => _cambiarDeVenta(pos.ponerEnEspera),
                           onDescuento: _abrirDialogoDescuento,
                           onNota: _abrirDialogoNota,
                           onCotizar: _cotizarCarrito,
                           onCobrar: _cobrar,
+                          onVentaRapida: _ventaRapidaEfectivo,
                           onDetalle: (p) => _mostrarDetalleProducto(context, p),
                         ),
                       ),
@@ -729,11 +851,26 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                     Positioned.fill(
                       child: _VentaMovil(
                         estado: estado,
-                        onMas: (i) => pos.cambiarCantidad(i, 1),
-                        onMenos: (i) => pos.cambiarCantidad(i, -1),
-                        onFijarCantidad: pos.fijarCantidad,
-                        onQuitar: pos.quitar,
-                        onVaciar: pos.vaciar,
+                        onMas: (i) {
+                          pos.cambiarCantidad(i, 1);
+                          _enfocarBuscador();
+                        },
+                        onMenos: (i) {
+                          pos.cambiarCantidad(i, -1);
+                          _enfocarBuscador();
+                        },
+                        onFijarCantidad: (i, c) {
+                          pos.fijarCantidad(i, c);
+                          _enfocarBuscador();
+                        },
+                        onQuitar: (i) {
+                          pos.quitar(i);
+                          _enfocarBuscador();
+                        },
+                        onVaciar: () {
+                          pos.vaciar();
+                          _enfocarBuscador();
+                        },
                         onDetalle: (p) => _mostrarDetalleProducto(context, p),
                       ),
                     ),
@@ -748,6 +885,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                 onNota: _abrirDialogoNota,
                 onCotizar: _cotizarCarrito,
                 onCobrar: _cobrar,
+                onVentaRapida: _ventaRapidaEfectivo,
               ),
             ],
           );
@@ -1529,6 +1667,7 @@ class _VentaEscritorio extends StatelessWidget {
     required this.onNota,
     required this.onCotizar,
     required this.onCobrar,
+    required this.onVentaRapida,
     required this.onDetalle,
   });
 
@@ -1543,6 +1682,7 @@ class _VentaEscritorio extends StatelessWidget {
   final VoidCallback onNota;
   final VoidCallback onCotizar;
   final Future<void> Function() onCobrar;
+  final VoidCallback onVentaRapida;
   final void Function(ProductoBuscado) onDetalle;
 
   static const anchoCodigo = 120.0;
@@ -1622,6 +1762,7 @@ class _VentaEscritorio extends StatelessWidget {
             onCotizar: onCotizar,
             onEspera: onEspera,
             onCobrar: onCobrar,
+            onVentaRapida: onVentaRapida,
           ),
         ],
       ),
@@ -1800,14 +1941,28 @@ class _FilaDeVenta extends StatelessWidget {
           ),
           SizedBox(
             width: _VentaEscritorio.anchoCantidad,
-            child: Center(
-              child: _StepperEditable(
-                cantidad: linea.cantidad,
-                nombreProducto: linea.producto.nombre,
-                onMas: onMas,
-                onMenos: onMenos,
-                onFijar: onFijarCantidad,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _StepperEditable(
+                  cantidad: linea.cantidad,
+                  nombreProducto: linea.producto.nombre,
+                  onMas: onMas,
+                  onMenos: onMenos,
+                  onFijar: onFijarCantidad,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  unidadParaProducto(linea.producto.nombre),
+                  key: Key('unidad-producto-${linea.producto.id}'),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF64748B),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
             ),
           ),
           SizedBox(
@@ -1879,6 +2034,7 @@ class _PieEscritorio extends StatelessWidget {
     required this.onCotizar,
     required this.onEspera,
     required this.onCobrar,
+    required this.onVentaRapida,
   });
 
   final EstadoDelPos estado;
@@ -1887,6 +2043,7 @@ class _PieEscritorio extends StatelessWidget {
   final VoidCallback onCotizar;
   final VoidCallback onEspera;
   final Future<void> Function() onCobrar;
+  final VoidCallback onVentaRapida;
 
   @override
   Widget build(BuildContext context) {
@@ -1948,6 +2105,12 @@ class _PieEscritorio extends StatelessWidget {
                       icono: Icons.pause_circle_outline,
                       texto: 'Poner en espera',
                       onTap: estado.lineas.isEmpty ? null : onEspera,
+                    ),
+                    _BotonPildora(
+                      key: const Key('pos-boton-venta-rapida'),
+                      icono: Icons.bolt,
+                      texto: 'Efectivo exacto',
+                      onTap: estado.puedeCobrar ? onVentaRapida : null,
                     ),
                   ],
                 ),
@@ -2224,12 +2387,26 @@ class _TarjetaDeLineaMovil extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              _StepperEditable(
-                cantidad: linea.cantidad,
-                nombreProducto: linea.producto.nombre,
-                onMas: onMas,
-                onMenos: onMenos,
-                onFijar: onFijarCantidad,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _StepperEditable(
+                    cantidad: linea.cantidad,
+                    nombreProducto: linea.producto.nombre,
+                    onMas: onMas,
+                    onMenos: onMenos,
+                    onFijar: onFijarCantidad,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    unidadParaProducto(linea.producto.nombre),
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
               ),
               const Spacer(),
               Column(
@@ -2266,6 +2443,7 @@ class _PieMovil extends StatelessWidget {
     required this.onNota,
     required this.onCotizar,
     required this.onCobrar,
+    required this.onVentaRapida,
   });
 
   final EstadoDelPos estado;
@@ -2274,6 +2452,7 @@ class _PieMovil extends StatelessWidget {
   final VoidCallback onNota;
   final VoidCallback onCotizar;
   final Future<void> Function() onCobrar;
+  final VoidCallback onVentaRapida;
 
   @override
   Widget build(BuildContext context) {
@@ -2328,6 +2507,13 @@ class _PieMovil extends StatelessWidget {
                   icono: Icons.pause_circle_outline,
                   texto: 'Espera',
                   onTap: estado.lineas.isEmpty ? null : onEspera,
+                ),
+                const SizedBox(width: 8),
+                _BotonPildora(
+                  key: const Key('pos-boton-venta-rapida-movil'),
+                  icono: Icons.bolt,
+                  texto: 'Efectivo',
+                  onTap: estado.puedeCobrar ? onVentaRapida : null,
                 ),
               ],
             ),
@@ -2419,11 +2605,7 @@ class _StepperEditableState extends State<_StepperEditable> {
   late final TextEditingController _ctrl;
   final FocusNode _foco = FocusNode();
 
-  static String _formatearCantidad(num c) {
-    if (c == c.truncate()) return c.toInt().toString();
-    final texto = c.toStringAsFixed(5);
-    return texto.replaceAll(RegExp(r'0+\$'), '').replaceAll(RegExp(r'\.\$'), '');
-  }
+  static String _formatearCantidad(num c) => formatearCantidadExacta(c);
 
   @override
   void initState() {
@@ -2465,43 +2647,17 @@ class _StepperEditableState extends State<_StepperEditable> {
   }
 
   void _abrirSelectorFracciones() {
-    final nombre = (widget.nombreProducto ?? '').toLowerCase();
-    final esMetro = nombre.contains('metro') ||
-        nombre.contains(' m ') ||
-        nombre.endsWith(' m') ||
-        nombre.contains('mts') ||
-        nombre.contains('mt') ||
-        nombre.contains('m.') ||
-        nombre.contains('manto') ||
-        nombre.contains('cable') ||
-        nombre.contains('tubo') ||
-        nombre.contains('manguera') ||
-        nombre.contains('alambre') ||
-        nombre.contains('cuerda') ||
-        nombre.contains('varilla');
-
-    final esPinturaOGalon = !esMetro && (
-        nombre.contains('galon') ||
-        nombre.contains('galón') ||
-        nombre.contains('vinilo') ||
-        nombre.contains('esmalte') ||
-        nombre.contains('pintura') ||
-        nombre.contains('laca') ||
-        nombre.contains('tinner') ||
-        nombre.contains('thinner') ||
-        nombre.contains('cuñete') ||
-        nombre.contains('cunete') ||
-        nombre.contains('balde') ||
-        nombre.contains('valde'));
+    final unidad = unidadParaProducto(widget.nombreProducto);
 
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF232332),
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E202C),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2513,25 +2669,25 @@ class _StepperEditableState extends State<_StepperEditable> {
                   const Text(
                     'Seleccionar fracción / medida',
                     style: TextStyle(
-                      fontSize: 17,
+                      fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFFF2F2FA),
+                      color: Colors.white,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Color(0xFFB5B5CC)),
+                    icon: const Icon(Icons.close, color: Color(0xFFCBD5E1)),
                     onPressed: () => Navigator.of(ctx).pop(),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              if (esPinturaOGalon || (!esMetro && !esPinturaOGalon)) ...[
+              const SizedBox(height: 14),
+              if (unidad == 'GL') ...[
                 const Text(
-                  'Fracciones de galón y cuñete (pinturas / líquidos):',
+                  'Fracciones de galón y cuñete (5 galones):',
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFFB5B5CC),
+                    color: Color(0xFFE2E8F0),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -2539,7 +2695,8 @@ class _StepperEditableState extends State<_StepperEditable> {
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    _chipFraccion(ctx, '1 Cuñete · Balde (5 gal)', 5.0),
+                    _chipFraccion(ctx, '1 Cuñete · Balde (5.0 gal)', 5.0),
+                    _chipFraccion(ctx, '1/2 Cuñete (2.5 gal)', 2.5),
                     _chipFraccion(ctx, '1 Galón (1.0)', 1.0),
                     _chipFraccion(ctx, '1/2 Galón (0.5)', 0.5),
                     _chipFraccion(ctx, '1/4 Galón (0.25)', 0.25),
@@ -2548,15 +2705,13 @@ class _StepperEditableState extends State<_StepperEditable> {
                     _chipFraccion(ctx, '1/32 Galón (0.03125)', 0.03125),
                   ],
                 ),
-                const SizedBox(height: 14),
-              ],
-              if (esMetro || (!esMetro && !esPinturaOGalon)) ...[
+              ] else if (unidad == 'MTS') ...[
                 const Text(
-                  'Fracciones de metro / longitud (manto, cable, tubo...):',
+                  'Medidas de longitud / metros (manto, cable, tubo...):',
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFFB5B5CC),
+                    color: Color(0xFFE2E8F0),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -2564,16 +2719,68 @@ class _StepperEditableState extends State<_StepperEditable> {
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    _chipFraccion(ctx, '1 metro (1 m)', 1.0),
+                    _chipFraccion(ctx, '1 metro (1.0 m)', 1.0),
                     _chipFraccion(ctx, '1/2 m · 50 cm (0.5 m)', 0.5),
                     _chipFraccion(ctx, '1/4 m · 25 cm (0.25 m)', 0.25),
                     _chipFraccion(ctx, '3/4 m · 75 cm (0.75 m)', 0.75),
                     _chipFraccion(ctx, '10 cm (0.1 m)', 0.1),
                     _chipFraccion(ctx, '20 cm (0.2 m)', 0.2),
-                    _chipFraccion(ctx, '1.5 metros', 1.5),
-                    _chipFraccion(ctx, '2 metros', 2.0),
-                    _chipFraccion(ctx, '2.5 metros', 2.5),
-                    _chipFraccion(ctx, '3 metros', 3.0),
+                    _chipFraccion(ctx, '1.5 metros (1.5 m)', 1.5),
+                    _chipFraccion(ctx, '2 metros (2.0 m)', 2.0),
+                    _chipFraccion(ctx, '2.5 metros (2.5 m)', 2.5),
+                    _chipFraccion(ctx, '3 metros (3.0 m)', 3.0),
+                    _chipFraccion(ctx, '5 metros (5.0 m)', 5.0),
+                    _chipFraccion(ctx, '10 metros (10.0 m)', 10.0),
+                  ],
+                ),
+              ] else if (unidad == 'KG') ...[
+                const Text(
+                  'Fracciones de peso (kilos / gramos):',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFE2E8F0),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _chipFraccion(ctx, '1 Kilo (1.0 kg)', 1.0),
+                    _chipFraccion(ctx, '1/2 Kilo · 500 g (0.5 kg)', 0.5),
+                    _chipFraccion(ctx, '1/4 Kilo · 250 g (0.25 kg)', 0.25),
+                    _chipFraccion(ctx, '100 gramos (0.1 kg)', 0.1),
+                    _chipFraccion(ctx, '2 Kilos (2.0 kg)', 2.0),
+                    _chipFraccion(ctx, '5 Kilos (5.0 kg)', 5.0),
+                    _chipFraccion(ctx, '25 Kilos · Bulto (25 kg)', 25.0),
+                    _chipFraccion(ctx, '50 Kilos · Bulto (50 kg)', 50.0),
+                  ],
+                ),
+              ] else ...[
+                const Text(
+                  'Cantidades y unidades:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFE2E8F0),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _chipFraccion(ctx, '1 unidad', 1.0),
+                    _chipFraccion(ctx, '2 unidades', 2.0),
+                    _chipFraccion(ctx, '3 unidades', 3.0),
+                    _chipFraccion(ctx, '5 unidades', 5.0),
+                    _chipFraccion(ctx, '6 unidades (1/2 docena)', 6.0),
+                    _chipFraccion(ctx, '10 unidades', 10.0),
+                    _chipFraccion(ctx, '12 unidades (docena)', 12.0),
+                    _chipFraccion(ctx, '24 unidades (2 docenas)', 24.0),
+                    _chipFraccion(ctx, '1/2 unidad (0.5)', 0.5),
+                    _chipFraccion(ctx, '1/4 unidad (0.25)', 0.25),
                   ],
                 ),
               ],
@@ -2595,20 +2802,29 @@ class _StepperEditableState extends State<_StepperEditable> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: seleccionada ? const Color(0xFF2E62C0) : const Color(0xFF323246),
+          color: seleccionada ? const Color(0xFF2563EB) : const Color(0xFF2A2B3D),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: seleccionada ? const Color(0xFFA9C4FF) : const Color(0xFF4C4C66),
-            width: 1.2,
+            color: seleccionada ? const Color(0xFF93C5FD) : const Color(0xFF64748B),
+            width: seleccionada ? 1.8 : 1.2,
           ),
         ),
-        child: Text(
-          etiqueta,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: seleccionada ? FontWeight.w800 : FontWeight.w600,
-            color: Colors.white,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (seleccionada) ...[
+              const Icon(Icons.check, size: 15, color: Colors.white),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              etiqueta,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: seleccionada ? FontWeight.w800 : FontWeight.w600,
+                color: seleccionada ? Colors.white : const Color(0xFFF1F5F9),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -2647,25 +2863,37 @@ class _StepperEditableState extends State<_StepperEditable> {
         children: [
           _BotonStepper(icono: Icons.remove, onTap: widget.onMenos, semantica: 'Quitar uno'),
           SizedBox(
-            width: 54,
+            width: 58,
             child: _editando
-                ? TextField(
-                    controller: _ctrl,
-                    focusNode: _foco,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    textAlign: TextAlign.center,
-                    cursorColor: esOscuro ? Colors.white : RegentaColors.accent,
-                    style: RegentaType.codigo.copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: colorTexto,
+                ? Container(
+                    decoration: BoxDecoration(
+                      color: esOscuro ? const Color(0xFF0F172A) : Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: const Color(0xFF2563EB),
+                        width: 2.0,
+                      ),
                     ),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                      isDense: true,
+                    alignment: Alignment.center,
+                    child: TextField(
+                      controller: _ctrl,
+                      focusNode: _foco,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      textAlign: TextAlign.center,
+                      cursorColor: const Color(0xFF2563EB),
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: esOscuro ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        isDense: true,
+                      ),
+                      onSubmitted: (_) => _guardar(),
                     ),
-                    onSubmitted: (_) => _guardar(),
                   )
                 : InkWell(
                     key: const Key('stepper-cantidad-tap'),
@@ -2742,7 +2970,7 @@ class _BotonStepper extends StatelessWidget {
   }
 }
 
-/// Fila dentro del diálogo de detalle de producto.
+/// Fila dentro del diálogo de detalle de producto con alto contraste.
 class _FilaDetalle extends StatelessWidget {
   const _FilaDetalle(this.etiqueta, this.valor, {this.valorColor});
 
@@ -2752,26 +2980,29 @@ class _FilaDetalle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final esOscuro = Theme.of(context).brightness == Brightness.dark;
-    final colorEtiqueta = esOscuro ? cs.onSurfaceVariant : RegentaColors.ink2;
-    final colorValor = valorColor ?? (esOscuro ? cs.onSurface : RegentaColors.ink);
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            etiqueta,
-            style: PastelTheme.cuerpo(fontSize: 13.5, color: colorEtiqueta, fontWeight: FontWeight.w600),
+          Expanded(
+            child: Text(
+              etiqueta,
+              style: const TextStyle(
+                fontSize: 13.5,
+                color: Color(0xFFCBD5E1),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
+          const SizedBox(width: 8),
           Text(
             valor,
-            style: RegentaType.codigo.copyWith(
+            style: TextStyle(
+              fontFamily: 'monospace',
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: colorValor,
+              color: valorColor ?? Colors.white,
             ),
           ),
         ],

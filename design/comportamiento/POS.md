@@ -237,3 +237,22 @@ que más se olvida. -->
   *sin stock* del POS es una ayuda visual, no la validación.
 - Golden test contra los mockups: pendiente (la CI no corre goldens por la brecha de
   baseline en Linux). Por ahora, tests de estructura de widget.
+
+---
+
+## Fracciones, unidades de medida y detalle de producto (Etapa 5 y 6)
+
+### Regla: Unidad de medida y selector de fracciones adaptativo
+- **Dado** un producto en el carrito del POS:
+  - Si es por metros (ej. manto, cable, manguera, tubo): su unidad es `MTS` y al pulsar el icono de fracción muestra **exclusivamente** medidas de longitud en metros (1 m, 1/2 m / 50 cm, 1/4 m / 25 cm, 3/4 m / 75 cm, 10 cm, 20 cm, 1.5 m, 2.5 m, etc.), sin mostrar opciones de galón.
+  - Si es pintura o líquido (ej. vinilo, esmalte, pintura, cuñete, balde): su unidad es `GL` y muestra opciones de galón y cuñete (1 Cuñete / Balde = 5.0 galones, 1/2 Cuñete = 2.5 gal, 1 Galón = 1.0, 1/2 Galón = 0.5, 1/4 Galón = 0.25, 1/8 Galón = 0.125, 1/16 Galón = 0.0625, 1/32 Galón = 0.03125).
+  - Si es cemento o producto en kilogramos: su unidad es `KG` y muestra fracciones de peso (1 kg, 1/2 kg, 1/4 kg, 100 g, 2 kg, 5 kg, 25 kg, 50 kg).
+- **Formato de números (truncado de ceros redundantes):**
+  - Todo valor numérico entero se muestra sin decimales (ej. `1.0` -> `1`, `5.0` -> `5`).
+  - Todo decimal significativo se conserva pero se truncan los ceros sobrantes a la derecha (ej. `0.2500` -> `0.25`, `0.03125` -> `0.03125`, `0.2563` -> `0.2563`, `29.9700` -> `29.97`).
+- **Contraste visual garantizado:**
+  - En los diálogos modales (detalle de producto y fracciones), los fondos y textos manejan alto contraste: textos en blanco nítido y gris claro (`#CBD5E1`), chips no seleccionados con fondo oscuro y texto claro legible, y chips seleccionados con fondo azul vibrante y borde brillante.
+  - El campo de edición manual de cantidad en el stepper muestra fondo claro / visible con borde azul y texto de alto contraste.
+- **Foco permanente en el buscador:**
+  - Al escoger cliente, quitar cliente, agregar producto, modificar cantidad en stepper, eliminar línea, cerrar modales de detalle o fracción, el foco regresa inmediatamente a la caja de búsqueda del producto.
+
