@@ -70,8 +70,15 @@ public class GestionDeReservasStock {
         List<ReservaStock> yaReservado = reservas.findByNegocioIdAndOrigenTipoAndOrigenId(
                 negocioId, solicitud.origenTipo(), solicitud.origenId());
         if (!yaReservado.isEmpty()) {
-            return new ResultadoDeReserva(true, solicitud.correlacionId(), List.of(),
-                    yaReservado.stream().map(ReservaStock::getId).toList());
+            // Reintento/redelivery de una solicitud que ya se resolvio antes: hay que
+            // responder igual (idempotente), o Ventas se queda esperando una respuesta
+            // que nunca llega y la saga se traba en PENDIENTE_STOCK ("venta sin stock").
+            List<UUID> ids = yaReservado.stream().map(ReservaStock::getId).toList();
+            var evt = eventos.registrar(negocioId, "reserva_stock", solicitud.origenId(), "stock_reservado",
+                    payloadReservado(negocioId, solicitud, ids));
+            DIAG.info("publicado stock_reservado (idempotente, ya existia) id={} correlacion={} reservas={}",
+                    evt.id(), solicitud.correlacionId(), ids.size());
+            return new ResultadoDeReserva(true, solicitud.correlacionId(), List.of(), ids);
         }
 
         OffsetDateTime expira = solicitud.expiraEn() != null ? solicitud.expiraEn()
