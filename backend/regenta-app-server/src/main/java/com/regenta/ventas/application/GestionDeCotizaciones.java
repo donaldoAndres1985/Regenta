@@ -2,6 +2,7 @@ package com.regenta.ventas.application;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -95,6 +96,15 @@ public class GestionDeCotizaciones {
 
     @Transactional(readOnly = true)
     @RequierePermiso("VENTAS_COTIZACION_VER")
+    public List<CotizacionDelNegocio> listarCotizaciones() {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        return cotizaciones.findByNegocioIdOrderByCreadoEnDesc(negocioId).stream()
+                .map(GestionDeCotizaciones::comoDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    @RequierePermiso("VENTAS_COTIZACION_VER")
     public CotizacionDelNegocio ver(UUID cotizacionId) {
         return comoDto(cotizacionDelNegocio(cotizacionId));
     }
@@ -110,6 +120,6 @@ public class GestionDeCotizaciones {
 
     private static CotizacionDelNegocio comoDto(Cotizacion c) {
         return new CotizacionDelNegocio(c.getId(), c.getNumero(), c.getEstado(), c.getValidaHasta(),
-                c.getTotal(), c.getVentaId());
+                c.getTotal(), c.getVentaId(), c.getClienteId());
     }
 }

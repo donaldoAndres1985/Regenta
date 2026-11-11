@@ -5,6 +5,7 @@ import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/cliente_de_la_venta.dart';
 import '../datos/producto_buscado.dart';
+import '../datos/repositorio_de_ventas.dart';
 import '../pos/estado_del_pos.dart';
 import '../pos/linea_de_carrito.dart';
 import '../pos/proveedores.dart';
@@ -462,6 +463,90 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     if (mounted) _enfocarBuscador();
   }
 
+  Future<void> _cotizarCarrito() async {
+    final estado = ref.read(controladorDelPosProvider);
+    if (estado.lineas.isEmpty) return;
+
+    try {
+      final repo = ref.read(repositorioDeVentasProvider);
+      final lineas = estado.lineas
+          .map((l) => LineaDeCotizacionParaEnviar(
+                productoId: l.producto.id,
+                sku: l.producto.sku,
+                nombre: l.producto.nombre,
+                cantidad: l.cantidad,
+                precioUnitario: l.producto.precioVenta,
+                descuentoPct: l.descuentoPct,
+                impuestoPct: l.producto.impuestoPct,
+              ))
+          .toList();
+
+      final solicitud = SolicitudDeCotizacionParaEnviar(
+        clienteId: estado.cliente?.id,
+        lineas: lineas,
+      );
+
+      final cot = await repo.crearCotizacion(solicitud);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF2E7D32),
+            content: Text('Cotización #${cot.numero} creada exitosamente'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            content: Text('Error al crear cotización: $e'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _abrirCargarCotizacion() async {
+    final repo = ref.read(repositorioDeVentasProvider);
+    final bodegaId = ref.read(bodegaDeVentaProvider);
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => _DialogoCargarCotizacion(
+        repo: repo,
+        bodegaId: bodegaId,
+        onCotizacionConvertida: (resultado, cotizacion) async {
+          final venta = await repo.verVenta(resultado.ventaId);
+          final pos = ref.read(controladorDelPosProvider.notifier);
+          pos.cargarLineasDesdeVenta(venta.lineas);
+          if (mounted) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            if (resultado.preciosDesactualizados) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: const Color(0xFFE65100),
+                  content: Text(
+                    'Cotización vencida convertida en venta #${resultado.numeroVenta}. Verifica los precios antes de cobrar.',
+                  ),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: const Color(0xFF2E7D32),
+                  content: Text(
+                    'Cotización #${cotizacion.numero} convertida en venta #${resultado.numeroVenta}',
+                  ),
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(controladorDelPosProvider);
@@ -510,6 +595,12 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
               ),
             ),
             actions: [
+              IconButton(
+                key: const Key('pos-boton-cargar-cotizacion'),
+                tooltip: 'Cargar cotización',
+                icon: const Icon(Icons.request_quote_outlined, color: RegentaColors.ink),
+                onPressed: _abrirCargarCotizacion,
+              ),
               IconButton(
                 key: const Key('boton-historial-ventas'),
                 tooltip: 'Historial y anulación de ventas',
@@ -613,6 +704,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                           onEspera: () => _cambiarDeVenta(pos.ponerEnEspera),
                           onDescuento: _abrirDialogoDescuento,
                           onNota: _abrirDialogoNota,
+                          onCotizar: _cotizarCarrito,
                           onCobrar: _cobrar,
                           onDetalle: (p) => _mostrarDetalleProducto(context, p),
                         ),
@@ -652,6 +744,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                 onEspera: () => _cambiarDeVenta(pos.ponerEnEspera),
                 onDescuento: _abrirDialogoDescuento,
                 onNota: _abrirDialogoNota,
+                onCotizar: _cotizarCarrito,
                 onCobrar: _cobrar,
               ),
             ],
@@ -1432,6 +1525,7 @@ class _VentaEscritorio extends StatelessWidget {
     required this.onEspera,
     required this.onDescuento,
     required this.onNota,
+    required this.onCotizar,
     required this.onCobrar,
     required this.onDetalle,
   });
@@ -1445,6 +1539,7 @@ class _VentaEscritorio extends StatelessWidget {
   final VoidCallback onEspera;
   final VoidCallback onDescuento;
   final VoidCallback onNota;
+  final VoidCallback onCotizar;
   final Future<void> Function() onCobrar;
   final void Function(ProductoBuscado) onDetalle;
 
@@ -1522,6 +1617,7 @@ class _VentaEscritorio extends StatelessWidget {
             estado: estado,
             onDescuento: onDescuento,
             onNota: onNota,
+            onCotizar: onCotizar,
             onEspera: onEspera,
             onCobrar: onCobrar,
           ),
@@ -1778,6 +1874,7 @@ class _PieEscritorio extends StatelessWidget {
     required this.estado,
     required this.onDescuento,
     required this.onNota,
+    required this.onCotizar,
     required this.onEspera,
     required this.onCobrar,
   });
@@ -1785,6 +1882,7 @@ class _PieEscritorio extends StatelessWidget {
   final EstadoDelPos estado;
   final VoidCallback onDescuento;
   final VoidCallback onNota;
+  final VoidCallback onCotizar;
   final VoidCallback onEspera;
   final Future<void> Function() onCobrar;
 
@@ -1837,6 +1935,12 @@ class _PieEscritorio extends StatelessWidget {
                       icono: Icons.sticky_note_2_outlined,
                       texto: 'Nota',
                       onTap: onNota,
+                    ),
+                    _BotonPildora(
+                      key: const Key('pos-boton-cotizar'),
+                      icono: Icons.request_quote_outlined,
+                      texto: 'Cotizar',
+                      onTap: estado.lineas.isEmpty ? null : onCotizar,
                     ),
                     _BotonPildora(
                       icono: Icons.pause_circle_outline,
@@ -1956,6 +2060,7 @@ class _PieEscritorio extends StatelessWidget {
 
 class _BotonPildora extends StatelessWidget {
   const _BotonPildora({
+    super.key,
     required this.icono,
     required this.texto,
     required this.onTap,
@@ -2157,6 +2262,7 @@ class _PieMovil extends StatelessWidget {
     required this.onEspera,
     required this.onDescuento,
     required this.onNota,
+    required this.onCotizar,
     required this.onCobrar,
   });
 
@@ -2164,6 +2270,7 @@ class _PieMovil extends StatelessWidget {
   final VoidCallback onEspera;
   final VoidCallback onDescuento;
   final VoidCallback onNota;
+  final VoidCallback onCotizar;
   final Future<void> Function() onCobrar;
 
   @override
@@ -2206,6 +2313,13 @@ class _PieMovil extends StatelessWidget {
                   icono: Icons.sticky_note_2_outlined,
                   texto: 'Nota',
                   onTap: onNota,
+                ),
+                const SizedBox(width: 8),
+                _BotonPildora(
+                  key: const Key('pos-boton-cotizar'),
+                  icono: Icons.request_quote_outlined,
+                  texto: 'Cotizar',
+                  onTap: estado.lineas.isEmpty ? null : onCotizar,
                 ),
                 const SizedBox(width: 8),
                 _BotonPildora(
@@ -2692,6 +2806,195 @@ class _Fila extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DialogoCargarCotizacion extends StatefulWidget {
+  const _DialogoCargarCotizacion({
+    required this.repo,
+    required this.bodegaId,
+    required this.onCotizacionConvertida,
+  });
+
+  final RepositorioDeVentas repo;
+  final String bodegaId;
+  final Future<void> Function(ResultadoDeConversion resultado, CotizacionDelNegocio cotizacion)
+      onCotizacionConvertida;
+
+  @override
+  State<_DialogoCargarCotizacion> createState() => _DialogoCargarCotizacionState();
+}
+
+class _DialogoCargarCotizacionState extends State<_DialogoCargarCotizacion> {
+  List<CotizacionDelNegocio> _cotizaciones = [];
+  bool _cargando = true;
+  String? _error;
+  String? _convirtiendoId;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  Future<void> _cargar() async {
+    setState(() {
+      _cargando = true;
+      _error = null;
+    });
+    try {
+      final lista = await widget.repo.listarCotizaciones();
+      if (mounted) {
+        setState(() {
+          _cotizaciones = lista;
+          _cargando = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Error al cargar cotizaciones: $e';
+          _cargando = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _convertir(CotizacionDelNegocio c) async {
+    setState(() => _convirtiendoId = c.id);
+    try {
+      final res = await widget.repo.convertirCotizacion(c.id, widget.bodegaId);
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      await widget.onCotizacionConvertida(res, c);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            content: Text('Error al convertir cotización: $e'),
+          ),
+        );
+        setState(() => _convirtiendoId = null);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
+    return AlertDialog(
+      key: const Key('dialogo-cargar-cotizacion'),
+      title: const Row(
+        children: [
+          Icon(Icons.request_quote_outlined, color: RegentaColors.accent),
+          SizedBox(width: 10),
+          Text('Cotizaciones registradas'),
+        ],
+      ),
+      content: SizedBox(
+        width: 550,
+        height: 400,
+        child: _cargando
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(
+                    child: Text(_error!, style: TextStyle(color: tema.colorScheme.error)),
+                  )
+                : _cotizaciones.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.inbox_outlined, size: 48, color: RegentaColors.faint),
+                            const SizedBox(height: 8),
+                            Text(
+                              'No hay cotizaciones registradas',
+                              style: PastelTheme.cuerpo(color: RegentaColors.ink2),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: _cotizaciones.length,
+                        separatorBuilder: (context, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final c = _cotizaciones[index];
+                          final yaConvertida = c.convertida;
+                          final convirtiendo = _convirtiendoId == c.id;
+
+                          return ListTile(
+                            key: Key('cotizacion-item-${c.id}'),
+                            leading: CircleAvatar(
+                              backgroundColor: yaConvertida
+                                  ? Colors.grey.shade200
+                                  : RegentaColors.accent.withValues(alpha: 0.1),
+                              child: Icon(
+                                Icons.description_outlined,
+                                color: yaConvertida ? Colors.grey : RegentaColors.accent,
+                              ),
+                            ),
+                            title: Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  'Cotización #${c.numero}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: yaConvertida
+                                        ? Colors.grey.shade100
+                                        : Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: yaConvertida ? Colors.grey : Colors.green,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    c.estado,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: yaConvertida ? Colors.grey : Colors.green.shade800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            subtitle: Text(
+                              'Total: ${formatearPesos(c.total)}${c.validaHasta != null ? ' · Vence: ${c.validaHasta}' : ''}',
+                            ),
+                            trailing: yaConvertida
+                                ? const Chip(
+                                    label: Text('Convertida', style: TextStyle(fontSize: 11)),
+                                  )
+                                : FilledButton.tonal(
+                                    key: Key('boton-convertir-cotizacion-${c.id}'),
+                                    onPressed: convirtiendo ? null : () => _convertir(c),
+                                    child: convirtiendo
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                          )
+                                        : const Text('Convertir'),
+                                  ),
+                          );
+                        },
+                      ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cerrar'),
+        ),
+      ],
     );
   }
 }

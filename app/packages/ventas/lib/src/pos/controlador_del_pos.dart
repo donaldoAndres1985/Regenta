@@ -328,6 +328,29 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     state = state.copiar(lineas: lineas, mensaje: null);
   }
 
+  /// Carga líneas desde una venta existente o cotización convertida (HU-044).
+  void cargarLineasDesdeVenta(List<LineaDeVentaResumen> lineasVenta) {
+    final nuevasLineas = <LineaDeCarrito>[];
+    for (final l in lineasVenta) {
+      final producto = ProductoBuscado(
+        id: l.productoId,
+        sku: l.sku,
+        nombre: l.nombre,
+        precioVenta: l.precioUnitario,
+        existencia: l.cantidad,
+        nivelStock: NivelStock.normal,
+      );
+      nuevasLineas.add(LineaDeCarrito(
+        producto: producto,
+        cantidad: l.cantidad,
+      ));
+    }
+    state = state.copiar(
+      lineas: nuevasLineas,
+      mensaje: null,
+    );
+  }
+
   void quitar(int indice) {
     if (indice < 0 || indice >= state.lineas.length) return;
     final lineas = [...state.lineas]..removeAt(indice);

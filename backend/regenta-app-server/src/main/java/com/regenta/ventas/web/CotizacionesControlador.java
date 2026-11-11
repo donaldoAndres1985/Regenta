@@ -1,5 +1,6 @@
 package com.regenta.ventas.web;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -39,6 +40,12 @@ public class CotizacionesControlador {
     @Operation(summary = "Crea una cotización con sus líneas")
     public CotizacionDelNegocio crear(@Valid @RequestBody SolicitudDeCotizacion solicitud) {
         return cotizaciones.crear(solicitud);
+    }
+
+    @GetMapping
+    @Operation(summary = "Lista las cotizaciones del negocio")
+    public List<CotizacionDelNegocio> listar() {
+        return cotizaciones.listarCotizaciones();
     }
 
     @PostMapping("/{cotizacionId}/conversion")

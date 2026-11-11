@@ -24,6 +24,26 @@ class _RepoDeCobroFake implements RepositorioDeVentas {
       );
 
   @override
+  Future<CotizacionDelNegocio> crearCotizacion(
+    SolicitudDeCotizacionParaEnviar solicitud,
+  ) async =>
+      const CotizacionDelNegocio(id: 'cot-1', numero: 'COT-1', estado: 'ABIERTA', total: 0);
+
+  @override
+  Future<List<CotizacionDelNegocio>> listarCotizaciones() async => const [];
+
+  @override
+  Future<ResultadoDeConversion> convertirCotizacion(
+    String cotizacionId,
+    String bodegaId,
+  ) async =>
+      const ResultadoDeConversion(
+        ventaId: 'v-conv',
+        numeroVenta: 'FV-CONV',
+        preciosDesactualizados: false,
+      );
+
+  @override
   Future<List<VentaEnProceso>> buscarVentas({String? q}) async => const [];
 
   bool sinRedAlCrear = false;

@@ -137,6 +137,117 @@ class DevolucionRegistrada {
       );
 }
 
+/// Línea de cotización a enviar (HU-044).
+class LineaDeCotizacionParaEnviar {
+  const LineaDeCotizacionParaEnviar({
+    required this.productoId,
+    required this.sku,
+    required this.nombre,
+    required this.cantidad,
+    required this.precioUnitario,
+    this.unidad,
+    this.descuentoPct = 0,
+    this.impuestoCodigo,
+    this.impuestoPct = 0,
+    this.costoUnitario = 0,
+  });
+
+  final String productoId;
+  final String sku;
+  final String nombre;
+  final num cantidad;
+  final num precioUnitario;
+  final String? unidad;
+  final num descuentoPct;
+  final String? impuestoCodigo;
+  final num impuestoPct;
+  final num costoUnitario;
+
+  Map<String, dynamic> aJson() => {
+        'productoId': productoId,
+        'sku': sku,
+        'nombre': nombre,
+        'cantidad': cantidad,
+        'precioUnitario': precioUnitario,
+        if (unidad != null) 'unidad': unidad,
+        'descuentoPct': descuentoPct,
+        if (impuestoCodigo != null) 'impuestoCodigo': impuestoCodigo,
+        'impuestoPct': impuestoPct,
+        'costoUnitario': costoUnitario,
+      };
+}
+
+/// Solicitud para generar una cotización (HU-044).
+class SolicitudDeCotizacionParaEnviar {
+  const SolicitudDeCotizacionParaEnviar({
+    this.clienteId,
+    this.validaHasta,
+    required this.lineas,
+  });
+
+  final String? clienteId;
+  final String? validaHasta;
+  final List<LineaDeCotizacionParaEnviar> lineas;
+
+  Map<String, dynamic> aJson() => {
+        if (clienteId != null) 'clienteId': clienteId,
+        if (validaHasta != null) 'validaHasta': validaHasta,
+        'lineas': [for (final l in lineas) l.aJson()],
+      };
+}
+
+/// Cotización recibida del backend (HU-044).
+class CotizacionDelNegocio {
+  const CotizacionDelNegocio({
+    required this.id,
+    required this.numero,
+    required this.estado,
+    required this.total,
+    this.validaHasta,
+    this.ventaId,
+    this.clienteId,
+  });
+
+  final String id;
+  final String numero;
+  final String estado;
+  final num total;
+  final String? validaHasta;
+  final String? ventaId;
+  final String? clienteId;
+
+  bool get convertida => estado == 'CONVERTIDA' || ventaId != null;
+
+  factory CotizacionDelNegocio.desdeJson(Map<String, dynamic> json) => CotizacionDelNegocio(
+        id: json['id'] as String,
+        numero: (json['numero'] ?? '') as String,
+        estado: (json['estado'] ?? '') as String,
+        total: (json['total'] ?? 0) as num,
+        validaHasta: json['validaHasta'] as String?,
+        ventaId: json['ventaId'] as String?,
+        clienteId: json['clienteId'] as String?,
+      );
+}
+
+/// Resultado de convertir una cotización en venta (HU-044).
+class ResultadoDeConversion {
+  const ResultadoDeConversion({
+    required this.ventaId,
+    required this.numeroVenta,
+    required this.preciosDesactualizados,
+  });
+
+  final String ventaId;
+  final String numeroVenta;
+  final bool preciosDesactualizados;
+
+  factory ResultadoDeConversion.desdeJson(Map<String, dynamic> json) => ResultadoDeConversion(
+        ventaId: (json['ventaId'] ?? '') as String,
+        numeroVenta: (json['numeroVenta'] ?? '') as String,
+        preciosDesactualizados: (json['preciosDesactualizados'] ?? false) as bool,
+      );
+}
+
 /// Una línea leída del backend con su snapshot.
 class LineaDeVentaResumen {
   const LineaDeVentaResumen({
@@ -462,6 +573,38 @@ class RepositorioDeVentas {
       datos: solicitud.aJson(),
     );
     return DevolucionRegistrada.desdeJson(respuesta as Map<String, dynamic>);
+  }
+
+  /// HU-044: crea una cotización con las líneas proporcionadas.
+  Future<CotizacionDelNegocio> crearCotizacion(
+    SolicitudDeCotizacionParaEnviar solicitud,
+  ) async {
+    final respuesta = await _http.post<Map<String, dynamic>>(
+      '/api/cotizaciones',
+      datos: solicitud.aJson(),
+    );
+    return CotizacionDelNegocio.desdeJson(respuesta as Map<String, dynamic>);
+  }
+
+  /// HU-044: lista las cotizaciones registradas para el negocio.
+  Future<List<CotizacionDelNegocio>> listarCotizaciones() async {
+    final respuesta = await _http.get<dynamic>('/api/cotizaciones');
+    final lista = respuesta is List ? respuesta : const [];
+    return lista
+        .map((e) => CotizacionDelNegocio.desdeJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// HU-044: convierte una cotización en una venta en borrador para la bodega dada.
+  Future<ResultadoDeConversion> convertirCotizacion(
+    String cotizacionId,
+    String bodegaId,
+  ) async {
+    final respuesta = await _http.post<Map<String, dynamic>>(
+      '/api/cotizaciones/$cotizacionId/conversion',
+      datos: {'bodegaId': bodegaId},
+    );
+    return ResultadoDeConversion.desdeJson(respuesta as Map<String, dynamic>);
   }
 
   /// Lista o busca ventas por consecutivo o nombre de cliente.

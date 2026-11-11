@@ -12,5 +12,6 @@ public record CotizacionDelNegocio(
         EstadoCotizacion estado,
         LocalDate validaHasta,
         BigDecimal total,
-        UUID ventaId) {
+        UUID ventaId,
+        UUID clienteId) {
 }
