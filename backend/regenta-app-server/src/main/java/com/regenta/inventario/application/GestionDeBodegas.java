@@ -60,12 +60,21 @@ public class GestionDeBodegas {
                 .orElseGet(() -> bodegas.save(Bodega.deTransito(negocioId)));
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * Criterio 3: si el negocio todavia no tiene ninguna bodega -nunca paso por
+     * aqui, o no vino de la semilla manual- se la asegura antes de listar. No es
+     * de solo lectura: puede escribir la bodega principal por defecto.
+     */
+    @Transactional
     @RequierePermiso("INVENTARIO_BODEGA_VER")
     public List<BodegaDelNegocio> listar() {
-        return bodegas.findByNegocioIdOrderByCodigo(ContextoDeNegocio.negocioActual()).stream()
-                .map(GestionDeBodegas::comoDto)
-                .toList();
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        List<Bodega> encontradas = bodegas.findByNegocioIdOrderByCodigo(negocioId);
+        if (encontradas.isEmpty()) {
+            asegurarBodegaPorDefecto();
+            encontradas = bodegas.findByNegocioIdOrderByCodigo(negocioId);
+        }
+        return encontradas.stream().map(GestionDeBodegas::comoDto).toList();
     }
 
     @Transactional

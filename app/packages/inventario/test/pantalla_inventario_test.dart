@@ -49,6 +49,9 @@ class _RepoFake implements RepositorioDeInventario {
   }) async {
     return _producto(nombre: nombre, sku: sku, precio: precioVenta, stock: stock);
   }
+
+  @override
+  Future<List<BodegaDelNegocio>> bodegas() async => const [];
 }
 
 class _EscanerFake implements EscanerDeCodigos {

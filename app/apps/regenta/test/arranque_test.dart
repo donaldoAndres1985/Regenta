@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,12 +50,43 @@ const _token =
     'cGF0cm9uIjoiVkVOVEFfRElSRUNUQSIsIm1vZHVsb3MiOlsiVkVOVEFTIl0sInJvbGVzIjpb'
     'XSwicGVybWlzb3MiOlsiQ0xJRU5URVNfQ0xJRU5URV9DUkVBUiJdfQ.firma';
 
-DependenciasDeLaApp _dependenciasCon(AlmacenDeSesion almacen) =>
-    DependenciasDeLaApp.paraPruebas(
-      base: BaseLocal(NativeDatabase.memory()),
-      almacen: almacen,
-      urlDelGateway: 'https://gateway.test',
+DependenciasDeLaApp _dependenciasCon(
+  AlmacenDeSesion almacen, {
+  HttpClientAdapter? adaptador,
+}) => DependenciasDeLaApp.paraPruebas(
+  base: BaseLocal(NativeDatabase.memory()),
+  almacen: almacen,
+  urlDelGateway: 'https://gateway.test',
+  adaptador: adaptador,
+);
+
+/// HU-029: responde `GET /api/inventario/bodegas` con una lista fija, y
+/// cuenta cuántas veces se pidió -para probar que la carga no se repite sola-.
+class _ServidorDeBodegas implements HttpClientAdapter {
+  _ServidorDeBodegas(this.bodegas);
+
+  final List<Map<String, Object?>> bodegas;
+  int pedidos = 0;
+
+  @override
+  void close({bool force = false}) {}
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<List<int>>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    pedidos++;
+    return ResponseBody.fromString(
+      jsonEncode(bodegas),
+      200,
+      headers: const {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
     );
+  }
+}
 
 void main() {
   test(
@@ -174,5 +208,91 @@ void main() {
       reason: 'al cerrar sesión no puede quedar accesible nada del negocio',
     );
     expect(deps.perfil.modulos.todos, isEmpty);
+  });
+
+  group('HU-029: la bodega real de venta', () {
+    test(
+      'sin sesión, bodegaActivaProvider cae al negocio y no pide nada al backend',
+      () async {
+        final servidor = _ServidorDeBodegas([
+          {'id': 'bod-1', 'codigo': 'BOD-PRAL', 'nombre': 'Principal', 'esDefault': true, 'activa': true},
+        ]);
+        final deps = _dependenciasCon(_AlmacenEnMemoria(), adaptador: servidor);
+        addTearDown(deps.cerrar);
+        final contenedor = ProviderContainer(overrides: deps.overrides());
+        addTearDown(contenedor.dispose);
+
+        await deps.motor.iniciar();
+
+        expect(contenedor.read(bodegaDeVentaProvider), '');
+        expect(servidor.pedidos, 0, reason: 'sin sesión no hay token con qué pedir nada');
+      },
+    );
+
+    test(
+      'con sesión, bodegaActivaProvider pasa del negocio al id real de la bodega',
+      () async {
+        final servidor = _ServidorDeBodegas([
+          {'id': 'bod-real-1', 'codigo': 'BOD-PRAL', 'nombre': 'Principal', 'esDefault': true, 'activa': true},
+        ]);
+        final deps = _dependenciasCon(
+          _AlmacenEnMemoria(_sesionVigente()),
+          adaptador: servidor,
+        );
+        addTearDown(deps.cerrar);
+        final contenedor = ProviderContainer(overrides: deps.overrides());
+        addTearDown(contenedor.dispose);
+
+        await deps.motor.iniciar();
+        // _seguirAlMotor ya disparó la carga sin esperarla (ver dependencias.dart);
+        // se espera explícito, como hace main.dart antes del primer frame.
+        await deps.cargarBodegaActivaSiHaySesion();
+
+        expect(contenedor.read(bodegaDeVentaProvider), 'bod-real-1');
+      },
+    );
+
+    test(
+      'cargarBodegaActivaSiHaySesion no repite el pedido si ya hay una bodega cargada',
+      () async {
+        final servidor = _ServidorDeBodegas([
+          {'id': 'bod-real-1', 'codigo': 'BOD-PRAL', 'nombre': 'Principal', 'esDefault': true, 'activa': true},
+        ]);
+        final deps = _dependenciasCon(
+          _AlmacenEnMemoria(_sesionVigente()),
+          adaptador: servidor,
+        );
+        addTearDown(deps.cerrar);
+
+        await deps.motor.iniciar();
+        await deps.cargarBodegaActivaSiHaySesion();
+        await deps.cargarBodegaActivaSiHaySesion();
+
+        expect(servidor.pedidos, 1);
+      },
+    );
+
+    test('al cerrar sesión, la bodega activa se limpia igual que el perfil', () async {
+      final servidor = _ServidorDeBodegas([
+        {'id': 'bod-real-1', 'codigo': 'BOD-PRAL', 'nombre': 'Principal', 'esDefault': true, 'activa': true},
+      ]);
+      final deps = _dependenciasCon(
+        _AlmacenEnMemoria(_sesionVigente()),
+        adaptador: servidor,
+      );
+      addTearDown(deps.cerrar);
+
+      await deps.motor.iniciar();
+      await deps.cargarBodegaActivaSiHaySesion();
+      expect(deps.bodegaActiva.id, 'bod-real-1');
+
+      await deps.motor.cerrar();
+
+      expect(
+        deps.bodegaActiva.id,
+        isNull,
+        reason: 'al cerrar sesión no puede quedar la bodega de otra sesión',
+      );
+    });
   });
 }

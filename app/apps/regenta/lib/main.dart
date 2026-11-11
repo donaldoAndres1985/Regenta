@@ -21,6 +21,10 @@ Future<void> main() async {
   // HU-119 criterio 6: si había sesión guardada, se restaura antes del primer
   // frame y la pantalla de entrada no llega a verse.
   await dependencias.motor.iniciar();
+  // HU-029: la bodega real, antes de que el POS sea alcanzable. Sin esto, la
+  // primera venta de la sesión manda el negocio como si fuera la bodega (ver
+  // bodegaActivaProvider) y la saga de stock nunca encuentra la existencia.
+  await dependencias.cargarBodegaActivaSiHaySesion();
 
   if (hayTrabajoEnSegundoPlanoAqui) {
     await Workmanager().initialize(despachadorDeTareas);
