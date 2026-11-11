@@ -1,5 +1,6 @@
 import '../datos/cliente_de_la_venta.dart';
 import '../datos/producto_buscado.dart';
+import '../datos/repositorio_de_ventas.dart';
 import 'linea_de_carrito.dart';
 
 /// Ventas que el POS ofrece al abrir (R12).
@@ -98,6 +99,33 @@ class EstadoDelPos {
   num get total => subtotal + impuesto;
 
   bool get hayLineasSinStock => lineas.any((l) => l.sinStock);
+
+  /// Las líneas listas para mandar al backend, con el descuento global
+  /// prorrateado por línea: el contrato de ventas solo tiene descuento por
+  /// línea, no uno a nivel de venta, así que acá se funden los dos.
+  List<LineaParaEnviar> lineasParaEnviar() {
+    final brutoTotal = subtotalBruto;
+    return [
+      for (final l in lineas)
+        LineaParaEnviar(
+          productoId: l.producto.id,
+          sku: l.producto.sku,
+          nombre: l.producto.nombre,
+          cantidad: l.cantidad,
+          precioUnitario: l.producto.precioVenta,
+          impuestoPct: l.producto.impuestoPct,
+          costoUnitario: l.producto.costoUnitario,
+          descuentoPct: _descuentoEfectivoPct(l, brutoTotal),
+        ),
+    ];
+  }
+
+  num _descuentoEfectivoPct(LineaDeCarrito l, num brutoTotal) {
+    if (l.bruto <= 0) return 0;
+    final prorrateoGlobal = brutoTotal > 0 ? (l.bruto / brutoTotal) * descuentoGeneralValor : 0;
+    final totalDescuentoValor = l.descuento + prorrateoGlobal;
+    return (totalDescuentoValor / l.bruto * 100).clamp(0, 100);
+  }
 
   /// HU-137 criterio 2: la venta supera el monto y nadie dijo quién compra.
   bool get faltaIdentificarComprador =>

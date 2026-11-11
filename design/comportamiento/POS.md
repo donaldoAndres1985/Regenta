@@ -117,12 +117,16 @@ resultados. **Cuando** escribo 3 o más caracteres, **entonces** los resultados
 nombre, precio y existencia. **Cuando** agrego un producto, borro la búsqueda o pulso `Esc`,
 **entonces** la lista se cierra.
 
-### R11 · Cobrar arma la venta de una y la confirma
-**Dado** un carrito con al menos una línea y sin líneas sin stock, **cuando** toco *Cobrar*,
-**entonces** se crea el borrador (`POST /api/ventas` con la bodega activa), se mandan las líneas
-(`POST /api/ventas/{id}/lineas`) y se confirma (`POST /api/ventas/{id}/confirmacion`). Mientras
-corre, el botón dice *Cobrando…* y no se puede volver a tocar. Al terminar, el carrito queda
-vacío, se avisa *Venta {número} cobrada* y se dispara `onVentaCobrada`.
+### R11 · Cobrar abre la pantalla de Cobro; ahí se arma la venta de verdad
+**Dado** un carrito con al menos una línea y sin líneas sin stock, **cuando** toco *Cobrar* (o
+`F12`), **entonces** se abre `PantallaCobro` con el carrito ya congelado (líneas, cliente, nota,
+descuento) — ver `design/comportamiento/Cobro.md` R5-R10 para el método de pago, el pago mixto,
+la venta a crédito y el camino sin conexión. Al terminar con éxito, la pestaña queda vacía, se
+avisa *Venta {número} cobrada* y se dispara `onVentaCobrada`, igual que antes.
+
+Esto reemplaza el camino anterior (una sola llamada a `/api/ventas/offline` sin pedir método de
+pago): ese llamado sigue existiendo tal cual —y se sigue usando— pero solo como red de seguridad
+cuando no hay conexión (R10 de `Cobro.md`), no como el camino normal con señal.
 
 ### R12 · Varias ventas a la vez
 **Dado** el POS, **cuando** se abre, **entonces** arriba a la derecha hay tres pestañas *1*, *2*
@@ -151,7 +155,11 @@ teclado encima del carrito); en escritorio, _sin definir_ — resolver al cablea
 
 - Qué campo toma el foco en escritorio.
 - Si se recuerda un borrador de venta a medio armar entre sesiones. Por ahora no: recargar
-  la pantalla vacía el carrito.
+  la pantalla vacía el carrito. El backend ya expone `GET /api/ventas/borradores` (los
+  borradores abiertos del cajero en su bodega) pensado para esto, pero el POS todavía no lo
+  consume: el carrito en construcción solo llega al servidor al tocar *Cobrar*, no mientras se
+  arma. Conectar esto de verdad pide además poder borrar una línea ya mandada al servidor
+  (`DELETE /api/ventas/{id}/lineas/{linea}`), que tampoco existe hoy.
 
 ## Validaciones
 
@@ -216,8 +224,13 @@ que más se olvida. -->
 - **No** llamar al backend en cada tecla: la búsqueda tiene rebote de 250 ms y mínimo de 3
   caracteres (R5).
 - **No** agregar nada cuando Enter no encuentra producto: sólo el aviso (R7, R7b).
-- *Descuento* y *Nota* se ven pero están deshabilitados: el contrato de `/api/ventas/offline`
-  no lleva descuento ni nota todavía (pendiente de backend).
+- *Descuento* y *Nota* ya viajan de verdad cuando hay conexión (Etapa 0 del cobro real): el
+  descuento por línea se manda tal cual, y el descuento general se prorratea entre las líneas
+  según su bruto antes de mandarlas (`EstadoDelPos.lineasParaEnviar`), porque el contrato de
+  ventas solo tiene descuento por línea. La nota viaja como `notaCliente` al crear el borrador.
+  El camino `/api/ventas/offline` (sin conexión) sí manda el descuento por línea desde este
+  cambio, pero **no** la nota: ese contrato no tiene ese campo todavía — pendiente si hace falta
+  para ventas genuinamente sin señal.
 - **No** duplicar una línea al agregar dos veces el mismo producto: se suma la cantidad (R6).
 - **No** confiar en el nivel de stock del cliente para autorizar la venta: el descuento real y
   el anti-overbooking los resuelve la saga de confirmación contra Inventario. El aviso de

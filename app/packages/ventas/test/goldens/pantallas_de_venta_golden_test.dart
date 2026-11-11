@@ -47,6 +47,52 @@ class _VentasFijas implements RepositorioDeVentas {
     String? clienteId,
   }) async =>
       const ResultadoDeCobro(origenOfflineId: 'o1', venta: VentaCreada(id: 'v1', numero: 'FV-1'));
+
+  @override
+  Future<VentaEnProceso> crearBorrador({
+    required String bodegaId,
+    String? clienteId,
+    String? notaCliente,
+  }) async =>
+      const VentaEnProceso(id: 'v1', numero: 'FV-1', estado: 'BORRADOR', total: 0);
+
+  @override
+  Future<void> agregarLineaAlBorrador(String ventaId, LineaParaEnviar linea) async {}
+
+  @override
+  Future<void> confirmarBorrador(String ventaId) async {}
+
+  @override
+  Future<VentaEnProceso> verVenta(String ventaId) async =>
+      const VentaEnProceso(id: 'v1', numero: 'FV-1', estado: 'CONFIRMADA', total: 0);
+
+  @override
+  Future<VentaEnProceso> esperarConfirmacion(
+    String ventaId, {
+    int intentos = 12,
+    Duration intervalo = const Duration(milliseconds: 300),
+  }) =>
+      verVenta(ventaId);
+
+  @override
+  Future<void> confirmarACredito(String ventaId, {bool autorizado = false}) async {}
+
+  @override
+  Future<ResultadoDeUnPago> registrarPago(String ventaId, PagoParaEnviar pago) async =>
+      ResultadoDeUnPago(
+        pagoId: 'pago-1',
+        metodo: pago.metodo,
+        montoAplicado: pago.monto ?? pago.montoRecibido ?? 0,
+        cambio: 0,
+        saldoPendiente: 0,
+        cubierta: true,
+      );
+
+  @override
+  Future<void> cerrarVenta(String ventaId) async {}
+
+  @override
+  Future<List<VentaEnProceso>> listarBorradoresAbiertos(String bodegaId) async => const [];
 }
 
 class _EscanerApagado implements EscanerDeCodigos {

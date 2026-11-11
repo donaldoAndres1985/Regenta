@@ -10,6 +10,7 @@ import '../pos/linea_de_carrito.dart';
 import '../pos/proveedores.dart';
 import 'formato.dart';
 import 'pantalla_cliente_de_venta.dart';
+import 'pantalla_cobro.dart';
 
 /// La pantalla de Nueva venta (POS). HU-045 y `design/comportamiento/POS.md`.
 class PantallaPos extends ConsumerStatefulWidget {
@@ -178,8 +179,30 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
   }
 
   Future<void> _cobrar() async {
+    final estado = ref.read(controladorDelPosProvider);
+    if (!estado.puedeCobrar) return;
     final pos = ref.read(controladorDelPosProvider.notifier);
-    if (ref.read(controladorDelPosProvider).puedeCobrar) await pos.cobrar();
+
+    final resultado = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        builder: (_) => PantallaCobro(
+          total: estado.total,
+          clienteAsignado: estado.cliente != null,
+          bodegaId: ref.read(bodegaDeVentaProvider),
+          lineas: estado.lineasParaEnviar(),
+          clienteId: estado.cliente?.id,
+          notaCliente: estado.nota,
+        ),
+      ),
+    );
+
+    if (resultado == PantallaCobro.sinConexion) {
+      // Sin señal: HU-043 cobra directo, sin pedir metodo de pago.
+      await pos.cobrar();
+    } else if (resultado != null) {
+      pos.vaciarTrasCobro(resultado);
+    }
+    if (mounted) _enfocarBuscador();
   }
 
   KeyEventResult _teclaEnBuscador(FocusNode _, KeyEvent evento) {

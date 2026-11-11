@@ -46,6 +46,53 @@ formas de pago y los montos ya digitados intactos.
 **Dada** una factura emitida, **cuando** después editan el cliente, **entonces** la factura no
 cambia: `facturas.cliente_snapshot` guarda los datos del momento de la emisión.
 
+### R5 · Cobrar en el POS congela el carrito y recién ahí arma la venta real
+**Dado** el botón *Cobrar* del POS con el carrito ya validado (R8/R11 de `POS.md`), **cuando**
+se toca, **entonces** se abre esta pantalla con el total, el cliente y las líneas ya congeladas;
+nada se manda al backend todavía. **Cuando** se elige un método que no es `EFECTIVO` ni
+`CREDITO`, **entonces** se agrega de una vez un pago por el saldo pendiente (HU-039: "pagar todo
+con este método"). `EFECTIVO` pide el monto recibido antes de agregar el pago, para calcular el
+cambio. Varios pagos se pueden combinar (pago mixto) hasta cubrir el saldo.
+
+### R6 · Confirmar cobro arma la venta por los pasos reales, no de una sola llamada
+**Dado** el pago ya completo (`saldoPendiente == 0`), **cuando** se toca *Confirmar cobro*,
+**entonces** se crea el borrador (`POST /api/ventas`), se mandan las líneas
+(`POST /{id}/lineas`), se confirma (`POST /{id}/confirmacion`) y se sondea la venta
+(`GET /{id}`) hasta que la saga de stock de HU-038 la deje `CONFIRMADA` o la devuelva a
+`BORRADOR`. Solo si queda `CONFIRMADA` se registra cada pago (`POST /{id}/pagos`) y se cierra
+(`POST /{id}/cierre`). Mientras tanto el botón muestra el paso en curso ("Creando venta…",
+"Confirmando disponibilidad…", "Registrando pago…", "Cerrando venta…") y no se puede volver a
+tocar.
+
+### R7 · Sin stock, no se cobra nada y no se pierde el carrito
+**Dada** la saga de HU-038, **cuando** devuelve la venta a `BORRADOR` por falta de stock,
+**entonces** se avisa "No hay stock suficiente para completar la venta" y no se registra ningún
+pago ni se cierra nada. El carrito del POS sigue intacto: la persona puede ajustar cantidades y
+volver a intentar.
+
+### R8 · Crédito confirma distinto: antes de la saga, no después
+**Dado** un cliente ya asignado a la venta, **cuando** se elige *Crédito* en vez de un método de
+pago, **entonces** no se arma ningún pago: se llama `POST /{id}/credito` directamente sobre el
+borrador (HU-040), que valida cupo y cartera y confirma la venta por su cuenta —no hay
+`POST /confirmacion` ni `POST /pagos` separados para este camino—. Sin cliente asignado, el botón
+de Crédito no se puede tocar (R4 de `POS.md`).
+
+### R9 · Cartera vencida se rechaza una vez; el reintento autorizado es deliberado
+**Dado** un cliente con cartera vencida, **cuando** se intenta la venta a crédito,
+**entonces** el backend la rechaza (409) y la pantalla ofrece "Autorizar y vender a crédito
+igual". **Cuando** se toca ese botón, **entonces** se reintenta con `autorizado=true`; si quien
+cobra no tiene `VENTAS_CREDITO_APROBAR`, el backend lo vuelve a rechazar (403) y eso sí se
+muestra como error sin más reintentos automáticos.
+
+### R10 · Sin conexión, no se pide método: se cobra como siempre se cobró sin señal
+**Dado** que el primer paso (crear el borrador) falla por falta de red, **entonces** esta
+pantalla no muestra ningún error: se cierra sola y quien la abrió debe caer al camino
+`POST /api/ventas/offline` existente (HU-043), que no pide método de pago porque asume que la
+venta ya se cobró físicamente. Si la red se cae a mitad del flujo (después de crear el borrador
+pero antes de cerrar la venta), el borrador queda huérfano en `BORRADOR` en el servidor —no
+afecta inventario ni caja— y la persona simplemente reintenta; limpiarlo es trabajo pendiente,
+no algo que haya que resolver ahora.
+
 
 ## Al abrir
 

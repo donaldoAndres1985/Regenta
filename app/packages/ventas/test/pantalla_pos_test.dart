@@ -18,6 +18,85 @@ class _RepoFake implements RepositorioDeVentas {
   final List<String> terminos = [];
   final List<List<LineaParaEnviar>> ventasConfirmadas = [];
 
+  // --- El flujo real por pasos (Etapa 0 del cobro). Por defecto simula una
+  // confirmación instantánea y exitosa; `sinSenal` hace que el primer paso
+  // falle como si no hubiera red, para ejercitar la caída a `confirmarVenta`.
+  final List<String> bodegasDeBorrador = [];
+  final List<String?> clientesDeBorrador = [];
+  final List<String?> notasDeBorrador = [];
+  final List<List<LineaParaEnviar>> lineasPorBorrador = [];
+  final List<String> borradoresConfirmados = [];
+  final List<String> credito = [];
+  final List<PagoParaEnviar> pagosRegistrados = [];
+  final List<String> ventasCerradas = [];
+  int _contadorDeBorradores = 0;
+
+  @override
+  Future<VentaEnProceso> crearBorrador({
+    required String bodegaId,
+    String? clienteId,
+    String? notaCliente,
+  }) async {
+    if (sinSenal) throw const ErrorDeRed();
+    final id = 'borrador-${++_contadorDeBorradores}';
+    bodegasDeBorrador.add(bodegaId);
+    clientesDeBorrador.add(clienteId);
+    notasDeBorrador.add(notaCliente);
+    lineasPorBorrador.add([]);
+    return VentaEnProceso(id: id, numero: 'FV-$_contadorDeBorradores', estado: 'BORRADOR', total: 0);
+  }
+
+  @override
+  Future<void> agregarLineaAlBorrador(String ventaId, LineaParaEnviar linea) async {
+    final indice = int.parse(ventaId.split('-').last) - 1;
+    lineasPorBorrador[indice].add(linea);
+  }
+
+  @override
+  Future<void> confirmarBorrador(String ventaId) async {
+    borradoresConfirmados.add(ventaId);
+  }
+
+  @override
+  Future<VentaEnProceso> verVenta(String ventaId) async {
+    final indice = int.parse(ventaId.split('-').last);
+    return VentaEnProceso(id: ventaId, numero: 'FV-$indice', estado: 'CONFIRMADA', total: 0);
+  }
+
+  @override
+  Future<VentaEnProceso> esperarConfirmacion(
+    String ventaId, {
+    int intentos = 12,
+    Duration intervalo = const Duration(milliseconds: 300),
+  }) =>
+      verVenta(ventaId);
+
+  @override
+  Future<void> confirmarACredito(String ventaId, {bool autorizado = false}) async {
+    credito.add(ventaId);
+  }
+
+  @override
+  Future<ResultadoDeUnPago> registrarPago(String ventaId, PagoParaEnviar pago) async {
+    pagosRegistrados.add(pago);
+    return ResultadoDeUnPago(
+      pagoId: 'pago-${pagosRegistrados.length}',
+      metodo: pago.metodo,
+      montoAplicado: pago.monto ?? pago.montoRecibido ?? 0,
+      cambio: 0,
+      saldoPendiente: 0,
+      cubierta: true,
+    );
+  }
+
+  @override
+  Future<void> cerrarVenta(String ventaId) async {
+    ventasCerradas.add(ventaId);
+  }
+
+  @override
+  Future<List<VentaEnProceso>> listarBorradoresAbiertos(String bodegaId) async => const [];
+
   @override
   Future<List<ProductoBuscado>> buscar(String termino) async {
     terminos.add(termino);
@@ -137,6 +216,20 @@ Future<void> _escribir(WidgetTester tester, String texto) async {
     find.descendant(of: _buscador, matching: find.byType(TextField)),
     texto,
   );
+}
+
+/// Toca Cobrar, abre la pantalla de Cobro, paga todo con Transferencia (un
+/// solo toque, sin pedir monto) y confirma. Se usa en los tests que no
+/// prueban el flujo de pago en sí, solo que Cobrar dispare la venta.
+Future<void> _cobrarConUnPago(WidgetTester tester) async {
+  await tester.tap(find.widgetWithText(FilledButton, 'Cobrar'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.widgetWithText(OutlinedButton, 'Transferencia'));
+  await tester.pump();
+  await tester.tap(find.widgetWithText(FilledButton, 'Confirmar cobro'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.widgetWithText(FilledButton, 'Listo'));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _enter(WidgetTester tester) async {
@@ -501,9 +594,8 @@ void main() {
       expect(campo.focusNode!.hasFocus, isTrue);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.f12);
-      await tester.pump();
-      await tester.pump();
-      expect(repo.ventasConfirmadas, hasLength(1));
+      await tester.pumpAndSettle();
+      expect(find.byType(PantallaCobro), findsOneWidget);
     });
   });
 
@@ -664,7 +756,8 @@ void main() {
   );
 
   testWidgets(
-    'R11: Cobrar arma la venta contra el backend con las líneas del carrito',
+    'R11: Cobrar abre la pantalla de Cobro, y al confirmar el pago arma la '
+    'venta contra el flujo real por pasos con las líneas del carrito',
     (tester) async {
       final repo = _RepoFake();
       String? cobrada;
@@ -681,12 +774,13 @@ void main() {
       ); // cantidad 2
       await tester.pump();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Cobrar'));
-      await tester.pump();
-      await tester.pump();
+      await _cobrarConUnPago(tester);
 
-      expect(repo.ventasConfirmadas, hasLength(1));
-      expect(repo.ventasConfirmadas.single.single.cantidad, 2);
+      expect(repo.ventasConfirmadas, isEmpty, reason: 'con señal no usa el camino /offline');
+      expect(repo.lineasPorBorrador.single.single.cantidad, 2);
+      expect(repo.borradoresConfirmados, hasLength(1));
+      expect(repo.pagosRegistrados.single.metodo, 'TRANSFERENCIA');
+      expect(repo.ventasCerradas, hasLength(1));
       expect(cobrada, 'FV-1');
     },
   );
@@ -705,13 +799,18 @@ void main() {
 
       await _agregar(tester, repo, _prod());
       await tester.tap(find.widgetWithText(FilledButton, 'Cobrar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Transferencia'));
       await tester.pump();
-      await tester.pump();
+      // Al confirmar, el primer paso del flujo por pasos falla sin red y cae
+      // directo al camino /offline (HU-043).
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar cobro'));
+      await tester.pumpAndSettle();
 
       expect(
         repo.ventasConfirmadas,
         hasLength(1),
-        reason: 'la venta se cobró igual',
+        reason: 'la venta se cobró igual, por el camino sin señal',
       );
       expect(
         cobrada,
@@ -814,11 +913,9 @@ void main() {
       await tester.tap(find.byKey(const Key('venta-2')));
       await tester.pump();
       await _agregar(tester, repo, _prod(id: 'p2', nombre: 'Tubo PVC'));
-      await tester.tap(find.widgetWithText(FilledButton, 'Cobrar'));
-      await tester.pump();
-      await tester.pump();
+      await _cobrarConUnPago(tester);
 
-      expect(repo.ventasConfirmadas.single.single.productoId, 'p2');
+      expect(repo.lineasPorBorrador.single.single.productoId, 'p2');
       expect(_estado(tester).ventaActiva, 1);
       expect(_estado(tester).lineas, isEmpty);
 

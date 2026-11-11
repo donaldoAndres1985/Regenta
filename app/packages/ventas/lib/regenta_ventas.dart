@@ -12,6 +12,9 @@ export 'src/caja/proveedores.dart';
 export 'src/cliente/controlador_de_cliente.dart';
 export 'src/cliente/estado_de_cliente.dart';
 export 'src/cliente/proveedores.dart';
+export 'src/cobro/controlador_de_cobro.dart';
+export 'src/cobro/estado_del_cobro.dart';
+export 'src/cobro/proveedores.dart';
 export 'src/datos/cliente_de_la_venta.dart';
 export 'src/datos/producto_buscado.dart';
 export 'src/datos/repositorio_de_clientes_de_venta.dart';
@@ -25,6 +28,7 @@ export 'src/pos/proveedores.dart';
 export 'src/ui/formato.dart';
 export 'src/ui/pantalla_cliente_de_venta.dart';
 export 'src/ui/pantalla_caja.dart';
+export 'src/ui/pantalla_cobro.dart';
 export 'src/ui/pantalla_pos.dart';
 
 /// Nombre del modulo, para el registro de paquetes activos por patron/plan.
