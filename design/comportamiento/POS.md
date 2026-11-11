@@ -140,6 +140,23 @@ olvide una venta a medias. El término de búsqueda no viaja entre ventas.
 Las ventas en paralelo viven en memoria: recargar la pantalla las vacía todas, igual que hoy
 pasa con la única venta (ver *Al abrir · pendiente*).
 
+### R13 · Venta rápida: efectivo exacto sin pasar por Cobro
+**Dado** un carrito que ya puede cobrarse (sin líneas sin stock, y con el comprador
+identificado si HU-137 lo exige), **cuando** se pulsa el botón *Efectivo exacto* (junto a
+*Descuento*/*Nota*/*Poner en espera*) o `Shift+F12`, **entonces** se arma la venta por el mismo
+flujo real por pasos de R11 pero sin abrir `PantallaCobro`: se crea el borrador, se mandan las
+líneas, se confirma y, si la saga de HU-038 la deja `CONFIRMADA`, se registra un único pago en
+`EFECTIVO` por el total exacto —sin pedir monto recibido, así que nunca hay cambio— y se cierra.
+La pestaña queda vacía y se avisa *⚡ Venta {número} cobrada en efectivo exacto*, disparando
+`onVentaCobrada` igual que R11.
+
+**Cuando** el carrito no puede cobrarse todavía, **entonces** se avisa el motivo exacto que
+daría *Cobrar* (líneas sin stock, o el aviso de HU-137 si falta identificar al comprador) y no
+se intenta nada contra el backend. **Cuando** la saga no confirma por falta de stock,
+**entonces** se avisa *No hay stock suficiente para completar la venta* y no se registra pago ni
+se cierra nada: el carrito sigue intacto, igual que R7 de `Cobro.md`. **Sin conexión**, el primer
+paso falla y cae al mismo camino `/api/ventas/offline` que usa *Cobrar* (R10 de `Cobro.md`).
+
 ## Al abrir
 
 <!-- Qué se carga y en qué orden, qué campo toma el foco, qué se ve mientras carga, qué se
@@ -201,7 +218,11 @@ se ocultan en móvil, acciones que solo tienen sentido con teclado o solo con el
 - **Escritorio** (`>= 900`): cliente, buscador y la venta como tabla a todo el ancho, con los
   totales y *Cobrar* debajo del listado en la misma tarjeta (R10).
 - **Escáner:** sin botón de cámara; el código entra por el buscador (R7).
-- Atajos: `F2`, `F12` y `Esc` (R7c). Orden de tabulación: _sin definir_.
+- Atajos: `F2`, `F12`, `Shift+F12` (venta rápida, R13) y `Esc` (R7c). Orden de tabulación:
+  _sin definir_.
+- No se portaron más atajos del sistema legado (`FUNCIONALIDADES.md`): esa pantalla no tenía
+  aceleradores de teclado documentados más allá del teclado numérico en pantalla del login, que
+  no aplica aquí.
 - La barra de navegación inferior y la tarjeta de *sin conexión* de los mockups son
   presentacionales; las cablea el shell de la app, no esta pantalla.
 

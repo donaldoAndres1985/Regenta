@@ -57,10 +57,19 @@ class _RepoFake implements RepositorioDeVentas {
     borradoresConfirmados.add(ventaId);
   }
 
+  /// Cuando es true, simula que la saga de HU-038 devolvió la venta a
+  /// BORRADOR por falta de stock, en vez de confirmarla.
+  bool sagaSinStock = false;
+
   @override
   Future<VentaEnProceso> verVenta(String ventaId) async {
     final indice = int.parse(ventaId.split('-').last);
-    return VentaEnProceso(id: ventaId, numero: 'FV-$indice', estado: 'CONFIRMADA', total: 0);
+    return VentaEnProceso(
+      id: ventaId,
+      numero: 'FV-$indice',
+      estado: sagaSinStock ? 'BORRADOR' : 'CONFIRMADA',
+      total: 0,
+    );
   }
 
   @override
@@ -637,6 +646,85 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(PantallaCobro), findsOneWidget);
     });
+
+    testWidgets(
+      'R13: Shift+F12 cobra en efectivo exacto sin abrir la pantalla de Cobro',
+      (tester) async {
+        final repo = _RepoFake();
+        String? cobrada;
+        await _montar(tester, repo, size: const Size(1280, 900), onCobrada: (n) => cobrada = n);
+        await _agregar(tester, repo, _prod());
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.f12);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(PantallaCobro), findsNothing);
+        expect(repo.borradoresConfirmados, hasLength(1));
+        expect(repo.pagosRegistrados.single.metodo, 'EFECTIVO');
+        expect(repo.pagosRegistrados.single.monto, isNull, reason: 'EFECTIVO manda montoRecibido, no monto');
+        expect(repo.ventasCerradas, hasLength(1));
+        expect(cobrada, 'FV-1');
+        expect(_estado(tester).lineas, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'R13: el botón Efectivo exacto hace lo mismo que Shift+F12',
+      (tester) async {
+        final repo = _RepoFake();
+        await _montar(tester, repo, size: const Size(1280, 900));
+        await _agregar(tester, repo, _prod());
+
+        await tester.tap(find.byKey(const Key('pos-boton-venta-rapida')));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(PantallaCobro), findsNothing);
+        expect(repo.pagosRegistrados.single.metodo, 'EFECTIVO');
+        expect(repo.ventasCerradas, hasLength(1));
+      },
+    );
+
+    testWidgets(
+      'R13: con líneas sin stock, Shift+F12 avisa y no manda nada',
+      (tester) async {
+        final repo = _RepoFake();
+        await _montar(tester, repo, size: const Size(1280, 900));
+        await _agregar(tester, repo, _prod(nivel: NivelStock.cero));
+        // Agregar un producto sin stock ya deja su propio aviso en cola;
+        // se descarta para probar el aviso de Venta rápida sin ambigüedad.
+        ScaffoldMessenger.of(tester.element(find.byType(PantallaPos))).removeCurrentSnackBar();
+        await tester.pump();
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.f12);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pump();
+
+        expect(find.text('Hay líneas sin stock: quítalas antes de cobrar'), findsOneWidget);
+        expect(repo.pagosRegistrados, isEmpty);
+        expect(repo.ventasCerradas, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'R13: sin stock en la saga, no cobra ni cierra y el carrito queda intacto',
+      (tester) async {
+        final repo = _RepoFake()..sagaSinStock = true;
+        await _montar(tester, repo, size: const Size(1280, 900));
+        await _agregar(tester, repo, _prod());
+
+        await tester.tap(find.byKey(const Key('pos-boton-venta-rapida')));
+        await tester.pump();
+        await tester.pump();
+
+        expect(find.text('No hay stock suficiente para completar la venta'), findsOneWidget);
+        expect(repo.pagosRegistrados, isEmpty);
+        expect(repo.ventasCerradas, isEmpty);
+        expect(_estado(tester).lineas, isNotEmpty, reason: 'el carrito no se toca si no hay stock');
+      },
+    );
   });
 
   testWidgets(
