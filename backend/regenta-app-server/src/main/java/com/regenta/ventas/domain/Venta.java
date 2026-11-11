@@ -128,6 +128,11 @@ public class Venta {
     @Column(columnDefinition = "text")
     private String nota;
 
+    // Etapa 0 del cobro real: lo que escribe quien vende (ej. "entregar en
+    // obra"), distinto de `nota`, que es la bitacora interna del sistema.
+    @Column(name = "nota_cliente", columnDefinition = "text")
+    private String notaCliente;
+
     @CreationTimestamp
     @Column(name = "creado_en", nullable = false, updatable = false)
     private OffsetDateTime creadoEn;
@@ -277,6 +282,16 @@ public class Venta {
 
     public String getClienteSnapshot() {
         return clienteSnapshot;
+    }
+
+    /** Nota libre de quien vende (ej. "entregar en obra"); solo en BORRADOR. */
+    public void fijarNotaCliente(String notaCliente) {
+        exigirBorrador("anotar");
+        this.notaCliente = notaCliente == null || notaCliente.isBlank() ? null : notaCliente.trim();
+    }
+
+    public String getNotaCliente() {
+        return notaCliente;
     }
 
     /** HU-040: la venta se va a plazo, con su saldo y su fecha de vencimiento. */

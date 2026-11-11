@@ -79,7 +79,7 @@ public class GestionDeCotizaciones {
         }
 
         VentaDelNegocio venta = ventas.crearBorrador(new SolicitudDeVenta(bodegaId,
-                cotizacion.getClienteId(), null, "MOSTRADOR"));
+                cotizacion.getClienteId(), null, "MOSTRADOR", null));
         for (CotizacionLinea cl : lineas.findByCotizacionIdOrderByLinea(cotizacionId)) {
             ventas.agregarLinea(venta.id(), new SolicitudDeLinea(cl.getProductoId(),
                     cl.getSkuSnapshot(), cl.getNombreSnapshot(), cl.getUnidadSnapshot(),

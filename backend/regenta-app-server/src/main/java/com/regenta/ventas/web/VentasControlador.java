@@ -1,11 +1,13 @@
 package com.regenta.ventas.web;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -122,6 +124,12 @@ public class VentasControlador {
     @Operation(summary = "Una venta con sus líneas y sus totales guardados")
     public VentaDelNegocio ver(@PathVariable UUID ventaId) {
         return ventas.ver(ventaId);
+    }
+
+    @GetMapping("/borradores")
+    @Operation(summary = "Las ventas en borrador ('en espera') del cajero en esa bodega")
+    public List<VentaDelNegocio> borradores(@RequestParam UUID bodegaId) {
+        return ventas.listarBorradoresAbiertos(bodegaId);
     }
 
     /** Cuerpo del PATCH de cantidad. */

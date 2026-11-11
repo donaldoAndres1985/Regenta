@@ -53,8 +53,28 @@ public class GestionDeVentas {
         Venta venta = Venta.crear(negocioId, solicitud.bodegaId(), Long.toString(numero),
                 solicitud.clienteId(), ContextoDeNegocio.actual().usuario(),
                 solicitud.listaPreciosId(), solicitud.canal());
+        if (solicitud.notaCliente() != null && !solicitud.notaCliente().isBlank()) {
+            venta.fijarNotaCliente(solicitud.notaCliente());
+        }
         ventas.save(venta);
         return comoDto(venta);
+    }
+
+    /**
+     * Las ventas en borrador que un cajero dejó a medio armar ("en espera"),
+     * para que el POS las pueda recomponer en pestañas al volver a abrir.
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("VENTAS_VENTA_VER")
+    public List<VentaDelNegocio> listarBorradoresAbiertos(UUID bodegaId) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        UUID usuarioId = ContextoDeNegocio.actual().usuario();
+        return ventas
+                .findByNegocioIdAndUsuarioIdAndBodegaIdAndEstadoOrderByCreadoEnDesc(negocioId,
+                        usuarioId, bodegaId, com.regenta.ventas.domain.EstadoVenta.BORRADOR)
+                .stream()
+                .map(this::comoDto)
+                .toList();
     }
 
     @Transactional
@@ -167,7 +187,7 @@ public class GestionDeVentas {
                 .toList();
         return new VentaDelNegocio(v.getId(), v.getNumero(), v.getEstado(), v.getSubtotal(),
                 v.getDescuentoTotal(), v.getBaseGravable(), v.getImpuestoTotal(), v.getTotal(),
-                v.getCostoTotal(), v.getClienteId(), v.getClienteSnapshot(), dto);
+                v.getCostoTotal(), v.getClienteId(), v.getClienteSnapshot(), v.getNotaCliente(), dto);
     }
 
     private static LineaDeVenta comoDtoLinea(VentaLinea l) {
