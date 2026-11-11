@@ -142,7 +142,6 @@ class _PantallaDevolucionState extends ConsumerState<PantallaDevolucion> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: const Color(0xFF2E7D32),
             content: Text(
               'Devolución ${resultado.numero} registrada con éxito. Tipo: ${resultado.tipo}',
             ),

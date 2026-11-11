@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/repositorio_de_ventas.dart';
 import '../pos/proveedores.dart';
@@ -182,7 +183,6 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              backgroundColor: const Color(0xFF2E7D32),
               content: Text(
                 'Venta ${venta.numero} anulada. El stock fue reintegrado al inventario.',
               ),
@@ -306,17 +306,17 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
                   Color estadoColor;
                   switch (v.estado) {
                     case 'CONFIRMADA':
-                      estadoColor = const Color(0xFF2E7D32);
+                      estadoColor = RegentaColors.ok;
                       break;
                     case 'ANULADA':
-                      estadoColor = const Color(0xFFC62828);
+                      estadoColor = RegentaColors.crit;
                       break;
                     case 'DEVUELTA':
                     case 'DEVUELTA_PARCIAL':
-                      estadoColor = const Color(0xFFE65100);
+                      estadoColor = RegentaColors.warn;
                       break;
                     default:
-                      estadoColor = Colors.grey;
+                      estadoColor = RegentaColors.muted;
                   }
 
                   return Card(

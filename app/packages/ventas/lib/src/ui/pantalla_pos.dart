@@ -76,19 +76,19 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     String nivelTexto;
 
     if (p.sinStock) {
-      stockBadgeBg = const Color(0xFF451A1A);
-      stockBadgeBorde = const Color(0xFFDC2626);
-      stockBadgeTexto = const Color(0xFFFCA5A5);
+      stockBadgeBg = RegentaColors.posStockCeroFondo;
+      stockBadgeBorde = RegentaColors.posStockCeroBorde;
+      stockBadgeTexto = RegentaColors.posStockCeroTexto;
       nivelTexto = 'Sin stock';
     } else if (p.nivelStock == NivelStock.bajo) {
-      stockBadgeBg = const Color(0xFF452B14);
-      stockBadgeBorde = const Color(0xFFD97706);
-      stockBadgeTexto = const Color(0xFFFCD34D);
+      stockBadgeBg = RegentaColors.posStockBajoFondo;
+      stockBadgeBorde = RegentaColors.posStockBajoBorde;
+      stockBadgeTexto = RegentaColors.posStockBajoTexto;
       nivelTexto = 'Stock bajo';
     } else {
-      stockBadgeBg = const Color(0xFF133827);
-      stockBadgeBorde = const Color(0xFF059669);
-      stockBadgeTexto = const Color(0xFF6EE7B7);
+      stockBadgeBg = RegentaColors.posStockOkFondo;
+      stockBadgeBorde = RegentaColors.posStockOkBorde;
+      stockBadgeTexto = RegentaColors.posStockOkTexto;
       nivelTexto = 'Disponible';
     }
 
@@ -99,10 +99,10 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       builder: (dialogCtx) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          backgroundColor: const Color(0xFF1E202C),
+          backgroundColor: RegentaColors.posModalFondo,
           title: Row(
             children: [
-              const Icon(Icons.inventory_2_outlined, size: 24, color: Color(0xFF60A5FA)),
+              const Icon(Icons.inventory_2_outlined, size: 24, color: RegentaColors.posModalAcento),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -137,7 +137,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                         style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFFF1F5F9),
+                          color: RegentaColors.posModalTitulo,
                         ),
                       ),
                       Text(
@@ -153,7 +153,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                 ),
                 const SizedBox(height: 14),
                 _FilaDetalle('SKU / Referencia', p.sku.isNotEmpty ? p.sku : '—'),
-                const Divider(height: 1, color: Color(0xFF334155)),
+                const Divider(height: 1, color: RegentaColors.posModalBorde),
                 _FilaDetalle(
                   'Existencia total / Stock',
                   p.existencia != null
@@ -161,18 +161,18 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                       : 'No especificado',
                   valorColor: stockBadgeTexto,
                 ),
-                const Divider(height: 1, color: Color(0xFF334155)),
+                const Divider(height: 1, color: RegentaColors.posModalBorde),
                 const _FilaDetalle('Ubicación / Sección', 'Bodega Principal · Pasillo'),
-                const Divider(height: 1, color: Color(0xFF334155)),
+                const Divider(height: 1, color: RegentaColors.posModalBorde),
                 _FilaDetalle('Precio de venta', formatearPesos(p.precioVenta)),
-                const Divider(height: 1, color: Color(0xFF334155)),
+                const Divider(height: 1, color: RegentaColors.posModalBorde),
                 _FilaDetalle('IVA', '${p.impuestoPct}%'),
                 if (p.costoUnitario > 0) ...[
-                  const Divider(height: 1, color: Color(0xFF334155)),
+                  const Divider(height: 1, color: RegentaColors.posModalBorde),
                   _FilaDetalle('Costo unitario', formatearPesos(p.costoUnitario)),
                 ],
                 if (p.codigoBarras != null && p.codigoBarras!.isNotEmpty) ...[
-                  const Divider(height: 1, color: Color(0xFF334155)),
+                  const Divider(height: 1, color: RegentaColors.posModalBorde),
                   _FilaDetalle('Código de barras', p.codigoBarras!),
                 ],
               ],
@@ -182,7 +182,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             FilledButton(
               onPressed: () => Navigator.of(dialogCtx).pop(),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
+                backgroundColor: RegentaColors.posAcentoFuerte,
                 foregroundColor: Colors.white,
                 shape: const StadiumBorder(),
               ),
@@ -289,7 +289,6 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
         pos.vaciarTrasCobro(ventaConfirmada.numero);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: const Color(0xFF2E7D32),
             content: Text('⚡ Venta ${ventaConfirmada.numero} cobrada en efectivo exacto'),
           ),
         );
@@ -592,7 +591,6 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: const Color(0xFF2E7D32),
             content: Text('Cotización #${cot.numero} creada exitosamente'),
           ),
         );
@@ -627,7 +625,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             if (resultado.preciosDesactualizados) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  backgroundColor: const Color(0xFFE65100),
+                  backgroundColor: Theme.of(context).colorScheme.error,
                   content: Text(
                     'Cotización vencida convertida en venta #${resultado.numeroVenta}. Verifica los precios antes de cobrar.',
                   ),
@@ -636,7 +634,6 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  backgroundColor: const Color(0xFF2E7D32),
                   content: Text(
                     'Cotización #${cotizacion.numero} convertida en venta #${resultado.numeroVenta}',
                   ),
@@ -1901,8 +1898,8 @@ class _FilaDeVenta extends StatelessWidget {
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                             color: Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFFF2F2FA)
-                                : const Color(0xFF151522),
+                                ? RegentaColors.kdsTexto
+                                : RegentaColors.inkFuerte,
                           ),
                         ),
                       ),
@@ -1958,7 +1955,7 @@ class _FilaDeVenta extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF64748B),
+                    color: RegentaColors.muted,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -2351,8 +2348,8 @@ class _TarjetaDeLineaMovil extends StatelessWidget {
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                                 color: Theme.of(context).brightness == Brightness.dark
-                                    ? const Color(0xFFF2F2FA)
-                                    : const Color(0xFF151522),
+                                    ? RegentaColors.kdsTexto
+                                    : RegentaColors.inkFuerte,
                               ),
                             ),
                           ),
@@ -2403,7 +2400,7 @@ class _TarjetaDeLineaMovil extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF64748B),
+                      color: RegentaColors.muted,
                     ),
                   ),
                 ],
@@ -2652,7 +2649,7 @@ class _StepperEditableState extends State<_StepperEditable> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1E202C),
+      backgroundColor: RegentaColors.posModalFondo,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -2675,7 +2672,7 @@ class _StepperEditableState extends State<_StepperEditable> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Color(0xFFCBD5E1)),
+                    icon: const Icon(Icons.close, color: RegentaColors.posModalTextoTenue),
                     onPressed: () => Navigator.of(ctx).pop(),
                   ),
                 ],
@@ -2687,7 +2684,7 @@ class _StepperEditableState extends State<_StepperEditable> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFFE2E8F0),
+                    color: RegentaColors.posModalTextoSecundario,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -2711,7 +2708,7 @@ class _StepperEditableState extends State<_StepperEditable> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFFE2E8F0),
+                    color: RegentaColors.posModalTextoSecundario,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -2739,7 +2736,7 @@ class _StepperEditableState extends State<_StepperEditable> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFFE2E8F0),
+                    color: RegentaColors.posModalTextoSecundario,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -2763,7 +2760,7 @@ class _StepperEditableState extends State<_StepperEditable> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFFE2E8F0),
+                    color: RegentaColors.posModalTextoSecundario,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -2802,10 +2799,10 @@ class _StepperEditableState extends State<_StepperEditable> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: seleccionada ? const Color(0xFF2563EB) : const Color(0xFF2A2B3D),
+          color: seleccionada ? RegentaColors.posAcentoFuerte : RegentaColors.posChipFondo,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: seleccionada ? const Color(0xFF93C5FD) : const Color(0xFF64748B),
+            color: seleccionada ? RegentaColors.posChipBordeSeleccionado : RegentaColors.posChipBorde,
             width: seleccionada ? 1.8 : 1.2,
           ),
         ),
@@ -2821,7 +2818,7 @@ class _StepperEditableState extends State<_StepperEditable> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: seleccionada ? FontWeight.w800 : FontWeight.w600,
-                color: seleccionada ? Colors.white : const Color(0xFFF1F5F9),
+                color: seleccionada ? Colors.white : RegentaColors.posModalTitulo,
               ),
             ),
           ],
@@ -2833,11 +2830,11 @@ class _StepperEditableState extends State<_StepperEditable> {
   @override
   Widget build(BuildContext context) {
     final esOscuro = Theme.of(context).brightness == Brightness.dark;
-    final colorFondo = esOscuro ? const Color(0xFF28283A) : RegentaColors.surface;
-    final colorTexto = esOscuro ? const Color(0xFFF2F2FA) : const Color(0xFF151522);
+    final colorFondo = esOscuro ? RegentaColors.stepperFondoOscuro : RegentaColors.surface;
+    final colorTexto = esOscuro ? RegentaColors.kdsTexto : RegentaColors.inkFuerte;
     final colorBorde = _editando
         ? RegentaColors.accent
-        : (esOscuro ? const Color(0xFF4C4C66) : RegentaColors.line);
+        : (esOscuro ? RegentaColors.stepperBordeOscuro : RegentaColors.line);
 
     return Container(
       constraints: const BoxConstraints(minHeight: 46),
@@ -2867,10 +2864,10 @@ class _StepperEditableState extends State<_StepperEditable> {
             child: _editando
                 ? Container(
                     decoration: BoxDecoration(
-                      color: esOscuro ? const Color(0xFF0F172A) : Colors.white,
+                      color: esOscuro ? RegentaColors.stepperCampoOscuro : Colors.white,
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: const Color(0xFF2563EB),
+                        color: RegentaColors.posAcentoFuerte,
                         width: 2.0,
                       ),
                     ),
@@ -2880,12 +2877,12 @@ class _StepperEditableState extends State<_StepperEditable> {
                       focusNode: _foco,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       textAlign: TextAlign.center,
-                      cursorColor: const Color(0xFF2563EB),
+                      cursorColor: RegentaColors.posAcentoFuerte,
                       style: TextStyle(
                         fontFamily: 'monospace',
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
-                        color: esOscuro ? Colors.white : const Color(0xFF0F172A),
+                        color: esOscuro ? Colors.white : RegentaColors.stepperCampoOscuro,
                       ),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
@@ -2990,7 +2987,7 @@ class _FilaDetalle extends StatelessWidget {
               etiqueta,
               style: const TextStyle(
                 fontSize: 13.5,
-                color: Color(0xFFCBD5E1),
+                color: RegentaColors.posModalTextoTenue,
                 fontWeight: FontWeight.w600,
               ),
             ),
