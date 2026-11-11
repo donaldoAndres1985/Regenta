@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
+import 'bodega_activa.dart';
 import 'dependencias.dart';
 
 /// Los providers de la carcasa (HU-119).
@@ -74,14 +75,27 @@ final resumenDeColaProvider = FutureProvider<ResumenDeCola>(
   (ref) => ref.watch(trabajadorDeSincronizacionProvider).resumen(),
 );
 
+/// La bodega real como notificador: [DependenciasDeLaApp] la carga desde
+/// `GET /api/inventario/bodegas` apenas hay sesión (ver `_seguirAlMotor` y
+/// `cargarBodegaActivaSiHaySesion` en `dependencias.dart`).
+final bodegaActivaComoNotifierProvider = ChangeNotifierProvider<BodegaActiva>(
+  (ref) => ref.watch(dependenciasProvider).bodegaActiva,
+);
+
 /// La bodega desde la que se vende.
 ///
 /// Debería salir de la sucursal activa de la sesión, y todavía no viaja en el
 /// token: `Sesion` trae negocio, plan, patrón, roles y módulos, pero no
-/// sucursal ni bodega. Mientras tanto, el negocio: es lo que ya hace el backend
-/// cuando la venta no dice otra cosa.
+/// sucursal ni bodega. Por eso se resuelve aparte, contra `/api/inventario/
+/// bodegas`, en vez de leerse del token. Mientras esa carga no haya terminado
+/// (login recién hecho, primer frame), cae al negocio como lo hacía antes -
+/// nunca peor que el comportamiento previo, solo mejor en cuanto la bodega
+/// real esté disponible.
 final bodegaActivaProvider = Provider<String>(
-  (ref) => ref.watch(perfilComoNotifierProvider).claims?.negocioId ?? '',
+  (ref) =>
+      ref.watch(bodegaActivaComoNotifierProvider).id ??
+      ref.watch(perfilComoNotifierProvider).claims?.negocioId ??
+      '',
 );
 
 /// La venta que se está armando en el POS.

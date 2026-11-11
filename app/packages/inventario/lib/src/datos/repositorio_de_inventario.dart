@@ -1,5 +1,6 @@
 import 'package:regenta_core/regenta_core.dart';
 
+import 'bodega_del_negocio.dart';
 import 'codigo_resuelto.dart';
 import 'producto_encontrado.dart';
 
@@ -30,6 +31,15 @@ class RepositorioDeInventario {
       query: query,
     );
     return ResultadoDeBusqueda.desdeJson(cuerpo);
+  }
+
+  /// Las bodegas del negocio (HU-029). El negocio siempre tiene al menos una:
+  /// el backend la asegura si todavía no existe ninguna.
+  Future<List<BodegaDelNegocio>> bodegas() async {
+    final cuerpo = await _http.get<List<dynamic>>('/api/inventario/bodegas');
+    return cuerpo
+        .map((e) => BodegaDelNegocio.desdeJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// Resuelve un código de barras (propio o alterno) al producto y su factor

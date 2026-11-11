@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_clientes/regenta_clientes.dart';
@@ -11,6 +13,7 @@ import 'package:regenta_inventario/regenta_inventario.dart';
 import 'package:regenta_mesas/regenta_mesas.dart';
 import 'package:regenta_ventas/regenta_ventas.dart';
 
+import 'bodega_activa.dart';
 import 'clientes_del_pos.dart';
 import 'proveedores.dart';
 
@@ -105,12 +108,47 @@ class DependenciasDeLaApp {
   final ClienteHttp http;
   final ClienteAuth auth;
 
+  /// El id real de la bodega activa (HU-029). Ver `proveedores.dart`,
+  /// `bodegaActivaProvider`, para por qué existe esto en vez de leer el
+  /// negocio del token.
+  final BodegaActiva bodegaActiva = BodegaActiva();
+
   void _seguirAlMotor() {
     final sesion = motor.sesion;
     if (sesion == null) {
       perfil.limpiar();
+      bodegaActiva.limpiar();
     } else {
       perfil.fijarToken(sesion.tokenDeAcceso);
+      unawaited(cargarBodegaActivaSiHaySesion());
+    }
+  }
+
+  Future<void>? _cargaDeBodegaEnCurso;
+
+  /// Pide la bodega real al backend y la cachea. Se puede llamar las veces
+  /// que sea -no repite la llamada si ya hay una bodega cargada o una carga en
+  /// vuelo, y no hace nada sin sesión-. `main.dart` la espera una vez antes del
+  /// primer frame (igual que ya se espera `motor.iniciar()`); `_seguirAlMotor`
+  /// la dispara de nuevo, sin esperarla, cada vez que cambia la sesión (login,
+  /// refresco de token) — ambos caminos comparten la misma carga en vuelo en
+  /// vez de pedir la lista dos veces.
+  Future<void> cargarBodegaActivaSiHaySesion() {
+    if (motor.sesion == null || bodegaActiva.id != null) {
+      return Future.value();
+    }
+    return _cargaDeBodegaEnCurso ??= _cargarBodegaActiva().whenComplete(() {
+      _cargaDeBodegaEnCurso = null;
+    });
+  }
+
+  Future<void> _cargarBodegaActiva() async {
+    try {
+      final lista = await RepositorioDeInventario(http).bodegas();
+      if (lista.isNotEmpty) bodegaActiva.fijar(lista.first.id);
+    } catch (_) {
+      // Sin red, o la sesion ya no es valida: se sigue con el negocio como
+      // placeholder (ver bodegaActivaProvider) hasta el proximo intento.
     }
   }
 

@@ -7,6 +7,7 @@ import 'package:regenta_core/regenta_core.dart';
 export 'src/busqueda/controlador_de_busqueda.dart';
 export 'src/busqueda/estado_de_busqueda.dart';
 export 'src/busqueda/proveedores.dart';
+export 'src/datos/bodega_del_negocio.dart';
 export 'src/datos/codigo_resuelto.dart';
 export 'src/datos/producto_encontrado.dart';
 export 'src/datos/repositorio_de_inventario.dart';

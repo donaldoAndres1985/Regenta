@@ -102,10 +102,19 @@ HU-107). Agregar un código alterno requiere `INVENTARIO_PRODUCTO_CREAR`.
   búsqueda descarta el resultado de una anterior más lenta.
 - Que cancelar la cámara a propósito (Android) fuerce el diálogo manual: solo se cae a manual
   si la cámara **no está disponible** o **falla**.
+- Que la app venda con un `bodegaId` que no sea un id real de `inventario.bodegas`: hasta esta
+  corrección, `bodegaActivaProvider` mandaba el `negocioId` como placeholder porque la sesión
+  no trae sucursal/bodega todavía. El backend nunca valida eso, así que la saga de confirmación
+  (HU-038) nunca encontraba la fila de existencia y **toda** venta real se rechazaba con "no hay
+  stock suficiente", sin importar cuánto hubiera. Ahora `DependenciasDeLaApp` pide la bodega real
+  a `GET /api/inventario/bodegas` apenas hay sesión (`cargarBodegaActivaSiHaySesion`, esperada una
+  vez antes del primer frame igual que `motor.iniciar()`) y la cachea; mientras esa carga no
+  termine, sigue cayendo al negocio como antes, nunca peor que el comportamiento previo.
 
 ## Pendiente (`_Sin definir._`)
 
-- Selector de bodega y su efecto en el stock mostrado.
+- Selector de bodega cuando el negocio tenga más de una (hoy se autoselecciona la primera/
+  única, vía `GET /api/inventario/bodegas`) y su efecto en el stock mostrado.
 - Chips de categoría con nombre.
 - Persistir filtros entre sesiones.
 - Caché offline del catálogo.
