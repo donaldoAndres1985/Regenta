@@ -84,8 +84,13 @@ public class BusquedaDeProductos {
                     && !filtro.categoriaId().equals(producto.getCategoriaId())) {
                 continue;
             }
+            // disponible(), no getCantidad(): lo que la saga de confirmacion (HU-038)
+            // de verdad valida es cantidad - cantidad_reservada. Mostrar la cantidad
+            // bruta aqui dejaba un producto en pantalla como "Disponible" aunque ya
+            // no hubiera nada que de verdad se pudiera vender, y la venta rebotaba
+            // al cobrar con "no hay stock suficiente" sin que nada lo explicara.
             BigDecimal stock = existencias.findByProductoIdOrderByBodegaId(producto.getId()).stream()
-                    .map(Existencia::getCantidad).reduce(BigDecimal.ZERO, BigDecimal::add);
+                    .map(Existencia::disponible).reduce(BigDecimal.ZERO, BigDecimal::add);
             NivelStock nivel = nivelDe(stock, producto.getStockMinimo());
             if (filtro.soloBajoMinimo() && nivel == NivelStock.NORMAL) {
                 continue;
