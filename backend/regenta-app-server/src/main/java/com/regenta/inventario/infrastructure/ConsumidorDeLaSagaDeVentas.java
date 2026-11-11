@@ -6,6 +6,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
@@ -31,6 +33,10 @@ import com.regenta.shared.tenancy.DatosDelNegocio;
 @Component
 public class ConsumidorDeLaSagaDeVentas {
 
+    // DIAGNOSTICO TEMPORAL: confirmar si este listener de verdad recibe algo.
+    // Quitar una vez resuelto.
+    private static final Logger DIAG = LoggerFactory.getLogger("DIAG_SAGA");
+
     private final InboxIdempotente inbox;
     private final GestionDeReservasStock reservas;
     private final ObjectMapper json;
@@ -44,11 +50,14 @@ public class ConsumidorDeLaSagaDeVentas {
 
     @ApplicationModuleListener
     public void recibir(EventoGenerico eventoGenerico) {
+        DIAG.info("recibir() invocado: evento={}", eventoGenerico == null ? "null"
+                : eventoGenerico.id() + " tipo=" + eventoGenerico.tipoEvento());
         if (eventoGenerico == null) {
             return;
         }
         String tipoEvento = eventoGenerico.tipoEvento();
         if (!"solicitar_reserva_stock".equals(tipoEvento) && !"venta_completada".equals(tipoEvento)) {
+            DIAG.info("recibir() descarta por tipo: {}", tipoEvento);
             return;
         }
 
@@ -60,19 +69,28 @@ public class ConsumidorDeLaSagaDeVentas {
             negocioId = UUID.fromString(datos.get("negocio_id").toString());
         }
         if (negocioId == null) {
+            DIAG.info("recibir() sin negocioId, se aborta");
             return;
         }
 
+        DIAG.info("recibir() procesando tipo={} mensajeId={} negocioId={}", tipoEvento, mensajeId, negocioId);
         final UUID tenantId = negocioId;
-        ContextoDeNegocio.en(contextoDe(tenantId), () -> inbox.procesarUnaVez(
-                mensajeId, tenantId, tipoEvento, cuerpo, payload -> {
-                    if ("venta_completada".equals(tipoEvento)) {
-                        Object ventaIdObj = datos.get("venta_id") != null ? datos.get("venta_id") : eventoGenerico.agregadoId();
-                        reservas.confirmar("VENTA", UUID.fromString(ventaIdObj.toString()));
-                    } else {
-                        reservas.solicitar(solicitudDe(datos));
-                    }
-                }));
+        boolean[] seProceso = new boolean[1];
+        try {
+            ContextoDeNegocio.en(contextoDe(tenantId), () -> seProceso[0] = inbox.procesarUnaVez(
+                    mensajeId, tenantId, tipoEvento, cuerpo, payload -> {
+                        if ("venta_completada".equals(tipoEvento)) {
+                            Object ventaIdObj = datos.get("venta_id") != null ? datos.get("venta_id") : eventoGenerico.agregadoId();
+                            reservas.confirmar("VENTA", UUID.fromString(ventaIdObj.toString()));
+                        } else {
+                            reservas.solicitar(solicitudDe(datos));
+                        }
+                    }));
+            DIAG.info("recibir() inbox.procesarUnaVez termino, seProceso={}", seProceso[0]);
+        } catch (RuntimeException e) {
+            DIAG.info("recibir() exploto: {}: {}", e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        }
     }
 
     private String serializarPayload(Object payload) {
