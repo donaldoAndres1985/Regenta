@@ -82,7 +82,7 @@ public class ConsumidorDeLaSagaDeVentas {
             // elegir cualquiera de las dos sin avisar. Esta forma solo
             // encaja en la que devuelve valor.
             boolean seProceso = ContextoDeNegocio.en(contextoDe(tenantId), () -> {
-                return inbox.procesarUnaVez(mensajeId, tenantId, tipoEvento, cuerpo, payload -> {
+                return inbox.procesarUnaVez("inventario.ConsumidorDeLaSagaDeVentas", mensajeId, tenantId, tipoEvento, cuerpo, payload -> {
                     DIAG.info("efecto: tipoEvento=[{}] esVentaCompletada={}", tipoEvento,
                             "venta_completada".equals(tipoEvento));
                     if ("venta_completada".equals(tipoEvento)) {

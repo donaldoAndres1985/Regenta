@@ -48,7 +48,7 @@ public class ConsumidorDeVentasACredito {
             return;
         }
 
-        ContextoDeNegocio.en(contextoDe(evento.negocioId()), () -> inbox.procesarUnaVez(
+        ContextoDeNegocio.en(contextoDe(evento.negocioId()), () -> inbox.procesarUnaVez("clientes.ConsumidorDeVentasACredito", 
                 mensajeId, evento.negocioId(), "venta_a_credito", cuerpo,
                 payload -> cartera.abrirCuentaPorVentaACredito(evento)));
     }

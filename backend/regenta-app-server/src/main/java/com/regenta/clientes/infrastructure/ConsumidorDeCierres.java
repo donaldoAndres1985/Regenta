@@ -55,7 +55,7 @@ public class ConsumidorDeCierres {
             return;   // evento sin negocio: no es de este servicio
         }
 
-        ContextoDeNegocio.en(contextoDe(evento.negocioId()), () -> inbox.procesarUnaVez(
+        ContextoDeNegocio.en(contextoDe(evento.negocioId()), () -> inbox.procesarUnaVez("clientes.ConsumidorDeCierres", 
                 mensajeId, evento.negocioId(), tipoEvento, cuerpo, payload -> {
                     if (ANULACION.equals(tipoEvento)) {
                         proyeccion.revertirCompra(evento);

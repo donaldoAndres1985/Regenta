@@ -64,7 +64,7 @@ public class AuditorDeEventos {
         headers.put("trace_id", evento.traceId());
 
         final UUID nId = negocioId;
-        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez(mensajeId, nId,
+        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("auditoria.AuditorDeEventos", mensajeId, nId,
                 tipoEvento, cuerpo, payload -> procesar(mensajeId, nId, tipoEvento, headers, cuerpo)));
     }
 

@@ -56,7 +56,7 @@ public class ConsumidorDeNegocio {
         UUID negocioId = UUID.fromString(negocio.toString());
 
         final UUID nId = negocioId;
-        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez(
+        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("facturacion.ConsumidorDeNegocio", 
                 mensajeId, nId, tipoEvento, cuerpo,
                 payload -> emisores.guardar(nId, datos)));
     }

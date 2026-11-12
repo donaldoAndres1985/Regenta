@@ -69,7 +69,7 @@ public class ConsumidorDeReservasCanceladas {
         UUID negocioId = UUID.fromString(negocio.toString());
         final UUID nId = negocioId;
 
-        String estadoFinal = "reserva_no_show".equals(tipoEvento) ? "NO_SHOW" : "CANCELADA"; ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez(mensajeId, nId, tipoEvento, cuerpo, payload -> procesar(nId, estadoFinal, datos)));
+        String estadoFinal = "reserva_no_show".equals(tipoEvento) ? "NO_SHOW" : "CANCELADA"; ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("reportes.ConsumidorDeReservasCanceladas", mensajeId, nId, tipoEvento, cuerpo, payload -> procesar(nId, estadoFinal, datos)));
     }
 
     private String serializarPayload(Object payload) {

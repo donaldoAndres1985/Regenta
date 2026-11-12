@@ -54,7 +54,7 @@ public class ConsumidorDeStock {
         UUID negocioId = UUID.fromString(negocio.toString());
         UUID productoId = UUID.fromString(producto.toString());
 
-        ContextoDeNegocio.en(contextoDe(negocioId), () -> inbox.procesarUnaVez(
+        ContextoDeNegocio.en(contextoDe(negocioId), () -> inbox.procesarUnaVez("menu.ConsumidorDeStock", 
                 mensajeId, negocioId, tipoEvento, cuerpo,
                 payload -> disponibilidad.agotarPorInsumoSinStock(negocioId, productoId, LocalDate.now())));
     }

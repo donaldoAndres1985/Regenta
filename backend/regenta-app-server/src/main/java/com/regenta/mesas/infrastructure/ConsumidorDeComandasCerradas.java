@@ -59,7 +59,7 @@ public class ConsumidorDeComandasCerradas {
             return;
         }
 
-        ContextoDeNegocio.en(contextoDe(negocioId), () -> inbox.procesarUnaVez(
+        ContextoDeNegocio.en(contextoDe(negocioId), () -> inbox.procesarUnaVez("mesas.ConsumidorDeComandasCerradas", 
                 mensajeId, negocioId, tipoEvento, cuerpo,
                 payload -> sesiones.cerrarPorComanda(negocioId, sesionId, mesaId, comandaId)));
     }

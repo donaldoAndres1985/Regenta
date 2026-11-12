@@ -64,7 +64,7 @@ public class ConsumidorDeCierresFacturables {
         };
 
         final UUID nId = negocioId;
-        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez(
+        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("facturacion.ConsumidorDeCierresFacturables", 
                 mensajeId, nId, tipoEvento, cuerpo,
                 payload -> facturas.emitirDesdeEvento(origen, datos)));
     }

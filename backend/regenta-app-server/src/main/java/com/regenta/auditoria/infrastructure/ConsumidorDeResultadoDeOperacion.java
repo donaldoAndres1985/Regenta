@@ -61,7 +61,7 @@ public class ConsumidorDeResultadoDeOperacion {
         UUID negocioId = UUID.fromString(negocio.toString());
 
         final UUID nId = negocioId;
-        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez(mensajeId, nId,
+        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("auditoria.ConsumidorDeResultadoDeOperacion", mensajeId, nId,
                 tipoEvento, cuerpo, payload -> procesar(nId, datos)));
     }
 

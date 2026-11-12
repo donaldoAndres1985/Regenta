@@ -71,7 +71,7 @@ public class ConsumidorDeBloqueosDeRecurso {
         UUID negocioId = UUID.fromString(negocio.toString());
         final UUID nId = negocioId;
 
-        boolean levantado = "bloqueo_recurso_levantado".equals(tipoEvento); ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez(mensajeId, nId, tipoEvento, cuerpo, payload -> procesar(nId, levantado, datos)));
+        boolean levantado = "bloqueo_recurso_levantado".equals(tipoEvento); ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("reportes.ConsumidorDeBloqueosDeRecurso", mensajeId, nId, tipoEvento, cuerpo, payload -> procesar(nId, levantado, datos)));
     }
 
     private String serializarPayload(Object payload) {

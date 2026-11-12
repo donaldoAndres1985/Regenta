@@ -54,7 +54,7 @@ public class ConsumidorDeStockBajo {
         }
 
         final UUID tenantId = negocioId;
-        ContextoDeNegocio.en(contextoDe(tenantId), () -> inbox.procesarUnaVez(
+        ContextoDeNegocio.en(contextoDe(tenantId), () -> inbox.procesarUnaVez("compras.ConsumidorDeStockBajo", 
                 mensajeId, tenantId, tipoEvento, cuerpo,
                 payload -> sugerencias.registrarDesdeEvento(datos)));
     }

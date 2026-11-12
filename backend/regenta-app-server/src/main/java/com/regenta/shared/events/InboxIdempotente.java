@@ -1,5 +1,6 @@
 package com.regenta.shared.events;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
@@ -49,13 +50,23 @@ public class InboxIdempotente {
     }
 
     /**
-     * Ejecuta el efecto solo si este mensaje no se habia procesado.
+     * Ejecuta el efecto solo si ESTE CONSUMIDOR no habia procesado este mensaje.
      *
+     * <p>El mismo evento le llega a todos los consumidores con el mismo id, y la
+     * tabla del Inbox es una sola para todo el monolito. Si la llave fuera solo
+     * el id del evento, el primer consumidor en llegar lo reclamaria y los demas
+     * lo descartarian como repetido sin haber hecho nada: asi se quedaban las
+     * ventas en PENDIENTE_STOCK (HU-038). Por eso la llave es por consumidor.
+     *
+     * @param consumidor nombre estable de quien consume, p. ej. "inventario.ConsumidorDeLaSagaDeVentas"
      * @return true si se proceso ahora, false si era repetido y se descarto
      */
     @Transactional
-    public boolean procesarUnaVez(UUID mensajeId, UUID negocioId, String tipoEvento,
+    public boolean procesarUnaVez(String consumidor, UUID mensajeId, UUID negocioId, String tipoEvento,
                                   String payload, Consumer<String> efecto) {
+        UUID eventoId = mensajeId;
+        mensajeId = claveDe(consumidor, eventoId);
+        DIAG.info("procesarUnaVez() consumidor={} evento={} clave={}", consumidor, eventoId, mensajeId);
         DIAG.info("procesarUnaVez() ENTRA mensajeId={} tipo={}", mensajeId, tipoEvento);
         boolean gane = reclamar(mensajeId, negocioId, tipoEvento, payload);
         DIAG.info("procesarUnaVez() reclamar()={} mensajeId={}", gane, mensajeId);
@@ -99,5 +110,9 @@ public class InboxIdempotente {
         });
         DIAG.info("reclamar() TransactionTemplate.execute devolvio={} mensajeId={}", reclamado, mensajeId);
         return Boolean.TRUE.equals(reclamado);
+    }
+
+    static UUID claveDe(String consumidor, UUID mensajeId) {
+        return UUID.nameUUIDFromBytes((consumidor + ":" + mensajeId).getBytes(StandardCharsets.UTF_8));
     }
 }

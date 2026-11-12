@@ -56,7 +56,7 @@ public class ConsumidorDeConfiguracionDelNegocio {
         UUID negocioId = UUID.fromString(negocio.toString());
         Object monto = datos.get("monto_identificar_comprador");
 
-        ContextoDeNegocio.en(contextoDe(negocioId), () -> inbox.procesarUnaVez(mensajeId, negocioId,
+        ContextoDeNegocio.en(contextoDe(negocioId), () -> inbox.procesarUnaVez("ventas.ConsumidorDeConfiguracionDelNegocio", mensajeId, negocioId,
                 tipoEvento, cuerpo, payload -> configuracion.guardar(negocioId,
                         monto == null ? null : new BigDecimal(monto.toString()))));
     }

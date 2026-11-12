@@ -60,7 +60,7 @@ public class ConsumidorDeAuditoria {
         UUID negocioId = UUID.fromString(negocio.toString());
 
         final UUID nId = negocioId;
-        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez(
+        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("alertas.ConsumidorDeAuditoria", 
                 mensajeId, nId, tipoEvento, cuerpo, payload -> despachar(tipoEvento, datos)));
     }
 
