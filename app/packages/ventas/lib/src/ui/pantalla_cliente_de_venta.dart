@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 import 'package:uuid/uuid.dart';
@@ -38,10 +39,15 @@ class PantallaClienteDeVenta extends ConsumerStatefulWidget {
 
 class _PantallaClienteDeVentaState extends ConsumerState<PantallaClienteDeVenta> {
   final TextEditingController _buscador = TextEditingController();
+  final FocusNode _focoBuscador = FocusNode(debugLabel: 'buscador-cliente-venta');
+  final FocusNode _focoLista = FocusNode(debugLabel: 'lista-clientes-venta');
+  int _indiceResaltado = 0;
 
   @override
   void initState() {
     super.initState();
+    _focoBuscador.onKeyEvent = _manejarTeclasBuscador;
+    _focoLista.onKeyEvent = _manejarTeclasLista;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(controladorDeClienteProvider.notifier).sembrar(widget.asignado);
     });
@@ -50,7 +56,75 @@ class _PantallaClienteDeVentaState extends ConsumerState<PantallaClienteDeVenta>
   @override
   void dispose() {
     _buscador.dispose();
+    _focoBuscador.dispose();
+    _focoLista.dispose();
     super.dispose();
+  }
+
+  KeyEventResult _manejarTeclasBuscador(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      final estado = ref.read(controladorDeClienteProvider);
+      if (estado.resultados.isNotEmpty) {
+        setState(() => _indiceResaltado = 0);
+        _focoLista.requestFocus();
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
+  KeyEventResult _manejarTeclasLista(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final estado = ref.read(controladorDeClienteProvider);
+    if (estado.resultados.isEmpty) return KeyEventResult.ignored;
+
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      setState(() {
+        _indiceResaltado =
+            (_indiceResaltado + 1).clamp(0, estado.resultados.length - 1);
+      });
+      return KeyEventResult.handled;
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      if (_indiceResaltado == 0) {
+        _focoBuscador.requestFocus();
+      } else {
+        setState(() {
+          _indiceResaltado =
+              (_indiceResaltado - 1).clamp(0, estado.resultados.length - 1);
+        });
+      }
+      return KeyEventResult.handled;
+    } else if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      if (_indiceResaltado >= 0 && _indiceResaltado < estado.resultados.length) {
+        _asignar(estado.resultados[_indiceResaltado]);
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _enterEnBuscador() {
+    final estado = ref.read(controladorDeClienteProvider);
+    if (estado.resultados.length == 1) {
+      _asignar(estado.resultados.first);
+    } else if (estado.resultados.length > 1) {
+      setState(() => _indiceResaltado = 0);
+      _focoLista.requestFocus();
+    }
+  }
+
+  void _manejarEscape() {
+    final estado = ref.read(controladorDeClienteProvider);
+    if (estado.creando) {
+      ref.read(controladorDeClienteProvider.notifier).cerrarAlta();
+    } else {
+      widget.onCerrar?.call();
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   Future<void> _asignar(ClienteDeLaVenta cliente) async {
@@ -83,71 +157,88 @@ class _PantallaClienteDeVentaState extends ConsumerState<PantallaClienteDeVenta>
       }
     });
 
-    return LayoutBuilder(
-      builder: (context, restricciones) {
-        final escritorio = restricciones.maxWidth >= kBreakpointEscritorio;
-        final lista = _Lista(
-          estado: estado,
-          onElegir: _asignar,
-          onConsumidorFinal: estado.esConsumidorFinal ? null : _quitar,
-        );
-        final buscador = _Buscador(
-          controlador: _buscador,
-          onCambio: ref.read(controladorDeClienteProvider.notifier).cambiarTermino,
-        );
-        final alta = estado.creando
-            ? _FormularioDeAlta(
-                onCrear: _crear,
-                onCancelar: ref.read(controladorDeClienteProvider.notifier).cerrarAlta,
-                trabajando: estado.trabajando,
-              )
-            : null;
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): _manejarEscape,
+      },
+      child: LayoutBuilder(
+        builder: (context, restricciones) {
+          final escritorio = restricciones.maxWidth >= kBreakpointEscritorio;
+          final lista = _Lista(
+            estado: estado,
+            focoLista: _focoLista,
+            indiceResaltado: _indiceResaltado,
+            onElegir: _asignar,
+            onConsumidorFinal: estado.esConsumidorFinal ? null : _quitar,
+          );
+          final buscador = _Buscador(
+            controlador: _buscador,
+            foco: _focoBuscador,
+            onCambio: (termino) {
+              ref.read(controladorDeClienteProvider.notifier).cambiarTermino(termino);
+              setState(() => _indiceResaltado = 0);
+            },
+            onSubmitted: _enterEnBuscador,
+          );
+          final alta = estado.creando
+              ? _FormularioDeAlta(
+                  onCrear: _crear,
+                  onCancelar:
+                      ref.read(controladorDeClienteProvider.notifier).cerrarAlta,
+                  trabajando: estado.trabajando,
+                )
+              : null;
 
-        if (escritorio) {
-          return Scaffold(
-            key: const Key('cliente-venta-escritorio'),
-            backgroundColor: RegentaColors.paper,
-            body: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: Column(children: [
-                    _Encabezado(onCerrar: widget.onCerrar, mostrarVolver: false),
-                    buscador,
-                    Expanded(child: lista),
-                    if (puedeCrear && alta == null)
-                      _BotonCrear(
-                          onCrear: ref.read(controladorDeClienteProvider.notifier).abrirAlta),
-                  ]),
-                ),
-                if (alta != null) ...[
-                  const VerticalDivider(width: 1, color: RegentaColors.line),
-                  SizedBox(width: 380, child: alta),
+          if (escritorio) {
+            return Scaffold(
+              key: const Key('cliente-venta-escritorio'),
+              backgroundColor: RegentaColors.paper,
+              body: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Column(children: [
+                      _Encabezado(onCerrar: widget.onCerrar, mostrarVolver: false),
+                      buscador,
+                      Expanded(child: lista),
+                      if (puedeCrear && alta == null)
+                        _BotonCrear(
+                            onCrear: ref
+                                .read(controladorDeClienteProvider.notifier)
+                                .abrirAlta),
+                    ]),
+                  ),
+                  if (alta != null) ...[
+                    const VerticalDivider(width: 1, color: RegentaColors.line),
+                    SizedBox(width: 380, child: alta),
+                  ],
                 ],
-              ],
+              ),
+            );
+          }
+
+          return Scaffold(
+            key: const Key('cliente-venta-movil'),
+            backgroundColor: RegentaColors.paper,
+            body: SafeArea(
+              child: Column(children: [
+                _Encabezado(onCerrar: widget.onCerrar, mostrarVolver: true),
+                if (alta != null)
+                  Expanded(child: alta)
+                else ...[
+                  buscador,
+                  Expanded(child: lista),
+                  if (puedeCrear)
+                    _BotonCrear(
+                        onCrear: ref
+                            .read(controladorDeClienteProvider.notifier)
+                            .abrirAlta),
+                ],
+              ]),
             ),
           );
-        }
-
-        return Scaffold(
-          key: const Key('cliente-venta-movil'),
-          backgroundColor: RegentaColors.paper,
-          body: SafeArea(
-            child: Column(children: [
-              _Encabezado(onCerrar: widget.onCerrar, mostrarVolver: true),
-              if (alta != null)
-                Expanded(child: alta)
-              else ...[
-                buscador,
-                Expanded(child: lista),
-                if (puedeCrear)
-                  _BotonCrear(
-                      onCrear: ref.read(controladorDeClienteProvider.notifier).abrirAlta),
-              ],
-            ]),
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 }
@@ -191,10 +282,17 @@ class _Encabezado extends StatelessWidget {
 }
 
 class _Buscador extends StatelessWidget {
-  const _Buscador({required this.controlador, required this.onCambio});
+  const _Buscador({
+    required this.controlador,
+    required this.foco,
+    required this.onCambio,
+    required this.onSubmitted,
+  });
 
   final TextEditingController controlador;
+  final FocusNode foco;
   final ValueChanged<String> onCambio;
+  final VoidCallback onSubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -208,15 +306,23 @@ class _Buscador extends StatelessWidget {
         height: 46,
         child: TextField(
           controller: controlador,
+          focusNode: foco,
           autofocus: true,
           onChanged: onCambio,
-          style: RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.ink),
+          onSubmitted: (_) => onSubmitted(),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: RegentaColors.inkFuerte,
+          ),
           decoration: InputDecoration(
             isDense: true,
+            filled: true,
+            fillColor: RegentaColors.surface,
             prefixIcon: const Icon(Icons.search, size: 18, color: RegentaColors.faint),
             hintText: 'Buscar por nombre, NIT o cédula…',
             hintStyle:
-                RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.faint),
+                const TextStyle(fontSize: 14, color: RegentaColors.faint),
             contentPadding: const EdgeInsets.symmetric(vertical: 13),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(RegentaSpacing.radius),
@@ -225,6 +331,10 @@ class _Buscador extends StatelessWidget {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(RegentaSpacing.radius),
               borderSide: const BorderSide(color: RegentaColors.line2),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+              borderSide: const BorderSide(color: RegentaColors.accent, width: 1.5),
             ),
           ),
         ),
@@ -236,11 +346,15 @@ class _Buscador extends StatelessWidget {
 class _Lista extends StatelessWidget {
   const _Lista({
     required this.estado,
+    required this.focoLista,
+    required this.indiceResaltado,
     required this.onElegir,
     required this.onConsumidorFinal,
   });
 
   final EstadoDeCliente estado;
+  final FocusNode focoLista;
+  final int indiceResaltado;
   final void Function(ClienteDeLaVenta) onElegir;
 
   /// `null` cuando ya está en consumidor final: no hay nada que quitar.
@@ -248,37 +362,41 @@ class _Lista extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      children: [
-        _FilaConsumidorFinal(
-          seleccionado: estado.esConsumidorFinal,
-          onQuitar: onConsumidorFinal,
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(0, 18, 0, 2),
-          child: Text('CLIENTES DEL NEGOCIO',
-              style: RegentaType.etiqueta.copyWith(fontSize: 9.5)),
-        ),
-        if (estado.resultados.isEmpty && !estado.buscando)
+    return Focus(
+      focusNode: focoLista,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        children: [
+          _FilaConsumidorFinal(
+            seleccionado: estado.esConsumidorFinal,
+            onQuitar: onConsumidorFinal,
+          ),
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              estado.termino.isEmpty
-                  ? 'Este negocio todavía no tiene clientes. Se puede vender así, a consumidor final.'
-                  : 'No hay ningún cliente con ese nombre o documento.',
-              style: RegentaType.cuerpo.copyWith(fontSize: 13, color: RegentaColors.ink2),
+            padding: const EdgeInsets.fromLTRB(0, 18, 0, 2),
+            child: Text('CLIENTES DEL NEGOCIO',
+                style: RegentaType.etiqueta.copyWith(fontSize: 9.5)),
+          ),
+          if (estado.resultados.isEmpty && !estado.buscando)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                estado.termino.isEmpty
+                    ? 'Este negocio todavía no tiene clientes. Se puede vender así, a consumidor final.'
+                    : 'No hay ningún cliente con ese nombre o documento.',
+                style: RegentaType.cuerpo.copyWith(fontSize: 13, color: RegentaColors.ink2),
+              ),
             ),
-          ),
-        for (final cliente in estado.resultados)
-          _FilaDeCliente(
-            cliente: cliente,
-            seleccionado: estado.asignado?.id == cliente.id,
-            onElegir: () => onElegir(cliente),
-          ),
-        const SizedBox(height: 12),
-        const _Nota(),
-      ],
+          for (var i = 0; i < estado.resultados.length; i++)
+            _FilaDeCliente(
+              cliente: estado.resultados[i],
+              seleccionado: estado.asignado?.id == estado.resultados[i].id,
+              resaltado: i == indiceResaltado && focoLista.hasFocus,
+              onElegir: () => onElegir(estado.resultados[i]),
+            ),
+          const SizedBox(height: 12),
+          const _Nota(),
+        ],
+      ),
     );
   }
 }
@@ -310,13 +428,13 @@ class _FilaConsumidorFinal extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Consumidor final',
+              Text('CONSUMIDOR FINAL',
                   style: RegentaType.item
-                      .copyWith(fontSize: 14, color: RegentaColors.ink)),
+                      .copyWith(fontSize: 14, fontWeight: FontWeight.w700, color: RegentaColors.inkFuerte)),
               const SizedBox(height: 2),
-              Text('sin identificar · por defecto',
+              Text('SIN IDENTIFICAR · POR DEFECTO',
                   style: RegentaType.codigo
-                      .copyWith(fontSize: 10, color: RegentaColors.muted)),
+                      .copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: RegentaColors.muted)),
             ],
           ),
         ),
@@ -347,11 +465,13 @@ class _FilaDeCliente extends StatelessWidget {
   const _FilaDeCliente({
     required this.cliente,
     required this.seleccionado,
+    this.resaltado = false,
     required this.onElegir,
   });
 
   final ClienteDeLaVenta cliente;
   final bool seleccionado;
+  final bool resaltado;
   final VoidCallback onElegir;
 
   @override
@@ -360,9 +480,19 @@ class _FilaDeCliente extends StatelessWidget {
       onTap: onElegir,
       child: Container(
         constraints: const BoxConstraints(minHeight: RegentaSpacing.hitTarget),
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: RegentaColors.line)),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        margin: const EdgeInsets.only(bottom: 2),
+        decoration: BoxDecoration(
+          color: resaltado
+              ? RegentaColors.accentSoft
+              : (seleccionado ? RegentaColors.sunken : Colors.transparent),
+          borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+          border: Border(
+            bottom: const BorderSide(color: RegentaColors.line),
+            left: resaltado
+                ? const BorderSide(color: RegentaColors.accent, width: 3)
+                : BorderSide.none,
+          ),
         ),
         child: Row(children: [
           Container(
@@ -371,9 +501,9 @@ class _FilaDeCliente extends StatelessWidget {
             alignment: Alignment.center,
             decoration: const BoxDecoration(
                 color: RegentaColors.paper, shape: BoxShape.circle),
-            child: Text(cliente.iniciales,
+            child: Text(cliente.iniciales.toUpperCase(),
                 style: RegentaType.codigo
-                    .copyWith(fontSize: 12, color: RegentaColors.ink2)),
+                    .copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: RegentaColors.ink2)),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -381,19 +511,19 @@ class _FilaDeCliente extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(cliente.nombre,
+                Text(cliente.nombre.toUpperCase(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: RegentaType.item
-                        .copyWith(fontSize: 13.5, color: RegentaColors.ink)),
+                        .copyWith(fontSize: 13.5, fontWeight: FontWeight.w700, color: RegentaColors.inkFuerte)),
                 const SizedBox(height: 3),
                 Row(children: [
                   Flexible(
-                    child: Text(cliente.documento,
+                    child: Text(cliente.documento.toUpperCase(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: RegentaType.codigo
-                            .copyWith(fontSize: 10.5, color: RegentaColors.muted)),
+                            .copyWith(fontSize: 10.5, fontWeight: FontWeight.w600, color: RegentaColors.muted)),
                   ),
                   if (cliente.condicion != null) ...[
                     const SizedBox(width: 8),
@@ -632,6 +762,11 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
                     key: const Key('campo-numero-documento'),
                     controller: _numero,
                     keyboardType: TextInputType.number,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: RegentaColors.inkFuerte,
+                    ),
                     decoration: _decoracion()),
               ),
             ),
@@ -647,6 +782,11 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
                   child: TextField(
                       key: const Key('campo-dv'),
                       controller: _dv,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: RegentaColors.inkFuerte,
+                      ),
                       decoration: _decoracion()),
                 ),
               ),
@@ -661,6 +801,11 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
             child: TextField(
                 key: const Key('campo-nombre'),
                 controller: _nombre,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: RegentaColors.inkFuerte,
+                ),
                 decoration: _decoracion()),
           ),
         ),
@@ -674,6 +819,11 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
                 key: const Key('campo-correo'),
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: RegentaColors.inkFuerte,
+                ),
                 decoration: _decoracion()),
           ),
         ),
@@ -686,6 +836,11 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
                 key: const Key('campo-telefono'),
                 controller: _telefono,
                 keyboardType: TextInputType.phone,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: RegentaColors.inkFuerte,
+                ),
                 decoration: _decoracion()),
           ),
         ),
@@ -744,6 +899,8 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
 
   InputDecoration _decoracion() => InputDecoration(
         isDense: true,
+        filled: true,
+        fillColor: RegentaColors.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(RegentaSpacing.radius),
@@ -752,6 +909,10 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(RegentaSpacing.radius),
           borderSide: const BorderSide(color: RegentaColors.line2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+          borderSide: const BorderSide(color: RegentaColors.accent, width: 1.5),
         ),
       );
 }

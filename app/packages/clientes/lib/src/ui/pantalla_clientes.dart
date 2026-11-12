@@ -33,6 +33,14 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
   bool _abriendo = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focoBuscador.requestFocus();
+    });
+  }
+
+  @override
   void dispose() {
     _buscador.dispose();
     _focoBuscador.dispose();
@@ -206,16 +214,23 @@ class _Controles extends StatelessWidget {
             child: TextField(
               controller: controlador,
               focusNode: foco,
+              autofocus: true,
               onChanged: onTermino,
               onSubmitted: (_) => onEnter(),
-              style: RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.ink),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: RegentaColors.inkFuerte,
+              ),
               decoration: InputDecoration(
                 isDense: true,
+                filled: true,
+                fillColor: RegentaColors.surface,
                 prefixIcon:
                     const Icon(Icons.search, size: 18, color: RegentaColors.faint),
                 hintText: 'Nombre, NIT o cédula…  (F5)',
                 hintStyle:
-                    RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.faint),
+                    const TextStyle(fontSize: 14, color: RegentaColors.faint),
                 contentPadding: const EdgeInsets.symmetric(vertical: 11),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(RegentaSpacing.radius),
@@ -224,6 +239,10 @@ class _Controles extends StatelessWidget {
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(RegentaSpacing.radius),
                   borderSide: const BorderSide(color: RegentaColors.line2),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+                  borderSide: const BorderSide(color: RegentaColors.accent, width: 1.5),
                 ),
               ),
             ),
@@ -423,16 +442,20 @@ class _FilaCliente extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(cliente.nombre,
+                  Text(cliente.nombre.toUpperCase(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: RegentaType.item.copyWith(color: RegentaColors.ink)),
+                      style: RegentaType.item.copyWith(
+                          color: RegentaColors.inkFuerte,
+                          fontWeight: FontWeight.w700)),
                   const SizedBox(height: 3),
-                  Text(cliente.documentoLabel,
+                  Text(cliente.documentoLabel.toUpperCase(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: RegentaType.codigo
-                          .copyWith(fontSize: 10.5, color: RegentaColors.muted)),
+                      style: RegentaType.codigo.copyWith(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: RegentaColors.muted)),
                 ],
               ),
             ),
