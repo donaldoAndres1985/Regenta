@@ -65,6 +65,7 @@ public class GestionDeReservasStock {
     @Transactional
     @RequierePermiso("INVENTARIO_RESERVA_GESTIONAR")
     public ResultadoDeReserva solicitar(SolicitudDeReservaStock solicitud) {
+        DIAG.info("solicitar() ENTRA origenId={} correlacion={}", solicitud.origenId(), solicitud.correlacionId());
         UUID negocioId = ContextoDeNegocio.negocioActual();
 
         List<ReservaStock> yaReservado = reservas.findByNegocioIdAndOrigenTipoAndOrigenId(
