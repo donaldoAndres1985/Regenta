@@ -71,7 +71,7 @@ public class ConsumidorDeStockActualizado {
         UUID negocioId = UUID.fromString(negocio.toString());
         final UUID nId = negocioId;
 
-        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez(mensajeId, nId, tipoEvento, cuerpo, payload -> procesar(nId, datos)));
+        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("reportes.ConsumidorDeStockActualizado", mensajeId, nId, tipoEvento, cuerpo, payload -> procesar(nId, datos)));
     }
 
     private String serializarPayload(Object payload) {

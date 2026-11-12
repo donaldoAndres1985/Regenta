@@ -56,7 +56,7 @@ public class ConsumidorDeDevoluciones {
         UUID negocioId = UUID.fromString(negocio.toString());
 
         final UUID nId = negocioId;
-        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez(
+        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("facturacion.ConsumidorDeDevoluciones", 
                 mensajeId, nId, tipoEvento, cuerpo,
                 payload -> notas.emitirDesdeDevolucion(datos)));
     }

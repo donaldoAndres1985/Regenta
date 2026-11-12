@@ -67,7 +67,7 @@ public class ConsumidorDePedidos {
         }
         UUID negocioId = UUID.fromString(negocio.toString());
 
-        ContextoDeNegocio.en(contextoDe(negocioId), () -> inbox.procesarUnaVez(
+        ContextoDeNegocio.en(contextoDe(negocioId), () -> inbox.procesarUnaVez("menu.ConsumidorDePedidos", 
                 mensajeId, negocioId, tipoEvento, cuerpo, payload -> explotar(negocioId, datos)));
     }
 

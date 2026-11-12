@@ -65,7 +65,7 @@ public class ConsumidorDeProductoActualizado {
         UUID negocioId = UUID.fromString(negocio.toString());
         final UUID nId = negocioId;
 
-        Object producto = datos.get("producto_id"); if (producto == null) return; UUID prodId = UUID.fromString(producto.toString()); ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez(mensajeId, nId, tipoEvento, cuerpo, payload -> procesar(nId, prodId, datos)));
+        Object producto = datos.get("producto_id"); if (producto == null) return; UUID prodId = UUID.fromString(producto.toString()); ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("reportes.ConsumidorDeProductoActualizado", mensajeId, nId, tipoEvento, cuerpo, payload -> procesar(nId, prodId, datos)));
     }
 
     private String serializarPayload(Object payload) {

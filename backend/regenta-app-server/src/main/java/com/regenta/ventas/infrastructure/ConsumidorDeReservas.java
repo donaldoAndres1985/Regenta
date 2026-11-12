@@ -67,7 +67,7 @@ public class ConsumidorDeReservas {
                 : evento.agregadoId();
 
         final UUID nId = negocioId;
-        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez(
+        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("ventas.ConsumidorDeReservas", 
                 mensajeId, nId, tipoEvento, cuerpo, payload -> {
                     if ("stock_reserva_fallida".equals(tipoEvento)) {
                         saga.alReservaFallida(correlacionId, motivoDe(datos));
