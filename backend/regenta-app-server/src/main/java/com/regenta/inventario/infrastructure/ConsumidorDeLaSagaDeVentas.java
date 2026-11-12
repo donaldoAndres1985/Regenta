@@ -92,9 +92,20 @@ public class ConsumidorDeLaSagaDeVentas {
                 });
             });
             DIAG.info("recibir() inbox.procesarUnaVez termino, seProceso={}", seProceso);
-        } catch (RuntimeException e) {
-            DIAG.info("recibir() exploto: {}: {}", e.getClass().getSimpleName(), e.getMessage());
-            throw e;
+        } catch (Throwable e) {
+            // DIAGNOSTICO TEMPORAL: antes solo se atrapaba RuntimeException y se
+            // logueaba sin el stack trace. Un Error (o cualquier Throwable que no
+            // sea RuntimeException) se escapaba sin dejar rastro en DIAG_SAGA, y
+            // el mensaje quedaba marcado PROCESADO en el Inbox sin que el efecto
+            // real hubiera corrido. Quitar una vez resuelto.
+            DIAG.error("recibir() exploto: {}: {}", e.getClass().getName(), e.getMessage(), e);
+            if (e instanceof RuntimeException re) {
+                throw re;
+            }
+            if (e instanceof Error err) {
+                throw err;
+            }
+            throw new RuntimeException(e);
         }
     }
 
