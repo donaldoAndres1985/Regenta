@@ -47,9 +47,10 @@ class RepositorioDeClientesHttp implements RepositorioDeClientesDeVenta {
       );
       final lista = cuerpo is List
           ? cuerpo
-          : (((cuerpo as Map)['clientes'] ??
-              (cuerpo as Map)['contenido'] ??
-              const <dynamic>[]) as List<dynamic>);
+          : cuerpo is Map
+              ? ((cuerpo['clientes'] ?? cuerpo['contenido'] ?? const <dynamic>[])
+                  as List<dynamic>)
+              : const <dynamic>[];
       final clientes = lista
           .map((c) => ClienteDeLaVenta.desdeJson((c as Map).cast<String, dynamic>()))
           .toList();

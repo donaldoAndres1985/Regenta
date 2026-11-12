@@ -250,35 +250,28 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             width: 380,
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: RadioListTile<bool>(
-                        title: const Text('Entrada'),
-                        value: true,
-                        groupValue: esIngreso,
-                        onChanged: (v) {
-                          setDlgState(() => esIngreso = true);
-                          focoMonto.requestFocus();
-                        },
-                      ),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(
+                      value: true,
+                      label: Text('Entrada'),
+                      icon: Icon(Icons.arrow_downward, color: RegentaColors.ok),
                     ),
-                    Expanded(
-                      child: RadioListTile<bool>(
-                        title: const Text('Salida'),
-                        value: false,
-                        groupValue: esIngreso,
-                        onChanged: (v) {
-                          setDlgState(() => esIngreso = false);
-                          focoMonto.requestFocus();
-                        },
-                      ),
+                    ButtonSegment(
+                      value: false,
+                      label: Text('Salida'),
+                      icon: Icon(Icons.arrow_upward, color: RegentaColors.crit),
                     ),
                   ],
+                  selected: {esIngreso},
+                  onSelectionChanged: (s) {
+                    setDlgState(() => esIngreso = s.first);
+                    focoMonto.requestFocus();
+                  },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 TextField(
                   key: const Key('movimiento-caja-monto'),
                   controller: montoCtrl,
@@ -313,15 +306,18 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
               onPressed: () async {
                 final monto = num.tryParse(montoCtrl.text.trim().replaceAll(',', '.')) ?? 0;
                 final concepto = conceptoCtrl.text.trim();
+                final messenger = ScaffoldMessenger.of(context);
+                final errorColor = Theme.of(context).colorScheme.error;
+
                 if (monto <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(content: Text('Falta total del movimiento de caja.')),
                   );
                   focoMonto.requestFocus();
                   return;
                 }
                 if (concepto.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(content: Text('Falta descripción del movimiento de caja.')),
                   );
                   return;
@@ -334,24 +330,22 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                   } else {
                     await ctrlCaja.registrarRetiro(monto, concepto);
                   }
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Movimiento de ${esIngreso ? "Entrada" : "Salida"} por ${formatearPesos(monto)} registrado correctamente.',
-                        ),
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Movimiento de ${esIngreso ? "Entrada" : "Salida"} por ${formatearPesos(monto)} registrado correctamente.',
                       ),
-                    );
-                  }
+                    ),
+                  );
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: Theme.of(context).colorScheme.error,
-                        content: Text('Error al registrar movimiento: $e'),
-                      ),
-                    );
-                  }
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      backgroundColor: errorColor,
+                      content: Text('Error al registrar movimiento: $e'),
+                    ),
+                  );
                 }
               },
               child: const Text('Guardar'),
