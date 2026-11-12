@@ -6,8 +6,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
@@ -25,10 +23,6 @@ import com.regenta.ventas.application.SagaDeConfirmacionDeVenta;
 @Component
 public class ConsumidorDeReservas {
 
-    // DIAGNOSTICO TEMPORAL: confirmar si este listener de verdad recibe algo.
-    // Quitar una vez resuelto.
-    private static final Logger DIAG = LoggerFactory.getLogger("DIAG_SAGA");
-
     private final InboxIdempotente inbox;
     private final SagaDeConfirmacionDeVenta saga;
     private final ObjectMapper json;
@@ -42,17 +36,13 @@ public class ConsumidorDeReservas {
 
     @ApplicationModuleListener
     public void recibir(EventoGenerico evento) {
-        DIAG.info("recibir() invocado: evento={}", evento == null ? "null"
-                : evento.id() + " tipo=" + evento.tipoEvento());
         if (evento == null) {
             return;
         }
         String tipoEvento = evento.tipoEvento();
         if (!"stock_reservado".equals(tipoEvento) && !"stock_reserva_fallida".equals(tipoEvento)) {
-            DIAG.info("recibir() descarta por tipo: {}", tipoEvento);
             return;
         }
-        DIAG.info("recibir() procesando tipo={} correlacion(raw)={}", tipoEvento, evento.agregadoId());
 
         UUID mensajeId = evento.id();
         String cuerpo = serializarPayload(evento.payload());
@@ -67,7 +57,7 @@ public class ConsumidorDeReservas {
                 : evento.agregadoId();
 
         final UUID nId = negocioId;
-        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("ventas.ConsumidorDeReservas", 
+        ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez("ventas.ConsumidorDeReservas",
                 mensajeId, nId, tipoEvento, cuerpo, payload -> {
                     if ("stock_reserva_fallida".equals(tipoEvento)) {
                         saga.alReservaFallida(correlacionId, motivoDe(datos));

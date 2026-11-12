@@ -11,8 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,10 +39,6 @@ import com.regenta.inventario.infrastructure.ReservaStockRepositorio;
 @Service
 public class GestionDeReservasStock {
 
-    // DIAGNOSTICO TEMPORAL: confirmar si la respuesta de la saga (stock_reservado
-    // / stock_reserva_fallida) de verdad sale publicada. Quitar una vez resuelto.
-    private static final Logger DIAG = LoggerFactory.getLogger("DIAG_SAGA");
-
     /** TTL por defecto de una reserva si la solicitud no trae {@code expiraEn}. */
     static final Duration TTL_POR_DEFECTO = Duration.ofMinutes(15);
 
@@ -65,7 +59,6 @@ public class GestionDeReservasStock {
     @Transactional
     @RequierePermiso("INVENTARIO_RESERVA_GESTIONAR")
     public ResultadoDeReserva solicitar(SolicitudDeReservaStock solicitud) {
-        DIAG.info("solicitar() ENTRA origenId={} correlacion={}", solicitud.origenId(), solicitud.correlacionId());
         UUID negocioId = ContextoDeNegocio.negocioActual();
 
         List<ReservaStock> yaReservado = reservas.findByNegocioIdAndOrigenTipoAndOrigenId(
@@ -75,10 +68,8 @@ public class GestionDeReservasStock {
             // responder igual (idempotente), o Ventas se queda esperando una respuesta
             // que nunca llega y la saga se traba en PENDIENTE_STOCK ("venta sin stock").
             List<UUID> ids = yaReservado.stream().map(ReservaStock::getId).toList();
-            var evt = eventos.registrar(negocioId, "reserva_stock", solicitud.origenId(), "stock_reservado",
+            eventos.registrar(negocioId, "reserva_stock", solicitud.origenId(), "stock_reservado",
                     payloadReservado(negocioId, solicitud, ids));
-            DIAG.info("publicado stock_reservado (idempotente, ya existia) id={} correlacion={} reservas={}",
-                    evt.id(), solicitud.correlacionId(), ids.size());
             return new ResultadoDeReserva(true, solicitud.correlacionId(), List.of(), ids);
         }
 
@@ -101,10 +92,8 @@ public class GestionDeReservasStock {
         }
 
         if (!faltantes.isEmpty()) {
-            var evt = eventos.registrar(negocioId, "reserva_stock", solicitud.origenId(),
+            eventos.registrar(negocioId, "reserva_stock", solicitud.origenId(),
                     "stock_reserva_fallida", payloadFallida(negocioId, solicitud, faltantes));
-            DIAG.info("publicado stock_reserva_fallida id={} correlacion={} faltantes={}",
-                    evt.id(), solicitud.correlacionId(), faltantes.size());
             return new ResultadoDeReserva(false, solicitud.correlacionId(), faltantes, List.of());
         }
 
@@ -119,10 +108,8 @@ public class GestionDeReservasStock {
             ids.add(reserva.getId());
         });
 
-        var evt = eventos.registrar(negocioId, "reserva_stock", solicitud.origenId(), "stock_reservado",
+        eventos.registrar(negocioId, "reserva_stock", solicitud.origenId(), "stock_reservado",
                 payloadReservado(negocioId, solicitud, ids));
-        DIAG.info("publicado stock_reservado id={} correlacion={} reservas={}",
-                evt.id(), solicitud.correlacionId(), ids.size());
         return new ResultadoDeReserva(true, solicitud.correlacionId(), List.of(), ids);
     }
 
@@ -130,12 +117,9 @@ public class GestionDeReservasStock {
     @Transactional
     @RequierePermiso("INVENTARIO_RESERVA_GESTIONAR")
     public void confirmar(String origenTipo, UUID origenId) {
-        DIAG.info("confirmar() ENTRA origenTipo={} origenId={}", origenTipo, origenId);
         UUID negocioId = ContextoDeNegocio.negocioActual();
-        List<ReservaStock> encontradas = reservas.findByNegocioIdAndOrigenTipoAndOrigenId(
-                negocioId, origenTipo, origenId);
-        DIAG.info("confirmar() encontro {} reservas para origenId={}", encontradas.size(), origenId);
-        for (ReservaStock reserva : encontradas) {
+        for (ReservaStock reserva : reservas.findByNegocioIdAndOrigenTipoAndOrigenId(
+                negocioId, origenTipo, origenId)) {
             if (!reserva.estaActiva()) {
                 continue;   // ya confirmada o liberada: idempotente
             }
