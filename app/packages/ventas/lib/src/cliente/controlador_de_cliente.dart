@@ -34,10 +34,20 @@ class ControladorDeCliente extends StateNotifier<EstadoDeCliente> {
     super.dispose();
   }
 
+  bool get tieneBusquedaPendiente =>
+      (_temporizador?.isActive ?? false) || state.buscando;
+
   void cambiarTermino(String termino) {
     state = state.copiar(termino: termino);
     _temporizador?.cancel();
     _temporizador = Timer(_rebote, () => unawaited(_buscar(termino)));
+  }
+
+  Future<List<ClienteDeLaVenta>> buscarInmediato(String termino) async {
+    _temporizador?.cancel();
+    state = state.copiar(termino: termino);
+    await _buscar(termino);
+    return state.resultados;
   }
 
   Future<void> _buscar(String termino) async {

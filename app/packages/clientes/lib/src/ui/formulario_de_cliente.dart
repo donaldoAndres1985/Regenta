@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/ficha_de_cliente.dart';
@@ -170,56 +171,132 @@ class _FormularioDeClienteState extends State<FormularioDeCliente> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: RegentaColors.surface,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(18, 14, 8, 14),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: RegentaColors.line)),
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          if (!_guardando) Navigator.of(context).pop(false);
+        },
+      },
+      child: Focus(
+        autofocus: true,
+        child: Material(
+          color: RegentaColors.surface,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(18, 14, 8, 14),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: RegentaColors.line)),
+              ),
+              child: Row(children: [
+                Expanded(
+                  child: Text(_editando ? 'Editar cliente' : 'Nuevo cliente',
+                      style: RegentaType.seccion
+                          .copyWith(fontSize: 16, color: RegentaColors.ink)),
+                ),
+                IconButton(
+                  tooltip: 'Cerrar',
+                  onPressed: _guardando ? null : () => Navigator.of(context).pop(false),
+                  icon: const Icon(Icons.close, size: 20, color: RegentaColors.ink2),
+                ),
+              ]),
             ),
-            child: Row(children: [
-              Expanded(
-                child: Text(_editando ? 'Editar cliente' : 'Nuevo cliente',
-                    style: RegentaType.seccion
-                        .copyWith(fontSize: 16, color: RegentaColors.ink)),
-              ),
-              IconButton(
-                tooltip: 'Cerrar',
-                onPressed: _guardando ? null : () => Navigator.of(context).pop(false),
-                icon: const Icon(Icons.close, size: 20, color: RegentaColors.ink2),
-              ),
-            ]),
-          ),
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _Etiqueta('Tipo de persona'),
-                  SegmentedButton<String>(
-                    key: const Key('cliente-tipo-persona'),
-                    segments: const [
-                      ButtonSegment(value: 'NATURAL', label: Text('Natural')),
-                      ButtonSegment(value: 'JURIDICA', label: Text('Jurídica')),
-                    ],
-                    selected: {_tipoPersona},
-                    showSelectedIcon: false,
-                    onSelectionChanged: _editando
-                        ? null
-                        : (s) => setState(() {
-                              _tipoPersona = s.first;
-                              if (_juridica && _tipoDocumento == 'CC') {
-                                _tipoDocumento = 'NIT';
-                              } else if (!_juridica && _tipoDocumento == 'NIT') {
-                                _tipoDocumento = 'CC';
-                              }
-                            }),
-                  ),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _Etiqueta('Tipo de persona'),
+                    SegmentedButton<String>(
+                      key: const Key('cliente-tipo-persona'),
+                      style: ButtonStyle(
+                        backgroundColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return RegentaColors.accent;
+                          }
+                          return RegentaColors.sunken;
+                        }),
+                        foregroundColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return Colors.white;
+                          }
+                          return RegentaColors.inkFuerte;
+                        }),
+                        textStyle: WidgetStateProperty.all(
+                          const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5),
+                        ),
+                        side: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return const BorderSide(
+                                color: RegentaColors.accent, width: 1.5);
+                          }
+                          return const BorderSide(color: RegentaColors.line2);
+                        }),
+                        shape: WidgetStateProperty.all(
+                          RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(RegentaSpacing.radius)),
+                        ),
+                      ),
+                      segments: [
+                        ButtonSegment(
+                          value: 'NATURAL',
+                          label: Text(
+                            'NATURAL',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: _tipoPersona == 'NATURAL'
+                                  ? Colors.white
+                                  : RegentaColors.inkFuerte,
+                            ),
+                          ),
+                          icon: Icon(
+                            Icons.person_outline,
+                            size: 18,
+                            color: _tipoPersona == 'NATURAL'
+                                ? Colors.white
+                                : RegentaColors.inkFuerte,
+                          ),
+                        ),
+                        ButtonSegment(
+                          value: 'JURIDICA',
+                          label: Text(
+                            'JURÍDICA',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: _tipoPersona == 'JURIDICA'
+                                  ? Colors.white
+                                  : RegentaColors.inkFuerte,
+                            ),
+                          ),
+                          icon: Icon(
+                            Icons.business_outlined,
+                            size: 18,
+                            color: _tipoPersona == 'JURIDICA'
+                                ? Colors.white
+                                : RegentaColors.inkFuerte,
+                          ),
+                        ),
+                      ],
+                      selected: {_tipoPersona},
+                      showSelectedIcon: false,
+                      onSelectionChanged: _editando
+                          ? null
+                          : (s) => setState(() {
+                                _tipoPersona = s.first;
+                                if (_juridica && _tipoDocumento == 'CC') {
+                                  _tipoDocumento = 'NIT';
+                                } else if (!_juridica && _tipoDocumento == 'NIT') {
+                                  _tipoDocumento = 'CC';
+                                }
+                              }),
+                    ),
                   const SizedBox(height: 12),
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Expanded(
@@ -254,6 +331,11 @@ class _FormularioDeClienteState extends State<FormularioDeCliente> {
                           controller: _numero,
                           enabled: !_editando && !_sinIdentificar,
                           keyboardType: TextInputType.number,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: RegentaColors.inkFuerte,
+                          ),
                           decoration: _decoracion(),
                         ),
                       ),
@@ -270,6 +352,11 @@ class _FormularioDeClienteState extends State<FormularioDeCliente> {
                             enabled: !_editando,
                             maxLength: 1,
                             keyboardType: TextInputType.number,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: RegentaColors.inkFuerte,
+                            ),
                             decoration: _decoracion().copyWith(counterText: ''),
                           ),
                         ),
@@ -283,6 +370,11 @@ class _FormularioDeClienteState extends State<FormularioDeCliente> {
                         key: const Key('cliente-razon-social'),
                         controller: _razonSocial,
                         textCapitalization: TextCapitalization.words,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: RegentaColors.inkFuerte,
+                        ),
                         decoration: _decoracion(),
                       ),
                     )
@@ -295,6 +387,11 @@ class _FormularioDeClienteState extends State<FormularioDeCliente> {
                             key: const Key('cliente-nombres'),
                             controller: _nombres,
                             textCapitalization: TextCapitalization.words,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: RegentaColors.inkFuerte,
+                            ),
                             decoration: _decoracion(),
                           ),
                         ),
@@ -307,6 +404,11 @@ class _FormularioDeClienteState extends State<FormularioDeCliente> {
                             key: const Key('cliente-apellidos'),
                             controller: _apellidos,
                             textCapitalization: TextCapitalization.words,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: RegentaColors.inkFuerte,
+                            ),
                             decoration: _decoracion(),
                           ),
                         ),
@@ -320,6 +422,11 @@ class _FormularioDeClienteState extends State<FormularioDeCliente> {
                           key: const Key('cliente-telefono'),
                           controller: _telefono,
                           keyboardType: TextInputType.phone,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: RegentaColors.inkFuerte,
+                          ),
                           decoration: _decoracion(),
                         ),
                       ),
@@ -332,6 +439,11 @@ class _FormularioDeClienteState extends State<FormularioDeCliente> {
                           key: const Key('cliente-telefono-alterno'),
                           controller: _telefonoAlterno,
                           keyboardType: TextInputType.phone,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: RegentaColors.inkFuerte,
+                          ),
                           decoration: _decoracion(),
                         ),
                       ),
@@ -344,6 +456,11 @@ class _FormularioDeClienteState extends State<FormularioDeCliente> {
                       key: const Key('cliente-correo'),
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: RegentaColors.inkFuerte,
+                      ),
                       decoration: _decoracion(),
                     ),
                   ),
@@ -409,6 +526,11 @@ class _FormularioDeClienteState extends State<FormularioDeCliente> {
                       controller: _notas,
                       minLines: 2,
                       maxLines: 4,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: RegentaColors.inkFuerte,
+                      ),
                       decoration: _decoracion(),
                     ),
                   ),
@@ -467,11 +589,15 @@ class _FormularioDeClienteState extends State<FormularioDeCliente> {
           ),
         ],
       ),
-    );
-  }
+    ),
+    ),
+  );
+}
 
   InputDecoration _decoracion() => InputDecoration(
         isDense: true,
+        filled: true,
+        fillColor: RegentaColors.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(RegentaSpacing.radius),
@@ -480,6 +606,10 @@ class _FormularioDeClienteState extends State<FormularioDeCliente> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(RegentaSpacing.radius),
           borderSide: const BorderSide(color: RegentaColors.line2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+          borderSide: const BorderSide(color: RegentaColors.accent, width: 1.5),
         ),
       );
 }

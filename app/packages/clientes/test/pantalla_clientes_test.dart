@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:regenta_core/regenta_core.dart';
@@ -97,13 +98,13 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'cruz');
     await tester.pump();
-    expect(find.text('Materiales Cruz S.A.S.'), findsOneWidget);
-    expect(find.text('Jorge Rendón Ospina'), findsNothing);
+    expect(find.text('MATERIALES CRUZ S.A.S.'), findsOneWidget);
+    expect(find.text('JORGE RENDÓN OSPINA'), findsNothing);
 
     await tester.enterText(find.byType(TextField), '718');
     await tester.pump();
-    expect(find.text('Jorge Rendón Ospina'), findsOneWidget);
-    expect(find.text('Materiales Cruz S.A.S.'), findsNothing);
+    expect(find.text('JORGE RENDÓN OSPINA'), findsOneWidget);
+    expect(find.text('MATERIALES CRUZ S.A.S.'), findsNothing);
 
     expect(repo.llamadasEnRed, 1); // nunca volvió a pedir
   });
@@ -115,8 +116,8 @@ void main() {
     );
     await _montar(tester, repo);
 
-    expect(find.text('Luz Elena Vargas'), findsOneWidget);
-    expect(find.text('Ferremax del Norte'), findsOneWidget);
+    expect(find.text('LUZ ELENA VARGAS'), findsOneWidget);
+    expect(find.text('FERREMAX DEL NORTE'), findsOneWidget);
     expect(find.textContaining('sin conexión'), findsOneWidget);
   });
 
@@ -130,17 +131,17 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('Con saldo'));
     await tester.pump();
-    expect(find.text('Minorista Con Saldo'), findsOneWidget);
-    expect(find.text('Mayorista Sin Saldo'), findsNothing);
+    expect(find.text('MINORISTA CON SALDO'), findsOneWidget);
+    expect(find.text('MAYORISTA SIN SALDO'), findsNothing);
 
     await tester.tap(find.bySemanticsLabel('Mayoristas'));
     await tester.pump();
-    expect(find.text('Mayorista Sin Saldo'), findsOneWidget);
-    expect(find.text('Minorista Con Saldo'), findsNothing);
+    expect(find.text('MAYORISTA SIN SALDO'), findsOneWidget);
+    expect(find.text('MINORISTA CON SALDO'), findsNothing);
 
     await tester.tap(find.bySemanticsLabel('Vencidos'));
     await tester.pump();
-    expect(find.text('Minorista Con Saldo'), findsNothing);
+    expect(find.text('MINORISTA CON SALDO'), findsNothing);
 
     expect(repo.llamadasEnRed, 1);
   });
@@ -167,7 +168,7 @@ void main() {
         greaterThanOrEqualTo(44));
 
     final fila = find
-        .ancestor(of: find.text('Materiales Cruz S.A.S.'), matching: find.byType(InkWell))
+        .ancestor(of: find.text('MATERIALES CRUZ S.A.S.'), matching: find.byType(InkWell))
         .first;
     expect(tester.getSize(fila).height, greaterThanOrEqualTo(44));
   });
@@ -192,8 +193,8 @@ void main() {
     expect(repo.guardadas.single.id, isNull);
     expect(repo.guardadas.single.aJson()['numeroDocumento'], '71884203');
     expect(repo.guardadas.single.aJson()['email'], isNull);
-    expect(find.text('Jorge Rendón'), findsOneWidget);
-    expect(find.text('Ferremax del Norte'), findsOneWidget);
+    expect(find.text('JORGE RENDÓN'), findsOneWidget);
+    expect(find.text('FERREMAX DEL NORTE'), findsOneWidget);
   });
 
   testWidgets('Gestión: si el servidor no lo acepta se dice por qué y no queda un cliente fantasma',
@@ -214,7 +215,7 @@ void main() {
 
     await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle();
-    expect(find.text('Fantasma'), findsNothing);
+    expect(find.text('FANTASMA'), findsNothing);
     expect(find.text('1 cliente'), findsOneWidget);
   });
 
@@ -249,7 +250,7 @@ void main() {
       };
     await _montar(tester, repo, size: const Size(1280, 900));
 
-    await tester.tap(find.text('Materiales Cruz S.A.S.'));
+    await tester.tap(find.text('MATERIALES CRUZ S.A.S.'));
     await tester.pumpAndSettle();
     expect(find.text('Editar cliente'), findsOneWidget);
 
@@ -263,7 +264,28 @@ void main() {
     expect(enviada.aJson()['razonSocial'], 'Materiales Cruz y Cía');
     // Lo que no se tocó viaja igual: guardar no puede borrar las notas.
     expect(enviada.aJson()['notas'], 'Paga los viernes');
-    expect(find.text('Materiales Cruz y Cía'), findsOneWidget);
-    expect(find.text('Materiales Cruz S.A.S.'), findsNothing);
+    expect(find.text('MATERIALES CRUZ Y CÍA'), findsOneWidget);
+    expect(find.text('MATERIALES CRUZ S.A.S.'), findsNothing);
+  });
+
+  testWidgets('Foco inicial en buscador al entrar a clientes', (tester) async {
+    final repo = _RepoFake(red: [_c()]);
+    await _montar(tester, repo);
+
+    final editable = tester.widget<EditableText>(find.byType(EditableText).first);
+    expect(editable.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('Escape cierra el formulario de cliente', (tester) async {
+    final repo = _RepoFake(red: [_c()]);
+    await _montar(tester, repo, size: const Size(1280, 900));
+
+    await tester.tap(find.byKey(const Key('clientes-nuevo')));
+    await tester.pumpAndSettle();
+    expect(find.byType(FormularioDeCliente), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(FormularioDeCliente), findsNothing);
   });
 }

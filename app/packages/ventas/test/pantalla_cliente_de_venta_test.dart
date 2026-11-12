@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:regenta_core/regenta_core.dart';
@@ -79,6 +80,7 @@ Future<void> _montar(
   Set<String> permisos = const {'CLIENTES_CLIENTE_CREAR'},
   ClienteDeLaVenta? asignado,
   void Function(ClienteDeLaVenta?)? onAsignado,
+  VoidCallback? onCerrar,
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -89,7 +91,11 @@ Future<void> _montar(
       permisosDeLaSesionProvider.overrideWithValue(permisos),
     ],
     child: MaterialApp(
-      home: PantallaClienteDeVenta(asignado: asignado, onAsignado: onAsignado),
+      home: PantallaClienteDeVenta(
+        asignado: asignado,
+        onAsignado: onAsignado,
+        onCerrar: onCerrar,
+      ),
     ),
   ));
   await tester.pumpAndSettle();
@@ -100,7 +106,7 @@ void main() {
       (tester) async {
     await _montar(tester, _RepoFake());
 
-    expect(find.text('Consumidor final'), findsOneWidget);
+    expect(find.text('CONSUMIDOR FINAL'), findsOneWidget);
     expect(find.bySemanticsLabel('Consumidor final, seleccionado'), findsOneWidget);
   });
 
@@ -110,7 +116,7 @@ void main() {
     ClienteDeLaVenta? devuelto;
 
     await _montar(tester, repo, onAsignado: (c) => devuelto = c);
-    await tester.tap(find.text('Materiales Cruz S.A.S.'));
+    await tester.tap(find.text('MATERIALES CRUZ S.A.S.'));
     await tester.pumpAndSettle();
 
     expect(repo.asignadoAId, 'c-1');
@@ -122,7 +128,7 @@ void main() {
     final repo = _RepoFake()..fallaAlAsignar = const ErrorDesconocido(404, 'Ese cliente no existe');
 
     await _montar(tester, repo);
-    await tester.tap(find.text('Materiales Cruz S.A.S.'));
+    await tester.tap(find.text('MATERIALES CRUZ S.A.S.'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('no existe'), findsWidgets);
@@ -152,7 +158,7 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
 
     expect(repo.terminoBuscado, 'cruz');
-    expect(find.text('Luz Marina Peña'), findsNothing);
+    expect(find.text('LUZ MARINA PEÑA'), findsNothing);
   });
 
   testWidgets('HU-114 criterio 4: sin permiso de crear, se busca y se asigna pero no se crea',
@@ -160,7 +166,7 @@ void main() {
     await _montar(tester, _RepoFake(), permisos: const {});
 
     expect(find.text('Crear cliente nuevo'), findsNothing);
-    expect(find.text('Materiales Cruz S.A.S.'), findsOneWidget);
+    expect(find.text('MATERIALES CRUZ S.A.S.'), findsOneWidget);
   });
 
   testWidgets('HU-114 criterio 1: con documento, nombre y correo se crea y se asigna',
@@ -298,5 +304,43 @@ void main() {
 
     expect(tester.getSize(find.bySemanticsLabel('Consumidor final, seleccionado')).height,
         greaterThanOrEqualTo(44));
+  });
+
+  testWidgets('Enter en el buscador con un solo resultado asigna automáticamente',
+      (tester) async {
+    final repo = _RepoFake();
+    ClienteDeLaVenta? devuelto;
+
+    await _montar(tester, repo, onAsignado: (c) => devuelto = c);
+    await tester.enterText(find.byType(TextField).first, 'cruz');
+    // Sin esperar el debounce de 300 ms, presiona Enter directamente
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(devuelto?.nombre, 'Materiales Cruz S.A.S.');
+  });
+
+  testWidgets('Escape cierra el modal cuando no está en alta', (tester) async {
+    var cerrado = false;
+    await _montar(tester, _RepoFake(), onCerrar: () => cerrado = true);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(cerrado, isTrue);
+  });
+
+  testWidgets('Escape dentro del TextField del buscador cierra el modal de inmediato',
+      (tester) async {
+    var cerrado = false;
+    await _montar(tester, _RepoFake(), onCerrar: () => cerrado = true);
+
+    // Foco activo en el buscador
+    expect(tester.widget<EditableText>(find.byType(EditableText).first).focusNode.hasFocus,
+        isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(cerrado, isTrue);
   });
 }
