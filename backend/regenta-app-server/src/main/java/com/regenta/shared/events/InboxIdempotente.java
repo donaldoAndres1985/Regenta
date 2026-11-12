@@ -35,8 +35,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class InboxIdempotente {
 
     private static final Logger log = LoggerFactory.getLogger(InboxIdempotente.class);
-    // DIAGNOSTICO TEMPORAL. Quitar una vez resuelto.
-    private static final Logger DIAG = LoggerFactory.getLogger("DIAG_SAGA");
 
     private final InboxRepositorio inbox;
     private final TransactionTemplate reclamoEnTransaccionPropia;
@@ -64,23 +62,15 @@ public class InboxIdempotente {
     @Transactional
     public boolean procesarUnaVez(String consumidor, UUID mensajeId, UUID negocioId, String tipoEvento,
                                   String payload, Consumer<String> efecto) {
-        UUID eventoId = mensajeId;
-        mensajeId = claveDe(consumidor, eventoId);
-        DIAG.info("procesarUnaVez() consumidor={} evento={} clave={}", consumidor, eventoId, mensajeId);
-        DIAG.info("procesarUnaVez() ENTRA mensajeId={} tipo={}", mensajeId, tipoEvento);
+        mensajeId = claveDe(consumidor, mensajeId);
         boolean gane = reclamar(mensajeId, negocioId, tipoEvento, payload);
-        DIAG.info("procesarUnaVez() reclamar()={} mensajeId={}", gane, mensajeId);
         if (!gane) {
-            DIAG.info("procesarUnaVez() SALE false (no gano el reclamo) mensajeId={}", mensajeId);
             return false;
         }
-        DIAG.info("procesarUnaVez() llamando efecto.accept mensajeId={}", mensajeId);
         efecto.accept(payload);
-        DIAG.info("procesarUnaVez() efecto.accept termino OK mensajeId={}", mensajeId);
         InboxEvento registro = inbox.findById(mensajeId).orElseThrow();
         registro.marcarProcesado();
         inbox.save(registro);
-        DIAG.info("procesarUnaVez() SALE true (marcado procesado) mensajeId={}", mensajeId);
         return true;
     }
 
@@ -92,23 +82,18 @@ public class InboxIdempotente {
     private boolean reclamar(UUID mensajeId, UUID negocioId, String tipoEvento, String payload) {
         Boolean reclamado = reclamoEnTransaccionPropia.execute(estado -> {
             if (inbox.existsById(mensajeId)) {
-                DIAG.info("reclamar() existsById=true, ya existia mensajeId={}", mensajeId);
                 log.debug("Evento {} ({}) repetido: se descarta", mensajeId, tipoEvento);
                 return false;
             }
             try {
                 inbox.saveAndFlush(new InboxEvento(mensajeId, negocioId, tipoEvento, payload));
-                DIAG.info("reclamar() saveAndFlush OK mensajeId={}", mensajeId);
                 return true;
             } catch (DataIntegrityViolationException e) {
-                DIAG.info("reclamar() saveAndFlush choco: {}: {} mensajeId={}",
-                        e.getClass().getSimpleName(), e.getMessage(), mensajeId);
                 log.debug("Evento {} ({}) llego dos veces a la vez: se descarta", mensajeId, tipoEvento);
                 estado.setRollbackOnly();
                 return false;
             }
         });
-        DIAG.info("reclamar() TransactionTemplate.execute devolvio={} mensajeId={}", reclamado, mensajeId);
         return Boolean.TRUE.equals(reclamado);
     }
 

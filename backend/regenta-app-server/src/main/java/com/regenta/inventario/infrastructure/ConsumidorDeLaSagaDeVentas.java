@@ -6,8 +6,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
@@ -33,10 +31,6 @@ import com.regenta.shared.tenancy.DatosDelNegocio;
 @Component
 public class ConsumidorDeLaSagaDeVentas {
 
-    // DIAGNOSTICO TEMPORAL: confirmar si este listener de verdad recibe algo.
-    // Quitar una vez resuelto.
-    private static final Logger DIAG = LoggerFactory.getLogger("DIAG_SAGA");
-
     private final InboxIdempotente inbox;
     private final GestionDeReservasStock reservas;
     private final ObjectMapper json;
@@ -50,14 +44,11 @@ public class ConsumidorDeLaSagaDeVentas {
 
     @ApplicationModuleListener
     public void recibir(EventoGenerico eventoGenerico) {
-        DIAG.info("recibir() invocado: evento={}", eventoGenerico == null ? "null"
-                : eventoGenerico.id() + " tipo=" + eventoGenerico.tipoEvento());
         if (eventoGenerico == null) {
             return;
         }
         String tipoEvento = eventoGenerico.tipoEvento();
         if (!"solicitar_reserva_stock".equals(tipoEvento) && !"venta_completada".equals(tipoEvento)) {
-            DIAG.info("recibir() descarta por tipo: {}", tipoEvento);
             return;
         }
 
@@ -69,48 +60,22 @@ public class ConsumidorDeLaSagaDeVentas {
             negocioId = UUID.fromString(datos.get("negocio_id").toString());
         }
         if (negocioId == null) {
-            DIAG.info("recibir() sin negocioId, se aborta");
             return;
         }
 
-        DIAG.info("recibir() procesando tipo={} mensajeId={} negocioId={}", tipoEvento, mensajeId, negocioId);
         final UUID tenantId = negocioId;
-        try {
-            // Lambda de bloque con return explicito a proposito: con un
-            // lambda de expresion aqui, ContextoDeNegocio.en(...) tiene dos
-            // sobrecargas (Runnable y Supplier<T>) y el compilador puede
-            // elegir cualquiera de las dos sin avisar. Esta forma solo
-            // encaja en la que devuelve valor.
-            boolean seProceso = ContextoDeNegocio.en(contextoDe(tenantId), () -> {
-                return inbox.procesarUnaVez("inventario.ConsumidorDeLaSagaDeVentas", mensajeId, tenantId, tipoEvento, cuerpo, payload -> {
-                    DIAG.info("efecto: tipoEvento=[{}] esVentaCompletada={}", tipoEvento,
-                            "venta_completada".equals(tipoEvento));
-                    if ("venta_completada".equals(tipoEvento)) {
-                        Object ventaIdObj = datos.get("venta_id") != null ? datos.get("venta_id") : eventoGenerico.agregadoId();
-                        DIAG.info("efecto: llamando reservas.confirmar() ventaId={}", ventaIdObj);
-                        reservas.confirmar("VENTA", UUID.fromString(ventaIdObj.toString()));
-                    } else {
-                        DIAG.info("efecto: llamando reservas.solicitar()");
-                        reservas.solicitar(solicitudDe(datos));
-                    }
-                });
-            });
-            DIAG.info("recibir() inbox.procesarUnaVez termino, seProceso={}", seProceso);
-        } catch (Throwable e) {
-            // DIAGNOSTICO TEMPORAL: antes solo se atrapaba RuntimeException y se
-            // logueaba sin el stack trace. Un Error (o cualquier Throwable que no
-            // sea RuntimeException) se escapaba sin dejar rastro en DIAG_SAGA, y
-            // el mensaje quedaba marcado PROCESADO en el Inbox sin que el efecto
-            // real hubiera corrido. Quitar una vez resuelto.
-            DIAG.error("recibir() exploto: {}: {}", e.getClass().getName(), e.getMessage(), e);
-            if (e instanceof RuntimeException re) {
-                throw re;
-            }
-            if (e instanceof Error err) {
-                throw err;
-            }
-            throw new RuntimeException(e);
-        }
+        ContextoDeNegocio.en(contextoDe(tenantId), () -> {
+            inbox.procesarUnaVez("inventario.ConsumidorDeLaSagaDeVentas", mensajeId, tenantId, tipoEvento, cuerpo,
+                    payload -> {
+                        if ("venta_completada".equals(tipoEvento)) {
+                            Object ventaIdObj = datos.get("venta_id") != null
+                                    ? datos.get("venta_id") : eventoGenerico.agregadoId();
+                            reservas.confirmar("VENTA", UUID.fromString(ventaIdObj.toString()));
+                        } else {
+                            reservas.solicitar(solicitudDe(datos));
+                        }
+                    });
+        });
     }
 
     private String serializarPayload(Object payload) {
