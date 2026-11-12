@@ -682,6 +682,8 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       await showDialog<void>(
         context: context,
         builder: (contexto) => Dialog(
+          backgroundColor: RegentaColors.paper,
+          surfaceTintColor: Colors.transparent,
           clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: SizedBox(width: 560, height: 640, child: selector(contexto)),

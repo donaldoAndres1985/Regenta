@@ -313,8 +313,8 @@ void main() {
 
     await _montar(tester, repo, onAsignado: (c) => devuelto = c);
     await tester.enterText(find.byType(TextField).first, 'cruz');
-    await tester.pumpAndSettle(const Duration(milliseconds: 400));
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    // Sin esperar el debounce de 300 ms, presiona Enter directamente
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
     expect(devuelto?.nombre, 'Materiales Cruz S.A.S.');
@@ -324,6 +324,20 @@ void main() {
     var cerrado = false;
     await _montar(tester, _RepoFake(), onCerrar: () => cerrado = true);
 
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(cerrado, isTrue);
+  });
+
+  testWidgets('Escape dentro del TextField del buscador cierra el modal de inmediato',
+      (tester) async {
+    var cerrado = false;
+    await _montar(tester, _RepoFake(), onCerrar: () => cerrado = true);
+
+    // Foco activo en el buscador
+    expect(tester.widget<EditableText>(find.byType(EditableText).first).focusNode.hasFocus,
+        isTrue);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 

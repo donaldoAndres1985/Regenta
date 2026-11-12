@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,6 +64,18 @@ class _PantallaClienteDeVentaState extends ConsumerState<PantallaClienteDeVenta>
 
   KeyEventResult _manejarTeclasBuscador(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      _manejarEscape();
+      return KeyEventResult.handled;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      unawaited(_enterEnBuscador());
+      return KeyEventResult.handled;
+    }
+
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
       final estado = ref.read(controladorDeClienteProvider);
       if (estado.resultados.isNotEmpty) {
@@ -76,6 +89,12 @@ class _PantallaClienteDeVentaState extends ConsumerState<PantallaClienteDeVenta>
 
   KeyEventResult _manejarTeclasLista(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      _manejarEscape();
+      return KeyEventResult.handled;
+    }
+
     final estado = ref.read(controladorDeClienteProvider);
     if (estado.resultados.isEmpty) return KeyEventResult.ignored;
 
@@ -98,17 +117,25 @@ class _PantallaClienteDeVentaState extends ConsumerState<PantallaClienteDeVenta>
     } else if (event.logicalKey == LogicalKeyboardKey.enter ||
         event.logicalKey == LogicalKeyboardKey.numpadEnter) {
       if (_indiceResaltado >= 0 && _indiceResaltado < estado.resultados.length) {
-        _asignar(estado.resultados[_indiceResaltado]);
+        unawaited(_asignar(estado.resultados[_indiceResaltado]));
         return KeyEventResult.handled;
       }
     }
     return KeyEventResult.ignored;
   }
 
-  void _enterEnBuscador() {
-    final estado = ref.read(controladorDeClienteProvider);
+  Future<void> _enterEnBuscador() async {
+    final ctrl = ref.read(controladorDeClienteProvider.notifier);
+    final termino = _buscador.text.trim();
+    var estado = ref.read(controladorDeClienteProvider);
+
+    if (ctrl.tieneBusquedaPendiente || estado.termino != termino) {
+      await ctrl.buscarInmediato(termino);
+      estado = ref.read(controladorDeClienteProvider);
+    }
+
     if (estado.resultados.length == 1) {
-      _asignar(estado.resultados.first);
+      await _asignar(estado.resultados.first);
     } else if (estado.resultados.length > 1) {
       setState(() => _indiceResaltado = 0);
       _focoLista.requestFocus();
@@ -119,11 +146,12 @@ class _PantallaClienteDeVentaState extends ConsumerState<PantallaClienteDeVenta>
     final estado = ref.read(controladorDeClienteProvider);
     if (estado.creando) {
       ref.read(controladorDeClienteProvider.notifier).cerrarAlta();
-    } else {
-      widget.onCerrar?.call();
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
+      return;
+    }
+    if (widget.onCerrar != null) {
+      widget.onCerrar!();
+    } else if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
     }
   }
 
@@ -161,7 +189,9 @@ class _PantallaClienteDeVentaState extends ConsumerState<PantallaClienteDeVenta>
       bindings: {
         const SingleActivator(LogicalKeyboardKey.escape): _manejarEscape,
       },
-      child: LayoutBuilder(
+      child: Theme(
+        data: PastelTheme.light(),
+        child: LayoutBuilder(
         builder: (context, restricciones) {
           final escritorio = restricciones.maxWidth >= kBreakpointEscritorio;
           final lista = _Lista(
@@ -239,6 +269,7 @@ class _PantallaClienteDeVentaState extends ConsumerState<PantallaClienteDeVenta>
           );
         },
       ),
+      ),
     );
   }
 }
@@ -309,21 +340,23 @@ class _Buscador extends StatelessWidget {
           focusNode: foco,
           autofocus: true,
           onChanged: onCambio,
+          textInputAction: TextInputAction.search,
           onSubmitted: (_) => onSubmitted(),
+          cursorColor: RegentaColors.accent,
           style: const TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             color: RegentaColors.inkFuerte,
           ),
           decoration: InputDecoration(
             isDense: true,
             filled: true,
             fillColor: RegentaColors.surface,
-            prefixIcon: const Icon(Icons.search, size: 18, color: RegentaColors.faint),
+            prefixIcon: const Icon(Icons.search, size: 20, color: RegentaColors.ink2),
             hintText: 'Buscar por nombre, NIT o cédula…',
             hintStyle:
-                const TextStyle(fontSize: 14, color: RegentaColors.faint),
-            contentPadding: const EdgeInsets.symmetric(vertical: 13),
+                const TextStyle(fontSize: 14, color: RegentaColors.muted),
+            contentPadding: const EdgeInsets.symmetric(vertical: 13, horizontal: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(RegentaSpacing.radius),
               borderSide: const BorderSide(color: RegentaColors.line2),
@@ -334,7 +367,7 @@ class _Buscador extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-              borderSide: const BorderSide(color: RegentaColors.accent, width: 1.5),
+              borderSide: const BorderSide(color: RegentaColors.accent, width: 2),
             ),
           ),
         ),
@@ -487,11 +520,9 @@ class _FilaDeCliente extends StatelessWidget {
               ? RegentaColors.accentSoft
               : (seleccionado ? RegentaColors.sunken : Colors.transparent),
           borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-          border: Border(
-            bottom: const BorderSide(color: RegentaColors.line),
-            left: resaltado
-                ? const BorderSide(color: RegentaColors.accent, width: 3)
-                : BorderSide.none,
+          border: Border.all(
+            color: resaltado ? RegentaColors.accent : RegentaColors.line,
+            width: resaltado ? 1.5 : 1.0,
           ),
         ),
         child: Row(children: [
