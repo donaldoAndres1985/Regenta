@@ -1,3 +1,5 @@
+import 'package:regenta_core/regenta_core.dart';
+
 /// Quién compra en esta venta (HU-113).
 ///
 /// Es una copia deliberada de lo que `packages/clientes` sabe de un cliente:
@@ -43,28 +45,18 @@ class ClienteDeLaVenta {
 
   bool get tieneCarteraVencida => (condicion ?? '').toLowerCase().contains('vencida');
 
-  /// Busca por nombre o por documento, sin puntos: en el mostrador el NIT se
-  /// escribe de las dos formas.
+  /// Busca por nombre o por documento (con o sin puntos), soportando
+  /// coincidencia difusa multi-palabra en cualquier orden.
   bool coincideCon(String termino) {
-    final t = _normalizar(termino.trim());
-    if (t.isEmpty) return true;
-    final nomNorm = _normalizar(nombre);
-    final docNorm = _normalizar(numeroDocumento);
-    final soloDigitos = t.replaceAll(RegExp('[^0-9]'), '');
-    return nomNorm.contains(t) ||
-        docNorm.contains(t) ||
-        (soloDigitos.isNotEmpty && docNorm.replaceAll(RegExp('[^0-9]'), '').contains(soloDigitos));
-  }
-
-  static String _normalizar(String texto) {
-    var res = texto.toLowerCase();
-    res = res.replaceAll(RegExp(r'[áàäâ]'), 'a');
-    res = res.replaceAll(RegExp(r'[éèëê]'), 'e');
-    res = res.replaceAll(RegExp(r'[íìïî]'), 'i');
-    res = res.replaceAll(RegExp(r'[óòöô]'), 'o');
-    res = res.replaceAll(RegExp(r'[úùüû]'), 'u');
-    res = res.replaceAll(RegExp(r'[ñ]'), 'n');
-    return res;
+    final digitos = numeroDocumento.replaceAll(RegExp(r'[^0-9]'), '');
+    return coincideConTokens(
+      nombre,
+      termino,
+      camposAdicionales: [
+        numeroDocumento,
+        if (digitos.isNotEmpty) digitos,
+      ],
+    );
   }
 
   factory ClienteDeLaVenta.desdeJson(Map<String, dynamic> json) => ClienteDeLaVenta(

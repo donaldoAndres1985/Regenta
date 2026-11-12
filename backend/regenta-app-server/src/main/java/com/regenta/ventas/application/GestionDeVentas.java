@@ -1,6 +1,7 @@
 package com.regenta.ventas.application;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -185,7 +186,10 @@ public class GestionDeVentas {
     @RequierePermiso("VENTAS_VENTA_VER")
     public List<VentaDelNegocio> buscarVentas(String q) {
         UUID negocioId = ContextoDeNegocio.negocioActual();
-        return ventas.buscar(negocioId, q).stream()
+        List<String> tokens = (q == null || q.isBlank())
+                ? List.of()
+                : Arrays.stream(q.trim().split("\\s+")).filter(s -> !s.isBlank()).toList();
+        return ventas.buscarPorTokens(negocioId, tokens).stream()
                 .map(this::comoDto)
                 .toList();
     }

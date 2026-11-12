@@ -310,6 +310,16 @@ class VentaEnProceso {
   bool get anulada => estado == 'ANULADA';
   bool get devuelta => estado == 'DEVUELTA' || estado == 'DEVUELTA_PARCIAL';
 
+  /// Coincidencia difusa multi-palabra sobre número, cliente y nota en cualquier orden.
+  bool coincideCon(String termino) => coincideConTokens(
+        numero,
+        termino,
+        camposAdicionales: [
+          clienteSnapshot,
+          ?notaCliente,
+        ],
+      );
+
   factory VentaEnProceso.desdeJson(Map<String, dynamic> json) {
     final rawLineas = json['lineas'] as List<dynamic>? ?? const [];
     return VentaEnProceso(

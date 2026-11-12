@@ -259,8 +259,11 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     final gen = ++_generacion;
     state = state.copiar(buscando: true, desplegableCerrado: false);
     try {
-      final resultados = await _repo.buscar(state.termino);
+      final brutos = await _repo.buscar(state.termino);
       if (gen != _generacion) return;
+      final resultados = state.termino.trim().isEmpty
+          ? brutos
+          : brutos.where((p) => p.coincideCon(state.termino)).toList();
       _terminoDeResultados = state.termino;
       state = state.copiar(
         resultados: resultados,

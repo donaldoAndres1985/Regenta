@@ -45,6 +45,7 @@ export 'src/tema/regenta_spacing.dart';
 export 'src/tema/regenta_theme.dart';
 export 'src/tema/regenta_tokens.dart';
 export 'src/tema/regenta_type.dart';
+export 'src/util/busqueda_difusa.dart';
 
 /// Version del contrato del nucleo. Sube cuando cambia algo que los modulos
 /// consumen.

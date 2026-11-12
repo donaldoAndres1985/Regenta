@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
@@ -27,6 +29,8 @@ class PantallaBuscarVenta extends ConsumerStatefulWidget {
 
 class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
   final _controladorBusqueda = TextEditingController();
+  final _focoBusqueda = FocusNode();
+  Timer? _temporizadorDeBusqueda;
   List<VentaEnProceso> _ventas = [];
   bool _cargando = false;
   String? _error;
@@ -34,13 +38,36 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
   @override
   void initState() {
     super.initState();
+    _focoBusqueda.onKeyEvent = _manejarTeclasBusqueda;
     _cargarVentas();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _focoBusqueda.requestFocus();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _temporizadorDeBusqueda?.cancel();
+    _focoBusqueda.dispose();
     _controladorBusqueda.dispose();
     super.dispose();
+  }
+
+  KeyEventResult _manejarTeclasBusqueda(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      _cerrar();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _cerrar() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> _cargarVentas([String? termino]) async {
@@ -224,8 +251,15 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
+    final ventasFiltradas = _controladorBusqueda.text.trim().isEmpty
+        ? _ventas
+        : _ventas.where((v) => v.coincideCon(_controladorBusqueda.text)).toList();
 
-    return Scaffold(
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): _cerrar,
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Historial y anulación de ventas'),
         actions: [
@@ -243,6 +277,8 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
             child: TextField(
               key: const Key('buscar-venta-input'),
               controller: _controladorBusqueda,
+              focusNode: _focoBusqueda,
+              autofocus: true,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),
                 hintText: 'Buscar por consecutivo o cliente...',
@@ -253,15 +289,20 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
                         onPressed: () {
                           _controladorBusqueda.clear();
                           _cargarVentas();
+                          _focoBusqueda.requestFocus();
                         },
                       )
                     : null,
               ),
-              onSubmitted: (texto) => _cargarVentas(texto),
+              onSubmitted: (texto) {
+                _temporizadorDeBusqueda?.cancel();
+                _cargarVentas(texto);
+              },
               onChanged: (texto) {
-                if (texto.isEmpty) {
-                  _cargarVentas();
-                }
+                _temporizadorDeBusqueda?.cancel();
+                _temporizadorDeBusqueda = Timer(const Duration(milliseconds: 200), () {
+                  _cargarVentas(texto);
+                });
               },
             ),
           ),
@@ -275,7 +316,7 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
             ),
           if (_cargando)
             const Expanded(child: Center(child: CircularProgressIndicator()))
-          else if (_ventas.isEmpty)
+          else if (ventasFiltradas.isEmpty)
             Expanded(
               child: Center(
                 child: Column(
@@ -298,10 +339,10 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
               child: ListView.separated(
                 key: const Key('lista-de-ventas'),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                itemCount: _ventas.length,
+                itemCount: ventasFiltradas.length,
                 separatorBuilder: (context, _) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
-                  final v = _ventas[index];
+                  final v = ventasFiltradas[index];
                   final nombreCliente = _extraerNombreCliente(v.clienteSnapshot);
                   Color estadoColor;
                   switch (v.estado) {
@@ -484,6 +525,7 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
             ),
         ],
       ),
+    ),
     );
   }
 }

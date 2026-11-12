@@ -1,3 +1,5 @@
+import 'package:regenta_core/regenta_core.dart';
+
 /// Cómo está la cartera de un cliente, para el chip de la fila.
 enum EstadoDeCartera { alDia, excedido, sinSaldo }
 
@@ -46,27 +48,19 @@ class ClienteEnLista {
     return '$tipoDocumento $numero';
   }
 
-  /// Une nombre y documento para el filtro por texto (criterio 1).
+  /// Une nombre y documento para el filtro por texto (criterio 1), soportando
+  /// coincidencia difusa multi-palabra en cualquier orden.
   bool coincideCon(String termino) {
-    final q = _normalizar(termino.trim());
-    if (q.isEmpty) return true;
-    final nomNorm = _normalizar(nombre);
-    final docNorm = _normalizar(numeroDocumento ?? '');
-    final soloDigitos = q.replaceAll(RegExp('[^0-9]'), '');
-    return nomNorm.contains(q) ||
-        docNorm.contains(q) ||
-        (soloDigitos.isNotEmpty && docNorm.replaceAll(RegExp('[^0-9]'), '').contains(soloDigitos));
-  }
-
-  static String _normalizar(String texto) {
-    var res = texto.toLowerCase();
-    res = res.replaceAll(RegExp(r'[áàäâ]'), 'a');
-    res = res.replaceAll(RegExp(r'[éèëê]'), 'e');
-    res = res.replaceAll(RegExp(r'[íìïî]'), 'i');
-    res = res.replaceAll(RegExp(r'[óòöô]'), 'o');
-    res = res.replaceAll(RegExp(r'[úùüû]'), 'u');
-    res = res.replaceAll(RegExp(r'[ñ]'), 'n');
-    return res;
+    final doc = numeroDocumento ?? '';
+    final digitos = doc.replaceAll(RegExp(r'[^0-9]'), '');
+    return coincideConTokens(
+      nombre,
+      termino,
+      camposAdicionales: [
+        doc,
+        if (digitos.isNotEmpty) digitos,
+      ],
+    );
   }
 
   factory ClienteEnLista.desdeJson(Map<String, dynamic> json) => ClienteEnLista(
