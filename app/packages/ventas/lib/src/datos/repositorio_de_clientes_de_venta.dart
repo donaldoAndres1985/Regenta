@@ -57,8 +57,11 @@ class RepositorioDeClientesHttp implements RepositorioDeClientesDeVenta {
         return clientes.where((c) => c.coincideCon(termino)).toList();
       }
       return clientes;
-    } catch (_) {
-      // Si la red falla, no hay sesión o el endpoint no responde, se recurre al cache local.
+    } on ErrorDeRed {
+      // Solo la falta de red recurre al cache en silencio: un 403 por falta de
+      // permiso, una sesión vencida o un error del servidor deben llegar hasta
+      // el controlador para que el usuario sepa por qué no ve clientes, en vez
+      // de parecer "este negocio no tiene clientes".
       return _enCache(termino);
     }
   }
