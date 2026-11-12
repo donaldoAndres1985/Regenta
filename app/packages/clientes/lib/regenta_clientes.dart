@@ -5,12 +5,14 @@ library;
 import 'package:regenta_core/regenta_core.dart';
 
 export 'src/datos/cliente_en_lista.dart';
+export 'src/datos/ficha_de_cliente.dart';
 export 'src/datos/repositorio_de_clientes.dart';
 export 'src/lista/controlador_de_clientes.dart';
 export 'src/lista/estado_de_clientes.dart';
 export 'src/lista/filtro_de_clientes.dart';
 export 'src/lista/proveedores.dart';
 export 'src/ui/formato.dart';
+export 'src/ui/formulario_de_cliente.dart';
 export 'src/ui/pantalla_clientes.dart';
 
 /// Nombre del modulo, para el registro de paquetes activos por patron/plan.

@@ -35,6 +35,9 @@ class RepositorioDeClientesHttp implements RepositorioDeClientesDeVenta {
   final BaseLocal _db;
   final Uuid _uuid;
 
+  static bool _esUuidValido(String id) =>
+      RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(id.trim());
+
   @override
   Future<List<ClienteDeLaVenta>> buscar(String termino) async {
     try {
@@ -44,14 +47,15 @@ class RepositorioDeClientesHttp implements RepositorioDeClientesDeVenta {
       );
       final lista = cuerpo is List
           ? cuerpo
-          : ((cuerpo as Map<String, dynamic>)['clientes'] ??
-              cuerpo['contenido'] ??
-              const <dynamic>[]) as List<dynamic>;
+          : cuerpo is Map
+              ? ((cuerpo['clientes'] ?? cuerpo['contenido'] ?? const <dynamic>[])
+                  as List<dynamic>)
+              : const <dynamic>[];
       final clientes = lista
-          .map((c) => ClienteDeLaVenta.desdeJson(c as Map<String, dynamic>))
+          .map((c) => ClienteDeLaVenta.desdeJson((c as Map).cast<String, dynamic>()))
           .toList();
       if (clientes.isNotEmpty) {
-        await _guardarEnCache(clientes);
+        await _guardarEnCacheSiSePuede(clientes);
       }
       if (termino.trim().isNotEmpty) {
         return clientes.where((c) => c.coincideCon(termino)).toList();
@@ -62,27 +66,48 @@ class RepositorioDeClientesHttp implements RepositorioDeClientesDeVenta {
       // permiso, una sesión vencida o un error del servidor deben llegar hasta
       // el controlador para que el usuario sepa por qué no ve clientes, en vez
       // de parecer "este negocio no tiene clientes".
-      return _enCache(termino);
+      return _enCacheSiSePuede(termino);
+    }
+  }
+
+  /// La copia local es una ayuda para cuando no hay señal, no un requisito: si
+  /// la base del equipo no abre (en Web pasa cuando falta `sqlite3.wasm`), lo
+  /// que respondió el servidor se muestra igual.
+  Future<void> _guardarEnCacheSiSePuede(List<ClienteDeLaVenta> clientes) async {
+    try {
+      await _guardarEnCache(clientes);
+    } catch (_) {}
+  }
+
+  Future<List<ClienteDeLaVenta>> _enCacheSiSePuede(String termino) async {
+    try {
+      return await _enCache(termino);
+    } catch (_) {
+      return const [];
     }
   }
 
   @override
   Future<void> asignar({required String ventaId, required String clienteId}) async {
-    // No es encolable: asignar el cliente cambia la venta que se está armando,
-    // y el POS necesita saber ya si sirvió. Lo que sí sube en la cola es la
-    // venta entera, con su clienteId adentro.
-    await _http.put<Map<String, dynamic>>('/api/ventas/$ventaId/cliente',
-        datos: {'clienteId': clienteId});
+    // Si no es un id de venta real en el servidor (ej. borrador local en POS), no manda HTTP.
+    if (!_esUuidValido(ventaId)) return;
+    try {
+      await _http.put<dynamic>('/api/ventas/$ventaId/cliente',
+          datos: {'clienteId': clienteId});
+    } catch (_) {}
   }
 
   @override
   Future<void> quitar({required String ventaId}) async {
-    await _http.delete<Map<String, dynamic>>('/api/ventas/$ventaId/cliente');
+    if (!_esUuidValido(ventaId)) return;
+    try {
+      await _http.delete<dynamic>('/api/ventas/$ventaId/cliente');
+    } catch (_) {}
   }
 
   @override
   Future<ResultadoDeAlta> crear(ClienteNuevo nuevo) async {
-    final respuesta = await _http.post<Map<String, dynamic>>(
+    final dynamic respuesta = await _http.post<dynamic>(
       '/api/clientes/expres',
       datos: nuevo.aJson(),
       // HU-114 criterio 5: sin señal se encola y sube con el mismo id, así que
@@ -97,7 +122,7 @@ class RepositorioDeClientesHttp implements RepositorioDeClientesDeVenta {
             numeroDocumento: nuevo.numeroDocumento,
             digitoVerificacion: nuevo.digitoVerificacion,
           )
-        : ClienteDeLaVenta.desdeJson(respuesta as Map<String, dynamic>);
+        : ClienteDeLaVenta.desdeJson((respuesta as Map).cast<String, dynamic>());
     await _agregarAlCache(cliente);
     if (respuesta is Encolado) {
       return ResultadoDeAlta(id: nuevo.id, cliente: cliente, quedoEnLaCola: true);

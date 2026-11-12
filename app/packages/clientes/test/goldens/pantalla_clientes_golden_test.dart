@@ -36,20 +36,15 @@ class _ClientesFijos implements RepositorioDeClientes {
   Future<void> guardarEnCache(List<ClienteEnLista> clientes) async {}
 
   @override
-  Future<ClienteEnLista> crear({
-    required String nombre,
-    required String documento,
-    String tipoDocumento = 'CC',
-    String? telefono,
-    String? email,
-  }) async {
+  Future<FichaDeCliente> ver(String clienteId) async => FichaDeCliente(id: clienteId);
+
+  @override
+  Future<ClienteEnLista> guardar(FichaDeCliente ficha) async {
     return ClienteEnLista(
-      id: 'mock',
-      nombre: nombre,
-      tipoDocumento: tipoDocumento,
-      numeroDocumento: documento,
-      saldo: 0,
-      cupo: 0,
+      id: ficha.id ?? 'mock',
+      nombre: ficha.razonSocial ?? ficha.nombres ?? '',
+      tipoDocumento: ficha.tipoDocumento,
+      numeroDocumento: ficha.numeroDocumento,
     );
   }
 }

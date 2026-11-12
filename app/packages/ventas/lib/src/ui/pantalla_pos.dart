@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
+import '../caja/proveedores.dart';
 import '../datos/cliente_de_la_venta.dart';
 import '../datos/producto_buscado.dart';
 import '../datos/repositorio_de_ventas.dart';
@@ -47,12 +48,21 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
   bool _atajoGlobal(KeyEvent evento) {
     if (evento is! KeyDownEvent || !mounted) return false;
     if (!(ModalRoute.of(context)?.isCurrent ?? true)) return false;
-    if (evento.logicalKey == LogicalKeyboardKey.f2) {
+
+    final tecla = evento.logicalKey;
+    final esCtrl = HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed;
+    final esShift = HardwareKeyboard.instance.isShiftPressed;
+    final esAlt = HardwareKeyboard.instance.isAltPressed;
+
+    // F2 o Ctrl+F: Enfocar buscador
+    if (tecla == LogicalKeyboardKey.f2 || (esCtrl && tecla == LogicalKeyboardKey.keyF)) {
       _enfocarBuscador();
       return true;
     }
-    final esShift = HardwareKeyboard.instance.isShiftPressed;
-    if (evento.logicalKey == LogicalKeyboardKey.f12) {
+
+    // F12 o Ctrl+Enter: Cobrar (con Shift: venta rápida)
+    if (tecla == LogicalKeyboardKey.f12) {
       if (esShift) {
         _ventaRapidaEfectivo();
       } else {
@@ -60,7 +70,291 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       }
       return true;
     }
+    if (esCtrl && (tecla == LogicalKeyboardKey.enter || tecla == LogicalKeyboardKey.numpadEnter)) {
+      _cobrar();
+      return true;
+    }
+
+    // Ctrl+P: Venta rápida en efectivo
+    if (esCtrl && tecla == LogicalKeyboardKey.keyP) {
+      _ventaRapidaEfectivo();
+      return true;
+    }
+
+    // Alt+C: Abrir selector de clientes
+    if (esAlt && tecla == LogicalKeyboardKey.keyC) {
+      final escritorio = MediaQuery.of(context).size.width >= kBreakpointEscritorio;
+      _abrirSelectorDeCliente(escritorio: escritorio);
+      return true;
+    }
+
+    // Alt+M: Abrir diálogo movimiento de caja
+    if (esAlt && tecla == LogicalKeyboardKey.keyM) {
+      _mostrarDialogoMovimientoCajaRapido();
+      return true;
+    }
+
+    // Ctrl+M: Abrir monedero / cajón
+    if (esCtrl && tecla == LogicalKeyboardKey.keyM) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Comando apertura de cajón monedero enviado')),
+      );
+      return true;
+    }
+
+    // Ctrl+C: Modificar cantidad de línea
+    if (esCtrl && tecla == LogicalKeyboardKey.keyC) {
+      _abrirDialogoCantidadRapida();
+      return true;
+    }
+
+    // Ctrl+B: Descuento
+    if (esCtrl && tecla == LogicalKeyboardKey.keyB) {
+      _abrirDialogoDescuento();
+      return true;
+    }
+
+    // Ctrl+E: Eliminar producto del carrito (última línea)
+    if (esCtrl && tecla == LogicalKeyboardKey.keyE) {
+      final estado = ref.read(controladorDelPosProvider);
+      if (estado.lineas.isNotEmpty) {
+        ref.read(controladorDelPosProvider.notifier).quitar(estado.lineas.length - 1);
+        _enfocarBuscador();
+      }
+      return true;
+    }
+
+    // Ctrl+L: Limpiar / nueva venta
+    if (esCtrl && tecla == LogicalKeyboardKey.keyL) {
+      _confirmarLimpiarVenta();
+      return true;
+    }
+
+    // Ctrl+S: Cotizar carrito
+    if (esCtrl && tecla == LogicalKeyboardKey.keyS) {
+      _cotizarCarrito();
+      return true;
+    }
+
+    // Ctrl+D: Fracciones / detalle de producto
+    if (esCtrl && tecla == LogicalKeyboardKey.keyD) {
+      final estado = ref.read(controladorDelPosProvider);
+      if (estado.lineas.isNotEmpty) {
+        _mostrarDetalleProducto(context, estado.lineas.last.producto);
+      }
+      return true;
+    }
+
+    // Esc: Poner en espera si hay líneas
+    if (tecla == LogicalKeyboardKey.escape) {
+      final estado = ref.read(controladorDelPosProvider);
+      if (estado.lineas.isNotEmpty) {
+        _cambiarDeVenta(ref.read(controladorDelPosProvider.notifier).ponerEnEspera);
+        return true;
+      }
+    }
+
     return false;
+  }
+
+  Future<void> _abrirDialogoCantidadRapida() async {
+    final estado = ref.read(controladorDelPosProvider);
+    if (estado.lineas.isEmpty) return;
+    final pos = ref.read(controladorDelPosProvider.notifier);
+    final indice = estado.lineas.length - 1;
+    final linea = estado.lineas[indice];
+    final ctrl = TextEditingController(text: formatearCantidadExacta(linea.cantidad));
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Modificar cantidad: ${linea.producto.nombre}'),
+        content: SizedBox(
+          width: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Unidad: ${unidadParaProducto(linea.producto.nombre)}',
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: RegentaColors.muted)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Nueva cantidad',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (_) {
+                  final val = num.tryParse(ctrl.text.trim().replaceAll(',', '.')) ?? 0;
+                  if (val > 0) pos.fijarCantidad(indice, val);
+                  Navigator.of(ctx).pop();
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () {
+              final val = num.tryParse(ctrl.text.trim().replaceAll(',', '.')) ?? 0;
+              if (val > 0) pos.fijarCantidad(indice, val);
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) _enfocarBuscador();
+  }
+
+  Future<void> _confirmarLimpiarVenta() async {
+    final estado = ref.read(controladorDelPosProvider);
+    if (estado.lineas.isEmpty) return;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Limpiar venta?'),
+        content: const Text('¿Desea limpiar el carrito actual e iniciar una nueva venta?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: RegentaColors.crit),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Limpiar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar == true) {
+      ref.read(controladorDelPosProvider.notifier).vaciar();
+    }
+    if (mounted) _enfocarBuscador();
+  }
+
+  Future<void> _mostrarDialogoMovimientoCajaRapido() async {
+    bool esIngreso = true;
+    final montoCtrl = TextEditingController();
+    final conceptoCtrl = TextEditingController();
+    final focoMonto = FocusNode();
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: const Text('Movimiento de Caja'),
+          content: SizedBox(
+            width: 380,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(
+                      value: true,
+                      label: Text('Entrada'),
+                      icon: Icon(Icons.arrow_downward, color: RegentaColors.ok),
+                    ),
+                    ButtonSegment(
+                      value: false,
+                      label: Text('Salida'),
+                      icon: Icon(Icons.arrow_upward, color: RegentaColors.crit),
+                    ),
+                  ],
+                  selected: {esIngreso},
+                  onSelectionChanged: (s) {
+                    setDlgState(() => esIngreso = s.first);
+                    focoMonto.requestFocus();
+                  },
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  key: const Key('movimiento-caja-monto'),
+                  controller: montoCtrl,
+                  focusNode: focoMonto,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Total del movimiento (\$)',
+                    prefixText: '\$ ',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('movimiento-caja-descripcion'),
+                  controller: conceptoCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Descripción / Motivo *',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              key: const Key('movimiento-caja-guardar'),
+              onPressed: () async {
+                final monto = num.tryParse(montoCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+                final concepto = conceptoCtrl.text.trim();
+                final messenger = ScaffoldMessenger.of(context);
+                final errorColor = Theme.of(context).colorScheme.error;
+
+                if (monto <= 0) {
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Falta total del movimiento de caja.')),
+                  );
+                  focoMonto.requestFocus();
+                  return;
+                }
+                if (concepto.isEmpty) {
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Falta descripción del movimiento de caja.')),
+                  );
+                  return;
+                }
+                Navigator.of(ctx).pop();
+                try {
+                  final ctrlCaja = ref.read(controladorDeCajaProvider.notifier);
+                  if (esIngreso) {
+                    await ctrlCaja.registrarIngreso(monto, concepto);
+                  } else {
+                    await ctrlCaja.registrarRetiro(monto, concepto);
+                  }
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Movimiento de ${esIngreso ? "Entrada" : "Salida"} por ${formatearPesos(monto)} registrado correctamente.',
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      backgroundColor: errorColor,
+                      content: Text('Error al registrar movimiento: $e'),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted) _enfocarBuscador();
   }
 
   void _enfocarBuscador() {
@@ -828,6 +1122,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                           onCobrar: _cobrar,
                           onVentaRapida: _ventaRapidaEfectivo,
                           onDetalle: (p) => _mostrarDetalleProducto(context, p),
+                          onMovimientoCaja: _mostrarDialogoMovimientoCajaRapido,
                         ),
                       ),
                       if (desplegable) resultados,
@@ -883,6 +1178,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                 onCotizar: _cotizarCarrito,
                 onCobrar: _cobrar,
                 onVentaRapida: _ventaRapidaEfectivo,
+                onMovimientoCaja: _mostrarDialogoMovimientoCajaRapido,
               ),
             ],
           );
@@ -1666,6 +1962,7 @@ class _VentaEscritorio extends StatelessWidget {
     required this.onCobrar,
     required this.onVentaRapida,
     required this.onDetalle,
+    required this.onMovimientoCaja,
   });
 
   final EstadoDelPos estado;
@@ -1681,6 +1978,7 @@ class _VentaEscritorio extends StatelessWidget {
   final Future<void> Function() onCobrar;
   final VoidCallback onVentaRapida;
   final void Function(ProductoBuscado) onDetalle;
+  final VoidCallback onMovimientoCaja;
 
   static const anchoCodigo = 120.0;
   static const anchoCantidad = 180.0;
@@ -1760,6 +2058,7 @@ class _VentaEscritorio extends StatelessWidget {
             onEspera: onEspera,
             onCobrar: onCobrar,
             onVentaRapida: onVentaRapida,
+            onMovimientoCaja: onMovimientoCaja,
           ),
         ],
       ),
@@ -2032,6 +2331,7 @@ class _PieEscritorio extends StatelessWidget {
     required this.onEspera,
     required this.onCobrar,
     required this.onVentaRapida,
+    required this.onMovimientoCaja,
   });
 
   final EstadoDelPos estado;
@@ -2041,6 +2341,7 @@ class _PieEscritorio extends StatelessWidget {
   final VoidCallback onEspera;
   final Future<void> Function() onCobrar;
   final VoidCallback onVentaRapida;
+  final VoidCallback onMovimientoCaja;
 
   @override
   Widget build(BuildContext context) {
@@ -2108,6 +2409,12 @@ class _PieEscritorio extends StatelessWidget {
                       icono: Icons.bolt,
                       texto: 'Efectivo exacto',
                       onTap: estado.puedeCobrar ? onVentaRapida : null,
+                    ),
+                    _BotonPildora(
+                      key: const Key('pos-boton-movimiento-caja'),
+                      icono: Icons.point_of_sale_outlined,
+                      texto: 'Movi. Caja',
+                      onTap: onMovimientoCaja,
                     ),
                   ],
                 ),
@@ -2441,6 +2748,7 @@ class _PieMovil extends StatelessWidget {
     required this.onCotizar,
     required this.onCobrar,
     required this.onVentaRapida,
+    required this.onMovimientoCaja,
   });
 
   final EstadoDelPos estado;
@@ -2450,6 +2758,7 @@ class _PieMovil extends StatelessWidget {
   final VoidCallback onCotizar;
   final Future<void> Function() onCobrar;
   final VoidCallback onVentaRapida;
+  final VoidCallback onMovimientoCaja;
 
   @override
   Widget build(BuildContext context) {
@@ -2511,6 +2820,13 @@ class _PieMovil extends StatelessWidget {
                   icono: Icons.bolt,
                   texto: 'Efectivo',
                   onTap: estado.puedeCobrar ? onVentaRapida : null,
+                ),
+                const SizedBox(width: 8),
+                _BotonPildora(
+                  key: const Key('pos-boton-movimiento-caja-movil'),
+                  icono: Icons.point_of_sale_outlined,
+                  texto: 'Caja',
+                  onTap: onMovimientoCaja,
                 ),
               ],
             ),
