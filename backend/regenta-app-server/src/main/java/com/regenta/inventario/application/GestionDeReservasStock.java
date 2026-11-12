@@ -130,9 +130,12 @@ public class GestionDeReservasStock {
     @Transactional
     @RequierePermiso("INVENTARIO_RESERVA_GESTIONAR")
     public void confirmar(String origenTipo, UUID origenId) {
+        DIAG.info("confirmar() ENTRA origenTipo={} origenId={}", origenTipo, origenId);
         UUID negocioId = ContextoDeNegocio.negocioActual();
-        for (ReservaStock reserva : reservas.findByNegocioIdAndOrigenTipoAndOrigenId(
-                negocioId, origenTipo, origenId)) {
+        List<ReservaStock> encontradas = reservas.findByNegocioIdAndOrigenTipoAndOrigenId(
+                negocioId, origenTipo, origenId);
+        DIAG.info("confirmar() encontro {} reservas para origenId={}", encontradas.size(), origenId);
+        for (ReservaStock reserva : encontradas) {
             if (!reserva.estaActiva()) {
                 continue;   // ya confirmada o liberada: idempotente
             }

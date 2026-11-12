@@ -83,10 +83,14 @@ public class ConsumidorDeLaSagaDeVentas {
             // encaja en la que devuelve valor.
             boolean seProceso = ContextoDeNegocio.en(contextoDe(tenantId), () -> {
                 return inbox.procesarUnaVez(mensajeId, tenantId, tipoEvento, cuerpo, payload -> {
+                    DIAG.info("efecto: tipoEvento=[{}] esVentaCompletada={}", tipoEvento,
+                            "venta_completada".equals(tipoEvento));
                     if ("venta_completada".equals(tipoEvento)) {
                         Object ventaIdObj = datos.get("venta_id") != null ? datos.get("venta_id") : eventoGenerico.agregadoId();
+                        DIAG.info("efecto: llamando reservas.confirmar() ventaId={}", ventaIdObj);
                         reservas.confirmar("VENTA", UUID.fromString(ventaIdObj.toString()));
                     } else {
+                        DIAG.info("efecto: llamando reservas.solicitar()");
                         reservas.solicitar(solicitudDe(datos));
                     }
                 });
