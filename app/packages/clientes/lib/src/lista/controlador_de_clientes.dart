@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/cliente_en_lista.dart';
 import '../datos/repositorio_de_clientes.dart';
@@ -27,13 +28,17 @@ class ControladorDeClientes extends StateNotifier<EstadoDeClientes> {
       final frescos = await _repo.enRed();
       await _repo.guardarEnCache(frescos);
       state = state.copiar(todos: frescos, desdeCache: false, cargando: false);
-    } catch (error) {
+    } on ErrorDeRed {
       // Criterio 2: sin conexión, se sigue mostrando lo cacheado con aviso.
       state = state.copiar(
         cargando: false,
         desdeCache: true,
         mensaje: 'Estás trabajando sin conexión. Se muestran los clientes guardados en este equipo.',
       );
+    } on ErrorDeApi catch (fallo) {
+      // Cualquier otro fallo (permiso, sesión, servidor) no es "sin conexión":
+      // decirlo así ocultaba el motivo real y parecía que nunca había clientes.
+      state = state.copiar(cargando: false, desdeCache: true, mensaje: fallo.mensaje);
     }
   }
 
