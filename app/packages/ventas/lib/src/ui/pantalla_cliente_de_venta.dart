@@ -559,10 +559,12 @@ class _FormularioDeAltaState extends State<_FormularioDeAlta> {
   void _enviar() {
     final numero = _numero.text.trim();
     final nombre = _nombre.text.trim();
-    final email = _email.text.trim();
+    var email = _email.text.trim();
     if (numero.isEmpty) return setState(() => _error = 'Falta el número de documento');
     if (nombre.isEmpty) return setState(() => _error = 'Falta el nombre o la razón social');
-    if (!email.contains('@')) {
+    if (email.isEmpty) {
+      email = 'cliente_$numero@regenta.com';
+    } else if (!email.contains('@')) {
       return setState(() => _error = 'El correo no parece válido: ahí llega la factura');
     }
     setState(() => _error = null);

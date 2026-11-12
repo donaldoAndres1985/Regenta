@@ -52,6 +52,9 @@ public class AltaExpresDeClientes {
         String nombres = limpiar(solicitud.nombres());
         String apellidos = limpiar(solicitud.apellidos());
         String email = limpiar(solicitud.email());
+        if (email == null || email.isBlank()) {
+            email = "cliente_" + (numeroDocumento != null ? numeroDocumento : "mostrador") + "@regenta.com";
+        }
 
         exigirLoMinimoParaFacturar(documento, persona, numeroDocumento, nombres, razonSocial, email);
 

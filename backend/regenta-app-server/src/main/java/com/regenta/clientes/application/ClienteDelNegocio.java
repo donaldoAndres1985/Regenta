@@ -27,7 +27,9 @@ public record ClienteDelNegocio(
         boolean activo,
         /** HU-133: con qué régimen se le factura; {@code null} si nadie lo indicó. */
         String regimenFiscal,
-        List<String> responsabilidadesFiscales) {
+        List<String> responsabilidadesFiscales,
+        /** Viajan para que editar la ficha no las borre al guardar. */
+        String notas) {
 
     static ClienteDelNegocio de(Cliente c) {
         return new ClienteDelNegocio(c.getId(), c.getTipoPersona().name(),
@@ -35,6 +37,6 @@ public record ClienteDelNegocio(
                 c.getNombres(), c.getApellidos(), c.getRazonSocial(), c.getNombreDisplay(),
                 c.getEmail(), c.getTelefono(), c.getTelefonoAlterno(), c.getSegmento(),
                 c.isCreditoHabilitado(), c.getCupoCredito(), c.getSaldoPendiente(), c.isActivo(),
-                c.getRegimenFiscal(), c.getResponsabilidadesFiscales());
+                c.getRegimenFiscal(), c.getResponsabilidadesFiscales(), c.getNotas());
     }
 }

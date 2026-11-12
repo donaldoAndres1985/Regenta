@@ -1216,5 +1216,25 @@ void main() {
 
       expect(_estado(tester).lineas.single.cantidad, 0.25);
     });
+
+    testWidgets('botón Movi. Caja abre diálogo de movimiento de caja manual', (tester) async {
+      final repo = _RepoFake();
+      await _montar(tester, repo, size: const Size(1280, 900));
+
+      final botonMoviCaja = find.byKey(const Key('pos-boton-movimiento-caja'));
+      expect(botonMoviCaja, findsOneWidget);
+      await tester.tap(botonMoviCaja);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Movimiento de Caja'), findsOneWidget);
+      expect(find.text('Entrada'), findsOneWidget);
+      expect(find.text('Salida'), findsOneWidget);
+      expect(find.byKey(const Key('movimiento-caja-monto')), findsOneWidget);
+      expect(find.byKey(const Key('movimiento-caja-descripcion')), findsOneWidget);
+
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Movimiento de Caja'), findsNothing);
+    });
   });
 }

@@ -17,10 +17,11 @@ class RepositorioDeCaja {
 
   Future<SesionCajaActiva?> consultarActiva(String cajaId) async {
     try {
-      final res = await _http.get<Map<String, dynamic>>(
+      final dynamic res = await _http.get<dynamic>(
         '/api/caja/sesiones/activa?cajaId=$cajaId',
       );
-      return SesionCajaActiva.desdeJson(res);
+      if (res == null) return null;
+      return SesionCajaActiva.desdeJson((res as Map).cast<String, dynamic>());
     } on ErrorDeApi {
       return null;
     }

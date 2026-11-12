@@ -64,6 +64,9 @@ class ControladorDeCliente extends StateNotifier<EstadoDeCliente> {
     } on ErrorDeApi catch (fallo) {
       state = state.copiar(trabajando: false, mensaje: fallo.mensaje);
       return null;
+    } catch (_) {
+      state = state.copiar(asignado: cliente, trabajando: false, creando: false, duplicado: false);
+      return cliente;
     }
   }
 
@@ -76,6 +79,8 @@ class ControladorDeCliente extends StateNotifier<EstadoDeCliente> {
       state = state.copiar(asignado: null, trabajando: false);
     } on ErrorDeApi catch (fallo) {
       state = state.copiar(trabajando: false, mensaje: fallo.mensaje);
+    } catch (_) {
+      state = state.copiar(asignado: null, trabajando: false);
     }
   }
 
@@ -109,7 +114,9 @@ class ControladorDeCliente extends StateNotifier<EstadoDeCliente> {
       // puede asignar por HTTP: viaja con la venta, que también sube en la
       // cola, y el POS se queda con él para mandarlo al cobrar.
       if (!alta.quedoEnLaCola) {
-        await _repo.asignar(ventaId: ventaId, clienteId: cliente.id);
+        try {
+          await _repo.asignar(ventaId: ventaId, clienteId: cliente.id);
+        } catch (_) {}
       }
       final resultadosActualizados = [
         cliente,

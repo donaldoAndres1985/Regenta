@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
-import '../datos/cliente_en_lista.dart';
+import '../datos/ficha_de_cliente.dart';
 import '../datos/repositorio_de_clientes.dart';
 import 'estado_de_clientes.dart';
 import 'filtro_de_clientes.dart';
@@ -39,6 +39,13 @@ class ControladorDeClientes extends StateNotifier<EstadoDeClientes> {
       // Cualquier otro fallo (permiso, sesión, servidor) no es "sin conexión":
       // decirlo así ocultaba el motivo real y parecía que nunca había clientes.
       state = state.copiar(cargando: false, desdeCache: true, mensaje: fallo.mensaje);
+    } catch (_) {
+      // Una respuesta que no se pudo leer no puede dejar la pantalla cargando
+      // para siempre.
+      state = state.copiar(
+        cargando: false,
+        mensaje: 'No se pudieron leer los clientes. Intenta de nuevo.',
+      );
     }
   }
 
@@ -52,39 +59,39 @@ class ControladorDeClientes extends StateNotifier<EstadoDeClientes> {
     state = state.copiar(filtro: filtro);
   }
 
-  /// Crea un nuevo cliente y actualiza el listado en tiempo real.
-  Future<bool> crearCliente({
-    required String nombre,
-    required String documento,
-    String tipoDocumento = 'CC',
-    String? telefono,
-    String? email,
-  }) async {
+  /// La ficha completa para editar. Devuelve la ficha, o el motivo por el que
+  /// no se pudo traer.
+  Future<(FichaDeCliente?, String?)> abrir(String clienteId) async {
     try {
-      final nuevo = await _repo.crear(
-        nombre: nombre,
-        documento: documento,
-        tipoDocumento: tipoDocumento,
-        telefono: telefono,
-        email: email,
-      );
-      final actualizados = [nuevo, ...state.todos];
-      await _repo.guardarEnCache(actualizados);
-      state = state.copiar(todos: actualizados);
-      return true;
-    } catch (_) {
-      final fallback = ClienteEnLista(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        nombre: nombre,
-        tipoDocumento: tipoDocumento,
-        numeroDocumento: documento,
-        saldo: 0,
-        cupo: 0,
-      );
-      final actualizados = [fallback, ...state.todos];
-      await _repo.guardarEnCache(actualizados);
-      state = state.copiar(todos: actualizados);
-      return true;
+      return (await _repo.ver(clienteId), null);
+    } on ErrorDeRed {
+      return (null, 'No hay conexión para abrir la ficha del cliente.');
+    } on ErrorDeApi catch (fallo) {
+      return (null, fallo.mensaje);
+    }
+  }
+
+  /// Crea o edita un cliente. Devuelve `null` si quedó guardado, o el motivo
+  /// por el que el servidor no lo aceptó: lo que se ve en el listado es siempre
+  /// lo que de verdad existe, nunca un cliente que solo vive en esta pantalla.
+  Future<String?> guardar(FichaDeCliente ficha) async {
+    try {
+      final guardado = await _repo.guardar(ficha);
+      final actualizados = [
+        guardado,
+        ...state.todos.where((c) => c.id != guardado.id),
+      ]..sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
+      state = state.copiar(todos: actualizados, desdeCache: false, mensaje: null);
+      return null;
+    } on ErroresDeValidacion catch (fallo) {
+      for (final campo in fallo.porCampo.entries) {
+        if (campo.value.isNotEmpty) return '${campo.key}: ${campo.value.first}';
+      }
+      return fallo.mensaje;
+    } on ErrorDeRed {
+      return 'No hay conexión: el cliente no se guardó. Intenta de nuevo.';
+    } on ErrorDeApi catch (fallo) {
+      return fallo.mensaje;
     }
   }
 }

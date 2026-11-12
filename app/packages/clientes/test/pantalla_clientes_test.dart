@@ -29,17 +29,26 @@ class _RepoFake implements RepositorioDeClientes {
     cache = clientes;
   }
 
+  /// Lo que el servidor responde al guardar; `null` es "lo aceptó".
+  ErrorDeApi? guardarFalla;
+  final List<FichaDeCliente> guardadas = [];
+  Map<String, FichaDeCliente> fichas = {};
+
   @override
-  Future<ClienteEnLista> crear({
-    required String nombre,
-    required String documento,
-    String tipoDocumento = 'CC',
-    String? telefono,
-    String? email,
-  }) async {
-    final nuevo = _c(id: 'nuevo', nombre: nombre, numDoc: documento, tipoDoc: tipoDocumento);
-    red = [nuevo, ...red];
-    return nuevo;
+  Future<FichaDeCliente> ver(String clienteId) async => fichas[clienteId]!;
+
+  @override
+  Future<ClienteEnLista> guardar(FichaDeCliente ficha) async {
+    if (guardarFalla != null) throw guardarFalla!;
+    guardadas.add(ficha);
+    final guardado = _c(
+      id: ficha.id ?? 'nuevo',
+      nombre: ficha.razonSocial ?? '${ficha.nombres ?? ''} ${ficha.apellidos ?? ''}'.trim(),
+      numDoc: ficha.numeroDocumento,
+      tipoDoc: ficha.tipoDocumento,
+    );
+    red = [guardado, ...red.where((c) => c.id != guardado.id)];
+    return guardado;
   }
 }
 
@@ -161,5 +170,100 @@ void main() {
         .ancestor(of: find.text('Materiales Cruz S.A.S.'), matching: find.byType(InkWell))
         .first;
     expect(tester.getSize(fila).height, greaterThanOrEqualTo(44));
+  });
+
+  testWidgets('Gestión: «Nuevo cliente» está siempre a la mano, crea y lo deja en el listado',
+      (tester) async {
+    final repo = _RepoFake(red: [_c(id: '1', nombre: 'Ferremax del Norte')]);
+    await _montar(tester, repo, size: const Size(1280, 900));
+
+    await tester.tap(find.byKey(const Key('clientes-nuevo')));
+    await tester.pumpAndSettle();
+    expect(find.text('Nuevo cliente'), findsWidgets);
+
+    await tester.enterText(find.byKey(const Key('cliente-numero')), '71884203');
+    await tester.enterText(find.byKey(const Key('cliente-nombres')), 'Jorge');
+    await tester.enterText(find.byKey(const Key('cliente-apellidos')), 'Rendón');
+    await tester.enterText(find.byKey(const Key('cliente-telefono')), '3001234567');
+    await tester.tap(find.byKey(const Key('cliente-guardar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.guardadas, hasLength(1));
+    expect(repo.guardadas.single.id, isNull);
+    expect(repo.guardadas.single.aJson()['numeroDocumento'], '71884203');
+    expect(repo.guardadas.single.aJson()['email'], isNull);
+    expect(find.text('Jorge Rendón'), findsOneWidget);
+    expect(find.text('Ferremax del Norte'), findsOneWidget);
+  });
+
+  testWidgets('Gestión: si el servidor no lo acepta se dice por qué y no queda un cliente fantasma',
+      (tester) async {
+    final repo = _RepoFake(red: [_c(id: '1', nombre: 'Ferremax del Norte')])
+      ..guardarFalla = const SinPermiso('No tienes permiso para esta accion');
+    await _montar(tester, repo, size: const Size(1280, 900));
+
+    await tester.tap(find.byKey(const Key('clientes-nuevo')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('cliente-numero')), '123');
+    await tester.enterText(find.byKey(const Key('cliente-nombres')), 'Fantasma');
+    await tester.tap(find.byKey(const Key('cliente-guardar')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('cliente-error')), findsOneWidget);
+    expect(find.textContaining('No tienes permiso'), findsOneWidget);
+
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Fantasma'), findsNothing);
+    expect(find.text('1 cliente'), findsOneWidget);
+  });
+
+  testWidgets('Gestión: sin lo mínimo no se manda nada al servidor', (tester) async {
+    final repo = _RepoFake();
+    await _montar(tester, repo, size: const Size(1280, 900));
+
+    await tester.tap(find.byKey(const Key('clientes-nuevo')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('cliente-guardar')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Falta el número de documento'), findsOneWidget);
+    expect(repo.guardadas, isEmpty);
+  });
+
+  testWidgets('Gestión: tocar un cliente abre su ficha y guarda los cambios sobre el mismo id',
+      (tester) async {
+    final repo = _RepoFake(red: [
+      _c(id: '7', nombre: 'Materiales Cruz S.A.S.', tipoDoc: 'NIT', numDoc: '900412883'),
+    ])
+      ..fichas = {
+        '7': const FichaDeCliente(
+          id: '7',
+          tipoPersona: 'JURIDICA',
+          tipoDocumento: 'NIT',
+          numeroDocumento: '900412883',
+          digitoVerificacion: '1',
+          razonSocial: 'Materiales Cruz S.A.S.',
+          notas: 'Paga los viernes',
+        ),
+      };
+    await _montar(tester, repo, size: const Size(1280, 900));
+
+    await tester.tap(find.text('Materiales Cruz S.A.S.'));
+    await tester.pumpAndSettle();
+    expect(find.text('Editar cliente'), findsOneWidget);
+
+    await tester.enterText(
+        find.byKey(const Key('cliente-razon-social')), 'Materiales Cruz y Cía');
+    await tester.tap(find.byKey(const Key('cliente-guardar')));
+    await tester.pumpAndSettle();
+
+    final enviada = repo.guardadas.single;
+    expect(enviada.id, '7');
+    expect(enviada.aJson()['razonSocial'], 'Materiales Cruz y Cía');
+    // Lo que no se tocó viaja igual: guardar no puede borrar las notas.
+    expect(enviada.aJson()['notas'], 'Paga los viernes');
+    expect(find.text('Materiales Cruz y Cía'), findsOneWidget);
+    expect(find.text('Materiales Cruz S.A.S.'), findsNothing);
   });
 }

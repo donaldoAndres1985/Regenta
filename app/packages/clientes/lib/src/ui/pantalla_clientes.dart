@@ -1,14 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/cliente_en_lista.dart';
-import '../lista/controlador_de_clientes.dart';
+
 import '../lista/estado_de_clientes.dart';
 import '../lista/filtro_de_clientes.dart';
 import '../lista/proveedores.dart';
 import 'formato.dart';
+import 'formulario_de_cliente.dart';
 
 /// El listado de clientes en móvil y en web. HU-025.
 ///
@@ -27,94 +29,53 @@ class PantallaClientes extends ConsumerStatefulWidget {
 
 class _PantallaClientesState extends ConsumerState<PantallaClientes> {
   final TextEditingController _buscador = TextEditingController();
+  final FocusNode _focoBuscador = FocusNode(debugLabel: 'buscador-clientes');
+  bool _abriendo = false;
 
   @override
   void dispose() {
     _buscador.dispose();
+    _focoBuscador.dispose();
     super.dispose();
   }
 
-  void _abrirDialogoCrearCliente(BuildContext context, ControladorDeClientes ctrl) {
-    final nombreCtrl = TextEditingController();
-    final docCtrl = TextEditingController();
-    final telCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
+  Future<void> _crear() async {
+    final ctrl = ref.read(controladorDeClientesProvider.notifier);
+    final guardado = await abrirFormularioDeCliente(context, onGuardar: ctrl.guardar);
+    if (guardado) _avisar('Cliente agregado correctamente.');
+  }
 
-    unawaited(
-      showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Registrar Nuevo Cliente'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nombreCtrl,
-                  style: const TextStyle(color: RegentaColors.ink),
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre o Razón Social *',
-                    labelStyle: TextStyle(color: RegentaColors.ink2),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: docCtrl,
-                  style: const TextStyle(color: RegentaColors.ink),
-                  decoration: const InputDecoration(
-                    labelText: 'Cédula o NIT *',
-                    labelStyle: TextStyle(color: RegentaColors.ink2),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: telCtrl,
-                  style: const TextStyle(color: RegentaColors.ink),
-                  decoration: const InputDecoration(
-                    labelText: 'Teléfono',
-                    labelStyle: TextStyle(color: RegentaColors.ink2),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: emailCtrl,
-                  style: const TextStyle(color: RegentaColors.ink),
-                  decoration: const InputDecoration(
-                    labelText: 'Correo Electrónico',
-                    labelStyle: TextStyle(color: RegentaColors.ink2),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final nombre = nombreCtrl.text.trim();
-                final doc = docCtrl.text.trim();
-                if (nombre.isEmpty || doc.isEmpty) return;
-                Navigator.of(ctx).pop();
-                await ctrl.crearCliente(
-                  nombre: nombre,
-                  documento: doc,
-                  telefono: telCtrl.text.trim(),
-                  email: emailCtrl.text.trim(),
-                );
-              },
-              child: const Text('Guardar Cliente'),
-            ),
-          ],
-        ),
-      ),
-    );
+  /// Tocar una fila abre la ficha para editarla, salvo que quien montó la
+  /// pantalla haya pedido otra cosa con `onAbrirCliente`.
+  Future<void> _abrir(String clienteId) async {
+    if (widget.onAbrirCliente != null) {
+      widget.onAbrirCliente!(clienteId);
+      return;
+    }
+    if (_abriendo) return;
+    _abriendo = true;
+    final ctrl = ref.read(controladorDeClientesProvider.notifier);
+    final (ficha, motivo) = await ctrl.abrir(clienteId);
+    _abriendo = false;
+    if (!mounted) return;
+    if (ficha == null) {
+      _avisar(motivo ?? 'No se pudo abrir la ficha del cliente.');
+      return;
+    }
+    final guardado =
+        await abrirFormularioDeCliente(context, ficha: ficha, onGuardar: ctrl.guardar);
+    if (guardado) _avisar('Cliente modificado correctamente.');
+  }
+
+  void _avisar(String texto) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
+  }
+
+  /// Enter en el buscador con un solo resultado abre ese cliente.
+  void _enterEnBuscador() {
+    final visibles = ref.read(controladorDeClientesProvider).visibles;
+    if (visibles.length == 1) unawaited(_abrir(visibles.first.id));
   }
 
   @override
@@ -122,7 +83,12 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
     final estado = ref.watch(controladorDeClientesProvider);
     final ctrl = ref.read(controladorDeClientesProvider.notifier);
 
-    return Scaffold(
+    // F5 lleva al buscador, como en el escritorio de siempre.
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.f5): _focoBuscador.requestFocus,
+      },
+      child: Scaffold(
       backgroundColor: RegentaColors.paper,
       appBar: AppBar(
         backgroundColor: RegentaColors.surface,
@@ -131,28 +97,55 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
         shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
         title: Text('Clientes',
             style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
+        actions: [
+          IconButton(
+            tooltip: 'Actualizar',
+            onPressed: estado.cargando ? null : ctrl.cargar,
+            icon: const Icon(Icons.refresh, size: 20, color: RegentaColors.ink2),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 12, left: 4),
+            child: FilledButton.icon(
+              key: const Key('clientes-nuevo'),
+              onPressed: _crear,
+              style: FilledButton.styleFrom(
+                backgroundColor: RegentaColors.accent,
+                foregroundColor: RegentaColors.surface,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(RegentaSpacing.radius)),
+              ),
+              icon: const Icon(Icons.person_add_alt_1, size: 18),
+              label: const Text('Nuevo cliente'),
+            ),
+          ),
+        ],
       ),
       body: LayoutBuilder(
         builder: (context, restricciones) {
           final controles = _Controles(
             controlador: _buscador,
+            foco: _focoBuscador,
             filtro: estado.filtro,
             onTermino: ctrl.cambiarTermino,
             onFiltro: ctrl.cambiarFiltro,
+            onEnter: _enterEnBuscador,
           );
           final encabezado = _Encabezado(estado: estado);
           final lista = _Lista(
             estado: estado,
-            onAbrir: widget.onAbrirCliente,
-            onCrear: () => _abrirDialogoCrearCliente(context, ctrl),
+            onAbrir: (id) => unawaited(_abrir(id)),
+            onCrear: _crear,
           );
+          final aviso = estado.desdeCache || (estado.mensaje != null && estado.todos.isNotEmpty)
+              ? _Aviso(texto: estado.mensaje)
+              : null;
 
           if (restricciones.maxWidth >= kBreakpointEscritorio) {
             return Column(
               key: const Key('clientes-escritorio'),
               children: [
                 controles,
-                if (estado.desdeCache) const _AvisoSinConexion(),
+                ?aviso,
                 Expanded(
                   child: Center(
                     child: ConstrainedBox(
@@ -168,12 +161,13 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
             key: const Key('clientes-movil'),
             children: [
               controles,
-              if (estado.desdeCache) const _AvisoSinConexion(),
+              ?aviso,
               encabezado,
               Expanded(child: lista),
             ],
           );
         },
+      ),
       ),
     );
   }
@@ -182,15 +176,19 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
 class _Controles extends StatelessWidget {
   const _Controles({
     required this.controlador,
+    required this.foco,
     required this.filtro,
     required this.onTermino,
     required this.onFiltro,
+    required this.onEnter,
   });
 
   final TextEditingController controlador;
+  final FocusNode foco;
   final FiltroDeClientes filtro;
   final ValueChanged<String> onTermino;
   final ValueChanged<FiltroDeClientes> onFiltro;
+  final VoidCallback onEnter;
 
   @override
   Widget build(BuildContext context) {
@@ -207,13 +205,15 @@ class _Controles extends StatelessWidget {
             height: 42,
             child: TextField(
               controller: controlador,
+              focusNode: foco,
               onChanged: onTermino,
+              onSubmitted: (_) => onEnter(),
               style: RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.ink),
               decoration: InputDecoration(
                 isDense: true,
                 prefixIcon:
                     const Icon(Icons.search, size: 18, color: RegentaColors.faint),
-                hintText: 'Nombre, NIT o cédula…',
+                hintText: 'Nombre, NIT o cédula…  (F5)',
                 hintStyle:
                     RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.faint),
                 contentPadding: const EdgeInsets.symmetric(vertical: 11),
@@ -297,8 +297,12 @@ class _ChipFiltro extends StatelessWidget {
   }
 }
 
-class _AvisoSinConexion extends StatelessWidget {
-  const _AvisoSinConexion();
+/// La franja de aviso: el motivo real si el servidor lo dio, o el de siempre
+/// cuando lo que se ve es la copia guardada.
+class _Aviso extends StatelessWidget {
+  const _Aviso({this.texto});
+
+  final String? texto;
 
   @override
   Widget build(BuildContext context) {
@@ -306,7 +310,7 @@ class _AvisoSinConexion extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       color: RegentaColors.warnSoft,
-      child: Text('Mostrando la copia guardada — sin conexión',
+      child: Text(texto ?? 'Mostrando la copia guardada — sin conexión',
           style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.warn)),
     );
   }
@@ -327,7 +331,8 @@ class _Encabezado extends StatelessWidget {
         textBaseline: TextBaseline.alphabetic,
         children: [
           Expanded(
-            child: Text('${estado.totalVisible} clientes',
+            child: Text(
+                estado.totalVisible == 1 ? '1 cliente' : '${estado.totalVisible} clientes',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: RegentaType.cuerpo.copyWith(
@@ -376,7 +381,7 @@ class _Lista extends StatelessWidget {
               if (onCrear != null)
                 FilledButton.icon(
                   icon: const Icon(Icons.person_add),
-                  label: const Text('Registrar Primer Cliente'),
+                  label: Text(estado.todos.isEmpty ? 'Registrar primer cliente' : 'Nuevo cliente'),
                   onPressed: onCrear,
                 ),
             ],
@@ -445,6 +450,10 @@ class _FilaCliente extends StatelessWidget {
                 _ChipEstado(estado: cliente.estadoDeCartera),
               ],
             ),
+            if (onAbrir != null) ...[
+              const SizedBox(width: 8),
+              const Icon(Icons.edit_outlined, size: 16, color: RegentaColors.faint),
+            ],
           ],
         ),
       ),
