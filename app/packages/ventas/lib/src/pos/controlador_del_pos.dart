@@ -298,7 +298,7 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
       termino: '',
       buscando: false,
       desplegableCerrado: false,
-      mensaje: producto.sinStock
+      mensaje: (producto.sinStock && !ConfiguradorDeStock.politicaStockNegativoHabilitada)
           ? 'Agregaste "${producto.nombre}" sin stock: no se puede cobrar hasta quitarlo.'
           : null,
     );

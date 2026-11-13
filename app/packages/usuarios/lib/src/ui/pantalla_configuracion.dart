@@ -70,6 +70,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
     _creditoSinCupo = config.creditoSinCupo;
     ConfiguradorDeBusqueda.busquedaDifusaHabilitada = _busquedaDifusa;
     ConfiguradorDeCredito.creditoSinCupoHabilitado = _creditoSinCupo;
+    ConfiguradorDeStock.politicaStockNegativoHabilitada = _stockNegativo;
   }
 
   Future<void> _guardar() async {
@@ -96,6 +97,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
       await repo.actualizarConfiguracion(actualizado);
       ConfiguradorDeBusqueda.busquedaDifusaHabilitada = _busquedaDifusa;
       ConfiguradorDeCredito.creditoSinCupoHabilitado = _creditoSinCupo;
+      ConfiguradorDeStock.politicaStockNegativoHabilitada = _stockNegativo;
       ref.invalidate(configuracionNegocioProvider);
 
       if (mounted) {

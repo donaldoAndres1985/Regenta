@@ -670,13 +670,16 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     }
     final pos = ref.read(controladorDelPosProvider.notifier);
     final asignado = ref.read(controladorDelPosProvider).cliente;
-    Widget selector(BuildContext contexto) => PantallaClienteDeVenta(
-      asignado: asignado,
-      onAsignado: (cliente) {
-        pos.fijarCliente(cliente);
-        Navigator.of(contexto).pop();
-      },
-      onCerrar: () => Navigator.of(contexto).pop(),
+    Widget selector(BuildContext contexto) => Theme(
+      data: PastelTheme.light(),
+      child: PantallaClienteDeVenta(
+        asignado: asignado,
+        onAsignado: (cliente) {
+          pos.fijarCliente(cliente);
+          Navigator.of(contexto).pop();
+        },
+        onCerrar: () => Navigator.of(contexto).pop(),
+      ),
     );
     if (escritorio) {
       await showDialog<void>(

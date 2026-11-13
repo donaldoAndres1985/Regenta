@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:regenta_core/regenta_core.dart';
 import 'package:regenta_ventas/regenta_ventas.dart';
 
 ProductoBuscado _prod({required String id, required num precio}) => ProductoBuscado(
@@ -68,5 +69,32 @@ void main() {
     );
 
     expect(estado.lineasParaEnviar().single.descuentoPct, 100);
+  });
+
+  test('permite cobrar con stock cero cuando politicaStockNegativoHabilitada es true', () {
+    ConfiguradorDeStock.politicaStockNegativoHabilitada = false;
+    final prodSinStock = ProductoBuscado(
+      id: 'p-cero',
+      sku: 'SKU-0',
+      nombre: 'Pintura',
+      precioVenta: 5000,
+      nivelStock: NivelStock.cero,
+    );
+    final estadoSinPolitica = EstadoDelPos(
+      lineas: [LineaDeCarrito(producto: prodSinStock, cantidad: 1)],
+    );
+    expect(estadoSinPolitica.hayLineasSinStock, isTrue);
+    expect(estadoSinPolitica.puedeCobrar, isFalse);
+
+    ConfiguradorDeStock.politicaStockNegativoHabilitada = true;
+    try {
+      final estadoConPolitica = EstadoDelPos(
+        lineas: [LineaDeCarrito(producto: prodSinStock, cantidad: 1)],
+      );
+      expect(estadoConPolitica.hayLineasSinStock, isFalse);
+      expect(estadoConPolitica.puedeCobrar, isTrue);
+    } finally {
+      ConfiguradorDeStock.politicaStockNegativoHabilitada = false;
+    }
   });
 }

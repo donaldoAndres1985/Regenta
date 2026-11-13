@@ -16,6 +16,13 @@ class ConfiguradorDeCredito {
   static bool creditoSinCupoHabilitado = false;
 }
 
+/// Estado global en memoria para las preferencias operativas de inventario y stock.
+class ConfiguradorDeStock {
+  /// `true`: permite completar ventas aunque el stock registrado sea 0 o negativo.
+  /// `false`: bloquea el cobro cuando hay líneas sin stock disponible.
+  static bool politicaStockNegativoHabilitada = false;
+}
+
 /// Normaliza un texto para comparaciones de búsqueda: minúsculas y sin acentos ni tildes.
 String normalizarParaBusqueda(String texto) {
   var res = texto.toLowerCase();
