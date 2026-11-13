@@ -138,11 +138,48 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
     }
   }
 
+  InputDecoration _decoracionCampo({
+    required String labelText,
+    String? hintText,
+  }) {
+    return InputDecoration(
+      labelText: labelText,
+      labelStyle: const TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
+      hintText: hintText,
+      hintStyle: const TextStyle(color: RegentaColors.muted, fontSize: 14),
+      filled: true,
+      fillColor: RegentaColors.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+        borderSide: const BorderSide(color: RegentaColors.line),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+        borderSide: const BorderSide(color: RegentaColors.line),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+        borderSide: const BorderSide(color: RegentaColors.accent, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+        borderSide: const BorderSide(color: RegentaColors.crit),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+        borderSide: const BorderSide(color: RegentaColors.crit, width: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final configAsync = ref.watch(configuracionNegocioProvider);
 
-    return Scaffold(
+    return Theme(
+      data: PastelTheme.light(),
+      child: Scaffold(
       backgroundColor: RegentaColors.paper,
       appBar: AppBar(
         backgroundColor: RegentaColors.surface,
@@ -235,12 +272,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                               TextFormField(
                                 controller: _razonSocialCtrl,
                                 style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                decoration: const InputDecoration(
-                                  labelText: 'Razón Social *',
-                                  labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
-                                  border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
-                                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
-                                ),
+                                decoration: _decoracionCampo(labelText: 'Razón Social *'),
                                 validator: (v) =>
                                     (v == null || v.trim().isEmpty) ? 'Requerido' : null,
                               ),
@@ -248,23 +280,13 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                               TextFormField(
                                 controller: _nombreComercialCtrl,
                                 style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                decoration: const InputDecoration(
-                                  labelText: 'Nombre Comercial',
-                                  labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
-                                  border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
-                                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
-                                ),
+                                decoration: _decoracionCampo(labelText: 'Nombre Comercial'),
                               ),
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _documentoCtrl,
                                 style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                decoration: const InputDecoration(
-                                  labelText: 'NIT / Número de Documento *',
-                                  labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
-                                  border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
-                                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
-                                ),
+                                decoration: _decoracionCampo(labelText: 'NIT / Número de Documento *'),
                                 validator: (v) =>
                                     (v == null || v.trim().isEmpty) ? 'Requerido' : null,
                               ),
@@ -295,12 +317,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                               TextFormField(
                                 controller: _direccionCtrl,
                                 style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                decoration: const InputDecoration(
-                                  labelText: 'Dirección Comercial',
-                                  labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
-                                  border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
-                                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
-                                ),
+                                decoration: _decoracionCampo(labelText: 'Dirección Comercial'),
                               ),
                               const SizedBox(height: 16),
                               Row(
@@ -309,12 +326,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                                     child: TextFormField(
                                       controller: _ciudadCtrl,
                                       style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                      decoration: const InputDecoration(
-                                        labelText: 'Ciudad',
-                                        labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
-                                        border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
-                                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
-                                      ),
+                                      decoration: _decoracionCampo(labelText: 'Ciudad'),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -322,12 +334,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                                     child: TextFormField(
                                       controller: _telefonoCtrl,
                                       style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                      decoration: const InputDecoration(
-                                        labelText: 'Teléfono',
-                                        labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
-                                        border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
-                                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
-                                      ),
+                                      decoration: _decoracionCampo(labelText: 'Teléfono'),
                                     ),
                                   ),
                                 ],
@@ -336,12 +343,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                               TextFormField(
                                 controller: _emailCtrl,
                                 style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                decoration: const InputDecoration(
-                                  labelText: 'Correo Electrónico',
-                                  labelStyle: TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
-                                  border: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.line)),
-                                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: RegentaColors.accent, width: 2)),
-                                ),
+                                decoration: _decoracionCampo(labelText: 'Correo Electrónico'),
                               ),
                             ],
                           ),
@@ -445,6 +447,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 }
