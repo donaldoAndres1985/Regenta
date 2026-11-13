@@ -152,11 +152,11 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-        borderSide: const BorderSide(color: Color(0xFFC4C4D4)),
+        borderSide: const BorderSide(color: RegentaColors.line),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(RegentaSpacing.radius),
-        borderSide: const BorderSide(color: Color(0xFFC4C4D4)),
+        borderSide: const BorderSide(color: RegentaColors.line),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(RegentaSpacing.radius),
