@@ -25,6 +25,8 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
 
   bool _preciosConIva = true;
   bool _stockNegativo = false;
+  bool _busquedaDifusa = true;
+  bool _creditoSinCupo = false;
   bool _inicializado = false;
   bool _guardando = false;
 
@@ -64,6 +66,10 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
     _emailCtrl.text = config.email;
     _preciosConIva = config.preciosIncluyenImpuesto;
     _stockNegativo = config.politicaStockNegativo;
+    _busquedaDifusa = config.busquedaDifusa;
+    _creditoSinCupo = config.creditoSinCupo;
+    ConfiguradorDeBusqueda.busquedaDifusaHabilitada = _busquedaDifusa;
+    ConfiguradorDeCredito.creditoSinCupoHabilitado = _creditoSinCupo;
   }
 
   Future<void> _guardar() async {
@@ -83,9 +89,13 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
         email: _emailCtrl.text.trim(),
         preciosIncluyenImpuesto: _preciosConIva,
         politicaStockNegativo: _stockNegativo,
+        busquedaDifusa: _busquedaDifusa,
+        creditoSinCupo: _creditoSinCupo,
       );
 
       await repo.actualizarConfiguracion(actualizado);
+      ConfiguradorDeBusqueda.busquedaDifusaHabilitada = _busquedaDifusa;
+      ConfiguradorDeCredito.creditoSinCupoHabilitado = _creditoSinCupo;
       ref.invalidate(configuracionNegocioProvider);
 
       if (mounted) {
@@ -357,6 +367,32 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                                 ),
                                 value: _stockNegativo,
                                 onChanged: (val) => setState(() => _stockNegativo = val),
+                              ),
+                              const Divider(color: RegentaColors.line, height: 16),
+                              SwitchListTile(
+                                title: const Text('Búsqueda difusa multi-palabra', style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600)),
+                                subtitle: Text(
+                                  'Si se activa, busca escribiendo palabras en cualquier orden (ej: "esmal negr"). Si se desactiva, usa la búsqueda directa estándar tradicional más rápida.',
+                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                                ),
+                                value: _busquedaDifusa,
+                                onChanged: (val) {
+                                  setState(() => _busquedaDifusa = val);
+                                  ConfiguradorDeBusqueda.busquedaDifusaHabilitada = val;
+                                },
+                              ),
+                              const Divider(color: RegentaColors.line, height: 16),
+                              SwitchListTile(
+                                title: const Text('Permitir crédito directo sin cupo a todos los clientes', style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600)),
+                                subtitle: Text(
+                                  'Si se activa, deja hacer crédito a cualquier cliente sin exigir cupo disponible asignado. Si se desactiva, valida y pide cupo.',
+                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                                ),
+                                value: _creditoSinCupo,
+                                onChanged: (val) {
+                                  setState(() => _creditoSinCupo = val);
+                                  ConfiguradorDeCredito.creditoSinCupoHabilitado = val;
+                                },
                               ),
                             ],
                           ),

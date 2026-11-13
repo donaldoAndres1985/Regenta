@@ -535,9 +535,13 @@ class RepositorioDeVentas {
   /// borrador). Deja la misma saga de HU-038 en marcha: también hay que
   /// sondear con [esperarConfirmacion] después de llamarla.
   Future<void> confirmarACredito(String ventaId, {bool autorizado = false}) async {
+    final omitirCupo = ConfiguradorDeCredito.creditoSinCupoHabilitado;
     await _http.post<Map<String, dynamic>>(
       '/api/ventas/$ventaId/credito',
-      datos: {'autorizado': autorizado},
+      datos: {
+        'autorizado': autorizado,
+        if (omitirCupo) 'sinCupo': true,
+      },
     );
   }
 

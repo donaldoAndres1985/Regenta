@@ -59,19 +59,23 @@ public class GestionDeVentaACredito {
         BigDecimal monto = venta.getTotal();
         CreditoDelCliente estado = credito.consultar(venta.getClienteId());
 
-        if (!estado.habilitado()) {
-            throw new ReglaDeNegocioException("Ese cliente no tiene credito habilitado");
-        }
-        BigDecimal exceso = estado.excesoPara(monto);
-        if (exceso.signum() > 0) {
-            throw new ReglaDeNegocioException("La venta de " + monto + " se pasa por " + exceso
-                    + " del cupo del cliente: tiene " + estado.disponible() + " disponibles");
+        boolean omitirCupo = Boolean.TRUE.equals(solicitud.sinCupo());
+        if (!omitirCupo) {
+            if (!estado.habilitado()) {
+                throw new ReglaDeNegocioException("Ese cliente no tiene credito habilitado");
+            }
+            BigDecimal exceso = estado.excesoPara(monto);
+            if (exceso.signum() > 0) {
+                throw new ReglaDeNegocioException("La venta de " + monto + " se pasa por " + exceso
+                        + " del cupo del cliente: tiene " + estado.disponible() + " disponibles");
+            }
         }
         if (estado.carteraVencida()) {
             exigirAutorizacion(venta, estado, solicitud);
         }
 
-        venta.aCredito(LocalDate.now().plusDays(estado.diasCredito()));
+        int dias = estado.diasCredito() > 0 ? estado.diasCredito() : 30;
+        venta.aCredito(LocalDate.now().plusDays(dias));
         ventas.save(venta);
         gestion.confirmar(ventaId);
         return gestion.ver(ventaId);
