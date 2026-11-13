@@ -14,6 +14,8 @@ class ConfiguracionNegocioVista {
     this.regimenFiscal = 'RESPONSABLE_DE_IVA',
     this.preciosIncluyenImpuesto = true,
     this.politicaStockNegativo = false,
+    this.busquedaDifusa = true,
+    this.creditoSinCupo = false,
   });
 
   final String razonSocial;
@@ -29,6 +31,8 @@ class ConfiguracionNegocioVista {
   final String regimenFiscal;
   final bool preciosIncluyenImpuesto;
   final bool politicaStockNegativo;
+  final bool busquedaDifusa;
+  final bool creditoSinCupo;
 
   factory ConfiguracionNegocioVista.desdeJson(Map<String, dynamic> j) =>
       ConfiguracionNegocioVista(
@@ -45,6 +49,8 @@ class ConfiguracionNegocioVista {
         regimenFiscal: (j['regimenFiscal'] as String?) ?? 'RESPONSABLE_DE_IVA',
         preciosIncluyenImpuesto: (j['preciosIncluyenImpuesto'] as bool?) ?? true,
         politicaStockNegativo: (j['politicaStockNegativo'] as bool?) ?? false,
+        busquedaDifusa: (j['busquedaDifusa'] as bool?) ?? true,
+        creditoSinCupo: (j['creditoSinCupo'] as bool?) ?? false,
       );
 
   Map<String, dynamic> aJson() => {
@@ -61,5 +67,7 @@ class ConfiguracionNegocioVista {
         'regimenFiscal': regimenFiscal,
         'preciosIncluyenImpuesto': preciosIncluyenImpuesto,
         'politicaStockNegativo': politicaStockNegativo,
+        'busquedaDifusa': busquedaDifusa,
+        'creditoSinCupo': creditoSinCupo,
       };
 }

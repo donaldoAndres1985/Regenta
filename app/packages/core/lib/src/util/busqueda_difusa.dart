@@ -1,6 +1,20 @@
 /// Utilidades para búsqueda difusa multi-palabra (tokens en cualquier orden
-/// y con cualquier texto intermedio).
+/// y con cualquier texto intermedio) y configuración de modos de búsqueda y crédito.
 library;
+
+/// Estado global en memoria para las preferencias operativas de búsqueda.
+class ConfiguradorDeBusqueda {
+  /// `true`: búsqueda difusa multi-palabra (palabras en cualquier orden).
+  /// `false`: búsqueda directa estándar (como antes, coincidencia exacta de subcadena más rápida).
+  static bool busquedaDifusaHabilitada = true;
+}
+
+/// Estado global en memoria para las preferencias operativas de crédito.
+class ConfiguradorDeCredito {
+  /// `true`: permite crédito directo a cualquier cliente sin exigir cupo asignado.
+  /// `false`: valida que el cliente tenga crédito habilitado y cupo disponible.
+  static bool creditoSinCupoHabilitado = false;
+}
 
 /// Normaliza un texto para comparaciones de búsqueda: minúsculas y sin acentos ni tildes.
 String normalizarParaBusqueda(String texto) {
@@ -21,20 +35,36 @@ List<String> extraerTokensDeBusqueda(String consulta) {
   return norm.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
 }
 
-/// Evalúa si [textoObjetivo] (junto con los [camposAdicionales] opcionales) contiene
-/// TODOS los tokens de [consulta], en cualquier orden y con cualquier texto intermedio.
-///
-/// Ejemplo:
-/// - consulta: "esmal negr"
-/// - objetivo: "Esmalte pintulan negro" -> `true`
-/// - objetivo: "esmalte pinte galon negro" -> `true`
-/// - objetivo: "negro esmalte" -> `true`
-/// - objetivo: "esmalte blanco" -> `false`
+/// Evalúa si [textoObjetivo] (junto con los [camposAdicionales] opcionales) coincide con
+/// la búsqueda según el modo configurado en [ConfiguradorDeBusqueda.busquedaDifusaHabilitada]
+/// o forzado con [forzarDifusa].
 bool coincideConTokens(
   String? textoObjetivo,
   String consulta, {
   Iterable<String?>? camposAdicionales,
+  bool? forzarDifusa,
 }) {
+  final normConsulta = normalizarParaBusqueda(consulta.trim());
+  if (normConsulta.isEmpty) return true;
+
+  final usarDifusa = forzarDifusa ?? ConfiguradorDeBusqueda.busquedaDifusaHabilitada;
+
+  if (!usarDifusa) {
+    // Búsqueda directa estándar como antes: subcadena corrida directa (más rápida)
+    if (textoObjetivo != null && normalizarParaBusqueda(textoObjetivo).contains(normConsulta)) {
+      return true;
+    }
+    if (camposAdicionales != null) {
+      for (final campo in camposAdicionales) {
+        if (campo != null && normalizarParaBusqueda(campo).contains(normConsulta)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // Búsqueda difusa multi-palabra: todos los tokens en cualquier orden
   final tokens = extraerTokensDeBusqueda(consulta);
   if (tokens.isEmpty) return true;
 

@@ -3,7 +3,8 @@ import 'package:regenta_core/regenta_core.dart';
 
 void main() {
   group('busqueda_difusa', () {
-    test('coincideConTokens encuentra palabras en cualquier orden con texto intermedio', () {
+    test('coincideConTokens encuentra palabras en cualquier orden con texto intermedio cuando está activa', () {
+      ConfiguradorDeBusqueda.busquedaDifusaHabilitada = true;
       const consulta = 'esmal negr';
 
       expect(coincideConTokens('Esmalte pintulan negro', consulta), isTrue);
@@ -13,6 +14,19 @@ void main() {
       expect(coincideConTokens('Esmalte poliuretano color NEGRO brillante', consulta), isTrue);
       expect(coincideConTokens('Esmalte blanco', consulta), isFalse);
       expect(coincideConTokens('Pintura negra al agua', consulta), isFalse);
+    });
+
+    test('coincideConTokens en modo estándar busca como antes (subcadena directa rápida)', () {
+      ConfiguradorDeBusqueda.busquedaDifusaHabilitada = false;
+
+      // Subcadena corrida exacta coincide
+      expect(coincideConTokens('Esmalte negro brillante', 'esmalte neg'), isTrue);
+
+      // Si las palabras están separadas por otra ("pintulan"), en modo estándar no coincide
+      expect(coincideConTokens('Esmalte pintulan negro', 'esmal negr'), isFalse);
+
+      // Restaurar valor por defecto
+      ConfiguradorDeBusqueda.busquedaDifusaHabilitada = true;
     });
 
     test('coincideConTokens ignora tildes y mayúsculas', () {
