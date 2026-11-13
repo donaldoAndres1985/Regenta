@@ -63,6 +63,25 @@ public class GestionDeConfiguracion implements ConfiguracionNegocioApi {
                 .orElse(false);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public DatosNegocioTicket datosTicket(UUID negocioId) {
+        if (negocioId == null) return new DatosNegocioTicket("", "", "", "", "", "", "");
+        Negocio n = negocios.findById(negocioId).orElse(null);
+        ConfiguracionNegocio c = configuraciones.findById(negocioId).orElse(null);
+        String razonSocial = n != null && n.getRazonSocial() != null ? n.getRazonSocial() : "";
+        String nombreComercial = n != null && n.getNombreComercial() != null ? n.getNombreComercial() : "";
+        String nit = n != null && n.getNumeroDocumento() != null ? n.getNumeroDocumento() : "";
+        if (n != null && n.getDigitoVerificacion() != null && !n.getDigitoVerificacion().isBlank()) {
+            nit += "-" + n.getDigitoVerificacion();
+        }
+        String direccion = c != null && c.getDireccion() != null ? c.getDireccion() : "";
+        String telefono = c != null && c.getTelefono() != null ? c.getTelefono() : "";
+        String email = c != null && c.getEmail() != null ? c.getEmail() : "";
+        String ciudad = c != null && c.getCiudad() != null ? c.getCiudad() : "";
+        return new DatosNegocioTicket(razonSocial, nombreComercial, nit, direccion, telefono, email, ciudad);
+    }
+
     @Transactional(readOnly = true)
     @RequierePermiso("CONFIGURACION_NEGOCIO_VER")
     public ConfiguracionVigente ver() {
