@@ -67,8 +67,18 @@ public class ConfiguracionDelNegocio {
     public ReglasDeCobro reglasDeCobro() {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         boolean stockNegativo = configuracionNegocio != null && configuracionNegocio.permiteStockNegativo(negocioId);
+        ConfiguracionNegocioApi.DatosNegocioTicket datos = configuracionNegocio != null
+                ? configuracionNegocio.datosTicket(negocioId)
+                : null;
         return new ReglasDeCobro(
                 montoParaIdentificarComprador(negocioId).orElse(null),
-                stockNegativo);
+                stockNegativo,
+                datos != null ? datos.razonSocial() : null,
+                datos != null ? datos.nombreComercial() : null,
+                datos != null ? datos.nit() : null,
+                datos != null ? datos.direccion() : null,
+                datos != null ? datos.telefono() : null,
+                datos != null ? datos.email() : null,
+                datos != null ? datos.ciudad() : null);
     }
 }

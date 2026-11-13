@@ -23,6 +23,35 @@ class ConfiguradorDeStock {
   static bool politicaStockNegativoHabilitada = false;
 }
 
+/// Parámetros y datos del negocio parametrizables para la factura térmica / tiquete POS.
+/// Inspirado en el diseño y campos del formato de tiquete de SISTEMA SARA (Factura_venta.jrxml).
+class ConfiguradorDeTicket {
+  static String razonSocial = 'FERRETERIA CENTRAL N°1';
+  static String nombreComercial = '';
+  static String nit = '';
+  static String direccion = '';
+  static String telefono = '';
+  static String celular = '';
+  static String email = '';
+  static String ciudad = '';
+  static String regimenFiscal = '';
+
+  // Textos y leyendas parametrizables de la factura (idénticos a Factura_venta.jrxml de SISTEMA SARA)
+  static String tipoComprobante = 'FACTURA DE VENTA';
+  static String nombreVendedor = 'CAJA PRINCIPAL';
+  static String mensajeAgradecimiento = 'GRACIAS POR SU COMPRA';
+  static String mensajeGarantia = 'SIN FACTURAS NO SE HACEN CAMBIOS';
+  static String mensajeDevolucion = 'NO SE HACEN DEVOLUCIONES DE DINERO';
+  static String softwarePie = 'SARA - PUNTO DE VENTA - SOFTWARE POS';
+
+  static String get nombreNegocioOComercial =>
+      razonSocial.trim().isNotEmpty
+          ? razonSocial.trim()
+          : (nombreComercial.trim().isNotEmpty
+              ? nombreComercial.trim()
+              : 'FERRETERIA CENTRAL N°1');
+}
+
 /// Normaliza un texto para comparaciones de búsqueda: minúsculas y sin acentos ni tildes.
 String normalizarParaBusqueda(String texto) {
   var res = texto.toLowerCase();

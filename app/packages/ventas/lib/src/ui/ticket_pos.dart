@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/repositorio_de_ventas.dart';
 import 'formato.dart';
@@ -15,12 +16,14 @@ class LineaTicket {
     required this.cantidad,
     required this.precioUnitario,
     required this.total,
+    this.descuento = 0,
   });
 
   final String nombre;
   final num cantidad;
   final num precioUnitario;
   final num total;
+  final num descuento;
 }
 
 /// Datos formateados de un pago registrado.
@@ -35,18 +38,26 @@ class PagoTicket {
 }
 
 /// Generador de tirilla térmica de 80mm en PDF (HU-045).
+/// Diseñado con la estructura y estética del tiquete POS de SISTEMA SARA (Factura_venta.jrxml).
 class GeneradorTicketPos {
   static const PdfPageFormat formato80mm = PdfPageFormat(
     80 * PdfPageFormat.mm,
     double.infinity,
-    marginLeft: 4 * PdfPageFormat.mm,
-    marginRight: 4 * PdfPageFormat.mm,
+    marginLeft: 3.5 * PdfPageFormat.mm,
+    marginRight: 3.5 * PdfPageFormat.mm,
     marginTop: 4 * PdfPageFormat.mm,
     marginBottom: 6 * PdfPageFormat.mm,
   );
 
   static Future<Uint8List> crearPdf({
-    required String nombreNegocio,
+    String? nombreNegocio,
+    String? nit,
+    String? direccion,
+    String? telefono,
+    String? celular,
+    String? email,
+    String? tipoComprobante,
+    String? vendedor,
     required String numeroVenta,
     required String fechaHora,
     String? nombreCliente,
@@ -59,140 +70,319 @@ class GeneradorTicketPos {
     List<PagoTicket> pagos = const [],
     num cambio = 0,
     String? nota,
+    String? mensajeAgradecimiento,
+    String? mensajeGarantia,
+    String? mensajeDevolucion,
+    String? softwarePie,
   }) async {
     final pdf = pw.Document();
+
+    final nombreFinal = (nombreNegocio != null && nombreNegocio.trim().isNotEmpty)
+        ? nombreNegocio.trim()
+        : ConfiguradorDeTicket.nombreNegocioOComercial;
+    final nitFinal = (nit != null && nit.trim().isNotEmpty)
+        ? nit.trim()
+        : ConfiguradorDeTicket.nit.trim();
+    final direccionFinal = (direccion != null && direccion.trim().isNotEmpty)
+        ? direccion.trim()
+        : ConfiguradorDeTicket.direccion.trim();
+    final telefonoFinal = (telefono != null && telefono.trim().isNotEmpty)
+        ? telefono.trim()
+        : ConfiguradorDeTicket.telefono.trim();
+    final celularFinal = (celular != null && celular.trim().isNotEmpty)
+        ? celular.trim()
+        : ConfiguradorDeTicket.celular.trim();
+    final emailFinal = (email != null && email.trim().isNotEmpty)
+        ? email.trim()
+        : ConfiguradorDeTicket.email.trim();
+    final tipoCompFinal = (tipoComprobante != null && tipoComprobante.trim().isNotEmpty)
+        ? tipoComprobante.trim()
+        : ConfiguradorDeTicket.tipoComprobante;
+    final vendedorFinal = (vendedor != null && vendedor.trim().isNotEmpty)
+        ? vendedor.trim()
+        : ConfiguradorDeTicket.nombreVendedor;
+    final agradecimientoFinal = mensajeAgradecimiento ?? ConfiguradorDeTicket.mensajeAgradecimiento;
+    final garantiaFinal = mensajeGarantia ?? ConfiguradorDeTicket.mensajeGarantia;
+    final devolucionFinal = mensajeDevolucion ?? ConfiguradorDeTicket.mensajeDevolucion;
+    final softwareFinal = softwarePie ?? ConfiguradorDeTicket.softwarePie;
+
+    // Desglosar fecha y hora si vienen juntas
+    String fechaStr = fechaHora;
+    String horaStr = '';
+    if (fechaHora.contains(' ')) {
+      final partes = fechaHora.split(' ');
+      fechaStr = partes[0];
+      horaStr = partes.sublist(1).join(' ');
+    } else if (fechaHora.contains('T')) {
+      final partes = fechaHora.split('T');
+      fechaStr = partes[0];
+      horaStr = partes.length > 1 ? partes[1].split('.')[0] : '';
+    }
+
+    final subtotalFinal = subtotal > 0 ? subtotal : (total + descuento - impuesto);
 
     pdf.addPage(
       pw.Page(
         pageFormat: formato80mm,
         build: (pw.Context context) {
           return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
             children: [
-              // Encabezado
+              // ==========================================
+              // 1. ENCABEZADO DEL NEGOCIO (Centrado)
+              // ==========================================
               pw.Center(
                 child: pw.Text(
-                  nombreNegocio.toUpperCase(),
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13),
+                  nombreFinal.toUpperCase(),
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
                   textAlign: pw.TextAlign.center,
                 ),
               ),
-              pw.SizedBox(height: 2),
-              pw.Center(
-                child: pw.Text(
-                  'COMPROBANTE DE VENTA',
-                  style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
-                ),
-              ),
-              pw.Center(
-                child: pw.Text(
-                  'Venta No. $numeroVenta',
-                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-                ),
-              ),
-              pw.Center(
-                child: pw.Text(
-                  fechaHora,
-                  style: const pw.TextStyle(fontSize: 8),
-                ),
-              ),
-              pw.Divider(thickness: 0.5),
-
-              // Cliente
-              pw.Text(
-                'Cliente: ${nombreCliente ?? "Consumidor final"}',
-                style: const pw.TextStyle(fontSize: 8.5),
-              ),
-              if (identificacionCliente != null && identificacionCliente.isNotEmpty)
-                pw.Text(
-                  'NIT/CC: $identificacionCliente',
-                  style: const pw.TextStyle(fontSize: 8.5),
-                ),
-              pw.Divider(thickness: 0.5),
-
-              // Tabla de productos
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Expanded(
-                    flex: 3,
-                    child: pw.Text('Cant · Producto',
-                        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+              if (nitFinal.isNotEmpty) ...[
+                pw.SizedBox(height: 1),
+                pw.Center(
+                  child: pw.Text(
+                    'NIT: $nitFinal',
+                    style: const pw.TextStyle(fontSize: 8.5),
+                    textAlign: pw.TextAlign.center,
                   ),
-                  pw.Text('Total',
-                      style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                ),
+              ],
+              if (direccionFinal.isNotEmpty) ...[
+                pw.SizedBox(height: 1),
+                pw.Center(
+                  child: pw.Text(
+                    direccionFinal.toUpperCase(),
+                    style: const pw.TextStyle(fontSize: 8.5),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ),
+              ],
+              if (telefonoFinal.isNotEmpty || celularFinal.isNotEmpty) ...[
+                pw.SizedBox(height: 1),
+                pw.Center(
+                  child: pw.Text(
+                    'Tel: $telefonoFinal${celularFinal.isNotEmpty ? " - Cel: $celularFinal" : ""}',
+                    style: const pw.TextStyle(fontSize: 8.5),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ),
+              ],
+              if (emailFinal.isNotEmpty) ...[
+                pw.SizedBox(height: 1),
+                pw.Center(
+                  child: pw.Text(
+                    'E-mail: $emailFinal',
+                    style: const pw.TextStyle(fontSize: 8.5),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ),
+              ],
+              pw.SizedBox(height: 2),
+              _separador(),
+
+              // ==========================================
+              // 2. METADATOS DE LA VENTA (Alineado a la izquierda)
+              // ==========================================
+              _filaDato('FECHA     :', fechaStr),
+              if (horaStr.isNotEmpty) _filaDato('HORA       :', horaStr),
+              _filaDato(
+                'CLIENTE :',
+                (nombreCliente != null && nombreCliente.trim().isNotEmpty
+                        ? nombreCliente.trim()
+                        : 'CONSUMIDOR FINAL')
+                    .toUpperCase(),
+              ),
+              _filaDato(
+                'CC / NIT   :',
+                (identificacionCliente != null && identificacionCliente.trim().isNotEmpty
+                    ? identificacionCliente.trim()
+                    : '222222222222'),
+              ),
+              pw.SizedBox(height: 2),
+              _separador(),
+              _filaDato('TIPO               :', tipoCompFinal.toUpperCase()),
+              _filaDato('TIQUETE N° :', numeroVenta),
+              _filaDato('VENDEDOR  :', vendedorFinal.toUpperCase()),
+              _separador(),
+
+              // ==========================================
+              // 3. TABLA DE PRODUCTOS (Encabezado)
+              // ==========================================
+              pw.Row(
+                children: [
+                  pw.SizedBox(
+                    width: 26,
+                    child: pw.Text('CANT.', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                  ),
+                  pw.Expanded(
+                    child: pw.Text('PRODUCTO', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                  ),
+                  pw.SizedBox(
+                    width: 48,
+                    child: pw.Text('V.UNIT.', textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                  ),
+                  pw.SizedBox(
+                    width: 52,
+                    child: pw.Text('TOTAL', textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                  ),
                 ],
               ),
-              pw.SizedBox(height: 3),
+              _separador(),
 
+              // ==========================================
+              // 4. DETALLE DE ÍTEMS
+              // ==========================================
               for (final l in lineas) ...[
+                pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.SizedBox(
+                        width: 26,
+                        child: pw.Text(
+                          l.cantidad % 1 == 0 ? l.cantidad.toInt().toString() : l.cantidad.toString(),
+                          style: const pw.TextStyle(fontSize: 8),
+                        ),
+                      ),
+                      pw.Expanded(
+                        child: pw.Text(
+                          l.nombre.toUpperCase(),
+                          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                      pw.SizedBox(
+                        width: 48,
+                        child: pw.Text(
+                          formatearPesos(l.precioUnitario),
+                          textAlign: pw.TextAlign.right,
+                          style: const pw.TextStyle(fontSize: 8),
+                        ),
+                      ),
+                      pw.SizedBox(
+                        width: 52,
+                        child: pw.Text(
+                          formatearPesos(l.total),
+                          textAlign: pw.TextAlign.right,
+                          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              _separador(),
+
+              // ==========================================
+              // 5. TOTALES (Alineados a la derecha)
+              // ==========================================
+              _filaTotal('SUBTOTAL', formatearPesos(subtotalFinal)),
+              if (descuento > 0)
+                _filaTotal('DESCUENTO', '- ${formatearPesos(descuento)}'),
+              if (impuesto > 0)
+                _filaTotal('IVA', formatearPesos(impuesto)),
+              pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(vertical: 1),
+                child: _filaTotal(
+                  'TOTAL A PAGAR',
+                  formatearPesos(total),
+                  destacado: true,
+                ),
+              ),
+              _separador(),
+
+              // ==========================================
+              // 6. FORMAS DE PAGO (Si existen)
+              // ==========================================
+              if (pagos.isNotEmpty) ...[
+                pw.Center(
+                  child: pw.Text(
+                    'FORMA DE PAGO',
+                    style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold),
+                  ),
+                ),
+                pw.SizedBox(height: 2),
                 pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Expanded(
-                      child: pw.Text(
-                        '${l.cantidad} x ${l.nombre}',
-                        style: const pw.TextStyle(fontSize: 8),
-                      ),
+                      flex: 4,
+                      child: pw.Text('TIPO PAGO', style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold)),
                     ),
-                    pw.Text(
-                      formatearPesos(l.total),
-                      style: const pw.TextStyle(fontSize: 8),
+                    pw.Expanded(
+                      flex: 3,
+                      child: pw.Text('CANCELO', textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Expanded(
+                      flex: 3,
+                      child: pw.Text('CAMBIO', textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold)),
                     ),
                   ],
                 ),
-                pw.SizedBox(height: 2),
-              ],
-
-              pw.Divider(thickness: 0.5),
-
-              // Totales
-              if (subtotal > 0 && subtotal != total) ...[
-                _filaTotalPdf('Subtotal:', formatearPesos(subtotal)),
-              ],
-              if (descuento > 0) ...[
-                _filaTotalPdf('Descuento:', '- ${formatearPesos(descuento)}'),
-              ],
-              if (impuesto > 0) ...[
-                _filaTotalPdf('IVA:', formatearPesos(impuesto)),
-              ],
-              pw.SizedBox(height: 2),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('TOTAL:',
-                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                  pw.Text(formatearPesos(total),
-                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                ],
-              ),
-
-              // Pagos
-              if (pagos.isNotEmpty) ...[
                 pw.Divider(thickness: 0.5),
-                pw.Text('PAGOS REGISTRADOS:',
-                    style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
                 for (final p in pagos) ...[
-                  _filaTotalPdf(p.metodo, formatearPesos(p.monto)),
+                  pw.Row(
+                    children: [
+                      pw.Expanded(
+                        flex: 4,
+                        child: pw.Text(p.metodo.toUpperCase(), style: const pw.TextStyle(fontSize: 8)),
+                      ),
+                      pw.Expanded(
+                        flex: 3,
+                        child: pw.Text(formatearPesos(p.monto), textAlign: pw.TextAlign.right, style: const pw.TextStyle(fontSize: 8)),
+                      ),
+                      pw.Expanded(
+                        flex: 3,
+                        child: pw.Text(formatearPesos(cambio), textAlign: pw.TextAlign.right, style: const pw.TextStyle(fontSize: 8)),
+                      ),
+                    ],
+                  ),
                 ],
-                if (cambio > 0) ...[
-                  _filaTotalPdf('Cambio entregado:', formatearPesos(cambio)),
-                ],
+                _separador(),
               ],
 
               if (nota != null && nota.trim().isNotEmpty) ...[
-                pw.SizedBox(height: 4),
                 pw.Text('Nota: $nota', style: const pw.TextStyle(fontSize: 7.5)),
+                pw.SizedBox(height: 3),
               ],
 
-              pw.SizedBox(height: 8),
+              // ==========================================
+              // 7. PIE DE PÁGINA (Idéntico a SISTEMA SARA)
+              // ==========================================
+              pw.SizedBox(height: 4),
               pw.Center(
                 child: pw.Text(
-                  '¡Gracias por su compra!',
-                  style: pw.TextStyle(fontSize: 8.5, fontStyle: pw.FontStyle.italic),
+                  agradecimientoFinal,
+                  style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold),
                 ),
               ),
+              if (garantiaFinal.isNotEmpty) ...[
+                pw.SizedBox(height: 2),
+                pw.Center(
+                  child: pw.Text(
+                    garantiaFinal,
+                    style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold),
+                  ),
+                ),
+              ],
+              if (devolucionFinal.isNotEmpty) ...[
+                pw.SizedBox(height: 1),
+                pw.Center(
+                  child: pw.Text(
+                    devolucionFinal,
+                    style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold),
+                  ),
+                ),
+              ],
+              if (softwareFinal.isNotEmpty) ...[
+                pw.SizedBox(height: 6),
+                pw.Center(
+                  child: pw.Text(
+                    softwareFinal,
+                    style: pw.TextStyle(fontSize: 7, fontStyle: pw.FontStyle.italic),
+                  ),
+                ),
+              ],
             ],
           );
         },
@@ -202,14 +392,62 @@ class GeneradorTicketPos {
     return pdf.save();
   }
 
-  static pw.Widget _filaTotalPdf(String etiqueta, String valor) {
+  static pw.Widget _separador() {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
+      child: pw.Text(
+        '======================================================',
+        maxLines: 1,
+        overflow: pw.TextOverflow.clip,
+        style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  static pw.Widget _filaDato(String etiqueta, String valor) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 0.5),
       child: pw.Row(
+        children: [
+          pw.SizedBox(
+            width: 72,
+            child: pw.Text(
+              etiqueta,
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Text(
+              valor,
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _filaTotal(String etiqueta, String valor, {bool destacado = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 0.8),
+      child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(etiqueta, style: const pw.TextStyle(fontSize: 8)),
-          pw.Text(valor, style: const pw.TextStyle(fontSize: 8)),
+          pw.Text(
+            etiqueta,
+            style: pw.TextStyle(
+              fontSize: destacado ? 10 : 8,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.Text(
+            valor,
+            style: pw.TextStyle(
+              fontSize: destacado ? 10.5 : 8.5,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -218,7 +456,7 @@ class GeneradorTicketPos {
   /// Abre la vista de impresión del sistema o previsualización.
   static Future<void> imprimirOPrevisualizar(
     BuildContext context, {
-    required String nombreNegocio,
+    String? nombreNegocio,
     required VentaEnProceso venta,
     List<PagoTicket> pagos = const [],
     num cambio = 0,

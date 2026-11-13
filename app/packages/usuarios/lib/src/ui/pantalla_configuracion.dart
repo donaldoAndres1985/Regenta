@@ -71,6 +71,14 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
     ConfiguradorDeBusqueda.busquedaDifusaHabilitada = _busquedaDifusa;
     ConfiguradorDeCredito.creditoSinCupoHabilitado = _creditoSinCupo;
     ConfiguradorDeStock.politicaStockNegativoHabilitada = _stockNegativo;
+    ConfiguradorDeTicket.razonSocial = config.razonSocial;
+    ConfiguradorDeTicket.nombreComercial = config.nombreComercial;
+    ConfiguradorDeTicket.nit = config.numeroDocumento + (config.digitoVerificacion != null && config.digitoVerificacion!.isNotEmpty ? '-${config.digitoVerificacion}' : '');
+    ConfiguradorDeTicket.direccion = config.direccion;
+    ConfiguradorDeTicket.ciudad = config.ciudad;
+    ConfiguradorDeTicket.telefono = config.telefono;
+    ConfiguradorDeTicket.email = config.email;
+    ConfiguradorDeTicket.regimenFiscal = config.regimenFiscal;
   }
 
   Future<void> _guardar() async {
@@ -98,6 +106,14 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
       ConfiguradorDeBusqueda.busquedaDifusaHabilitada = _busquedaDifusa;
       ConfiguradorDeCredito.creditoSinCupoHabilitado = _creditoSinCupo;
       ConfiguradorDeStock.politicaStockNegativoHabilitada = _stockNegativo;
+      ConfiguradorDeTicket.razonSocial = actualizado.razonSocial;
+      ConfiguradorDeTicket.nombreComercial = actualizado.nombreComercial;
+      ConfiguradorDeTicket.nit = actualizado.numeroDocumento;
+      ConfiguradorDeTicket.direccion = actualizado.direccion;
+      ConfiguradorDeTicket.ciudad = actualizado.ciudad;
+      ConfiguradorDeTicket.telefono = actualizado.telefono;
+      ConfiguradorDeTicket.email = actualizado.email;
+      ConfiguradorDeTicket.regimenFiscal = actualizado.regimenFiscal;
       ref.invalidate(configuracionNegocioProvider);
 
       if (mounted) {

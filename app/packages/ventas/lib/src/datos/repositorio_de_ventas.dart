@@ -411,6 +411,27 @@ class RepositorioDeVentas {
         ConfiguradorDeStock.politicaStockNegativoHabilitada =
             cuerpo['politicaStockNegativo'] as bool;
       }
+      if (cuerpo['razonSocial'] is String && (cuerpo['razonSocial'] as String).trim().isNotEmpty) {
+        ConfiguradorDeTicket.razonSocial = (cuerpo['razonSocial'] as String).trim();
+      }
+      if (cuerpo['nombreComercial'] is String && (cuerpo['nombreComercial'] as String).trim().isNotEmpty) {
+        ConfiguradorDeTicket.nombreComercial = (cuerpo['nombreComercial'] as String).trim();
+      }
+      if (cuerpo['nit'] is String && (cuerpo['nit'] as String).trim().isNotEmpty) {
+        ConfiguradorDeTicket.nit = (cuerpo['nit'] as String).trim();
+      }
+      if (cuerpo['direccion'] is String && (cuerpo['direccion'] as String).trim().isNotEmpty) {
+        ConfiguradorDeTicket.direccion = (cuerpo['direccion'] as String).trim();
+      }
+      if (cuerpo['telefono'] is String && (cuerpo['telefono'] as String).trim().isNotEmpty) {
+        ConfiguradorDeTicket.telefono = (cuerpo['telefono'] as String).trim();
+      }
+      if (cuerpo['email'] is String && (cuerpo['email'] as String).trim().isNotEmpty) {
+        ConfiguradorDeTicket.email = (cuerpo['email'] as String).trim();
+      }
+      if (cuerpo['ciudad'] is String && (cuerpo['ciudad'] as String).trim().isNotEmpty) {
+        ConfiguradorDeTicket.ciudad = (cuerpo['ciudad'] as String).trim();
+      }
       return cuerpo['montoIdentificarComprador'] as num?;
     }
     return null;
