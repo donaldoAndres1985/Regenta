@@ -1,3 +1,5 @@
+import 'package:regenta_core/regenta_core.dart';
+
 import '../datos/cliente_de_la_venta.dart';
 import '../datos/producto_buscado.dart';
 import '../datos/repositorio_de_ventas.dart';
@@ -98,7 +100,10 @@ class EstadoDelPos {
   num get impuesto => lineas.fold<num>(0, (a, l) => a + l.impuesto);
   num get total => subtotal + impuesto;
 
-  bool get hayLineasSinStock => lineas.any((l) => l.sinStock);
+  bool get hayLineasSinStock =>
+      ConfiguradorDeStock.politicaStockNegativoHabilitada
+          ? false
+          : lineas.any((l) => l.sinStock);
 
   /// Las líneas listas para mandar al backend, con el descuento global
   /// prorrateado por línea: el contrato de ventas solo tiene descuento por

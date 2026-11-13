@@ -16,6 +16,7 @@ import com.regenta.shared.web.ReglaDeNegocioException;
 import com.regenta.shared.events.RegistroDeEventos;
 import com.regenta.shared.tenancy.ContextoDeNegocio;
 import com.regenta.shared.security.RequierePermiso;
+import com.regenta.usuarios.api.ConfiguracionNegocioApi;
 import com.regenta.usuarios.domain.ConfiguracionNegocio;
 import com.regenta.usuarios.domain.Impuesto;
 import com.regenta.usuarios.domain.Negocio;
@@ -33,7 +34,7 @@ import com.regenta.usuarios.infrastructure.NegocioRepositorio;
  * la unica forma de que sea cierta.
  */
 @Service
-public class GestionDeConfiguracion {
+public class GestionDeConfiguracion implements ConfiguracionNegocioApi {
 
     public static final String ADVERTENCIA_IMPUESTO_INCLUIDO =
             "Cambiar si los precios incluyen impuesto afecta el calculo de TODAS las ventas"
@@ -51,6 +52,15 @@ public class GestionDeConfiguracion {
         this.negocios = negocios;
         this.impuestos = impuestos;
         this.eventos = eventos;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean permiteStockNegativo(UUID negocioId) {
+        if (negocioId == null) return false;
+        return configuraciones.findById(negocioId)
+                .map(ConfiguracionNegocio::isPoliticaStockNegativo)
+                .orElse(false);
     }
 
     @Transactional(readOnly = true)

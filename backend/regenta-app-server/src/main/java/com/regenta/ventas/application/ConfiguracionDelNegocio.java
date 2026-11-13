@@ -5,12 +5,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.regenta.shared.tenancy.ContextoDeNegocio;
 import com.regenta.shared.security.RequierePermiso;
+import com.regenta.usuarios.api.ConfiguracionNegocioApi;
 
 /**
  * La copia local de lo que Ventas necesita de la configuración del negocio
@@ -21,9 +23,17 @@ import com.regenta.shared.security.RequierePermiso;
 public class ConfiguracionDelNegocio {
 
     private final JdbcTemplate jdbc;
+    private final ConfiguracionNegocioApi configuracionNegocio;
 
     public ConfiguracionDelNegocio(JdbcTemplate jdbc) {
+        this(jdbc, null);
+    }
+
+    @Autowired
+    public ConfiguracionDelNegocio(JdbcTemplate jdbc,
+            @Autowired(required = false) ConfiguracionNegocioApi configuracionNegocio) {
         this.jdbc = jdbc;
+        this.configuracionNegocio = configuracionNegocio;
     }
 
     /** Guarda la foto: el evento trae la configuración completa, no un parche. */
@@ -55,7 +65,10 @@ public class ConfiguracionDelNegocio {
     @Transactional(readOnly = true)
     @RequierePermiso("VENTAS_VENTA_CREAR")
     public ReglasDeCobro reglasDeCobro() {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        boolean stockNegativo = configuracionNegocio != null && configuracionNegocio.permiteStockNegativo(negocioId);
         return new ReglasDeCobro(
-                montoParaIdentificarComprador(ContextoDeNegocio.negocioActual()).orElse(null));
+                montoParaIdentificarComprador(negocioId).orElse(null),
+                stockNegativo);
     }
 }

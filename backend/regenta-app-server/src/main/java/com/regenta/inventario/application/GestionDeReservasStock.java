@@ -11,10 +11,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.regenta.usuarios.api.ConfiguracionNegocioApi;
 import com.regenta.shared.events.RegistroDeEventos;
 import com.regenta.shared.tenancy.ContextoDeNegocio;
 import com.regenta.shared.security.RequierePermiso;
@@ -46,13 +48,22 @@ public class GestionDeReservasStock {
     private final ExistenciaRepositorio existencias;
     private final LibroMayorDeInventario libro;
     private final RegistroDeEventos eventos;
+    private final ConfiguracionNegocioApi configuracionNegocio;
 
     public GestionDeReservasStock(ReservaStockRepositorio reservas, ExistenciaRepositorio existencias,
             LibroMayorDeInventario libro, RegistroDeEventos eventos) {
+        this(reservas, existencias, libro, eventos, null);
+    }
+
+    @Autowired
+    public GestionDeReservasStock(ReservaStockRepositorio reservas, ExistenciaRepositorio existencias,
+            LibroMayorDeInventario libro, RegistroDeEventos eventos,
+            @Autowired(required = false) ConfiguracionNegocioApi configuracionNegocio) {
         this.reservas = reservas;
         this.existencias = existencias;
         this.libro = libro;
         this.eventos = eventos;
+        this.configuracionNegocio = configuracionNegocio;
     }
 
     /** Criterios 1, 2 y 4. */
@@ -76,6 +87,8 @@ public class GestionDeReservasStock {
         OffsetDateTime expira = solicitud.expiraEn() != null ? solicitud.expiraEn()
                 : OffsetDateTime.now().plus(TTL_POR_DEFECTO);
 
+        boolean permiteNegativo = configuracionNegocio != null && configuracionNegocio.permiteStockNegativo(negocioId);
+
         Map<LineaDeReserva, Existencia> aReservar = new LinkedHashMap<>();
         List<FaltanteDeStock> faltantes = new ArrayList<>();
         for (LineaDeReserva linea : solicitud.lineas()) {
@@ -83,10 +96,13 @@ public class GestionDeReservasStock {
                     .bloquearPorProductoYBodega(linea.productoId(), linea.bodegaId())
                     .orElse(null);
             BigDecimal disponible = existencia == null ? BigDecimal.ZERO : existencia.disponible();
-            if (disponible.compareTo(linea.cantidad()) < 0) {
+            if (!permiteNegativo && disponible.compareTo(linea.cantidad()) < 0) {
                 faltantes.add(new FaltanteDeStock(linea.productoId(), linea.bodegaId(),
                         linea.cantidad(), disponible));
             } else {
+                if (existencia == null) {
+                    existencia = Existencia.enCero(negocioId, linea.productoId(), linea.bodegaId());
+                }
                 aReservar.put(linea, existencia);
             }
         }

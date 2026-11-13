@@ -1,3 +1,5 @@
+import 'package:regenta_core/regenta_core.dart';
+
 import '../datos/producto_buscado.dart';
 
 /// Una línea del carrito del POS: un producto y la cantidad que se lleva. El
@@ -13,7 +15,8 @@ class LineaDeCarrito {
   final num cantidad;
   final num descuentoPct;
 
-  bool get sinStock => producto.sinStock;
+  bool get sinStock =>
+      !ConfiguradorDeStock.politicaStockNegativoHabilitada && producto.sinStock;
 
   num get bruto => producto.precioVenta * cantidad;
   num get descuento => bruto * (descuentoPct / 100);

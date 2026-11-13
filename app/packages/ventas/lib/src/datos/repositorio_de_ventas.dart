@@ -407,6 +407,10 @@ class RepositorioDeVentas {
   Future<num?> montoParaIdentificarComprador() async {
     final cuerpo = await _http.get<dynamic>('/api/ventas/reglas-de-cobro');
     if (cuerpo is Map) {
+      if (cuerpo['politicaStockNegativo'] is bool) {
+        ConfiguradorDeStock.politicaStockNegativoHabilitada =
+            cuerpo['politicaStockNegativo'] as bool;
+      }
       return cuerpo['montoIdentificarComprador'] as num?;
     }
     return null;
