@@ -12,7 +12,7 @@ import org.springframework.data.repository.query.Param;
 import com.regenta.clientes.domain.Cliente;
 import com.regenta.clientes.domain.TipoDocumento;
 
-public interface ClienteRepositorio extends JpaRepository<Cliente, UUID> {
+public interface ClienteRepositorio extends JpaRepository<Cliente, UUID>, ClienteRepositorioCustom {
 
     boolean existsByNegocioIdAndTipoDocumentoAndNumeroDocumento(
             UUID negocioId, TipoDocumento tipoDocumento, String numeroDocumento);

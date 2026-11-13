@@ -1,3 +1,5 @@
+import 'package:regenta_core/regenta_core.dart';
+
 /// Nivel de stock del producto, tal como lo devuelve la búsqueda de Inventario.
 enum NivelStock { normal, bajo, cero }
 
@@ -36,6 +38,13 @@ class ProductoBuscado {
   final String? codigoBarras;
 
   bool get sinStock => nivelStock == NivelStock.cero;
+
+  /// Coincidencia difusa multi-palabra (tokens en cualquier orden y con texto intermedio).
+  bool coincideCon(String termino) => coincideConTokens(
+        nombre,
+        termino,
+        camposAdicionales: [sku, ?codigoBarras],
+      );
 
   factory ProductoBuscado.desdeJson(Map<String, dynamic> json) =>
       ProductoBuscado(

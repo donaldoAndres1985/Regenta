@@ -11,7 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.regenta.inventario.domain.Producto;
 
-public interface ProductoRepositorio extends JpaRepository<Producto, UUID> {
+public interface ProductoRepositorio extends JpaRepository<Producto, UUID>, ProductoRepositorioCustom {
 
     boolean existsByNegocioIdAndSku(UUID negocioId, String sku);
 

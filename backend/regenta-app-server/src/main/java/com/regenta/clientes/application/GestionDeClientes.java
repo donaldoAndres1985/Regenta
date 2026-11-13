@@ -1,5 +1,6 @@
 package com.regenta.clientes.application;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -63,7 +64,9 @@ public class GestionDeClientes {
         if (q.length() < MINIMO_PARA_BUSCAR) {
             throw new ReglaDeNegocioException("Escribe al menos tres caracteres para buscar");
         }
-        return clientes.buscar("%" + q + "%", PageRequest.of(0, LIMITE_POR_DEFECTO))
+        List<String> tokens = Arrays.stream(q.split("\\s+")).filter(s -> !s.isBlank()).toList();
+        return clientes.buscarPorTokens(ContextoDeNegocio.negocioActual(), tokens,
+                PageRequest.of(0, LIMITE_POR_DEFECTO))
                 .stream().map(ClienteDelNegocio::de).toList();
     }
 

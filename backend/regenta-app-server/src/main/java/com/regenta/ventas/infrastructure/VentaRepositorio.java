@@ -11,7 +11,7 @@ import org.springframework.data.repository.query.Param;
 import com.regenta.ventas.domain.EstadoVenta;
 import com.regenta.ventas.domain.Venta;
 
-public interface VentaRepositorio extends JpaRepository<Venta, UUID> {
+public interface VentaRepositorio extends JpaRepository<Venta, UUID>, VentaRepositorioCustom {
 
     /** HU-043 criterio 3: la clave con la que una subida repetida se reconoce. */
     Optional<Venta> findByNegocioIdAndOrigenOfflineId(UUID negocioId, UUID origenOfflineId);

@@ -4,6 +4,7 @@ import com.regenta.inventario.api.*;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -70,7 +71,10 @@ public class BusquedaDeProductos {
             }
             int limite = filtro.limite() != null && filtro.limite() > 0
                     ? filtro.limite() : LIMITE_POR_DEFECTO;
-            encontrados = productos.buscar(negocioId, "%" + q.toLowerCase() + "%",
+            List<String> tokens = Arrays.stream(q.split("\\s+"))
+                    .filter(s -> !s.isBlank())
+                    .toList();
+            encontrados = productos.buscarPorTokens(negocioId, tokens,
                     PageRequest.of(0, limite));
         }
 
