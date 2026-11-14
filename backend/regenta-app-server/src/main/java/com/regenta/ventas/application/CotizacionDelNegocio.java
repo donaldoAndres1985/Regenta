@@ -15,11 +15,17 @@ public record CotizacionDelNegocio(
         BigDecimal total,
         UUID ventaId,
         UUID clienteId,
+        String clienteNombre,
         List<LineaDeCotizacionDelNegocio> lineas) {
 
     public CotizacionDelNegocio(UUID id, String numero, EstadoCotizacion estado, LocalDate validaHasta,
             BigDecimal total, UUID ventaId, UUID clienteId) {
-        this(id, numero, estado, validaHasta, total, ventaId, clienteId, List.of());
+        this(id, numero, estado, validaHasta, total, ventaId, clienteId, null, List.of());
+    }
+
+    public CotizacionDelNegocio(UUID id, String numero, EstadoCotizacion estado, LocalDate validaHasta,
+            BigDecimal total, UUID ventaId, UUID clienteId, String clienteNombre) {
+        this(id, numero, estado, validaHasta, total, ventaId, clienteId, clienteNombre, List.of());
     }
 
     public record LineaDeCotizacionDelNegocio(

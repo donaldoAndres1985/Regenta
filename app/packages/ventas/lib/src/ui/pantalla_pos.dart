@@ -382,12 +382,9 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
               onPressed: () async {
                 final monto = num.tryParse(montoCtrl.text.trim().replaceAll(',', '.')) ?? 0;
                 final concepto = conceptoCtrl.text.trim();
-                final messenger = ScaffoldMessenger.of(context);
-                final errorColor = Theme.of(context).colorScheme.error;
-
                 if (monto <= 0) {
                   _mostrarNotificacionPos(
-                    context,
+                    ctx,
                     'Falta total del movimiento de caja.',
                     esError: true,
                   );
@@ -396,7 +393,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                 }
                 if (concepto.isEmpty) {
                   _mostrarNotificacionPos(
-                    context,
+                    ctx,
                     'Falta descripción del movimiento de caja.',
                     esError: true,
                   );
@@ -412,14 +409,14 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                   }
                   if (!mounted) return;
                   _mostrarNotificacionPos(
-                    context,
+                    this.context,
                     'Movimiento de ${esIngreso ? "Entrada" : "Salida"} por ${formatearPesos(monto)} registrado correctamente.',
                     esExito: true,
                   );
                 } catch (e) {
                   if (!mounted) return;
                   _mostrarNotificacionPos(
-                    context,
+                    this.context,
                     'Error al registrar movimiento: $e',
                     esError: true,
                   );
@@ -659,11 +656,45 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       await repo.cerrarVenta(ventaConfirmada.id);
 
       if (mounted) {
+        final lineasTicket = estado.lineas
+            .map((l) => LineaTicket(
+                  nombre: l.producto.nombre,
+                  cantidad: l.cantidad,
+                  precioUnitario: l.producto.precioVenta,
+                  total: l.total,
+                  descuento: l.descuentoPct > 0
+                      ? (l.producto.precioVenta * l.cantidad * (l.descuentoPct / 100))
+                      : 0,
+                ))
+            .toList();
+        final clienteNombre = estado.cliente?.nombre;
+        final clienteDoc = estado.cliente?.documento;
+
         pos.vaciarTrasCobro(ventaConfirmada.numero);
+
+        void imprimir() {
+          GeneradorTicketPos.imprimirOPrevisualizarTicketCobrado(
+            context,
+            numeroVenta: ventaConfirmada.numero,
+            clienteNombre: clienteNombre,
+            clienteDoc: clienteDoc,
+            lineas: lineasTicket,
+            total: ventaConfirmada.total,
+            pagos: [PagoTicket(metodo: 'EFECTIVO', monto: ventaConfirmada.total)],
+            cambio: 0,
+          );
+        }
+
+        if (ConfiguradorDeTicket.impresionAutomaticaFactura) {
+          imprimir();
+        }
+
         _mostrarNotificacionPos(
           context,
           '⚡ Venta ${ventaConfirmada.numero} cobrada en efectivo exacto',
           esExito: true,
+          accionLabel: 'Imprimir',
+          onAccion: imprimir,
         );
       }
     } on ErrorDeRed {
@@ -1001,6 +1032,10 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             total: total,
             validaHasta: cot.validaHasta,
           );
+        }
+
+        if (ConfiguradorDeTicket.impresionAutomaticaCotizacion) {
+          imprimir();
         }
 
         _mostrarNotificacionPos(
@@ -3494,11 +3529,29 @@ class _DialogoCargarCotizacionState extends State<_DialogoCargarCotizacion> {
   bool _cargando = true;
   String? _error;
   String? _convirtiendoId;
+  final TextEditingController _filtroCtrl = TextEditingController();
+  String _filtro = '';
 
   @override
   void initState() {
     super.initState();
     _cargar();
+  }
+
+  @override
+  void dispose() {
+    _filtroCtrl.dispose();
+    super.dispose();
+  }
+
+  List<CotizacionDelNegocio> get _cotizacionesFiltradas {
+    if (_filtro.isEmpty) return _cotizaciones;
+    return _cotizaciones.where((c) {
+      final numMatch = c.numero.toLowerCase().contains(_filtro);
+      final clienteMatch = (c.clienteNombre ?? '').toLowerCase().contains(_filtro);
+      final estadoMatch = c.estado.toLowerCase().contains(_filtro);
+      return numMatch || clienteMatch || estadoMatch;
+    }).toList();
   }
 
   Future<void> _cargar() async {
@@ -3558,150 +3611,228 @@ class _DialogoCargarCotizacionState extends State<_DialogoCargarCotizacion> {
         ],
       ),
       content: SizedBox(
-        width: 550,
-        height: 400,
-        child: _cargando
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? Center(
-                    child: Text(_error!, style: TextStyle(color: tema.colorScheme.error)),
-                  )
-                : _cotizaciones.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.inbox_outlined, size: 48, color: RegentaColors.faint),
-                            const SizedBox(height: 8),
-                            Text(
-                              'No hay cotizaciones registradas',
-                              style: PastelTheme.cuerpo(color: RegentaColors.ink2),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.separated(
-                        itemCount: _cotizaciones.length,
-                        separatorBuilder: (context, _) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final c = _cotizaciones[index];
-                          final yaConvertida = c.convertida;
-                          final convirtiendo = _convirtiendoId == c.id;
-
-                          return ListTile(
-                            key: Key('cotizacion-item-${c.id}'),
-                            leading: CircleAvatar(
-                              backgroundColor: yaConvertida
-                                  ? Colors.grey.shade200
-                                  : RegentaColors.accent.withValues(alpha: 0.1),
-                              child: Icon(
-                                Icons.description_outlined,
-                                color: yaConvertida ? Colors.grey : RegentaColors.accent,
-                              ),
-                            ),
-                            title: Wrap(
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                Text(
-                                  'Cotización #${c.numero}',
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: yaConvertida
-                                        ? Colors.grey.shade100
-                                        : Colors.green.shade50,
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                      color: yaConvertida ? Colors.grey : Colors.green,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    c.estado,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: yaConvertida ? Colors.grey : Colors.green.shade800,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            subtitle: Text(
-                              'Total: ${formatearPesos(c.total)}${c.validaHasta != null ? ' · Vence: ${c.validaHasta}' : ''}',
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  key: Key('boton-imprimir-cotizacion-${c.id}'),
-                                  icon: const Icon(Icons.print_outlined, color: RegentaColors.accent),
-                                  tooltip: 'Imprimir cotización',
-                                  onPressed: () async {
-                                    try {
-                                      final detalle = c.lineas.isNotEmpty
-                                          ? c
-                                          : await widget.repo.verCotizacion(c.id);
-                                      if (context.mounted) {
-                                        final lineasTicket = detalle.lineas
-                                            .map((l) => LineaTicket(
-                                                  nombre: l.nombre,
-                                                  cantidad: l.cantidad,
-                                                  precioUnitario: l.precioUnitario,
-                                                  total: l.cantidad *
-                                                      l.precioUnitario *
-                                                      (1 - (l.descuentoPct / 100)),
-                                                  descuento: l.descuentoPct > 0
-                                                      ? (l.precioUnitario *
-                                                          l.cantidad *
-                                                          (l.descuentoPct / 100))
-                                                      : 0,
-                                                ))
-                                            .toList();
-
-                                        await GeneradorTicketPos.imprimirOPrevisualizarCotizacion(
-                                          context,
-                                          numeroCotizacion: detalle.numero,
-                                          lineas: lineasTicket,
-                                          total: detalle.total,
-                                          validaHasta: detalle.validaHasta,
-                                        );
-                                      }
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        _mostrarNotificacionPos(
-                                          context,
-                                          'Error al cargar cotización: $e',
-                                          esError: true,
-                                        );
-                                      }
-                                    }
-                                  },
-                                ),
-                                const SizedBox(width: 4),
-                                if (yaConvertida)
-                                  const Chip(
-                                    label: Text('Convertida', style: TextStyle(fontSize: 11)),
-                                  )
-                                else
-                                  FilledButton.tonal(
-                                    key: Key('boton-convertir-cotizacion-${c.id}'),
-                                    onPressed: convirtiendo ? null : () => _convertir(c),
-                                    child: convirtiendo
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(strokeWidth: 2),
-                                          )
-                                        : const Text('Convertir'),
-                                  ),
-                              ],
-                            ),
-                          );
+        width: 680,
+        height: 480,
+        child: Column(
+          children: [
+            TextField(
+              key: const Key('campo-buscar-cotizacion'),
+              controller: _filtroCtrl,
+              onChanged: (v) => setState(() => _filtro = v.trim().toLowerCase()),
+              decoration: InputDecoration(
+                hintText: 'Buscar por número, cliente o estado...',
+                hintStyle: const TextStyle(color: RegentaColors.muted, fontSize: 13.5),
+                prefixIcon: const Icon(Icons.search, size: 20, color: RegentaColors.muted),
+                suffixIcon: _filtro.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _filtroCtrl.clear();
+                          setState(() => _filtro = '');
                         },
-                      ),
+                      )
+                    : null,
+                isDense: true,
+                filled: true,
+                fillColor: RegentaColors.paper,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+                  borderSide: const BorderSide(color: RegentaColors.line),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+                  borderSide: const BorderSide(color: RegentaColors.line),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+                  borderSide: const BorderSide(color: RegentaColors.accent, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: _cargando
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Center(
+                          child: Text(_error!, style: TextStyle(color: tema.colorScheme.error)),
+                        )
+                      : _cotizacionesFiltradas.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.inbox_outlined, size: 48, color: RegentaColors.faint),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _cotizaciones.isEmpty
+                                        ? 'No hay cotizaciones registradas'
+                                        : 'No se encontraron cotizaciones con ese filtro',
+                                    style: PastelTheme.cuerpo(color: RegentaColors.ink2),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: _cotizacionesFiltradas.length,
+                              separatorBuilder: (context, _) => const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final c = _cotizacionesFiltradas[index];
+                                final yaConvertida = c.convertida;
+                                final convirtiendo = _convirtiendoId == c.id;
+
+                                return ListTile(
+                                  key: Key('cotizacion-item-${c.id}'),
+                                  leading: CircleAvatar(
+                                    backgroundColor: yaConvertida
+                                        ? Colors.grey.shade200
+                                        : RegentaColors.accent.withValues(alpha: 0.1),
+                                    child: Icon(
+                                      Icons.description_outlined,
+                                      color: yaConvertida ? Colors.grey : RegentaColors.accent,
+                                    ),
+                                  ),
+                                  title: Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 4,
+                                        child: Wrap(
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          children: [
+                                            Text(
+                                              'Cotización #${c.numero}',
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: yaConvertida
+                                                    ? Colors.grey.shade100
+                                                    : Colors.green.shade50,
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(
+                                                  color: yaConvertida ? Colors.grey : Colors.green,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                c.estado,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: yaConvertida ? Colors.grey : Colors.green.shade800,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        flex: 5,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.person_outline, size: 16, color: RegentaColors.ink2),
+                                            const SizedBox(width: 4),
+                                            Flexible(
+                                              child: Text(
+                                                c.clienteNombre ?? 'Consumidor Final',
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: RegentaColors.ink,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'Total: ${formatearPesos(c.total)}${c.validaHasta != null ? ' · Vence: ${c.validaHasta}' : ''}',
+                                      style: const TextStyle(fontSize: 12.5, color: RegentaColors.ink2),
+                                    ),
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        key: Key('boton-imprimir-cotizacion-${c.id}'),
+                                        icon: const Icon(Icons.print_outlined, color: RegentaColors.accent),
+                                        tooltip: 'Imprimir cotización',
+                                        onPressed: () async {
+                                          try {
+                                            final detalle = c.lineas.isNotEmpty
+                                                ? c
+                                                : await widget.repo.verCotizacion(c.id);
+                                            if (context.mounted) {
+                                              final lineasTicket = detalle.lineas
+                                                  .map((l) => LineaTicket(
+                                                        nombre: l.nombre,
+                                                        cantidad: l.cantidad,
+                                                        precioUnitario: l.precioUnitario,
+                                                        total: l.cantidad *
+                                                            l.precioUnitario *
+                                                            (1 - (l.descuentoPct / 100)),
+                                                        descuento: l.descuentoPct > 0
+                                                            ? (l.precioUnitario *
+                                                                l.cantidad *
+                                                                (l.descuentoPct / 100))
+                                                            : 0,
+                                                      ))
+                                                  .toList();
+
+                                              await GeneradorTicketPos.imprimirOPrevisualizarCotizacion(
+                                                context,
+                                                numeroCotizacion: detalle.numero,
+                                                clienteNombre: detalle.clienteNombre,
+                                                lineas: lineasTicket,
+                                                total: detalle.total,
+                                                validaHasta: detalle.validaHasta,
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              _mostrarNotificacionPos(
+                                                context,
+                                                'Error al cargar cotización: $e',
+                                                esError: true,
+                                              );
+                                            }
+                                          }
+                                        },
+                                      ),
+                                      const SizedBox(width: 4),
+                                      if (yaConvertida)
+                                        const Chip(
+                                          label: Text('Convertida', style: TextStyle(fontSize: 11)),
+                                        )
+                                      else
+                                        FilledButton.tonal(
+                                          key: Key('boton-convertir-cotizacion-${c.id}'),
+                                          onPressed: convirtiendo ? null : () => _convertir(c),
+                                          child: convirtiendo
+                                              ? const SizedBox(
+                                                  width: 16,
+                                                  height: 16,
+                                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                                )
+                                              : const Text('Convertir'),
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(

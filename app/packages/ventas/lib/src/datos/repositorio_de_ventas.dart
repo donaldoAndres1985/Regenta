@@ -206,6 +206,7 @@ class CotizacionDelNegocio {
     this.validaHasta,
     this.ventaId,
     this.clienteId,
+    this.clienteNombre,
     this.lineas = const [],
   });
 
@@ -216,6 +217,7 @@ class CotizacionDelNegocio {
   final String? validaHasta;
   final String? ventaId;
   final String? clienteId;
+  final String? clienteNombre;
   final List<LineaDeCotizacionParaEnviar> lineas;
 
   bool get convertida => estado == 'CONVERTIDA' || ventaId != null;
@@ -228,6 +230,7 @@ class CotizacionDelNegocio {
         validaHasta: json['validaHasta'] as String?,
         ventaId: json['ventaId'] as String?,
         clienteId: json['clienteId'] as String?,
+        clienteNombre: (json['clienteNombre'] as String?) ?? (json['cliente'] as String?),
         lineas: (json['lineas'] as List<dynamic>?)
                 ?.map((l) => LineaDeCotizacionParaEnviar(
                       productoId: (l['productoId'] ?? '') as String,

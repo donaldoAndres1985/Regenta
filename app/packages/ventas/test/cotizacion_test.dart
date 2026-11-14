@@ -97,6 +97,7 @@ void main() {
         numero: 'COT-055',
         estado: 'ABIERTA',
         total: 30000,
+        clienteNombre: 'Ferretería La Palma',
       ),
     );
 
@@ -149,6 +150,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('dialogo-cargar-cotizacion')), findsOneWidget);
+    expect(find.byKey(const Key('campo-buscar-cotizacion')), findsOneWidget);
+    expect(find.text('Cotización #COT-055'), findsOneWidget);
+    expect(find.text('Ferretería La Palma'), findsOneWidget);
+
+    // Probar filtro de búsqueda
+    await tester.enterText(find.byKey(const Key('campo-buscar-cotizacion')), 'Palma');
+    await tester.pumpAndSettle();
+    expect(find.text('Cotización #COT-055'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('campo-buscar-cotizacion')), 'Inexistente');
+    await tester.pumpAndSettle();
+    expect(find.text('No se encontraron cotizaciones con ese filtro'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('campo-buscar-cotizacion')), '');
+    await tester.pumpAndSettle();
     expect(find.text('Cotización #COT-055'), findsOneWidget);
 
     // 4. Convertir cotización

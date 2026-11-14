@@ -16,6 +16,8 @@ class ConfiguracionNegocioVista {
     this.politicaStockNegativo = false,
     this.busquedaDifusa = true,
     this.creditoSinCupo = false,
+    this.impresionAutomaticaCotizacion = false,
+    this.impresionAutomaticaFactura = false,
   });
 
   final String razonSocial;
@@ -33,6 +35,8 @@ class ConfiguracionNegocioVista {
   final bool politicaStockNegativo;
   final bool busquedaDifusa;
   final bool creditoSinCupo;
+  final bool impresionAutomaticaCotizacion;
+  final bool impresionAutomaticaFactura;
 
   factory ConfiguracionNegocioVista.desdeJson(Map<String, dynamic> j) =>
       ConfiguracionNegocioVista(
@@ -51,6 +55,12 @@ class ConfiguracionNegocioVista {
         politicaStockNegativo: (j['politicaStockNegativo'] as bool?) ?? false,
         busquedaDifusa: (j['busquedaDifusa'] as bool?) ?? true,
         creditoSinCupo: (j['creditoSinCupo'] as bool?) ?? false,
+        impresionAutomaticaCotizacion: (j['impresionAutomaticaCotizacion'] as bool?) ??
+            ((j['preferencias'] as Map<String, dynamic>?)?['impresionAutomaticaCotizacion'] as bool?) ??
+            false,
+        impresionAutomaticaFactura: (j['impresionAutomaticaFactura'] as bool?) ??
+            ((j['preferencias'] as Map<String, dynamic>?)?['impresionAutomaticaFactura'] as bool?) ??
+            false,
       );
 
   Map<String, dynamic> aJson() => {
@@ -69,5 +79,13 @@ class ConfiguracionNegocioVista {
         'politicaStockNegativo': politicaStockNegativo,
         'busquedaDifusa': busquedaDifusa,
         'creditoSinCupo': creditoSinCupo,
+        'impresionAutomaticaCotizacion': impresionAutomaticaCotizacion,
+        'impresionAutomaticaFactura': impresionAutomaticaFactura,
+        'preferencias': {
+          'busquedaDifusa': busquedaDifusa,
+          'creditoSinCupo': creditoSinCupo,
+          'impresionAutomaticaCotizacion': impresionAutomaticaCotizacion,
+          'impresionAutomaticaFactura': impresionAutomaticaFactura,
+        },
       };
 }

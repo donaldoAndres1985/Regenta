@@ -27,6 +27,8 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
   bool _stockNegativo = false;
   bool _busquedaDifusa = true;
   bool _creditoSinCupo = false;
+  bool _impresionAutomaticaCotizacion = false;
+  bool _impresionAutomaticaFactura = false;
   bool _inicializado = false;
   bool _guardando = false;
 
@@ -68,9 +70,13 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
     _stockNegativo = config.politicaStockNegativo;
     _busquedaDifusa = config.busquedaDifusa;
     _creditoSinCupo = config.creditoSinCupo;
+    _impresionAutomaticaCotizacion = config.impresionAutomaticaCotizacion;
+    _impresionAutomaticaFactura = config.impresionAutomaticaFactura;
     ConfiguradorDeBusqueda.busquedaDifusaHabilitada = _busquedaDifusa;
     ConfiguradorDeCredito.creditoSinCupoHabilitado = _creditoSinCupo;
     ConfiguradorDeStock.politicaStockNegativoHabilitada = _stockNegativo;
+    ConfiguradorDeTicket.impresionAutomaticaCotizacion = _impresionAutomaticaCotizacion;
+    ConfiguradorDeTicket.impresionAutomaticaFactura = _impresionAutomaticaFactura;
     ConfiguradorDeTicket.razonSocial = config.razonSocial;
     ConfiguradorDeTicket.nombreComercial = config.nombreComercial;
     ConfiguradorDeTicket.nit = config.numeroDocumento + (config.digitoVerificacion != null && config.digitoVerificacion!.isNotEmpty ? '-${config.digitoVerificacion}' : '');
@@ -100,12 +106,16 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
         politicaStockNegativo: _stockNegativo,
         busquedaDifusa: _busquedaDifusa,
         creditoSinCupo: _creditoSinCupo,
+        impresionAutomaticaCotizacion: _impresionAutomaticaCotizacion,
+        impresionAutomaticaFactura: _impresionAutomaticaFactura,
       );
 
       await repo.actualizarConfiguracion(actualizado);
       ConfiguradorDeBusqueda.busquedaDifusaHabilitada = _busquedaDifusa;
       ConfiguradorDeCredito.creditoSinCupoHabilitado = _creditoSinCupo;
       ConfiguradorDeStock.politicaStockNegativoHabilitada = _stockNegativo;
+      ConfiguradorDeTicket.impresionAutomaticaCotizacion = _impresionAutomaticaCotizacion;
+      ConfiguradorDeTicket.impresionAutomaticaFactura = _impresionAutomaticaFactura;
       ConfiguradorDeTicket.razonSocial = actualizado.razonSocial;
       ConfiguradorDeTicket.nombreComercial = actualizado.nombreComercial;
       ConfiguradorDeTicket.nit = actualizado.numeroDocumento;
@@ -412,6 +422,61 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                                 onChanged: (val) {
                                   setState(() => _creditoSinCupo = val);
                                   ConfiguradorDeCredito.creditoSinCupoHabilitado = val;
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Tarjeta Impresión y Facturación Térmica POS
+                      Card(
+                        elevation: 0,
+                        color: RegentaColors.surface,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                          side: BorderSide(color: RegentaColors.line),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Impresión y Facturación Térmica POS',
+                                style: RegentaType.seccion.copyWith(fontSize: 16),
+                              ),
+                              const Divider(color: RegentaColors.line, height: 24),
+                              SwitchListTile(
+                                title: const Text(
+                                  'Imprimir cotización automáticamente',
+                                  style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600),
+                                ),
+                                subtitle: Text(
+                                  'Si se activa, abre de inmediato la vista de impresión del tiquete al crear una cotización en el POS.',
+                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                                ),
+                                value: _impresionAutomaticaCotizacion,
+                                onChanged: (val) {
+                                  setState(() => _impresionAutomaticaCotizacion = val);
+                                  ConfiguradorDeTicket.impresionAutomaticaCotizacion = val;
+                                },
+                              ),
+                              const Divider(color: RegentaColors.line, height: 16),
+                              SwitchListTile(
+                                title: const Text(
+                                  'Imprimir factura / tirilla automáticamente',
+                                  style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600),
+                                ),
+                                subtitle: Text(
+                                  'Si se activa, abre de inmediato la tirilla de venta para imprimir al cobrar en el POS.',
+                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                                ),
+                                value: _impresionAutomaticaFactura,
+                                onChanged: (val) {
+                                  setState(() => _impresionAutomaticaFactura = val);
+                                  ConfiguradorDeTicket.impresionAutomaticaFactura = val;
                                 },
                               ),
                             ],
