@@ -672,7 +672,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
 
         pos.vaciarTrasCobro(ventaConfirmada.numero);
 
-        void imprimir() {
+        void imprimir({bool directo = false}) {
           GeneradorTicketPos.imprimirOPrevisualizarTicketCobrado(
             context,
             numeroVenta: ventaConfirmada.numero,
@@ -682,11 +682,12 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             total: ventaConfirmada.total,
             pagos: [PagoTicket(metodo: 'EFECTIVO', monto: ventaConfirmada.total)],
             cambio: 0,
+            directo: directo,
           );
         }
 
         if (ConfiguradorDeTicket.impresionAutomaticaFactura) {
-          imprimir();
+          imprimir(directo: true);
         }
 
         _mostrarNotificacionPos(
@@ -694,7 +695,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
           '⚡ Venta ${ventaConfirmada.numero} cobrada en efectivo exacto',
           esExito: true,
           accionLabel: 'Imprimir',
-          onAccion: imprimir,
+          onAccion: () => imprimir(directo: false),
         );
       }
     } on ErrorDeRed {
@@ -1019,7 +1020,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
         // Limpiar el carrito de ventas inmediatamente tras crear la cotización
         ref.read(controladorDelPosProvider.notifier).vaciar();
 
-        void imprimir() {
+        void imprimir({bool directo = false}) {
           GeneradorTicketPos.imprimirOPrevisualizarCotizacion(
             context,
             numeroCotizacion: cot.numero,
@@ -1031,11 +1032,12 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             impuesto: impuesto,
             total: total,
             validaHasta: cot.validaHasta,
+            directo: directo,
           );
         }
 
         if (ConfiguradorDeTicket.impresionAutomaticaCotizacion) {
-          imprimir();
+          imprimir(directo: true);
         }
 
         _mostrarNotificacionPos(
@@ -1044,7 +1046,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
           esExito: true,
           duracion: const Duration(seconds: 8),
           accionLabel: 'Imprimir',
-          onAccion: imprimir,
+          onAccion: () => imprimir(directo: false),
         );
       }
     } catch (e) {

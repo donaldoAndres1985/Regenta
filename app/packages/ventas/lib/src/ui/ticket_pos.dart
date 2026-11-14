@@ -517,6 +517,7 @@ class GeneradorTicketPos {
   }
 
   /// Abre la vista de impresión o previsualización para una venta cobrada en formato térmico de 80mm.
+  /// Si [directo] es true, manda el documento directo al diálogo de la impresora sin abrir la previsualización.
   static Future<void> imprimirOPrevisualizarTicketCobrado(
     BuildContext context, {
     String? nombreNegocio,
@@ -528,24 +529,40 @@ class GeneradorTicketPos {
     required num total,
     List<PagoTicket> pagos = const [],
     num cambio = 0,
+    bool directo = false,
   }) async {
     final fechaFinal = fechaHora ?? DateTime.now().toString().split('.')[0];
+
+    Future<Uint8List> construirPdf() => crearPdf(
+          nombreNegocio: nombreNegocio ?? ConfiguradorDeTicket.nombreNegocioOComercial,
+          numeroVenta: numeroVenta,
+          fechaHora: fechaFinal,
+          nombreCliente: clienteNombre,
+          identificacionCliente: clienteDoc,
+          lineas: lineas,
+          total: total,
+          pagos: pagos,
+          cambio: cambio,
+        );
+
+    if (directo) {
+      try {
+        final bytes = await construirPdf();
+        await Printing.layoutPdf(
+          name: 'Ticket_$numeroVenta',
+          onLayout: (format) async => bytes,
+          format: formato80mm,
+        );
+      } catch (_) {}
+      return;
+    }
+
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => Scaffold(
           appBar: AppBar(title: Text('Ticket Venta #$numeroVenta')),
           body: PdfPreview(
-            build: (format) => crearPdf(
-              nombreNegocio: nombreNegocio ?? ConfiguradorDeTicket.nombreNegocioOComercial,
-              numeroVenta: numeroVenta,
-              fechaHora: fechaFinal,
-              nombreCliente: clienteNombre,
-              identificacionCliente: clienteDoc,
-              lineas: lineas,
-              total: total,
-              pagos: pagos,
-              cambio: cambio,
-            ),
+            build: (format) => construirPdf(),
             canChangeOrientation: false,
             canChangePageFormat: false,
             initialPageFormat: formato80mm,
@@ -563,6 +580,7 @@ class GeneradorTicketPos {
 
   /// Abre la vista de impresión o previsualización para una cotización en formato térmico de 80mm
   /// con los datos de configuración del negocio (estilo Cotizacion.jrxml de SISTEMA SARA).
+  /// Si [directo] es true, manda el tiquete directo a la impresora sin abrir la pantalla de previsualización.
   static Future<void> imprimirOPrevisualizarCotizacion(
     BuildContext context, {
     String? nombreNegocio,
@@ -576,9 +594,40 @@ class GeneradorTicketPos {
     num descuento = 0,
     num impuesto = 0,
     String? validaHasta,
+    bool directo = false,
   }) async {
     final fechaFinal = fechaHora ?? DateTime.now().toString().split('.')[0];
     final subtotalFinal = subtotal > 0 ? subtotal : (total + descuento - impuesto);
+
+    Future<Uint8List> construirPdf() => crearPdf(
+          nombreNegocio: nombreNegocio,
+          tipoComprobante: 'COTIZACION',
+          numeroVenta: numeroCotizacion,
+          fechaHora: fechaFinal,
+          nombreCliente: clienteNombre,
+          identificacionCliente: clienteDoc,
+          lineas: lineas,
+          total: total,
+          subtotal: subtotalFinal,
+          descuento: descuento,
+          impuesto: impuesto,
+          nota: (validaHasta != null && validaHasta.trim().isNotEmpty)
+              ? 'Válida hasta: ${validaHasta.trim()}'
+              : null,
+          mensajeAgradecimiento: 'GRACIAS POR PREFERIRNOS',
+        );
+
+    if (directo) {
+      try {
+        final bytes = await construirPdf();
+        await Printing.layoutPdf(
+          name: 'Cotizacion_$numeroCotizacion',
+          onLayout: (format) async => bytes,
+          format: formato80mm,
+        );
+      } catch (_) {}
+      return;
+    }
 
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -587,23 +636,7 @@ class GeneradorTicketPos {
             title: Text('Cotización #$numeroCotizacion'),
           ),
           body: PdfPreview(
-            build: (format) => crearPdf(
-              nombreNegocio: nombreNegocio,
-              tipoComprobante: 'COTIZACION',
-              numeroVenta: numeroCotizacion,
-              fechaHora: fechaFinal,
-              nombreCliente: clienteNombre,
-              identificacionCliente: clienteDoc,
-              lineas: lineas,
-              total: total,
-              subtotal: subtotalFinal,
-              descuento: descuento,
-              impuesto: impuesto,
-              nota: (validaHasta != null && validaHasta.trim().isNotEmpty)
-                  ? 'Válida hasta: ${validaHasta.trim()}'
-                  : null,
-              mensajeAgradecimiento: 'GRACIAS POR PREFERIRNOS',
-            ),
+            build: (format) => construirPdf(),
             canChangeOrientation: false,
             canChangePageFormat: false,
             initialPageFormat: formato80mm,

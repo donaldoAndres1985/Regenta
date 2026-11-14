@@ -454,7 +454,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                                   style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600),
                                 ),
                                 subtitle: Text(
-                                  'Si se activa, abre de inmediato la vista de impresión del tiquete al crear una cotización en el POS.',
+                                  'Si se activa, manda el tiquete directo a la impresora térmica al crear una cotización en el POS (sin abrir pantalla de previsualización). Si se desactiva, muestra la notificación con el botón Imprimir.',
                                   style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
                                 ),
                                 value: _impresionAutomaticaCotizacion,
@@ -470,7 +470,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                                   style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600),
                                 ),
                                 subtitle: Text(
-                                  'Si se activa, abre de inmediato la tirilla de venta para imprimir al cobrar en el POS.',
+                                  'Si se activa, manda la tirilla de venta directo a la impresora térmica al cobrar en el POS (sin abrir pantalla de previsualización).',
                                   style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
                                 ),
                                 value: _impresionAutomaticaFactura,
