@@ -190,6 +190,10 @@ public class SesionDeCaja {
         return numero;
     }
 
+    public UUID getUsuarioCierreId() {
+        return usuarioCierreId;
+    }
+
     public UUID getUsuarioAperturaId() {
         return usuarioAperturaId;
     }
