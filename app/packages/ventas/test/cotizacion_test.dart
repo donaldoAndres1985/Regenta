@@ -25,6 +25,14 @@ class _FakeRepoCotizaciones implements RepositorioDeVentas {
   Future<List<CotizacionDelNegocio>> listarCotizaciones() async => cotizaciones;
 
   @override
+  Future<CotizacionDelNegocio> verCotizacion(String cotizacionId) async {
+    return cotizaciones.firstWhere(
+      (c) => c.id == cotizacionId,
+      orElse: () => CotizacionDelNegocio(id: cotizacionId, numero: 'COT-TEST', estado: 'ABIERTA', total: 0),
+    );
+  }
+
+  @override
   Future<ResultadoDeConversion> convertirCotizacion(
     String cotizacionId,
     String bodegaId,

@@ -206,6 +206,7 @@ class CotizacionDelNegocio {
     this.validaHasta,
     this.ventaId,
     this.clienteId,
+    this.lineas = const [],
   });
 
   final String id;
@@ -215,6 +216,7 @@ class CotizacionDelNegocio {
   final String? validaHasta;
   final String? ventaId;
   final String? clienteId;
+  final List<LineaDeCotizacionParaEnviar> lineas;
 
   bool get convertida => estado == 'CONVERTIDA' || ventaId != null;
 
@@ -226,6 +228,19 @@ class CotizacionDelNegocio {
         validaHasta: json['validaHasta'] as String?,
         ventaId: json['ventaId'] as String?,
         clienteId: json['clienteId'] as String?,
+        lineas: (json['lineas'] as List<dynamic>?)
+                ?.map((l) => LineaDeCotizacionParaEnviar(
+                      productoId: (l['productoId'] ?? '') as String,
+                      sku: (l['sku'] ?? '') as String,
+                      nombre: (l['nombre'] ?? '') as String,
+                      unidad: l['unidad'] as String?,
+                      cantidad: (l['cantidad'] ?? 0) as num,
+                      precioUnitario: (l['precioUnitario'] ?? 0) as num,
+                      descuentoPct: (l['descuentoPct'] ?? 0) as num,
+                      impuestoPct: (l['impuestoPct'] ?? 0) as num,
+                    ))
+                .toList() ??
+            const [],
       );
 }
 
@@ -632,6 +647,12 @@ class RepositorioDeVentas {
     return lista
         .map((e) => CotizacionDelNegocio.desdeJson((e as Map).cast<String, dynamic>()))
         .toList();
+  }
+
+  /// HU-044: obtiene una cotización con sus líneas detalladas.
+  Future<CotizacionDelNegocio> verCotizacion(String cotizacionId) async {
+    final respuesta = await _http.get<dynamic>('/api/cotizaciones/$cotizacionId');
+    return CotizacionDelNegocio.desdeJson((respuesta as Map).cast<String, dynamic>());
   }
 
   /// HU-044: convierte una cotización en una venta en borrador para la bodega dada.
