@@ -176,15 +176,6 @@ anulación (`uq_mov_caja_una_anulacion`) y una anulación sin original o sin mot
 botón «Anular» solo aparece con el permiso y en movimientos manuales no anulados; pide motivo, y el
 anulado queda tachado con la marca «ANULADO».
 
-### R25 · Tirilla de cierre (HU-142)
-**Dado** un cierre confirmado, **cuando** termina, **entonces** la app pregunta «¿Imprimir
-tirilla de cierre?» y con «Imprimir» la manda a la impresora térmica (80 mm, igual que el tiquete
-del POS). Los datos salen de `GET /api/caja/sesiones/{id}/tirilla` (solo sesiones cerradas; abierta
-**409**, de otro negocio **404**): caja, turno, nombres de quien abrió y cerró, fechas en hora local,
-base, cada método con esperado/contado/diferencia (los no cuadrables con «NO SE CUADRA»), diferencia
-total, estado y observaciones; razón social y NIT los pone la app. Desde el detalle de un turno
-cerrado en Reportes, «Reimprimir tirilla» sale con la marca «*** REIMPRESIÓN ***».
-
 ## Qué NO debe pasar
 
 - **No** dos sesiones `ABIERTA` de la misma caja — ni por la API ni por un `INSERT` directo.

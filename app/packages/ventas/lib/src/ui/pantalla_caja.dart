@@ -26,35 +26,6 @@ class _PantallaCajaState extends ConsumerState<PantallaCaja> {
     });
   }
 
-  /// HU-140 + HU-142: cierra y pregunta si se imprime la tirilla de cierre.
-  Future<void> _cerrarEImprimir(Map<String, num> contados) async {
-    final ctrl = ref.read(controladorDeCajaProvider.notifier);
-    final sesionId = await ctrl.cerrarSesion(contados);
-    if (sesionId == null || !mounted) return;
-    final imprimir = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('¿Imprimir tirilla de cierre?'),
-        content: const Text('Sale por la impresora térmica configurada.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('No')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Imprimir')),
-        ],
-      ),
-    );
-    if (imprimir != true) return;
-    try {
-      final tirilla = await ctrl.tirillaDeCierre(sesionId);
-      await ref.read(impresoraDeTirillaProvider)(tirilla);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo imprimir la tirilla: $e'),
-            backgroundColor: RegentaColors.crit),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(controladorDeCajaProvider);
@@ -159,7 +130,7 @@ class _PantallaCajaState extends ConsumerState<PantallaCaja> {
                       onIngreso: (monto, concepto) => ctrl.registrarIngreso(monto, concepto),
                       onRetiro: (monto, concepto) => ctrl.registrarRetiro(monto, concepto),
                       cargarArqueo: ctrl.arqueoPorMetodo,
-                      onCierre: (contados) => _cerrarEImprimir(contados),
+                      onCierre: (contados) => ctrl.cerrarSesion(contados),
                     ),
                     const SizedBox(height: 24),
                     _ListaDeMovimientos(

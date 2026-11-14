@@ -73,54 +73,6 @@ class LineaDeArqueoVista {
       );
 }
 
-/// HU-142 · los datos de la tirilla de cierre de una sesión cerrada.
-class TirillaDeCierreVista {
-  const TirillaDeCierreVista({
-    required this.sesionId,
-    required this.numero,
-    required this.caja,
-    required this.cajeroApertura,
-    required this.cajeroCierre,
-    required this.abiertaEn,
-    required this.cerradaEn,
-    required this.base,
-    required this.lineas,
-    required this.diferenciaTotal,
-    required this.estado,
-    this.observaciones,
-  });
-
-  final String sesionId;
-  final String numero;
-  final String caja;
-  final String cajeroApertura;
-  final String cajeroCierre;
-  final DateTime? abiertaEn;
-  final DateTime? cerradaEn;
-  final num base;
-  final List<LineaDeArqueoVista> lineas;
-  final num diferenciaTotal;
-  final String estado;
-  final String? observaciones;
-
-  factory TirillaDeCierreVista.desdeJson(Map<String, dynamic> j) => TirillaDeCierreVista(
-        sesionId: j['sesionId'] as String,
-        numero: (j['numero'] as String?) ?? '',
-        caja: (j['caja'] as String?) ?? '',
-        cajeroApertura: (j['cajeroApertura'] as String?) ?? '',
-        cajeroCierre: (j['cajeroCierre'] as String?) ?? '',
-        abiertaEn: DateTime.tryParse((j['abiertaEn'] as String?) ?? ''),
-        cerradaEn: DateTime.tryParse((j['cerradaEn'] as String?) ?? ''),
-        base: (j['base'] as num?) ?? 0,
-        lineas: ((j['lineas'] as List?) ?? const [])
-            .map((e) => LineaDeArqueoVista.desdeJson((e as Map).cast<String, dynamic>()))
-            .toList(),
-        diferenciaTotal: (j['diferenciaTotal'] as num?) ?? 0,
-        estado: (j['estado'] as String?) ?? '',
-        observaciones: j['observaciones'] as String?,
-      );
-}
-
 class MovimientoCajaVista {
   const MovimientoCajaVista({
     required this.id,

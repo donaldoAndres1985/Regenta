@@ -80,12 +80,6 @@ class RepositorioDeCaja {
     return MovimientoCajaVista.desdeJson((res as Map).cast<String, dynamic>());
   }
 
-  /// HU-142 · los datos de la tirilla de cierre de una sesión cerrada.
-  Future<TirillaDeCierreVista> tirillaDeCierre(String sesionId) async {
-    final res = await _http.get<Map<String, dynamic>>('/api/caja/sesiones/$sesionId/tirilla');
-    return TirillaDeCierreVista.desdeJson(res);
-  }
-
   /// HU-141 · anula un ingreso, retiro o gasto con un movimiento compensatorio.
   Future<MovimientoCajaVista> anularMovimiento({
     required String sesionId,

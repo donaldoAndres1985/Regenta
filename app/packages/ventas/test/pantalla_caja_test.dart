@@ -85,10 +85,6 @@ class _RepoCajaFake implements RepositorioDeCaja {
   }
 
   @override
-  Future<TirillaDeCierreVista> tirillaDeCierre(String sesionId) async =>
-      throw UnimplementedError();
-
-  @override
   Future<MovimientoCajaVista> anularMovimiento({
     required String sesionId,
     required String movimientoId,

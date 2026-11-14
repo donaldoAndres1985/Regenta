@@ -23,10 +23,4 @@ public class DirectorioDeUsuariosServicio implements DirectorioDeUsuariosApi {
         return ContextoDeNegocio.en(DatosDelNegocio.sistema(negocioId, "USUARIOS_USUARIO_VER"),
                 () -> gestion.conRol(rol));
     }
-
-    @Override
-    public java.util.Map<UUID, String> nombresDe(UUID negocioId, java.util.Collection<UUID> usuarios) {
-        return ContextoDeNegocio.en(DatosDelNegocio.sistema(negocioId, "USUARIOS_USUARIO_VER"),
-                () -> gestion.nombresDe(usuarios));
-    }
 }

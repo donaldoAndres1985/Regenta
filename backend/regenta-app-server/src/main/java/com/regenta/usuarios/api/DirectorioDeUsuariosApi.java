@@ -9,7 +9,4 @@ import java.util.UUID;
  */
 public interface DirectorioDeUsuariosApi {
     List<UUID> usuariosConRol(UUID negocioId, String rol);
-
-    /** Nombre y apellido de cada usuario del negocio (HU-142: la tirilla de cierre). */
-    java.util.Map<UUID, String> nombresDe(UUID negocioId, java.util.Collection<UUID> usuarios);
 }

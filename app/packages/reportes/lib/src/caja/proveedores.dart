@@ -10,11 +10,6 @@ final repositorioDeReportesDeCajaProvider =
   );
 });
 
-/// HU-142 · reimprime la tirilla de cierre de una sesión. La conecta la app con el módulo
-/// de caja; si no está conectada (`null`), el listado no ofrece reimprimir.
-final reimprimirTirillaDeCajaProvider =
-    Provider<Future<void> Function(String sesionId)?>((ref) => null);
-
 final controladorDeReportesDeCajaProvider =
     ChangeNotifierProvider<ControladorDeReportesDeCaja>((ref) {
   final repo = ref.watch(repositorioDeReportesDeCajaProvider);

@@ -219,13 +219,6 @@ class DependenciasDeLaApp {
     repositorioDeReportesDeCajaProvider.overrideWithValue(
       RepositorioDeReportesDeCaja(http),
     ),
-    // HU-142: el listado de turnos reimprime la tirilla con el módulo de caja.
-    reimprimirTirillaDeCajaProvider.overrideWith(
-      (ref) => (sesionId) async {
-        final tirilla = await ref.read(repositorioDeCajaProvider).tirillaDeCierre(sesionId);
-        await ref.read(impresoraDeTirillaProvider)(tirilla, reimpresion: true);
-      },
-    ),
 
     // Usuarios / Configuración
     repositorioDeUsuariosProvider.overrideWithValue(

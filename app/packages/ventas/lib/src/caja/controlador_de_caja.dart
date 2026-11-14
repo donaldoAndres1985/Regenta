@@ -144,10 +144,9 @@ class ControladorDeCaja extends StateNotifier<EstadoDeCaja> {
     }
   }
 
-  /// Cierra la sesión abierta. Devuelve el id de la sesión cerrada, o `null` si no se cerró.
-  Future<String?> cerrarSesion(Map<String, num> contados) async {
+  Future<void> cerrarSesion(Map<String, num> contados) async {
     final sesion = state.sesionActiva;
-    if (sesion == null) return null;
+    if (sesion == null) return;
     state = state.copyWith(cargando: true, clearError: true);
     try {
       await _repo.cerrarSesion(
@@ -159,14 +158,8 @@ class ControladorDeCaja extends StateNotifier<EstadoDeCaja> {
         clearSesion: true,
         movimientos: const [],
       );
-      return sesion.id;
     } catch (e) {
       state = state.copyWith(cargando: false, error: e.toString());
-      return null;
     }
   }
-
-  /// HU-142 · los datos de la tirilla de una sesión cerrada.
-  Future<TirillaDeCierreVista> tirillaDeCierre(String sesionId) =>
-      _repo.tirillaDeCierre(sesionId);
 }

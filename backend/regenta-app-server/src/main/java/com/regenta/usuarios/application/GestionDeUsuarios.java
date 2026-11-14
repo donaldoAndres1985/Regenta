@@ -94,19 +94,6 @@ public class GestionDeUsuarios {
                 .toList();
     }
 
-    /** Nombre y apellido de usuarios del negocio (HU-142: la tirilla de cierre de caja). */
-    @Transactional(readOnly = true)
-    @RequierePermiso("USUARIOS_USUARIO_VER")
-    public java.util.Map<UUID, String> nombresDe(java.util.Collection<UUID> ids) {
-        UUID negocioId = ContextoDeNegocio.negocioActual();
-        java.util.Map<UUID, String> nombres = new java.util.HashMap<>();
-        usuarios.findAllById(ids).stream()
-                .filter(u -> negocioId.equals(u.getNegocioId()))
-                .forEach(u -> nombres.put(u.getId(), (u.getNombre() + " "
-                        + (u.getApellido() == null ? "" : u.getApellido())).trim()));
-        return nombres;
-    }
-
     /**
      * Los usuarios activos del negocio con un rol activo de ese codigo (HU-138,
      * criterio 8): a quien le llega una alerta dirigida a ese rol. Lo consume
