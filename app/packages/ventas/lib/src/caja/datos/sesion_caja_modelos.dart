@@ -81,6 +81,7 @@ class MovimientoCajaVista {
     required this.monto,
     required this.concepto,
     required this.fecha,
+    this.anulaA,
   });
 
   final String id;
@@ -90,12 +91,19 @@ class MovimientoCajaVista {
   final String concepto;
   final String fecha;
 
+  /// HU-141: si este movimiento es una anulación, el id del movimiento que compensa.
+  final String? anulaA;
+
+  /// I5: solo los ingresos, retiros y gastos se pueden anular.
+  bool get esManual => const {'INGRESO', 'RETIRO', 'GASTO'}.contains(tipo.toUpperCase());
+
   factory MovimientoCajaVista.desdeJson(Map<String, dynamic> j) => MovimientoCajaVista(
         id: j['id'] as String,
         sesionId: (j['sesionId'] as String?) ?? '',
         tipo: (j['tipo'] as String?) ?? 'INGRESO',
         monto: (j['monto'] as num?) ?? 0,
         concepto: (j['concepto'] as String?) ?? '',
-        fecha: (j['fecha'] as String?) ?? '',
+        fecha: (j['fecha'] as String?) ?? (j['ocurridoEn'] as String?) ?? '',
+        anulaA: j['anulaA'] as String?,
       );
 }

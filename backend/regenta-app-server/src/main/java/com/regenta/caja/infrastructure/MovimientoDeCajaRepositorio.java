@@ -18,6 +18,10 @@ public interface MovimientoDeCajaRepositorio extends JpaRepository<MovimientoDeC
 
     boolean existsByNegocioIdAndIdempotencyKey(UUID negocioId, String idempotencyKey);
 
+    java.util.Optional<MovimientoDeCaja> findByIdAndNegocioId(UUID id, UUID negocioId);
+
+    boolean existsByAnulaA(UUID movimientoId);
+
     /** El efectivo esperado de una sesión: suma firmada de los movimientos en efectivo. */
     @Query("""
             select coalesce(sum(m.monto * m.signo), 0)

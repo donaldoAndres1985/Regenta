@@ -16,6 +16,7 @@ import com.regenta.caja.application.GestionDeConfigDeCaja;
 import com.regenta.caja.application.GestionDeConfigDeCaja.ConfigCajaDelNegocio;
 import com.regenta.caja.application.GestionDeMovimientosManuales;
 import com.regenta.caja.application.MovimientoDelNegocio;
+import com.regenta.caja.application.SolicitudDeAnulacion;
 import com.regenta.caja.application.SolicitudDeConfigCaja;
 import com.regenta.caja.application.SolicitudDeIngreso;
 import com.regenta.caja.application.SolicitudDeMetodosNoCuadrables;
@@ -56,6 +57,16 @@ public class MovimientosDeCajaControlador {
     public MovimientoDelNegocio retiro(@PathVariable UUID sesionId,
             @Valid @RequestBody SolicitudDeRetiro solicitud) {
         return manuales.registrarRetiro(sesionId, solicitud);
+    }
+
+    @PostMapping("/sesiones/{sesionId}/movimientos/{movimientoId}/anulacion")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Anula un ingreso, retiro o gasto con un movimiento compensatorio (HU-141)")
+    @ApiResponse(responseCode = "409", description = "Ya anulado, o la sesión está cerrada")
+    @ApiResponse(responseCode = "422", description = "Sin motivo, o el movimiento no es manual")
+    public MovimientoDelNegocio anular(@PathVariable UUID sesionId, @PathVariable UUID movimientoId,
+            @RequestBody SolicitudDeAnulacion solicitud) {
+        return manuales.anular(sesionId, movimientoId, solicitud);
     }
 
     @GetMapping("/config")

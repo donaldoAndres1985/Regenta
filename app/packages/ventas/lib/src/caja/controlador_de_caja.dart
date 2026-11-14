@@ -114,6 +114,24 @@ class ControladorDeCaja extends StateNotifier<EstadoDeCaja> {
     }
   }
 
+  /// HU-141 · anula un movimiento manual y recarga la lista del turno.
+  Future<void> anularMovimiento(String movimientoId, String motivo) async {
+    final sesion = state.sesionActiva;
+    if (sesion == null) return;
+    state = state.copyWith(cargando: true, clearError: true);
+    try {
+      await _repo.anularMovimiento(
+        sesionId: sesion.id,
+        movimientoId: movimientoId,
+        motivo: motivo,
+      );
+      final movs = await _repo.movimientos(sesion.id);
+      state = state.copyWith(cargando: false, movimientos: movs);
+    } catch (e) {
+      state = state.copyWith(cargando: false, error: e.toString());
+    }
+  }
+
   /// HU-140 · el arqueo por método de la sesión abierta, para la pantalla de cierre.
   Future<List<LineaDeArqueoVista>> arqueoPorMetodo() async {
     final sesion = state.sesionActiva;

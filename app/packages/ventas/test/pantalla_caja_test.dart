@@ -85,6 +85,14 @@ class _RepoCajaFake implements RepositorioDeCaja {
   }
 
   @override
+  Future<MovimientoCajaVista> anularMovimiento({
+    required String sesionId,
+    required String movimientoId,
+    required String motivo,
+  }) async =>
+      throw UnimplementedError();
+
+  @override
   Future<List<LineaDeArqueoVista>> arqueoPorMetodo(String sesionId) async => const [
         LineaDeArqueoVista(metodo: 'EFECTIVO', cuadrable: true, esperado: 0, movimientos: 0),
       ];

@@ -11,6 +11,10 @@ final repositorioDeCajaProvider = Provider<RepositorioDeCaja>((ref) {
   );
 });
 
+/// HU-141 · si el usuario tiene `CAJA_MOVIMIENTO_ANULAR`. La app lo conecta con los permisos
+/// del token; por defecto es `false`: sin saberlo, no se ofrece anular.
+final puedeAnularMovimientosDeCajaProvider = Provider<bool>((ref) => false);
+
 final controladorDeCajaProvider =
     StateNotifierProvider<ControladorDeCaja, EstadoDeCaja>((ref) {
   final repo = ref.watch(repositorioDeCajaProvider);

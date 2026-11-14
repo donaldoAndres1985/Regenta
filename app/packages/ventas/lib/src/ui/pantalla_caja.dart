@@ -133,7 +133,11 @@ class _PantallaCajaState extends ConsumerState<PantallaCaja> {
                       onCierre: (contados) => ctrl.cerrarSesion(contados),
                     ),
                     const SizedBox(height: 24),
-                    _ListaDeMovimientos(movimientos: estado.movimientos),
+                    _ListaDeMovimientos(
+                      movimientos: estado.movimientos,
+                      puedeAnular: ref.watch(puedeAnularMovimientosDeCajaProvider),
+                      onAnular: (id, motivo) => ctrl.anularMovimiento(id, motivo),
+                    ),
                   ],
                 ],
               ),
@@ -492,9 +496,24 @@ class _AccionesDeTurno extends StatelessWidget {
 }
 
 class _ListaDeMovimientos extends StatelessWidget {
-  const _ListaDeMovimientos({required this.movimientos});
+  const _ListaDeMovimientos({
+    required this.movimientos,
+    required this.puedeAnular,
+    required this.onAnular,
+  });
 
   final List<MovimientoCajaVista> movimientos;
+  final bool puedeAnular;
+  final void Function(String movimientoId, String motivo) onAnular;
+
+  /// HU-141: pide el motivo; sin motivo no se confirma (I6).
+  Future<void> _pedirMotivo(BuildContext context, MovimientoCajaVista mov) async {
+    final motivo = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _DialogoDeAnulacion(movimiento: mov),
+    );
+    if (motivo != null && motivo.trim().isNotEmpty) onAnular(mov.id, motivo.trim());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -539,9 +558,17 @@ class _ListaDeMovimientos extends StatelessWidget {
                 separatorBuilder: (context, index) => const Divider(color: RegentaColors.line, height: 1),
                 itemBuilder: (context, i) {
                   final mov = movimientos[i];
+                  final anulados = {
+                    for (final m in movimientos)
+                      if (m.anulaA != null) m.anulaA!,
+                  };
+                  final anulado = anulados.contains(mov.id);
+                  final esAnulacion = mov.tipo.toUpperCase() == 'ANULACION';
                   final esIngreso = mov.tipo.toUpperCase() == 'INGRESO' ||
                       mov.tipo.toUpperCase() == 'VENTA' ||
-                      mov.tipo.toUpperCase() == 'APERTURA';
+                      mov.tipo.toUpperCase() == 'APERTURA' ||
+                      (esAnulacion && movimientos.any((m) =>
+                          m.id == mov.anulaA && m.tipo.toUpperCase() != 'INGRESO'));
                   final color = esIngreso ? RegentaColors.ok : RegentaColors.crit;
 
                   return ListTile(
@@ -559,16 +586,43 @@ class _ListaDeMovimientos extends StatelessWidget {
                       mov.concepto.isEmpty ? mov.tipo : mov.concepto,
                       style: RegentaType.cuerpo.copyWith(fontWeight: FontWeight.w600),
                     ),
-                    subtitle: Text(
-                      'Tipo: ${mov.tipo}',
-                      style: RegentaType.etiqueta,
+                    subtitle: Row(
+                      children: [
+                        Text('Tipo: ${mov.tipo}', style: RegentaType.etiqueta),
+                        if (anulado) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            key: ValueKey('anulado-${mov.id}'),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: RegentaColors.critSoft,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text('ANULADO',
+                                style: RegentaType.etiqueta.copyWith(color: RegentaColors.crit)),
+                          ),
+                        ],
+                      ],
                     ),
-                    trailing: Text(
-                      '${esIngreso ? '+' : '-'} ${formatearPesos(mov.monto)}',
-                      style: RegentaType.dinero.copyWith(
-                        fontSize: 15,
-                        color: color,
-                      ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${esIngreso ? '+' : '-'} ${formatearPesos(mov.monto)}',
+                          style: RegentaType.dinero.copyWith(
+                            fontSize: 15,
+                            color: color,
+                            decoration: anulado ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                        if (puedeAnular && mov.esManual && !anulado)
+                          IconButton(
+                            key: ValueKey('anular-${mov.id}'),
+                            tooltip: 'Anular',
+                            icon: const Icon(Icons.undo, color: RegentaColors.crit),
+                            onPressed: () => _pedirMotivo(context, mov),
+                          ),
+                      ],
                     ),
                   );
                 },
@@ -576,6 +630,68 @@ class _ListaDeMovimientos extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// HU-141 · pide el motivo de la anulación. Sin motivo no se puede confirmar.
+class _DialogoDeAnulacion extends StatefulWidget {
+  const _DialogoDeAnulacion({required this.movimiento});
+
+  final MovimientoCajaVista movimiento;
+
+  @override
+  State<_DialogoDeAnulacion> createState() => _DialogoDeAnulacionState();
+}
+
+class _DialogoDeAnulacionState extends State<_DialogoDeAnulacion> {
+  final _motivo = TextEditingController();
+
+  @override
+  void dispose() {
+    _motivo.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mov = widget.movimiento;
+    return AlertDialog(
+      title: const Text('Anular movimiento'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${mov.tipo} · ${formatearPesos(mov.monto)} · ${mov.concepto}',
+              style: RegentaType.cuerpo),
+          const SizedBox(height: 4),
+          Text('Se registra un movimiento que lo compensa; el original no se borra.',
+              style: RegentaType.etiqueta),
+          const SizedBox(height: 12),
+          TextField(
+            key: const ValueKey('motivo-anulacion'),
+            controller: _motivo,
+            decoration: const InputDecoration(
+              labelText: 'Motivo',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: RegentaColors.crit),
+          onPressed: _motivo.text.trim().isEmpty
+              ? null
+              : () => Navigator.of(context).pop(_motivo.text.trim()),
+          child: const Text('Confirmar anulación'),
+        ),
+      ],
     );
   }
 }
