@@ -32,7 +32,7 @@ comandas, reservas, recaudos de cartera) y los movimientos manuales del cajero.
 | **Arqueo** | El conjunto de esperado, contado y diferencia de cada método al cerrar. | `cerrarCajaCalculado` |
 | **Cierre** | Acto que termina la sesión con su arqueo. Después la sesión es inmutable. | `UPDATE caja SET ESTADO='CERRADO'` |
 | **Tirilla de cierre** | Comprobante térmico del cierre. Se puede reimprimir. | `Recibo_cerrar_caja` |
-| **Supervisor** | Usuario con permiso para anular movimientos manuales. | — (no había control) |
+| **Supervisor** | Usuario con permiso para anular movimientos manuales: por defecto, los roles **Administrador** y **Gerente**. | — (no había control) |
 
 Términos que **no existen** en Regenta: "movimiento excluido del arqueo" (`SUM='NO'`),
 "serie global de caja".
@@ -82,13 +82,13 @@ restricción en PostgreSQL probada con Testcontainers.
 | I4 | Un movimiento manual exige monto > 0 y concepto no vacío. |
 | I4b | La diferencia de cada método = contado − esperado, y la calcula la base (columna generada), no la app. |
 | I5 | Solo se anulan movimientos **manuales** (ingreso, retiro, gasto), y cada uno una sola vez. |
-| I6 | Anular exige permiso `CAJA_MOVIMIENTO_ANULAR` (rol supervisor), motivo no vacío y sesión `ABIERTA`. La anulación es un movimiento de signo contrario que apunta al original; el original no se modifica ni se borra. |
+| I6 | Anular exige permiso `CAJA_MOVIMIENTO_ANULAR` (roles Administrador y Gerente), motivo no vacío y sesión `ABIERTA`. La anulación es un movimiento de signo contrario que apunta al original; el original no se modifica ni se borra. |
 | I7 | El esperado de cada método = suma con signo de sus movimientos (la base cuenta en `EFECTIVO`). |
 | I8 | Un método es cuadrable salvo que esté en `ConfigDeCaja.metodosNoCuadrables`. Valor por defecto: `TARJETA_DEBITO`, `TARJETA_CREDITO`, `BONO`, `CREDITO`. **`EFECTIVO` siempre es cuadrable** (se deduce de I10: no se puede exigir contar el efectivo si no se cuadra). |
 | I8b | Qué métodos son cuadrables se decide con la configuración vigente **al cerrar**, y queda congelado en el arqueo: cambiar la configuración después no altera cierres pasados. |
 | I9 | En un método no cuadrable el contado no se pide: contado = esperado y diferencia = 0. |
 | I9b | En un método cuadrable distinto de efectivo, si el cajero no declara contado, cuenta como 0 (como en Sara: no bloquea el cierre, pero deja la diferencia a la vista). |
-| I9c | **Pendiente de revisión** (decidido al implementar HU-140): un método cuadrable sin movimientos en la sesión, pero con contado declarado, entra al arqueo con esperado 0 — el sobrante queda a la vista en vez de ignorarse. La línea de efectivo existe siempre, aunque no haya movimientos en efectivo. |
+| I9c | **Aprobada** 2026-11-14: un método cuadrable sin movimientos en la sesión, pero con contado declarado, entra al arqueo con esperado 0 — el sobrante queda a la vista en vez de ignorarse. La línea de efectivo existe siempre, aunque no haya movimientos en efectivo. |
 | I10 | Para cerrar, el efectivo contado debe ser **mayor que 0**. |
 | I11 | Al cerrar, la sesión queda `CUADRADA` si todas las diferencias son 0; si no, `DESCUADRADA`. |
 | I12 | Una sesión cerrada es inmutable: no admite movimientos, anulaciones ni un nuevo arqueo. |
@@ -110,7 +110,7 @@ restricción en PostgreSQL probada con Testcontainers.
 |---|---|---|
 | `CAJA_TURNO_VER` / `_CREAR` / `_EDITAR` | Cajero | Ver, abrir y cerrar su sesión; arqueo |
 | `CAJA_MOVIMIENTO_VER` / `_CREAR` | Cajero | Ver y registrar movimientos manuales |
-| `CAJA_MOVIMIENTO_ANULAR` *(nuevo)* | Supervisor | Anular un movimiento manual |
+| `CAJA_MOVIMIENTO_ANULAR` *(nuevo)* | Administrador y Gerente | Anular un movimiento manual |
 
 ## 7. Pantallas de Sara que alimentan este contexto
 

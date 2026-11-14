@@ -99,10 +99,10 @@ restricciones reales del modelo de datos.
 | `HU-063` | Reporte de cierre de caja | `E07` | 3 | `HU-062` |
 | `HU-139` | Métodos de pago que no se cuadran en el cierre | `E07` | 2 | `HU-059` |
 | `HU-140` | Arqueo y cierre por método de pago | `E07` | 5 | `HU-139` `HU-062` |
-| `HU-141` | Anular un movimiento manual de caja *(propuesta)* | `E07` | 3 | `HU-061` |
-| `HU-142` | Tirilla de cierre de caja *(propuesta)* | `E07` | 3 | `HU-140` |
-| `HU-143` | Consultar cierres de caja y su detalle *(propuesta)* | `E07` | 5 | `HU-063` `HU-140` |
-| `HU-144` | Informes de caja en PDF *(propuesta)* | `E07` | 3 | `HU-143` |
+| `HU-141` | Anular un movimiento manual de caja | `E07` | 3 | `HU-061` |
+| `HU-142` | Tirilla de cierre de caja | `E07` | 3 | `HU-140` |
+| `HU-143` | Consultar cierres de caja y su detalle | `E07` | 5 | `HU-063` `HU-140` |
+| `HU-144` | Informes de caja en PDF | `E07` | 3 | `HU-143` |
 | `HU-064` | Tipos de recurso con atributos configurables | `E08` | 5 | `HU-011` |
 | `HU-065` | Administrar recursos individuales | `E08` | 3 | `HU-064` |
 | `HU-066` | Tarifas por temporada, día y franja con prioridad | `E08` | 8 | `HU-064` |

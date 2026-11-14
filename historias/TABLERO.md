@@ -149,10 +149,10 @@ Compras, caja y los reportes que hacen que el dueño abra la app todos los días
 - `HU-063` Reporte de cierre de caja
 - `HU-139` Métodos de pago que no se cuadran en el cierre
 - `HU-140` Arqueo y cierre por método de pago
-- `HU-141` Anular un movimiento manual de caja *(propuesta)*
-- `HU-142` Tirilla de cierre de caja *(propuesta)*
-- `HU-143` Consultar cierres de caja y su detalle *(propuesta)*
-- `HU-144` Informes de caja en PDF *(propuesta)*
+- `HU-141` Anular un movimiento manual de caja
+- `HU-142` Tirilla de cierre de caja
+- `HU-143` Consultar cierres de caja y su detalle
+- `HU-144` Informes de caja en PDF
 - `HU-092` Motor de reglas de alerta configurable
 - `HU-093` Alertas de inventario: stock bajo y lotes por vencer
 - `HU-094` Entrega por push, correo y dentro de la app

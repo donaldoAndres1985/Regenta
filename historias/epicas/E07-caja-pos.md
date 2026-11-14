@@ -9,8 +9,8 @@ Apertura, arqueo y cierre. Transversal a los tres patrones.
 | Plan mínimo | Empresarial |
 
 Modelo de dominio de referencia: [`docs/dominio/caja.md`](../../docs/dominio/caja.md). Las
-historias citan sus invariantes (`I1`…`I13`) y no las repiten. HU-141 a HU-144 son
-**propuestas pendientes de aprobación**: no se implementan hasta que se aprueben.
+historias citan sus invariantes (`I1`…`I13`) y no las repiten. HU-141 a HU-144 se
+aprobaron el 2026-11-14.
 
 ---
 
@@ -253,7 +253,7 @@ historias citan sus invariantes (`I1`…`I13`) y no las repiten. HU-141 a HU-144
 
 ### HU-141 · Anular un movimiento manual de caja
 
-> **Propuesta — pendiente de aprobación.**
+> Aprobada 2026-11-14.
 
 **Como** supervisor, **quiero** anular un ingreso, retiro o gasto mal registrado **para** corregir la caja sin borrar nada y dejando rastro de quién lo hizo y por qué
 
@@ -289,14 +289,14 @@ historias citan sus invariantes (`I1`…`I13`) y no las repiten. HU-141 a HU-144
 - [ ] Los criterios de aceptación pasan como tests automatizados.
 - [ ] Endpoints documentados en el contrato OpenAPI.
 - [ ] Migración Flyway aplicada y `ddl-auto` sigue en `validate`.
-- [ ] `CAJA_MOVIMIENTO_ANULAR` en el catálogo de permisos y en las plantillas de rol acordadas.
+- [ ] `CAJA_MOVIMIENTO_ANULAR` en el catálogo de permisos y en las plantillas de rol Administrador y Gerente.
 - [ ] Revisada en PR por otra persona.
 
 ---
 
 ### HU-142 · Tirilla de cierre de caja
 
-> **Propuesta — pendiente de aprobación.**
+> Aprobada 2026-11-14.
 
 **Como** cajero, **quiero** imprimir el comprobante del cierre en la impresora térmica **para** entregarlo junto con el dinero y que quede constancia en papel de lo que conté
 
@@ -331,7 +331,7 @@ historias citan sus invariantes (`I1`…`I13`) y no las repiten. HU-141 a HU-144
 
 ### HU-143 · Consultar cierres de caja y su detalle
 
-> **Propuesta — pendiente de aprobación.**
+> Aprobada 2026-11-14.
 
 **Como** gerente, **quiero** buscar los cierres pasados y abrir el detalle de cada uno **para** revisar qué pasó en un turno sin depender de la memoria del cajero
 
@@ -368,7 +368,7 @@ historias citan sus invariantes (`I1`…`I13`) y no las repiten. HU-141 a HU-144
 
 ### HU-144 · Informes de caja en PDF
 
-> **Propuesta — pendiente de aprobación. Prioridad baja.**
+> Aprobada 2026-11-14. Prioridad baja.
 
 **Como** gerente, **quiero** descargar en PDF el informe de un cierre y el listado de cierres de un rango **para** archivarlos o mandárselos al contador
 
