@@ -1,6 +1,6 @@
 # Historias de usuario de Regenta
 
-Backlog completo del producto: **137 historias** en **19 épicas**, **777 puntos**.
+Backlog completo del producto: **143 historias** en **19 épicas**, **798 puntos**.
 
 Cada historia declara qué tablas del modelo toca, qué pantalla del diseño implementa y de
 qué otras historias depende. Nada aquí es genérico: los criterios de aceptación salen de las
@@ -17,7 +17,7 @@ restricciones reales del modelo de datos.
 | `E04` | Ventas · transacción del patrón Venta directa | 11 | 68 | Básico | [`E04-ventas.md`](epicas/E04-ventas.md) |
 | `E05` | Compras y proveedores | 6 | 31 | Profesional | [`E05-compras-proveedores.md`](epicas/E05-compras-proveedores.md) |
 | `E06` | Facturación electrónica DIAN | 10 | 75 | Profesional | [`E06-facturacion-electronica-dian.md`](epicas/E06-facturacion-electronica-dian.md) |
-| `E07` | Caja y POS | 5 | 19 | Empresarial | [`E07-caja-pos.md`](epicas/E07-caja-pos.md) |
+| `E07` | Caja y POS | 11 | 40 | Empresarial | [`E07-caja-pos.md`](epicas/E07-caja-pos.md) |
 | `E08` | Recursos · catálogo del patrón Reserva | 5 | 24 | Básico | [`E08-recursos.md`](epicas/E08-recursos.md) |
 | `E09` | Reservas · transacción del patrón Reserva | 8 | 58 | Básico | [`E09-reservas.md`](epicas/E09-reservas.md) |
 | `E10` | Menú · catálogo del patrón Comanda | 5 | 24 | Básico | [`E10-menu.md`](epicas/E10-menu.md) |
@@ -97,6 +97,12 @@ restricciones reales del modelo de datos.
 | `HU-061` | Ingresos, retiros y gastos de caja | `E07` | 3 | `HU-059` |
 | `HU-062` | Arqueo por denominaciones | `E07` | 3 | `HU-059` |
 | `HU-063` | Reporte de cierre de caja | `E07` | 3 | `HU-062` |
+| `HU-139` | Métodos de pago que no se cuadran en el cierre | `E07` | 2 | `HU-059` |
+| `HU-140` | Arqueo y cierre por método de pago | `E07` | 5 | `HU-139` `HU-062` |
+| `HU-141` | Anular un movimiento manual de caja *(propuesta)* | `E07` | 3 | `HU-061` |
+| `HU-142` | Tirilla de cierre de caja *(propuesta)* | `E07` | 3 | `HU-140` |
+| `HU-143` | Consultar cierres de caja y su detalle *(propuesta)* | `E07` | 5 | `HU-063` `HU-140` |
+| `HU-144` | Informes de caja en PDF *(propuesta)* | `E07` | 3 | `HU-143` |
 | `HU-064` | Tipos de recurso con atributos configurables | `E08` | 5 | `HU-011` |
 | `HU-065` | Administrar recursos individuales | `E08` | 3 | `HU-064` |
 | `HU-066` | Tarifas por temporada, día y franja con prioridad | `E08` | 8 | `HU-064` |

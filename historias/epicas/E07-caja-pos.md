@@ -4,9 +4,13 @@ Apertura, arqueo y cierre. Transversal a los tres patrones.
 
 | | |
 |---|---|
-| Historias | 5 |
-| Puntos | 19 |
+| Historias | 11 |
+| Puntos | 40 |
 | Plan mínimo | Empresarial |
+
+Modelo de dominio de referencia: [`docs/dominio/caja.md`](../../docs/dominio/caja.md). Las
+historias citan sus invariantes (`I1`…`I13`) y no las repiten. HU-141 a HU-144 son
+**propuestas pendientes de aprobación**: no se implementan hasta que se aprueben.
 
 ---
 
@@ -160,6 +164,237 @@ Apertura, arqueo y cierre. Transversal a los tres patrones.
 - [ ] Los criterios de aceptación pasan como tests automatizados.
 - [ ] Endpoints documentados en el contrato OpenAPI del servicio.
 - [ ] Migración Flyway aplicada y `ddl-auto` sigue en `validate`.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-139 · Métodos de pago que no se cuadran en el cierre
+
+**Como** administrador del negocio, **quiero** indicar qué métodos de pago no se cuentan al cerrar la caja **para** que el cajero solo cuadre lo que tiene físicamente en el cajón y las tarjetas se concilien con el datáfono
+
+| | |
+|---|---|
+| Épica | `E07` · Caja y POS |
+| Puntos | 2 |
+| Módulo | `caja` |
+| Paquete Flutter | `usuarios` (configuración del negocio) |
+| Tablas | `caja.config_caja` |
+| Depende de | HU-059 (Abrir y cerrar sesión de caja) |
+| Invariantes | `I8` |
+| Etiquetas | `caja` · `backend` · `flutter` |
+
+> Viene de Sara POS (`CerrarCaja`, `cerrarCajaCalculado`), donde Débito y Gratis quedaban
+> fuera del cuadre por código fijo. Aquí es configuración del negocio.
+
+**Criterios de aceptación**
+
+1. Dado un negocio que nunca configuró caja, cuando consulto la configuración, entonces los métodos no cuadrables son `TARJETA_DEBITO`, `TARJETA_CREDITO`, `BONO` y `CREDITO`.
+2. Dado un usuario con `CAJA_TURNO_EDITAR`, cuando cambio la lista de métodos no cuadrables, entonces queda guardada y la devuelve la siguiente consulta.
+3. Dado un usuario sin `CAJA_TURNO_EDITAR`, cuando intenta cambiarla, entonces recibe 403.
+4. Dada una lista que incluye `EFECTIVO`, cuando la guardo, entonces se rechaza con 422: el efectivo siempre se cuadra.
+5. Dada una lista con un método que no existe, cuando la guardo, entonces se rechaza con 422.
+6. Dados dos negocios, cuando el negocio A cambia su lista, entonces la del negocio B no cambia y B no puede leer la de A.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados.
+- [ ] Endpoints documentados en el contrato OpenAPI.
+- [ ] Migración Flyway aplicada y `ddl-auto` sigue en `validate`.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-140 · Arqueo y cierre por método de pago
+
+**Como** cajero, **quiero** ver al cerrar lo esperado, lo contado y la diferencia de cada método de pago **para** saber exactamente en qué medio de pago está el descuadre, y no solo si el efectivo cuadra
+
+| | |
+|---|---|
+| Épica | `E07` · Caja y POS |
+| Puntos | 5 |
+| Módulo | `caja` |
+| Paquete Flutter | `ventas` |
+| Tablas | `caja.sesiones_caja` · `caja.movimientos_caja` · `caja.arqueo_metodos` *(nueva)* |
+| Pantalla | `design/pantallas/CobroWeb.html` · `design/pantallas/CobroMovil.html` |
+| Depende de | HU-139 (Métodos que no se cuadran) · HU-062 (Arqueo por denominaciones) |
+| Invariantes | `I4b` · `I7` · `I8b` · `I9` · `I9b` · `I10` · `I11` · `I12` · `I13` |
+| Etiquetas | `caja` · `backend` · `flutter` · `eventos` |
+
+> Viene de Sara POS (`cerrarCajaCalculado`). Reemplaza el criterio 3 de HU-059, que comparaba
+> un solo total de efectivo: `sesiones_caja.monto_esperado`/`monto_declarado` se conservan como
+> la línea de efectivo, por compatibilidad con los reportes existentes.
+
+**Criterios de aceptación**
+
+1. Dada una sesión abierta con movimientos en varios métodos, cuando consulto su arqueo, entonces veo una línea por cada método con movimientos, con su esperado (suma con signo, la base cuenta en efectivo), su cantidad de movimientos y si es cuadrable.
+2. Dado un método no cuadrable, cuando cierro, entonces no se pide su contado: queda contado = esperado y diferencia = 0.
+3. Dado un método cuadrable distinto de efectivo sin contado declarado, cuando cierro, entonces su contado es 0 y su diferencia es menos el esperado.
+4. Dado un efectivo contado de 0 o sin declarar, y sin conteo por denominaciones guardado, cuando cierro, entonces se rechaza con 422 «Debe escribir la cantidad de efectivo que hay en caja.»
+5. Dado un conteo por denominaciones guardado, cuando cierro sin declarar el efectivo, entonces el contado de efectivo es el total de ese conteo.
+6. Dado el cierre, cuando se guarda el arqueo, entonces la diferencia de cada línea es contado − esperado y la calcula la base (columna generada), no la app.
+7. Dadas todas las diferencias en 0, cuando cierro, entonces la sesión queda `CUADRADA`.
+8. Dada al menos una diferencia distinta de 0, cuando cierro, entonces la sesión queda `DESCUADRADA` y se publica `caja_descuadrada` con las líneas descuadradas.
+9. Dado cualquier cierre, cuando termina, entonces se publica `caja_cerrada` con el arqueo completo.
+10. Dado que la configuración de métodos no cuadrables cambia después de un cierre, cuando consulto ese cierre, entonces su arqueo no cambia.
+11. Dada una sesión cerrada, cuando intento cerrarla otra vez, entonces responde 409.
+12. Dados dos negocios, cuando el negocio B consulta, entonces no ve el arqueo del negocio A.
+13. Dada la pantalla de cierre, cuando escribo el contado de un método, entonces su diferencia y la diferencia total se recalculan en el momento, antes de confirmar; los métodos no cuadrables se muestran sin campo editable.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados (1-12 backend, 13 widget).
+- [ ] Endpoints documentados en el contrato OpenAPI.
+- [ ] Migración Flyway aplicada y `ddl-auto` sigue en `validate`.
+- [ ] `design/comportamiento/SesionDeCaja.md` actualizado con las reglas del arqueo por método antes de implementar la pantalla.
+- [ ] La pantalla coincide con `design/pantallas/CobroWeb.html` en medidas y color.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-141 · Anular un movimiento manual de caja
+
+> **Propuesta — pendiente de aprobación.**
+
+**Como** supervisor, **quiero** anular un ingreso, retiro o gasto mal registrado **para** corregir la caja sin borrar nada y dejando rastro de quién lo hizo y por qué
+
+| | |
+|---|---|
+| Épica | `E07` · Caja y POS |
+| Puntos | 3 |
+| Módulo | `caja` |
+| Paquete Flutter | `ventas` |
+| Tablas | `caja.movimientos_caja` · `core_identidad.permisos` |
+| Depende de | HU-061 (Ingresos, retiros y gastos de caja) |
+| Invariantes | `I5` · `I6` · `I12` · `I13` |
+| Etiquetas | `caja` · `backend` · `flutter` · `eventos` |
+
+> Viene de Sara POS (`CerrarCaja`, «Eliminar Entrada / Salida»), donde se hacía `DELETE` sin
+> permiso ni motivo. Aquí es una anulación compensatoria.
+
+**Criterios de aceptación**
+
+1. Dado un ingreso, retiro o gasto de una sesión `ABIERTA`, cuando un usuario con `CAJA_MOVIMIENTO_ANULAR` lo anula indicando motivo, entonces se registra un movimiento de signo contrario, mismo método y mismo monto, que apunta al original, y el esperado de ese método vuelve a como estaba antes del original.
+2. Dado un usuario sin `CAJA_MOVIMIENTO_ANULAR`, cuando intenta anular, entonces recibe 403.
+3. Dado un motivo vacío, cuando intento anular, entonces recibe 422.
+4. Dado un movimiento que no es manual (venta, comanda, reserva, recaudo o apertura), cuando intento anularlo, entonces recibe 422.
+5. Dado un movimiento ya anulado, cuando intento anularlo otra vez, entonces recibe 409, y la base rechaza una segunda anulación del mismo movimiento aunque la app falle.
+6. Dada una sesión cerrada, cuando intento anular uno de sus movimientos, entonces recibe 409.
+7. Dada una anulación, cuando consulto el movimiento original, entonces sigue intacto.
+8. Dada una anulación, cuando termina, entonces se publica `movimiento_de_caja_anulado` con el movimiento, el usuario y el motivo.
+9. Dados dos negocios, cuando el negocio B intenta anular un movimiento del negocio A, entonces recibe 404.
+10. Dada la lista de movimientos del turno en la app, cuando tengo el permiso, entonces veo «Anular» en los movimientos manuales no anulados, me pide motivo, y el anulado queda marcado como tal.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados.
+- [ ] Endpoints documentados en el contrato OpenAPI.
+- [ ] Migración Flyway aplicada y `ddl-auto` sigue en `validate`.
+- [ ] `CAJA_MOVIMIENTO_ANULAR` en el catálogo de permisos y en las plantillas de rol acordadas.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-142 · Tirilla de cierre de caja
+
+> **Propuesta — pendiente de aprobación.**
+
+**Como** cajero, **quiero** imprimir el comprobante del cierre en la impresora térmica **para** entregarlo junto con el dinero y que quede constancia en papel de lo que conté
+
+| | |
+|---|---|
+| Épica | `E07` · Caja y POS |
+| Puntos | 3 |
+| Módulo | `caja` |
+| Paquete Flutter | `ventas` |
+| Tablas | `caja.sesiones_caja` · `caja.arqueo_metodos` |
+| Depende de | HU-140 (Arqueo y cierre por método de pago) |
+| Etiquetas | `caja` · `backend` · `flutter` |
+
+> Viene de Sara POS (`cerrarCajaCalculado`, «¿Desea imprimir recibo?», y `InformesCaja`,
+> «Imprimir tikete de caja»).
+
+**Criterios de aceptación**
+
+1. Dado un cierre confirmado, cuando termina, entonces la app pregunta «¿Imprimir tirilla de cierre?» y, si acepto, la manda a la impresora térmica configurada.
+2. Dada la tirilla, entonces trae: razón social y NIT del negocio, caja, número de sesión, nombre del cajero que abrió y del que cerró, fecha y hora de apertura y de cierre, base, una línea por método con esperado, contado y diferencia (los no cuadrables marcados como tales), diferencia total, estado (`CUADRADA` o `DESCUADRADA`) y observaciones.
+3. Dada una sesión cerrada en el listado de turnos, cuando pido reimprimir su tirilla, entonces sale la misma tirilla con la marca «REIMPRESIÓN».
+4. Dada la tirilla, entonces usa el mismo formato térmico parametrizable que el tiquete del POS.
+5. Dados dos negocios, cuando el negocio B pide la tirilla de una sesión del negocio A, entonces recibe 404.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados.
+- [ ] Endpoints documentados en el contrato OpenAPI.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-143 · Consultar cierres de caja y su detalle
+
+> **Propuesta — pendiente de aprobación.**
+
+**Como** gerente, **quiero** buscar los cierres pasados y abrir el detalle de cada uno **para** revisar qué pasó en un turno sin depender de la memoria del cajero
+
+| | |
+|---|---|
+| Épica | `E07` · Caja y POS |
+| Puntos | 5 |
+| Módulo | `caja` |
+| Paquete Flutter | `reportes` |
+| Tablas | `caja.sesiones_caja` · `caja.arqueo_metodos` · `caja.movimientos_caja` |
+| Depende de | HU-063 (Reporte de cierre de caja) · HU-140 (Arqueo y cierre por método de pago) |
+| Etiquetas | `caja` · `backend` · `flutter` |
+
+> Viene de Sara POS (`buscarCierreCaja`, `detellaMovimientoCaja`, `DetalleMovimientoCaja` e
+> `InformesCaja`). Amplía HU-063: filtro por cajero, paginación sin el tope fijo de 30 de Sara, y
+> detalle de cada movimiento.
+
+**Criterios de aceptación**
+
+1. Dado un rango de fechas y, opcionalmente, un cajero, cuando busco, entonces veo los cierres de ese rango, el más reciente primero, paginados, cada uno con fecha, caja, número, cajero, total esperado, diferencia total y estado.
+2. Dado un cierre, cuando lo abro, entonces veo su resumen: ventas al contado y a crédito, ingresos, retiros, gastos, y el arqueo por método con esperado, contado y diferencia.
+3. Dado un cierre, cuando pido sus movimientos, entonces veo todos con fecha, tipo con su nombre legible, documento, método y monto, y una fila final con el total.
+4. Dado un movimiento, cuando lo abro, entonces veo su tipo con nombre legible, documento, fecha, método, monto, concepto, quién lo registró y quién lo autorizó o anuló; si viene de una venta, puedo ir a esa venta.
+5. Dado un cobro mixto, cuando abro su movimiento, entonces veo todos sus métodos, no solo el primero.
+6. Dados dos negocios, cuando el negocio B busca, entonces no ve cierres del negocio A.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados.
+- [ ] Endpoints documentados en el contrato OpenAPI.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-144 · Informes de caja en PDF
+
+> **Propuesta — pendiente de aprobación. Prioridad baja.**
+
+**Como** gerente, **quiero** descargar en PDF el informe de un cierre y el listado de cierres de un rango **para** archivarlos o mandárselos al contador
+
+| | |
+|---|---|
+| Épica | `E07` · Caja y POS |
+| Puntos | 3 |
+| Módulo | `caja` |
+| Paquete Flutter | `reportes` |
+| Tablas | `caja.sesiones_caja` · `caja.arqueo_metodos` · `caja.movimientos_caja` |
+| Depende de | HU-143 (Consultar cierres de caja y su detalle) |
+| Etiquetas | `caja` · `backend` · `flutter` |
+
+> Viene de Sara POS (`InformesCaja`: `reporteGeneralCaja`, `reporteDetalladoCaja`, `cierresCaja`).
+
+**Criterios de aceptación**
+
+1. Dado un cierre, cuando pido su informe general, entonces descargo un PDF con el resumen y el arqueo por método.
+2. Dado un cierre, cuando pido su informe detallado, entonces el PDF trae además todos sus movimientos con el total.
+3. Dado un rango de fechas, cuando pido el informe de cierres, entonces descargo un PDF con un cierre por fila y los totales del rango.
+4. Dados dos negocios, cuando el negocio B pide un informe, entonces no trae datos del negocio A.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados.
+- [ ] Endpoints documentados en el contrato OpenAPI.
 - [ ] Revisada en PR por otra persona.
 
 ---
