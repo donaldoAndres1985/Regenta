@@ -47,6 +47,32 @@ class SesionCajaActiva {
       );
 }
 
+/// HU-140 · una línea del arqueo por método de pago. Con la sesión abierta, el `contado` de un
+/// método cuadrable puede venir nulo: todavía no se contó.
+class LineaDeArqueoVista {
+  const LineaDeArqueoVista({
+    required this.metodo,
+    required this.cuadrable,
+    required this.esperado,
+    required this.movimientos,
+    this.contado,
+  });
+
+  final String metodo;
+  final bool cuadrable;
+  final num esperado;
+  final num? contado;
+  final int movimientos;
+
+  factory LineaDeArqueoVista.desdeJson(Map<String, dynamic> j) => LineaDeArqueoVista(
+        metodo: j['metodo'] as String,
+        cuadrable: (j['cuadrable'] as bool?) ?? true,
+        esperado: (j['esperado'] as num?) ?? 0,
+        contado: j['contado'] as num?,
+        movimientos: (j['movimientos'] as num?)?.toInt() ?? 0,
+      );
+}
+
 class MovimientoCajaVista {
   const MovimientoCajaVista({
     required this.id,

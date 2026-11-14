@@ -85,9 +85,14 @@ class _RepoCajaFake implements RepositorioDeCaja {
   }
 
   @override
+  Future<List<LineaDeArqueoVista>> arqueoPorMetodo(String sesionId) async => const [
+        LineaDeArqueoVista(metodo: 'EFECTIVO', cuadrable: true, esperado: 0, movimientos: 0),
+      ];
+
+  @override
   Future<SesionCajaActiva> cerrarSesion({
     required String sesionId,
-    required num montoDeclarado,
+    required Map<String, num> contados,
   }) async {
     final cerrada = SesionCajaActiva(
       id: sesionId,

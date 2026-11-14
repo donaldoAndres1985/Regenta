@@ -25,6 +25,7 @@ export 'src/pos/controlador_del_pos.dart';
 export 'src/pos/estado_del_pos.dart';
 export 'src/pos/linea_de_carrito.dart';
 export 'src/pos/proveedores.dart';
+export 'src/ui/dialogo_de_cierre_por_metodo.dart';
 export 'src/ui/formato.dart';
 export 'src/ui/pantalla_cliente_de_venta.dart';
 export 'src/ui/pantalla_caja.dart';

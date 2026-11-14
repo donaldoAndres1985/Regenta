@@ -1,9 +1,11 @@
 package com.regenta.caja.application;
 
 import java.math.BigDecimal;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -11,9 +13,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.regenta.caja.domain.ArqueoDenominacion;
+import com.regenta.caja.domain.ArqueoMetodo;
+import com.regenta.caja.domain.ConfigDeCaja;
+import com.regenta.caja.domain.EsperadoDeMetodo;
+import com.regenta.caja.domain.MetodoPagoCaja;
 import com.regenta.caja.domain.SesionDeCaja;
 import com.regenta.caja.domain.TipoDenominacion;
 import com.regenta.caja.infrastructure.ArqueoDenominacionRepositorio;
+import com.regenta.caja.infrastructure.ArqueoMetodoRepositorio;
 import com.regenta.caja.infrastructure.MovimientoDeCajaRepositorio;
 import com.regenta.caja.infrastructure.SesionDeCajaRepositorio;
 import com.regenta.shared.web.ConflictoDeEstadoException;
@@ -35,11 +42,57 @@ public class GestionDeArqueo {
     private final SesionDeCajaRepositorio sesiones;
     private final MovimientoDeCajaRepositorio movimientos;
 
+    private final GestionDeConfigDeCaja config;
+    private final ArqueoMetodoRepositorio arqueoMetodos;
+
     public GestionDeArqueo(ArqueoDenominacionRepositorio arqueo,
-            SesionDeCajaRepositorio sesiones, MovimientoDeCajaRepositorio movimientos) {
+            SesionDeCajaRepositorio sesiones, MovimientoDeCajaRepositorio movimientos,
+            GestionDeConfigDeCaja config, ArqueoMetodoRepositorio arqueoMetodos) {
         this.arqueo = arqueo;
         this.sesiones = sesiones;
         this.movimientos = movimientos;
+        this.config = config;
+        this.arqueoMetodos = arqueoMetodos;
+    }
+
+    /**
+     * HU-140: el arqueo por método de pago. Con la sesión abierta, es la previa del cierre:
+     * el esperado de cada método y, para el efectivo, el conteo por denominaciones si existe.
+     * Con la sesión cerrada, es el arqueo guardado al cerrar, congelado (I8b, I12).
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("CAJA_TURNO_VER")
+    public ArqueoPorMetodo porMetodo(UUID sesionId) {
+        SesionDeCaja sesion = delNegocio(sesionId);
+        if (!sesion.getEstado().estaAbierta()) {
+            return ArqueoPorMetodo.de(arqueoMetodos.findBySesionIdOrderByMetodoPago(sesionId).stream()
+                    .map(ArqueoMetodo::comoLinea).toList());
+        }
+
+        ConfigDeCaja cfg = config.delNegocio(sesion.getNegocioId());
+        BigDecimal efectivoContado = totalContadoDe(sesionId);
+        Map<MetodoPagoCaja, EsperadoDeMetodo> esperados = esperadosDe(sesionId);
+        List<ArqueoPorMetodo.Linea> lineas = esperados.values().stream().map(e -> {
+            boolean cuadrable = cfg.esCuadrable(e.metodo());
+            BigDecimal contado = !cuadrable ? e.esperado()
+                    : e.metodo() == MetodoPagoCaja.EFECTIVO ? efectivoContado : null;
+            return new ArqueoPorMetodo.Linea(e.metodo().name(), cuadrable, e.esperado(), contado,
+                    contado == null ? null : contado.subtract(e.esperado()), e.movimientos());
+        }).toList();
+        return new ArqueoPorMetodo(lineas);
+    }
+
+    /** Lo esperado por método de la sesión (I7), con línea de efectivo siempre (I10). */
+    @Transactional(readOnly = true)
+    public Map<MetodoPagoCaja, EsperadoDeMetodo> esperadosDe(UUID sesionId) {
+        Map<MetodoPagoCaja, EsperadoDeMetodo> esperados = new EnumMap<>(MetodoPagoCaja.class);
+        esperados.put(MetodoPagoCaja.EFECTIVO,
+                new EsperadoDeMetodo(MetodoPagoCaja.EFECTIVO, BigDecimal.ZERO, 0));
+        for (TotalPorMetodo t : movimientos.totalesPorMetodo(sesionId)) {
+            MetodoPagoCaja metodo = MetodoPagoCaja.valueOf(t.metodo());
+            esperados.put(metodo, new EsperadoDeMetodo(metodo, t.total(), t.movimientos()));
+        }
+        return esperados;
     }
 
     @Transactional(readOnly = true)
