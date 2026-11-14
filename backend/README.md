@@ -1,227 +1,248 @@
-# backend/ — los microservicios de Regenta
+# backend/ — el monolito modular de Regenta
 
-Un módulo Maven por servicio, cada uno con **su propia base de datos**. Ningún
-servicio consulta la base de otro: lo que necesita de afuera le llega por eventos.
+Un solo proceso Spring Boot con **Spring Modulith**: 15 módulos de negocio con límites
+verificados, una sola base PostgreSQL con **un schema por módulo**, y eventos de dominio
+en proceso en lugar de un broker.
+
+Hasta noviembre de 2026 el backend eran 17 microservicios (gateway + 15 servicios +
+librería común) con RabbitMQ y una base por servicio. Se consolidó en un monolito
+modular (PR #266) porque mantener y operar esa arquitectura costaba demasiado para el
+tamaño del producto: 16 JVM y un broker pasaron a una sola JVM, y el costo en Railway
+bajó de ~95-150 USD/mes a ~7-12 USD/mes. El contrato HTTP con la app Flutter no cambió:
+las rutas son las mismas que exponía el gateway. El detalle está en `docs/migracion/`.
 
 ## Qué hay
 
-| Módulo | Base | Usuario | Esquema | Puerto local |
-|---|---|---|---|---:|
-| `gateway` | — | — | — | 8080 |
-| `servicio-usuarios` | `regenta_usuarios` | `reg_usuarios` | `core_identidad` | 8081 |
-| `servicio-clientes` | `regenta_clientes` | `reg_clientes` | `crm` | 8082 |
-| `servicio-inventario` | `regenta_inventario` | `reg_inventario` | `inventario` | 8083 |
-| `servicio-ventas` | `regenta_ventas` | `reg_ventas` | `ventas` | 8084 |
-| `servicio-compras` | `regenta_compras` | `reg_compras` | `compras` | 8085 |
-| `servicio-recursos` | `regenta_recursos` | `reg_recursos` | `recursos` | 8086 |
-| `servicio-reservas` | `regenta_reservas` | `reg_reservas` | `reservas` | 8087 |
-| `servicio-menu` | `regenta_menu` | `reg_menu` | `menu` | 8088 |
-| `servicio-mesas` | `regenta_mesas` | `reg_mesas` | `mesas` | 8089 |
-| `servicio-comandas` | `regenta_comandas` | `reg_comandas` | `comandas` | 8090 |
-| `servicio-facturacion` | `regenta_facturacion` | `reg_facturacion` | `facturacion` | 8091 |
-| `servicio-caja` | `regenta_caja` | `reg_caja` | `caja` | 8092 |
-| `servicio-alertas` | `regenta_alertas` | `reg_alertas` | `alertas` | 8093 |
-| `servicio-reportes` | `regenta_reportes` | `reg_reportes` | `reportes` | 8094 |
-| `servicio-auditoria` | `regenta_auditoria` | `reg_auditoria` | `auditoria` | 8095 |
-| `comun` | — | — | — | — |
-| `estructura` | — | — | — | — |
-
-`comun` es la librería que comparten los servicios: Outbox e Inbox. No se despliega
-sola y no tiene `main`; se agrega como dependencia y queda andando.
-
-`estructura` no se despliega: es el módulo donde viven los tests de la fundación
-—estructura de módulos, compose, bases y migraciones—. Las decisiones de
-arquitectura fallan ahí y no en producción.
-
-## Arrancar
-
-```bash
-cp .env.example .env          # y cambiar las claves
-docker compose up -d          # PostgreSQL 16 + RabbitMQ + los 16 módulos
-docker compose logs -f servicio-ventas
+```
+backend/
+  pom.xml                   padre: versiones de dependencias, un solo <module>
+  regenta-app-server/       el backend
+    src/main/java/com/regenta/
+      RegentaApplication.java
+      shared/               lo transversal (no lleva reglas de negocio)
+        security/           SecurityFilterChain, JWT, @RequiereModulo, @RequierePermiso, CORS
+        tenancy/            ContextoDeNegocio, AislamientoPorNegocio (RLS)
+        events/             RegistroDeEventos, EventoGenerico, InboxIdempotente
+        bbdd/               Flyway multi-schema, verificador de LEAKPROOF (trigram)
+        barridos/           tareas programadas entre negocios
+        web/                ManejadorDeErrores (RFC 7807) y excepciones de aplicación
+      <modulo>/             api/  application/  domain/  infrastructure/  web/
+    src/main/resources/
+      application.yml
+      db/migration/<modulo>/V*.sql
+  Dockerfile                imagen única, multi-stage
+  railway.json              despliegue en Railway
 ```
 
-El panel de RabbitMQ queda en <http://localhost:15672>. Los datos viven en
-volúmenes nombrados: `docker compose down` los conserva, `down -v` los borra.
+Las carpetas `servicio-*`, `gateway`, `comun`, `integracion` y `estructura` son restos
+de la arquitectura anterior: ya no tienen fuentes ni forman parte del build.
+`docker-compose.yml` y `docker/postgres/` también son de esa época (levantan los 16
+servicios y RabbitMQ) y todavía no se adaptaron.
 
-Para configuraciones de una máquina concreta, `docker-compose.override.yml`
-—está en `.gitignore` a propósito—.
+### Módulos
+
+| Módulo | Schema | Patrón | API pública (`api/`) |
+|---|---|---|---|
+| `usuarios` | `core_identidad` | Core | `DirectorioDeUsuariosApi` |
+| `clientes` | `crm` | Core | `ClientesApi` |
+| `facturacion` | `facturacion` | Core | `FacturacionApi` |
+| `reportes` | `reportes` | Core | `ReportesApi` |
+| `alertas` | `alertas` | Core | `AlertasApi` |
+| `auditoria` | `auditoria` | Core | `AuditoriaApi` |
+| `inventario` | `inventario` | Venta directa | `InventarioApi` |
+| `ventas` | `ventas` | Venta directa | `VentasApi` |
+| `compras` | `compras` | Venta directa | `ComprasApi` |
+| `caja` | `caja` | Venta directa | `CajaApi` |
+| `recursos` | `recursos` | Reserva | `RecursosApi` + SPI `ConsultaDeReservasDeRecurso` |
+| `reservas` | `reservas` | Reserva | `ReservasApi` |
+| `menu` | `menu` | Comanda | `MenuApi` |
+| `mesas` | `mesas` | Comanda | `MesasApi` |
+| `comandas` | `comandas` | Comanda | `ComandasApi` |
+
+## Límites entre módulos
+
+- Un módulo solo ve de otro lo que está en su `api/` (`@NamedInterface("api")`). Importar
+  `application`, `domain` o `infrastructure` ajenos rompe el build.
+- Un módulo nunca toca las tablas del schema de otro, aunque compartan base.
+- Sin ciclos. Cuando la dependencia natural iría al revés, el módulo de abajo declara un
+  SPI en su `api/` y el de arriba lo implementa (`recursos` ↔ `reservas`).
+
+Lo verifica `ModularityTests` con `ApplicationModules.of(RegentaApplication.class).verify()`.
+El mismo test regenera los diagramas de `docs/modulith/`.
+
+## Arrancar en local
+
+```bash
+docker run --name regenta-pg -e POSTGRES_USER=regenta -e POSTGRES_PASSWORD=regenta \
+  -e POSTGRES_DB=regenta_monolito -p 5432:5432 -d postgres:16
+./mvnw spring-boot:run -pl regenta-app-server
+```
+
+- API: <http://localhost:8080> · Swagger: <http://localhost:8080/swagger-ui.html>
+- Salud: <http://localhost:8080/actuator/health>
+
+Al arrancar se aplican las migraciones de los 15 schemas y después Hibernate valida el
+modelo. Las migraciones de `usuarios`, `inventario`, `clientes` y `caja` traen una semilla
+de ejemplo ("Ferretería Central").
+
+### Variables de entorno
+
+| Variable | Para qué | Default |
+|---|---|---|
+| `PORT` | puerto HTTP | `8080` |
+| `DATABASE_URL` | JDBC de PostgreSQL | `jdbc:postgresql://localhost:5432/regenta_monolito` |
+| `DB_USER` / `DB_PASSWORD` | credenciales de la base | `regenta` / `regenta` |
+| `DB_POOL_MAX` | tamaño máximo del pool Hikari | `15` |
+| `JWT_SECRETO` | secreto HS256 (mínimo 32 bytes) | uno de desarrollo; **cambiarlo en producción** |
+| `JWT_EMISOR` | `iss` esperado | `regenta` |
+| `CORS_ORIGINS` | orígenes permitidos | `https://regenta.pages.dev`, `https://*.regenta.pages.dev`, `localhost` |
 
 ## Compilar y probar
 
 ```bash
-./mvnw -q -DskipTests package    # compila los 16 módulos
-./mvnw test                      # corre los tests
-./mvnw -pl servicio-ventas spring-boot:run
+./mvnw -DskipTests package                                   # jar en regenta-app-server/target/
+./mvnw test                                                  # todos los tests
+./mvnw -pl regenta-app-server -Dtest=ModularityTests test    # solo los límites
 ```
 
-Los tests de bases y migraciones levantan PostgreSQL 16 con Testcontainers, así
-que **hace falta Docker corriendo**. No se usa H2 en ningún test: RLS,
-`EXCLUDE USING gist`, JSONB y las columnas generadas no existen en una base en
-memoria, y un test que pasa ahí y revienta en producción es peor que no tenerlo.
+Los tests que tocan la base usan PostgreSQL 16 con Testcontainers, así que **hace falta
+Docker corriendo**. No se usa H2 en ningún test: RLS, `EXCLUDE USING gist`, JSONB y las
+columnas generadas no existen en una base en memoria.
 
-`./mvnw` usa el `mvn` de la máquina si existe; si no, descarga Maven una vez y lo
-cachea. Se puede reemplazar por el wrapper oficial con `mvn -N wrapper:wrapper`.
+> **Deuda abierta:** en la migración a monolito se quedaron atrás casi todos los tests de
+> los servicios (de 220 archivos quedan 4). Hay que portarlos antes de seguir sumando
+> features al backend.
 
-### El JDK: Maven puede correr en otro
+### El JDK
 
-El proyecto compila y se prueba **con Java 17**, la misma versión sobre la que suele
-correr Maven aquí, así que normalmente no hay nada que configurar. El plugin de
-toolchains queda declarado por si algún día Maven arranca con un JDK anterior: en ese
-caso busca uno de 17 o más y, si no encuentra ninguno, el build falla diciéndolo en
-vez de compilar contra la versión equivocada.
+El proyecto compila y se prueba con **Java 17**. El plugin de toolchains queda declarado
+por si Maven arranca con un JDK anterior: busca uno de 17 o más y, si no lo encuentra,
+el build falla diciéndolo.
 
 ```bash
 mvn toolchains:display-discovered-jdk-toolchains   # qué JDK ve Maven
 mvn toolchains:generate-jdk-toolchains-xml         # genera ~/.m2/toolchains.xml
 ```
 
-Si el descubrimiento automático no lo encuentra, se declara a mano en
-`~/.m2/toolchains.xml` —en Windows `%USERPROFILE%\.m2\toolchains.xml`—. La
-plantilla está en `toolchains.example.xml`. En CI no hace falta: `actions/setup-java`
-escribe el `toolchains.xml` solo.
+Plantilla en `toolchains.example.xml`. En CI no hace falta: `actions/setup-java` lo
+escribe solo.
 
-## Una base por servicio
+## Base de datos: una base, un schema por módulo
 
-`docker/postgres/init-databases.sql` crea las 15 bases con su usuario, revoca
-todo a `PUBLIC` y concede `CONNECT` solo al dueño. Que Ventas no lea las tablas
-de Usuarios deja de depender de la disciplina del equipo y pasa a depender de
-PostgreSQL: el intento falla en la conexión, antes de cualquier consulta.
+Un solo `DataSource` y un solo pool. Cada entidad declara su schema
+(`@Table(name = "...", schema = "crm")`), así que las consultas salen siempre
+calificadas, sin depender del `search_path`.
 
-El script es idempotente —usa `\gexec` sobre un `SELECT` condicional, porque
-`CREATE DATABASE` no admite `IF NOT EXISTS`— así que se puede volver a correr.
+### Migraciones
 
-## Migraciones
-
-Cada servicio trae `src/main/resources/db/migration/V1__esquema_inicial.sql`,
-portado del DDL de `modelo-datos/sql/`. Trae dos partes: las convenciones comunes
-—extensiones, `app_negocio_actual()`, `trg_actualizado_en()`, outbox e inbox— y el
-esquema propio del servicio. Lo común se repite en cada base porque no hay base
-compartida de donde tomarlo.
+`spring.flyway.enabled` está en `false`: Spring Boot solo sabe migrar un schema.
+`shared.bbdd.ConfiguracionMultiSchemaFlyway` corre Flyway una vez por módulo
+—`schemas(<schema>)`, `locations(classpath:db/migration/<modulo>)`— antes de que
+arranque Hibernate. Cada schema tiene su propia `flyway_schema_history`, con los mismos
+checksums que tenía cada servicio.
 
 Reglas:
 
-- **Una migración aplicada no se edita.** Flyway guarda su checksum y el arranque
-  falla en vez de aplicar el cambio en silencio. Lo que cambia va en un `V2`.
-- **`ddl-auto` siempre en `validate`.** El esquema lo crea Flyway; Hibernate solo
-  comprueba que coincide.
-- El modelo se diseña y se revisa en `modelo-datos/`; de ahí sale la primera
-  migración. Después mandan las migraciones.
+- **Una migración aplicada no se edita.** Flyway guarda su checksum y el arranque falla.
+  Lo que cambia va en una versión nueva del mismo módulo.
+- **`ddl-auto` siempre en `validate`.** El esquema lo crea Flyway; Hibernate solo comprueba.
+- Cada `V1__esquema_inicial.sql` empieza con `CREATE SCHEMA IF NOT EXISTS <schema>`.
+- El modelo se diseña en `modelo-datos/`; de ahí salió la primera migración. Después
+  mandan las migraciones.
 
-## Aislamiento entre negocios
+## Seguridad
 
-Más de 140 tablas de negocio tienen `ENABLE` **y** `FORCE ROW LEVEL SECURITY` con la
-política `tenant_isolation` (cada migración nueva que agrega una tabla de negocio suma
-la suya). El filtro por `negocio_id` en la aplicación es la primera línea;
-esto es la segunda: si alguien olvida el `WHERE`, PostgreSQL igual no devuelve filas
-de otro negocio.
+Todo vive en `shared.security`. No hay gateway: el mismo proceso valida el token.
 
-El backend fija el negocio al inicio de **cada transacción**:
+- Una `SecurityFilterChain` stateless, sin CSRF, como OAuth2 Resource Server.
+- JWT **HS256** con `JWT_SECRETO`; se valida firma, vigencia y emisor. Inválido o
+  expirado ⇒ 401 en formato RFC 7807.
+- Rutas públicas: `/api/usuarios/auth/**`, `/swagger-ui/**`, `/v3/api-docs/**`,
+  `/actuator/health/**`, `/actuator/info`.
 
-```sql
-SET LOCAL app.negocio_id = '<claim negocio_id del JWT>';
-```
+### El contrato del token
 
-`SET LOCAL`, nunca `SET` a secas. HikariCP reutiliza conexiones entre peticiones: un
-`SET` normal deja el negocio anterior pegado a la conexión y convierte el mecanismo de
-seguridad en la fuga que venía a evitar. Sin negocio fijado,
-`app_negocio_actual()` devuelve NULL y toda comparación da NULL: cero filas. Falla
-cerrado.
-
-`FORCE` no es opcional: sin él, el dueño de la tabla —que es el usuario con el que se
-conecta el servicio— se salta la política.
-
-Qué se queda **sin** RLS, a propósito, y está documentado en cada `V2__rls.sql`:
-
-| Tablas | Por qué |
-|---|---|
-| `modulos`, `planes`, `permisos`, `plantillas_rol`, `patrones_operativos`, `tipos_alerta`, `dim_fecha` | Catálogo global: el mismo para todos los negocios, sin datos de ninguno |
-| `outbox_eventos`, `inbox_eventos` | Las lee el publicador en segundo plano, fuera de toda transacción de negocio. Con RLS activa vería cero filas y no publicaría nunca |
-| `posicion_consumo` | Infraestructura del proyector CQRS |
-
-Tres tablas puente —`rol_permisos`, `usuario_roles`, `usuario_sucursales`— no tienen
-`negocio_id` propio y se filtran por su padre con un `EXISTS`. Se aparta de la
-convención del modelo; agregarles la columna es un cambio de esquema y va en su propia
-historia.
-
-**La pieza de aplicación**, en `comun`, son tres clases y un detalle de orden:
-
-| Clase | Qué hace |
-|---|---|
-| `FiltroDeNegocio` | Lee las cabeceras `X-Regenta-*` del gateway y arma el contexto. Lo limpia **siempre** en un `finally`: el hilo vuelve al pool y un `ThreadLocal` sucio es una fuga entre negocios |
-| `ContextoDeNegocio` | El negocio, el usuario, el plan, el patrón, los roles, los módulos y las sucursales de la petición en curso |
-| `AislamientoPorNegocio` | Ejecuta `set_config('app.negocio_id', ..., true)` —el `SET LOCAL` parametrizable— al empezar cada transacción |
-
-El detalle de orden importa más de lo que parece. Spring pone su interceptor
-transaccional en la última posición, y no hay forma de meter un aspecto por dentro de
-algo que ya es lo más interno. Si el aspecto corriera por fuera, el `set_config` se
-ejecutaría en su propia transacción y se perdería al empezar la de verdad —y la RLS
-devolvería cero filas sin que nadie entienda por qué. Por eso `NegocioAutoConfiguracion`
-declara la gestión de transacciones con orden 0 y el aspecto con orden 10: cuando el
-aspecto corre, la transacción ya está abierta.
-
-Sin negocio en contexto no se fija nada: la consulta ve cero filas y la escritura la
-rechaza la política. Falla cerrado, nunca abierto.
-
-## El borde: qué valida el gateway y qué no
-
-El gateway hace dos cosas: comprueba el token y enruta. Nada más. Ninguna regla de
-negocio vive ahí, y ninguna decisión suya se da por buena río abajo: cada servicio
-revalida el plan, el módulo y el negocio por su cuenta. El día que alguien llegue a un
-servicio sin pasar por el gateway, el servicio tiene que seguir estando protegido.
-
-Las rutas se declaran **servicio por servicio** en `application.yml`. Nada de comodines:
-un servicio nuevo no se expone solo.
-
-**El contrato del token.** Lo emite `servicio-usuarios` (HU-013) y lo valida el gateway.
-Firma HS256 con el secreto de `JWT_SECRETO`, idéntico en los dos lados; sin él el gateway
-no arranca, porque un gateway que no puede validar firmas atiende cualquier cosa.
+Lo emite el módulo `usuarios`.
 
 | Claim | Ejemplo | Para qué |
 |---|---|---|
 | `iss` | `regenta` | Emisor esperado (`JWT_EMISOR`) |
 | `sub` | UUID del usuario | Quién pide |
-| `exp` / `iat` | — | Vigencia; el gateway rechaza expirados |
-| `negocio_id` | UUID | El `SET LOCAL app.negocio_id` de cada transacción sale de aquí |
-| `plan` | `PRO` | El servicio decide si el módulo entra en el plan |
-| `patron` | `VENTA_DIRECTA` | Patrón operativo del negocio |
-| `roles` | `["ADMINISTRADOR","CAJERO"]` | Permisos, que resuelve el servicio |
-| `modulos` | `["VENTAS","FACTURACION"]` | Módulos activos del negocio; los usa `@RequiereModulo` |
-| `permisos` | `["VENTAS_VENTA_CREAR"]` | Permisos efectivos del usuario; los usa `@RequierePermiso` |
+| `exp` / `iat` | — | Vigencia |
+| `negocio_id` | UUID | El negocio de la sesión; de aquí sale la RLS |
+| `plan` / `patron` | `PRO` / `VENTA_DIRECTA` | Plan contratado y patrón operativo |
+| `roles` | `["ADMINISTRADOR"]` | Roles del usuario |
+| `modulos` | `["VENTAS","FACTURACION"]` | Módulos activos; los usa `@RequiereModulo` |
+| `permisos` | `["VENTAS_VENTA_CREAR"]` | Permisos efectivos; los usa `@RequierePermiso` |
 | `sucursales` | `["<uuid>"]` | Sucursales del usuario |
-| `estado_negocio` | `ACTIVO` | `SUSPENDIDO` o `CANCELADO` ⇒ 402 en el borde |
+| `estado_negocio` | `ACTIVO` | `SUSPENDIDO` o `CANCELADO` ⇒ 402 |
 
-Del token salen las cabeceras que ve el servicio: `X-Regenta-Negocio`, `-Usuario`,
-`-Plan`, `-Patron`, `-Roles`, `-Modulos`, `-Sucursales` y `X-Regenta-Traza`. Las que traiga el
-cliente con esos nombres **se descartan** antes de escribir las nuestras: el único origen
-de la verdad es el token firmado. El `Authorization` original viaja igual, para que el
-servicio pueda revalidar sin confiar en el borde.
+`FiltroDeContexto` corre después de `BearerTokenAuthenticationFilter`, lee esos claims,
+arma `DatosDelNegocio` y lo deja en `ContextoDeNegocio` (un `ThreadLocal`). Lo limpia
+**siempre** en un `finally`: el hilo vuelve al pool y un contexto sucio es una fuga entre
+negocios.
 
-| Situación | Respuesta |
+### Códigos de error
+
+| Código | Cuándo |
 |---|---|
-| Sin token en una ruta protegida | 401, sin tocar el servicio destino |
-| Token expirado, firma rota u otro emisor | 401, al log con el `trace_id` |
-| Token sin `negocio_id` | 401 |
-| Negocio `SUSPENDIDO` o `CANCELADO` | 402, sin tocar el servicio destino |
+| 401 | Token ausente, expirado, con firma inválida o de otro emisor |
+| 402 | Negocio `SUSPENDIDO`/`CANCELADO`, o `@RequiereModulo`: el módulo no está en el plan |
+| 403 | `@RequierePermiso`: el módulo está, pero el rol no alcanza |
+| 404 / 409 / 422 | No encontrado / conflicto de estado o duplicado / regla de negocio |
 
-El estado del negocio viaja **en el claim**, no se consulta a ningún servicio: el gateway
-no llama a nadie para decidir. El precio es que una suspensión tarda en surtir efecto lo
-que le quede de vida al access token; por eso el token es corto y la suspensión se hace
-efectiva de verdad en el servicio, no en el borde.
+Todas salen de `shared.web.ManejadorDeErrores` en formato RFC 7807. Cada respuesta lleva
+la traza (`X-Trace-Id`) para buscarla en los logs.
 
-Las **únicas rutas públicas** son `/api/usuarios/auth/**` —de ahí sale el token, mal
-podría exigirlo— y la salud del propio gateway. En ellas el gateway igual borra las
-cabeceras `X-Regenta-*` que traiga el cliente antes de enrutar: sin token no hay
-contexto, y lo que mande el cliente con esos nombres no es contexto, es un intento.
+### Identidad
 
-Toda petición lleva `X-Regenta-Traza`, propia o inventada aquí, y toda respuesta la
-devuelve. Es lo que se busca en los logs cuando alguien reporta "me dio error".
+El login empieza sin saber el negocio: arranca en `acceso_por_correo` (la única tabla de
+`core_identidad` sin RLS, sin hash ni roles) y en cuanto sabe el negocio lo fija. Si el
+mismo correo trabaja en dos negocios, el API devuelve la lista y la app elige.
 
-## Eventos: nada se pierde, nada se procesa dos veces
+El token de acceso dura 15 minutos. El de refresco dura 30 días y **rota en cada uso**;
+si alguien presenta uno ya usado se cae la sesión entera. Del refresh token solo se
+guarda su SHA-256. Cinco intentos fallidos seguidos bloquean la cuenta 15 minutos.
 
-`comun` trae el Outbox y el Inbox, y con solo agregar la dependencia quedan activos.
+### El plan manda, pero no decide
 
-**Publicar** es escribir en la propia base, dentro de la transacción del agregado:
+Lo que un negocio tiene encendido está en `negocio_modulos`, no en su plan. El plan
+decide con qué lista nace; después manda la tabla, lo que permite vender add-ons y apagar
+módulos puntuales. El grafo `modulo_dependencias` impide encender un módulo sin lo que
+necesita o apagar uno del que otro depende.
+
+## Aislamiento entre negocios (RLS)
+
+Las tablas de negocio tienen `ENABLE` **y** `FORCE ROW LEVEL SECURITY` con la política
+`tenant_isolation` (`V2__rls.sql` de cada schema). El filtro por `negocio_id` en la
+aplicación es la primera línea; esta es la segunda.
+
+`shared.tenancy.AislamientoPorNegocio` corre al empezar cada transacción:
+
+```sql
+select set_config('app.negocio_id', :negocio, true)
+```
+
+El `true` lo hace local a la transacción: Hikari reutiliza conexiones y un `SET` normal
+dejaría el negocio anterior pegado. El aspecto va con orden 10 y la gestión de
+transacciones con orden 0, para que la transacción ya esté abierta cuando se fija el
+negocio. Sin negocio en contexto la consulta ve cero filas y la escritura la rechaza la
+política: falla cerrado.
+
+`FORCE` no es opcional: sin él, el dueño de las tablas —el usuario con el que se conecta
+la aplicación— se salta la política.
+
+Quedan **sin** RLS, a propósito: los catálogos globales (`modulos`, `planes`, `permisos`,
+`plantillas_rol`, `patrones_operativos`, `tipos_alerta`, `dim_fecha`) y las tablas de
+infraestructura de eventos.
+
+Los barridos programados que recorren todos los negocios (`shared.barridos`) son la única
+vía que lee sin contexto de negocio, y lo hacen a propósito, por un camino aparte.
+
+## Eventos entre módulos
+
+No hay broker. Un módulo publica con `RegistroDeEventos` (un `EventoGenerico` con
+`negocioId`, tipo y payload) y otros lo consumen con `@ApplicationModuleListener`:
 
 ```java
 @Transactional
@@ -232,108 +253,38 @@ public void completar(Venta venta) {
 }
 ```
 
-Si el commit falla no queda ni la venta ni el evento; si el commit pasa, el evento está
-guardado aunque RabbitMQ esté caído, y sale en la siguiente pasada del publicador.
-Publicar dentro del método, antes del commit, es justo lo que no se puede hacer: el
-broker recibiría el aviso de algo que todavía puede no ocurrir.
-
-**Consumir** pasa siempre por el Inbox:
-
 ```java
-inbox.procesarUnaVez(mensajeId, negocioId, tipoEvento, payload, cuerpo -> {
-    // el efecto: facturar, descontar stock, lo que sea
-});
+@ApplicationModuleListener
+public void recibir(EventoGenerico evento) {
+    if (!"venta_completada".equals(evento.tipoEvento())) return;
+    ContextoDeNegocio.en(contextoDe(evento.negocioId()), () ->
+        inbox.procesarUnaVez("facturacion.ConsumidorDeCierresFacturables",   // consumidor
+            evento.id(), evento.negocioId(), evento.tipoEvento(), cuerpo,
+            payload -> { /* facturar, sumar a caja, lo que sea */ }));
+}
 ```
 
-La clave es el `message-id` de AMQP, que el publicador pone igual al id del Outbox.
-RabbitMQ entrega *at-least-once*: el mismo evento puede llegar dos veces —basta con que
-un consumidor muera antes del ack— y sin el Inbox se factura dos veces.
+Garantías:
 
-Un evento que falla 10 veces queda `FALLIDO` y se enruta a `regenta.eventos.muertos`.
-El publicador toma los pendientes con `FOR UPDATE SKIP LOCKED`, así que varias
-instancias del mismo servicio pueden publicar a la vez sin duplicar.
+- **Publication Registry** (`spring-modulith-starter-jpa`): el evento se guarda en
+  `event_publication` dentro de la transacción del publicador. Si hay rollback, no existe.
+- **Después del commit**: el listener corre recién cuando el publicador confirmó, en su
+  propia transacción y en otro hilo.
+- **At least once**: si la JVM se cae, los eventos sin `completion_date` se reintentan al
+  arrancar. Por eso todo consumidor pasa por `InboxIdempotente`, que reclama **por
+  consumidor** (no por evento): dos módulos que escuchan el mismo evento no se pisan.
+- **Tenant explícito**: el listener corre en otro hilo, sin el `ThreadLocal` de la
+  petición; el `negocioId` viaja en el evento y se fija con `ContextoDeNegocio.en(...)`.
 
-Se configura bajo `regenta.eventos.*` (exchange, lote, intervalo, intentos). En tests se
-apaga el latido con `regenta.eventos.publicador-activo=false` y se publica a mano.
+Matriz completa de quién publica y quién escucha: `docs/migracion/03-eventos.md`.
 
-## El contrato: OpenAPI en cada servicio
+## Despliegue
 
-Cada servicio publica el suyo en `/v3/api-docs` y lo muestra en `/swagger-ui`. La
-dependencia y la configuracion entran **una sola vez**, por `comun`: los quince
-servicios dicen lo mismo sin copiar y pegar, y el cliente Dart generado contra uno
-sabe leer a todos.
+- **Imagen**: `Dockerfile` multi-stage; compila con `eclipse-temurin:17-jdk-alpine` y corre
+  con `17-jre-alpine` como usuario sin privilegios, `-XX:MaxRAMPercentage=75.0`, puerto `$PORT`.
+- **Railway**: `railway.json` (build por Dockerfile, reinicio `ON_FAILURE`, healthcheck
+  `/actuator/health`). Producción: <https://regenta-production.up.railway.app>.
+- **Frontend**: Cloudflare Pages en <https://regenta.pages.dev>, que apunta a la URL de
+  Railway.
 
-Todo endpoint declara, sin que el servicio escriba una linea, los cuatro codigos que
-pueden pasarle a cualquiera:
-
-| Codigo | Cuando |
-|---|---|
-| 401 | Token ausente, expirado, con firma invalida o de otro emisor |
-| 402 | El negocio esta `SUSPENDIDO` o `CANCELADO` |
-| 403 | Autenticado, pero sin permiso, o con el modulo fuera de su plan |
-| 422 | Peticion bien formada que rompe una regla de negocio |
-
-Los dos primeros los pone el gateway antes de que la peticion llegue al servicio; los
-otros dos salen del filtro de permisos y de la validacion. Si el generador del cliente
-no los ve en el contrato, no genera con que atraparlos. Un servicio que documente uno
-de los cuatro por su cuenta manda sobre el texto comun.
-
-## Identidad: entrar y mantenerse dentro
-
-El login es el único punto del sistema que empieza sin saber a qué negocio pertenece
-quien llama. Por eso arranca en `acceso_por_correo` —la única tabla del servicio sin
-RLS, y que no guarda ni hash ni estado ni roles— y en cuanto sabe el negocio lo fija
-para el resto de la transacción.
-
-Si el mismo correo trabaja en dos negocios, el API no adivina: devuelve la lista y
-espera a que la app diga en cuál.
-
-El token de acceso dura 15 minutos. El de refresco dura 30 días pero **rota en cada
-uso**: el anterior queda revocado y apuntando al que lo reemplazó. Si alguien presenta
-uno ya usado, es que hay dos manos con el mismo secreto y no hay forma de saber cuál es
-la del dueño, así que se cae la sesión entera. De los refresh tokens solo se guarda su
-SHA-256, y llevan el negocio delante (`<uuid>.<secreto>`) porque su tabla tiene RLS y
-sin saber el negocio no hay forma de buscarlos.
-
-Cinco intentos fallidos seguidos bloquean la cuenta 15 minutos. El contador se escribe
-en su propia transacción: si viviera en la del login, se iría con el rollback del 401 y
-no bloquearía nunca.
-
-## El plan manda, pero no decide
-
-Lo que un negocio tiene encendido está en `negocio_modulos`, no en su plan. El plan
-decide con qué lista nace y qué pasa cuando se cambia; de ahí en adelante manda la
-tabla. Eso es lo que permite vender un add-on sin cambiar de plan y apagar un módulo
-puntual sin bajarlo.
-
-El grafo `modulo_dependencias` no es decoración: `FACTURACION` sin `VENTAS` no tiene de
-dónde sacar qué facturar. No se enciende algo que necesita lo que no está, ni se apaga
-algo de lo que otro depende.
-
-Cambiar de plan cierra la suscripción vigente, abre la nueva, recalcula los módulos del
-plan y **respeta los add-ons**. Publica `plan_cambiado`; la app se entera al refrescar el
-token, que dura 15 minutos a propósito.
-
-Dos códigos distintos para dos cosas distintas, y esto se repite en los quince servicios:
-
-| | |
-|---|---|
-| `@RequiereModulo` | **402**. El usuario tiene el permiso; lo que falta es el módulo en el plan |
-| `@RequierePermiso` | **403**. El módulo está; lo que no alcanza es el rol |
-
-## Estado
-
-- **`E00` Fundación — completa.** Bases por servicio, Flyway con `validate`, RLS con
-  `FORCE`, Gateway (JWT + enrutado + 402 por plan), Outbox/Inbox como librería,
-  pipeline de CI y OpenAPI por servicio.
-- **`E01` Core — completa.** `servicio-usuarios` da de alta negocios, emite y rota
-  tokens, gestiona usuarios con el techo del plan, roles con el catálogo de permisos,
-  módulos con su grafo, configuración fiscal y sucursales.
-- **`E03` Inventario — en curso (HU-026 → HU-031).** `servicio-inventario` tiene
-  categorías con jerarquía, atributos por categoría, productos con validación contra
-  `atributos_categoria`, bodegas y existencias `(producto, bodega)`, libro mayor
-  append-only y lotes con FEFO y bloqueo del vencido. Faltan traslados, ajustes,
-  reserva/saga, búsqueda/escáner y listas de precios (HU-032 → HU-036).
-
-Lo siguiente es cerrar `E03` y arrancar `servicio-ventas` con la saga que reserva
-stock en Inventario, más el primer servicio que consuma eventos de `servicio-usuarios`.
+Guía detallada: `docs/migracion/07-despliegue.md`.

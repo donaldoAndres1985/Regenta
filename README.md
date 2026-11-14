@@ -252,31 +252,31 @@ El backend se organiza en **módulos de negocio delimitados** dentro de un únic
 
 ### Multi-Tenancy y Seguridad
 
-1. **Aislamiento por Row-Level Security (RLS):** Cada consulta a PostgreSQL evalúa `negocio_id = current_setting('app.current_negocio_id')::uuid`. La seguridad reside en el motor de base de datos, imposibilitando fugas de datos accidentales por filtros `WHERE` omitidos en la aplicación.
+1. **Aislamiento por Row-Level Security (RLS):** Cada transacción fija `set_config('app.negocio_id', <negocio del JWT>, true)` y las políticas de PostgreSQL filtran por esa variable (`FORCE ROW LEVEL SECURITY`). La seguridad reside en el motor de base de datos, imposibilitando fugas de datos accidentales por filtros `WHERE` omitidos en la aplicación.
 2. **Autenticación sin Estado (JWT):** Tokens firmados con HMAC-SHA256 que viajan en la cabecera `Authorization: Bearer`. Portan los permisos del usuario, rol y el `negocio_id`.
 3. **Control de Acceso Basado en Permisos (RBAC):** Métodos anotados con `@RequierePermiso("MODULO_ACCION")` y validación de activación del módulo por plan contratado.
 
 ### Base de Datos Multi-Schema en PostgreSQL
 
-Se utiliza una sola base de datos dividida en schemas lógicos para aislar dominios:
+Se utiliza una sola base de datos dividida en 15 schemas, uno por módulo. Las migraciones de cada uno viven en `db/migration/<modulo>/` y las aplica `ConfiguracionMultiSchemaFlyway`:
 
 ```
-postgres (db)
- ├── core         → Negocios, usuarios, roles, permisos, configuración fiscal
- ├── inventario   → Productos, existencias, bodegas, movimientos, lotes FEFO
- ├── ventas       → Ventas directas, líneas, pagos, cobros
- ├── clientes     → CRM, carteras, cuentas por cobrar
- ├── caja         → Cajas físicas, sesiones/turnos, arqueo, movimientos de efectivo
- ├── compras      → Órdenes de compra, recepción de mercancías, proveedores
- ├── facturacion  → Factura electrónica DIAN, notas crédito, CUFE, XML
- ├── reservas     → Recursos, disponibilidad TSTZRANGE, check-in / check-out
- ├── mesas        → Salones, plano de mesas, sesiones
- ├── comandas     → Comandas vivas, pedidos, cuentas divididas
- ├── cocina       → Estaciones KDS, tickets de preparación
- ├── menu         → Cartas, ítems de menú, modificadores
- ├── reportes     → Vistas materializadas y data marts de analítica
- ├── alertas      → Reglas de notificación, stock bajo, vencimientos
- └── auditoria    → Bitácora append-only inmutable de eventos
+regenta_monolito (db)
+ ├── core_identidad → Negocios, usuarios, roles, permisos, planes, configuración fiscal
+ ├── crm            → Clientes, carteras, cuentas por cobrar, interacciones
+ ├── inventario     → Productos, existencias, bodegas, movimientos, lotes FEFO
+ ├── ventas         → Ventas directas, líneas, cotizaciones, devoluciones, sagas
+ ├── compras        → Órdenes de compra, recepción de mercancías, proveedores
+ ├── caja           → Cajas físicas, sesiones/turnos, arqueo, movimientos de efectivo
+ ├── facturacion    → Factura electrónica DIAN, notas crédito, CUFE, resoluciones
+ ├── recursos       → Habitaciones, canchas, bloqueos de mantenimiento
+ ├── reservas       → Reservas, disponibilidad TSTZRANGE, check-in / check-out
+ ├── menu           → Cartas, ítems de menú, recetas
+ ├── mesas          → Salones, zonas, plano de mesas
+ ├── comandas       → Comandas vivas, pedidos, cocina (KDS)
+ ├── reportes       → Data mart en estrella para analítica
+ ├── alertas        → Reglas de notificación, stock bajo, vencimientos
+ └── auditoria      → Bitácora append-only inmutable de eventos
 ```
 
 ### Eventos de Dominio en Proceso
@@ -373,14 +373,15 @@ El backend de Regenta está preparado para desplegarse en **Railway** con un sol
 
 | Variable | Valor / Descripción |
 | :--- | :--- |
-| `SPRING_PROFILES_ACTIVE` | `prod` |
-| `DB_HOST` | `${{Postgres.PGHOST}}` |
-| `DB_PORT` | `${{Postgres.PGPORT}}` |
-| `DB_NAME` | `${{Postgres.PGDATABASE}}` |
-| `DB_USERNAME` | `${{Postgres.PGUSER}}` |
+| `DATABASE_URL` | `jdbc:postgresql://${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}` |
+| `DB_USER` | `${{Postgres.PGUSER}}` |
 | `DB_PASSWORD` | `${{Postgres.PGPASSWORD}}` |
-| `JWT_SECRET` | *(Clave segura en Base64 o frase secreta de 256 bits)* |
-| `CORS_ALLOWED_ORIGINS` | `https://tu-dominio.com,https://app.regenta.com` |
+| `DB_POOL_MAX` | *(opcional, por defecto 15)* |
+| `JWT_SECRETO` | *(secreto HS256 de al menos 32 bytes)* |
+| `JWT_EMISOR` | *(opcional, por defecto `regenta`)* |
+| `CORS_ORIGINS` | `https://regenta.pages.dev,https://*.regenta.pages.dev` |
+
+`PORT` lo inyecta Railway.
 
 Railway compila la imagen en ~2 minutos y levanta el monolito modular con un consumo promedio de **512 MB - 768 MB de RAM**, reduciendo los costos operativos a una fracción del costo de microservicios.
 
