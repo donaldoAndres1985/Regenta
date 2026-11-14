@@ -16,6 +16,83 @@ import 'pantalla_cliente_de_venta.dart';
 import 'pantalla_cobro.dart';
 import 'ticket_pos.dart';
 
+void _mostrarNotificacionPos(
+  BuildContext context,
+  String mensaje, {
+  bool esError = false,
+  bool esExito = false,
+  String? accionLabel,
+  VoidCallback? onAccion,
+  Duration duracion = const Duration(seconds: 4),
+}) {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.hideCurrentSnackBar();
+  messenger.showSnackBar(
+    SnackBar(
+      behavior: SnackBarBehavior.floating,
+      elevation: 6,
+      margin: const EdgeInsets.only(bottom: 24, left: 24, right: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: esError
+              ? RegentaColors.posStockCeroBorde
+              : (esExito ? RegentaColors.posStockOkBorde : RegentaColors.posModalBorde),
+          width: 1.2,
+        ),
+      ),
+      backgroundColor: esError
+          ? RegentaColors.posStockCeroFondo
+          : (esExito ? RegentaColors.posStockOkFondo : RegentaColors.posModalFondo),
+      duration: duracion,
+      content: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: (esError
+                      ? RegentaColors.posStockCeroTexto
+                      : (esExito ? RegentaColors.posStockOkTexto : RegentaColors.posModalAcento))
+                  .withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              esError
+                  ? Icons.error_outline_rounded
+                  : (esExito ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded),
+              color: esError
+                  ? RegentaColors.posStockCeroTexto
+                  : (esExito ? RegentaColors.posStockOkTexto : RegentaColors.posModalAcento),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              mensaje,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+      action: (accionLabel != null && onAccion != null)
+          ? SnackBarAction(
+              label: accionLabel,
+              textColor: esExito
+                  ? RegentaColors.posStockOkTexto
+                  : RegentaColors.posModalAcento,
+              onPressed: onAccion,
+            )
+          : null,
+    ),
+  );
+}
+
 /// La pantalla de Nueva venta (POS). HU-045 y `design/comportamiento/POS.md`.
 class PantallaPos extends ConsumerStatefulWidget {
   const PantallaPos({super.key, this.onAgregarCliente, this.onVentaCobrada});
@@ -97,9 +174,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
 
     // Ctrl+M: Abrir monedero / cajón
     if (esCtrl && tecla == LogicalKeyboardKey.keyM) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Comando apertura de cajón monedero enviado')),
-      );
+      _mostrarNotificacionPos(context, 'Comando apertura de cajón monedero enviado');
       return true;
     }
 
@@ -311,15 +386,19 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                 final errorColor = Theme.of(context).colorScheme.error;
 
                 if (monto <= 0) {
-                  messenger.showSnackBar(
-                    const SnackBar(content: Text('Falta total del movimiento de caja.')),
+                  _mostrarNotificacionPos(
+                    context,
+                    'Falta total del movimiento de caja.',
+                    esError: true,
                   );
                   focoMonto.requestFocus();
                   return;
                 }
                 if (concepto.isEmpty) {
-                  messenger.showSnackBar(
-                    const SnackBar(content: Text('Falta descripción del movimiento de caja.')),
+                  _mostrarNotificacionPos(
+                    context,
+                    'Falta descripción del movimiento de caja.',
+                    esError: true,
                   );
                   return;
                 }
@@ -332,20 +411,17 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                     await ctrlCaja.registrarRetiro(monto, concepto);
                   }
                   if (!mounted) return;
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Movimiento de ${esIngreso ? "Entrada" : "Salida"} por ${formatearPesos(monto)} registrado correctamente.',
-                      ),
-                    ),
+                  _mostrarNotificacionPos(
+                    context,
+                    'Movimiento de ${esIngreso ? "Entrada" : "Salida"} por ${formatearPesos(monto)} registrado correctamente.',
+                    esExito: true,
                   );
                 } catch (e) {
                   if (!mounted) return;
-                  messenger.showSnackBar(
-                    SnackBar(
-                      backgroundColor: errorColor,
-                      content: Text('Error al registrar movimiento: $e'),
-                    ),
+                  _mostrarNotificacionPos(
+                    context,
+                    'Error al registrar movimiento: $e',
+                    esError: true,
                   );
                 }
               },
@@ -526,18 +602,18 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     if (!estado.puedeCobrar) {
       if (estado.lineas.isEmpty) return;
       if (estado.hayLineasSinStock) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Hay líneas sin stock: quítalas antes de cobrar')),
+        _mostrarNotificacionPos(
+          context,
+          'Hay líneas sin stock: quítalas antes de cobrar',
+          esError: true,
         );
         return;
       }
       if (estado.faltaIdentificarComprador) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'La venta supera \$ ${estado.montoParaIdentificar}: identifica al comprador antes de cobrar',
-            ),
-          ),
+        _mostrarNotificacionPos(
+          context,
+          'La venta supera \$ ${estado.montoParaIdentificar}: identifica al comprador antes de cobrar',
+          esError: true,
         );
         return;
       }
@@ -563,8 +639,10 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
 
       if (!ventaConfirmada.confirmada) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No hay stock suficiente para completar la venta')),
+          _mostrarNotificacionPos(
+            context,
+            'No hay stock suficiente para completar la venta',
+            esError: true,
           );
         }
         return;
@@ -582,10 +660,10 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
 
       if (mounted) {
         pos.vaciarTrasCobro(ventaConfirmada.numero);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('⚡ Venta ${ventaConfirmada.numero} cobrada en efectivo exacto'),
-          ),
+        _mostrarNotificacionPos(
+          context,
+          '⚡ Venta ${ventaConfirmada.numero} cobrada en efectivo exacto',
+          esExito: true,
         );
       }
     } on ErrorDeRed {
@@ -593,11 +671,10 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       await pos.cobrar();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            content: Text('Error al cobrar venta rápida: $e'),
-          ),
+        _mostrarNotificacionPos(
+          context,
+          'Error al cobrar venta rápida: $e',
+          esError: true,
         );
       }
     }
@@ -901,41 +978,46 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                 ))
             .toList();
 
+        final clienteNombre = estado.cliente?.nombre;
+        final clienteDoc = estado.cliente?.numeroDocumento;
+        final subtotal = estado.subtotalBruto;
+        final descuento = estado.descuentoTotal;
+        final impuesto = estado.impuesto;
+        final total = estado.total;
+
+        // Limpiar el carrito de ventas inmediatamente tras crear la cotización
+        ref.read(controladorDelPosProvider.notifier).vaciar();
+
         void imprimir() {
           GeneradorTicketPos.imprimirOPrevisualizarCotizacion(
             context,
             numeroCotizacion: cot.numero,
-            clienteNombre: estado.cliente?.nombre,
-            clienteDoc: estado.cliente?.numeroDocumento,
+            clienteNombre: clienteNombre,
+            clienteDoc: clienteDoc,
             lineas: lineasTicket,
-            subtotal: estado.subtotalBruto,
-            descuento: estado.descuentoTotal,
-            impuesto: estado.impuesto,
-            total: estado.total,
+            subtotal: subtotal,
+            descuento: descuento,
+            impuesto: impuesto,
+            total: total,
             validaHasta: cot.validaHasta,
           );
         }
 
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cotización #${cot.numero} creada exitosamente'),
-            duration: const Duration(seconds: 8),
-            action: SnackBarAction(
-              label: 'Imprimir',
-              textColor: Colors.white,
-              onPressed: imprimir,
-            ),
-          ),
+        _mostrarNotificacionPos(
+          context,
+          'Cotización #${cot.numero} creada exitosamente',
+          esExito: true,
+          duracion: const Duration(seconds: 8),
+          accionLabel: 'Imprimir',
+          onAccion: imprimir,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            content: Text('Error al crear cotización: $e'),
-          ),
+        _mostrarNotificacionPos(
+          context,
+          'Error al crear cotización: $e',
+          esError: true,
         );
       }
     }
@@ -955,23 +1037,17 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
           final pos = ref.read(controladorDelPosProvider.notifier);
           pos.cargarLineasDesdeVenta(venta.lineas);
           if (mounted) {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
             if (resultado.preciosDesactualizados) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                  content: Text(
-                    'Cotización vencida convertida en venta #${resultado.numeroVenta}. Verifica los precios antes de cobrar.',
-                  ),
-                ),
+              _mostrarNotificacionPos(
+                context,
+                'Cotización vencida convertida en venta #${resultado.numeroVenta}. Verifica los precios antes de cobrar.',
+                esError: true,
               );
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Cotización #${cotizacion.numero} convertida en venta #${resultado.numeroVenta}',
-                  ),
-                ),
+              _mostrarNotificacionPos(
+                context,
+                'Cotización #${cotizacion.numero} convertida en venta #${resultado.numeroVenta}',
+                esExito: true,
               );
             }
           }
@@ -993,17 +1069,18 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       }
       if (ahora.ventaNumero != null && ahora.ventaNumero != antes?.ventaNumero) {
         widget.onVentaCobrada?.call(ahora.ventaNumero!);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Venta ${ahora.ventaNumero} cobrada')),
+        _mostrarNotificacionPos(
+          context,
+          'Venta ${ahora.ventaNumero} cobrada',
+          esExito: true,
         );
       } else if (ahora.ventaEnCola && !(antes?.ventaEnCola ?? false)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Venta guardada sin señal: sube sola cuando vuelva la conexión'),
-          ),
+        _mostrarNotificacionPos(
+          context,
+          'Venta guardada sin señal: sube sola cuando vuelva la conexión',
         );
       } else if (ahora.mensaje != null && ahora.mensaje != antes?.mensaje) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ahora.mensaje!)));
+        _mostrarNotificacionPos(context, ahora.mensaje!);
       }
     });
 
@@ -3457,11 +3534,10 @@ class _DialogoCargarCotizacionState extends State<_DialogoCargarCotizacion> {
       await widget.onCotizacionConvertida(res, c);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            content: Text('Error al convertir cotización: $e'),
-          ),
+        _mostrarNotificacionPos(
+          context,
+          'Error al convertir cotización: $e',
+          esError: true,
         );
         setState(() => _convirtiendoId = null);
       }
@@ -3595,10 +3671,10 @@ class _DialogoCargarCotizacionState extends State<_DialogoCargarCotizacion> {
                                       }
                                     } catch (e) {
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Error al cargar cotización: $e'),
-                                          ),
+                                        _mostrarNotificacionPos(
+                                          context,
+                                          'Error al cargar cotización: $e',
+                                          esError: true,
                                         );
                                       }
                                     }
