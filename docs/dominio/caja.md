@@ -23,6 +23,7 @@ comandas, reservas, recaudos de cartera) y los movimientos manuales del cajero.
 | **Base** | Efectivo con el que se abre la sesión. Es el primer movimiento. | — |
 | **Movimiento de caja** | Entrada o salida de dinero dentro de una sesión, con un método de pago. **Todo movimiento suma al arqueo.** | fila de `caja` |
 | **Movimiento manual** | Ingreso, retiro o gasto que registra el cajero, sin venta detrás. Exige concepto. | Entrada / Salida (`MC<n>`) |
+| **Pago a proveedor** | Salida de efectivo de la sesión para abonar una cuenta por pagar. **No la registra el cajero en caja**: la registra Compras al pagar la cuenta, y la caja la recibe sola. | Abono Proveedores (movimiento 4) |
 | **Anulación** | Movimiento compensatorio que revierte un movimiento manual. El original no se borra. | `DELETE FROM caja` |
 | **Método de pago** | `EFECTIVO`, `TARJETA_DEBITO`, `TARJETA_CREDITO`, `TRANSFERENCIA`, `QR`, `BONO`, `CREDITO`, `OTRO`. | `tipo_pago` |
 | **Método cuadrable** | Método cuyo dinero se cuenta físicamente al cerrar. Lo configura cada negocio. | todos menos Débito y Gratis (fijo) |
@@ -100,6 +101,7 @@ restricción en PostgreSQL probada con Testcontainers.
 |---|---|---|
 | Consume | `venta_completada`, `pedido_completado`, `anticipo_reserva_cobrado`, `estancia_finalizada` | Registrar el cobro en la sesión abierta |
 | Consume | `aporte_venta_acumulada_registrado` *(nuevo)* | Registrar en efectivo cada aporte a la venta acumulada. La emisión de la venta acumulada **no** genera otro cobro |
+| Consume | `pago_a_proveedor_registrado` *(nuevo, HU-145)* | Registrar la salida de efectivo de un pago a proveedor hecho desde la caja abierta |
 | Publica | `caja_descuadrada` | Alertar cuando el cierre no cuadra (ya existe) |
 | Publica | `caja_cerrada` *(nuevo)* | Reportes, auditoría, y que Ventas emita la venta acumulada abierta de la sesión |
 | Publica | `movimiento_de_caja_anulado` *(nuevo)* | Auditoría: quién anuló, qué y por qué |
@@ -139,4 +141,4 @@ total "DEBITO" que mezcla Gratis y Débito; cerrar "todo lo abierto del usuario"
 
 - ~~Venta acumulada~~ — resuelto: vive en `docs/dominio/ventas.md`. Caja recibe cada aporte
   en efectivo y publica `caja_cerrada` para que Ventas la emita. Caja no conoce sus reglas.
-- Abono a proveedor: ¿sale de la caja o de otra cuenta?
+- ~~Abono a proveedor~~ — resuelto 2026-11-14 (HU-145): si se paga en efectivo desde la caja abierta, lo registra Compras y la caja recibe la salida por evento. Por transferencia, cheque o tarjeta no toca la caja.

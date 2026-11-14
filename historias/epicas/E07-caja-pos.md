@@ -4,8 +4,8 @@ Apertura, arqueo y cierre. Transversal a los tres patrones.
 
 | | |
 |---|---|
-| Historias | 11 |
-| Puntos | 40 |
+| Historias | 12 |
+| Puntos | 43 |
 | Plan mínimo | Empresarial |
 
 Modelo de dominio de referencia: [`docs/dominio/caja.md`](../../docs/dominio/caja.md). Las
@@ -395,6 +395,47 @@ aprobaron el 2026-11-14.
 
 - [ ] Los criterios de aceptación pasan como tests automatizados.
 - [ ] Endpoints documentados en el contrato OpenAPI.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-145 · Pago a proveedor en efectivo desde la caja
+
+> Aprobada 2026-11-14 (diseño acordado con el usuario).
+
+**Como** cajero, **quiero** que al pagarle a un proveedor en efectivo con la plata de la caja la salida quede registrada sola **para** no tener que anotar el mismo pago dos veces y que la deuda y la caja siempre coincidan
+
+| | |
+|---|---|
+| Épica | `E07` · Caja y POS |
+| Puntos | 3 |
+| Módulos | `compras` (publica) · `caja` (consume) |
+| Paquete Flutter | `compras` |
+| Tablas | `compras.pagos_proveedor` · `caja.movimientos_caja` |
+| Depende de | HU-049 (Cuentas por pagar y pagos a proveedores) · HU-060 (Movimientos de caja desde los tres patrones) |
+| Invariantes | `I2` · `I3` · `I13` |
+| Etiquetas | `caja` · `compras` · `backend` · `flutter` · `eventos` |
+
+> Viene de Sara POS (`AbonosCuentas`, movimiento «Abono Proveedores» en la caja). En Regenta no es
+> una salida manual: la registra Compras y la caja la recibe por evento, igual que los cobros.
+
+**Criterios de aceptación**
+
+1. Dado un pago a una cuenta por pagar en `EFECTIVO` con una sesión de caja abierta indicada, cuando se registra, entonces la caja registra una salida de tipo `PAGO_PROVEEDOR`, en efectivo, por el mismo monto, con el proveedor y el número de factura como documento, y el efectivo esperado de la sesión baja en ese monto.
+2. Dado un pago por transferencia, cheque o tarjeta, cuando se registra, entonces no genera nada en la caja.
+3. Dado un pago en efectivo sin sesión de caja indicada, cuando se registra, entonces no genera nada en la caja: se pagó con dinero de fuera de la caja.
+4. Dado un pago en efectivo con una sesión que no está abierta o que no existe, cuando intento registrarlo, entonces se rechaza con 409 y no se registra el pago.
+5. Dado el mismo evento de pago entregado dos veces, cuando llega el duplicado, entonces la caja no registra la salida otra vez.
+6. Dada la salida de un pago a proveedor, cuando intento anularla desde la caja, entonces se rechaza con 422: no es un movimiento manual (se corrige desde Compras).
+7. Dados dos negocios, cuando el negocio A paga desde su caja, entonces la caja del negocio B no cambia.
+8. Dada la pantalla de pagar una cuenta por pagar en la app, cuando elijo efectivo y hay una sesión de caja abierta, entonces puedo marcar «Pagar con dinero de la caja».
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados.
+- [ ] Endpoints documentados en el contrato OpenAPI.
+- [ ] Migración Flyway aplicada y `ddl-auto` sigue en `validate` (tipo `PAGO_PROVEEDOR` en el `CHECK` de `movimientos_caja`).
+- [ ] `ModularityTests` en verde: Compras solo usa `caja.api`.
 - [ ] Revisada en PR por otra persona.
 
 ---
