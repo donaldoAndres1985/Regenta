@@ -412,12 +412,12 @@ class _VistaDeExitoState extends State<_VistaDeExito> {
     super.initState();
     if (ConfiguradorDeTicket.impresionAutomaticaFactura) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _imprimir();
+        if (mounted) _imprimir(directo: true);
       });
     }
   }
 
-  void _imprimir() {
+  void _imprimir({bool directo = false}) {
     GeneradorTicketPos.imprimirOPrevisualizarTicketCobrado(
       context,
       numeroVenta: widget.numero,
@@ -427,6 +427,7 @@ class _VistaDeExitoState extends State<_VistaDeExito> {
       total: widget.total,
       pagos: widget.pagos,
       cambio: widget.cambio,
+      directo: directo,
     );
   }
 
