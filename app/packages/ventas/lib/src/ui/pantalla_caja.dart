@@ -7,6 +7,7 @@ import 'package:regenta_core/regenta_core.dart';
 import '../caja/datos/sesion_caja_modelos.dart';
 import '../caja/estado_de_caja.dart';
 import '../caja/proveedores.dart';
+import 'dialogo_de_cierre_por_metodo.dart';
 import 'formato.dart';
 
 class PantallaCaja extends ConsumerStatefulWidget {
@@ -128,7 +129,8 @@ class _PantallaCajaState extends ConsumerState<PantallaCaja> {
                     _AccionesDeTurno(
                       onIngreso: (monto, concepto) => ctrl.registrarIngreso(monto, concepto),
                       onRetiro: (monto, concepto) => ctrl.registrarRetiro(monto, concepto),
-                      onCierre: (monto) => ctrl.cerrarSesion(monto),
+                      cargarArqueo: ctrl.arqueoPorMetodo,
+                      onCierre: (contados) => ctrl.cerrarSesion(contados),
                     ),
                     const SizedBox(height: 24),
                     _ListaDeMovimientos(movimientos: estado.movimientos),
@@ -369,12 +371,14 @@ class _AccionesDeTurno extends StatelessWidget {
   const _AccionesDeTurno({
     required this.onIngreso,
     required this.onRetiro,
+    required this.cargarArqueo,
     required this.onCierre,
   });
 
   final void Function(num monto, String concepto) onIngreso;
   final void Function(num monto, String concepto) onRetiro;
-  final ValueChanged<num> onCierre;
+  final Future<List<LineaDeArqueoVista>> Function() cargarArqueo;
+  final ValueChanged<Map<String, num>> onCierre;
 
   @override
   Widget build(BuildContext context) {
@@ -395,7 +399,7 @@ class _AccionesDeTurno extends StatelessWidget {
         FilledButton.tonalIcon(
           icon: const Icon(Icons.lock_outline),
           label: const Text('Cerrar Turno (Arqueo)'),
-          onPressed: () => _mostrarDialogoCierre(context),
+          onPressed: () => unawaited(_mostrarDialogoCierre(context)),
         ),
       ],
     );
@@ -456,46 +460,32 @@ class _AccionesDeTurno extends StatelessWidget {
     );
   }
 
-  void _mostrarDialogoCierre(BuildContext context) {
-    final declaradoCtrl = TextEditingController();
-
-    unawaited(
-      showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Cierre y Arqueo de Caja'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Ingrese el monto físico total contado en la caja:'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: declaradoCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Efectivo Contado (\$)',
-                  border: OutlineInputBorder(),
-                  prefixText: '\$ ',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final monto = num.tryParse(declaradoCtrl.text.trim()) ?? 0;
+  /// HU-140 · el cierre se hace por método de pago (R22 y R23 de SesionDeCaja.md).
+  Future<void> _mostrarDialogoCierre(BuildContext context) async {
+    final lineas = await cargarArqueo();
+    if (!context.mounted || lineas.isEmpty) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cierre y Arqueo de Caja'),
+        content: SizedBox(
+          width: 560,
+          child: SingleChildScrollView(
+            child: DialogoDeCierrePorMetodo(
+              lineas: lineas,
+              onConfirmar: (contados) {
                 Navigator.of(ctx).pop();
-                onCierre(monto);
+                onCierre(contados);
               },
-              child: const Text('Confirmar Cierre'),
             ),
-          ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+        ],
       ),
     );
   }

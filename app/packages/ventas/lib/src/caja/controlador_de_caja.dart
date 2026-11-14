@@ -114,14 +114,26 @@ class ControladorDeCaja extends StateNotifier<EstadoDeCaja> {
     }
   }
 
-  Future<void> cerrarSesion(num montoDeclarado) async {
+  /// HU-140 · el arqueo por método de la sesión abierta, para la pantalla de cierre.
+  Future<List<LineaDeArqueoVista>> arqueoPorMetodo() async {
+    final sesion = state.sesionActiva;
+    if (sesion == null) return const [];
+    try {
+      return await _repo.arqueoPorMetodo(sesion.id);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return const [];
+    }
+  }
+
+  Future<void> cerrarSesion(Map<String, num> contados) async {
     final sesion = state.sesionActiva;
     if (sesion == null) return;
     state = state.copyWith(cargando: true, clearError: true);
     try {
       await _repo.cerrarSesion(
         sesionId: sesion.id,
-        montoDeclarado: montoDeclarado,
+        contados: contados,
       );
       state = state.copyWith(
         cargando: false,

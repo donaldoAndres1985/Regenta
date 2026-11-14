@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import com.regenta.caja.application.ArqueoPorMetodo;
 import com.regenta.caja.application.GestionDeArqueo;
 import com.regenta.caja.application.GestionDeSesionesDeCaja;
 import com.regenta.caja.application.MovimientoDelNegocio;
@@ -87,6 +88,12 @@ public class SesionesDeCajaControlador {
     public ResumenDeArqueo guardarArqueo(@PathVariable UUID sesionId,
             @Valid @RequestBody SolicitudDeArqueo solicitud) {
         return arqueo.guardar(sesionId, solicitud);
+    }
+
+    @GetMapping("/{sesionId}/arqueo/metodos")
+    @Operation(summary = "El arqueo por método de pago: esperado, contado y diferencia (HU-140)")
+    public ArqueoPorMetodo arqueoPorMetodo(@PathVariable UUID sesionId) {
+        return arqueo.porMetodo(sesionId);
     }
 
     @PostMapping("/{sesionId}/cierre")

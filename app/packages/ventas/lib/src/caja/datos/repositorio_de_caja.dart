@@ -80,15 +80,24 @@ class RepositorioDeCaja {
     return MovimientoCajaVista.desdeJson((res as Map).cast<String, dynamic>());
   }
 
+  /// HU-140 · el arqueo por método de pago de la sesión (la previa del cierre).
+  Future<List<LineaDeArqueoVista>> arqueoPorMetodo(String sesionId) async {
+    final res = await _http.get<Map<String, dynamic>>(
+      '/api/caja/sesiones/$sesionId/arqueo/metodos',
+    );
+    return ((res['lineas'] as List?) ?? const [])
+        .map((e) => LineaDeArqueoVista.desdeJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// HU-140 · cierra la sesión con lo contado de cada método cuadrable.
   Future<SesionCajaActiva> cerrarSesion({
     required String sesionId,
-    required num montoDeclarado,
+    required Map<String, num> contados,
   }) async {
     final res = await _http.post<Map<String, dynamic>>(
       '/api/caja/sesiones/$sesionId/cierre',
-      datos: {
-        'montoDeclarado': montoDeclarado,
-      },
+      datos: {'contados': contados},
     );
     return SesionCajaActiva.desdeJson((res as Map).cast<String, dynamic>());
   }

@@ -2,6 +2,8 @@ package com.regenta.caja.domain;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
@@ -131,23 +133,41 @@ public class SesionDeCaja {
     }
 
     /**
-     * Criterio 3 y 4: cierra con lo esperado (calculado) y lo declarado
-     * (contado). El estado sale de comparar los dos —igual que la columna
-     * generada {@code diferencia}—.
+     * HU-140: cierra la sesión con su arqueo por método de pago.
+     *
+     * <p>I11: queda {@code CUADRADA} solo si todas las líneas cuadran. I12: una sesión cerrada
+     * no se vuelve a cerrar. {@code monto_esperado}/{@code monto_declarado} conservan la línea
+     * de efectivo (HU-059), y los totales del turno salen de los esperados de cada método.
      */
-    public void cerrar(UUID usuarioId, BigDecimal montoEsperado, BigDecimal montoDeclarado,
-            BigDecimal totalEfectivo, String observaciones) {
+    public void cerrarConArqueo(UUID usuarioId, List<LineaDeArqueo> lineas, String observaciones) {
         if (estado != EstadoSesionCaja.ABIERTA) {
             throw new ConflictoDeEstadoException("La sesión de caja ya está cerrada");
         }
+        LineaDeArqueo efectivo = lineas.stream()
+                .filter(l -> l.metodo() == MetodoPagoCaja.EFECTIVO).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("El arqueo no trae línea de efectivo"));
+
         this.usuarioCierreId = usuarioId;
         this.cerradaEn = OffsetDateTime.now();
-        this.montoEsperado = montoEsperado;
-        this.montoDeclarado = montoDeclarado;
-        this.totalEfectivo = totalEfectivo;
+        this.montoEsperado = efectivo.esperado();
+        this.montoDeclarado = efectivo.contado();
+        this.totalEfectivo = efectivo.esperado();
+        this.totalTarjetas = esperadoDe(lineas, MetodoPagoCaja.TARJETA_DEBITO)
+                .add(esperadoDe(lineas, MetodoPagoCaja.TARJETA_CREDITO));
+        this.totalTransferencias = esperadoDe(lineas, MetodoPagoCaja.TRANSFERENCIA);
+        this.totalOtros = lineas.stream()
+                .filter(l -> !EnumSet.of(MetodoPagoCaja.EFECTIVO, MetodoPagoCaja.TARJETA_DEBITO,
+                        MetodoPagoCaja.TARJETA_CREDITO, MetodoPagoCaja.TRANSFERENCIA).contains(l.metodo()))
+                .map(LineaDeArqueo::esperado).reduce(BigDecimal.ZERO, BigDecimal::add);
+        this.numTransacciones = (int) lineas.stream().mapToLong(LineaDeArqueo::movimientos).sum();
         this.observaciones = observaciones;
-        this.estado = montoDeclarado.compareTo(montoEsperado) == 0
+        this.estado = lineas.stream().allMatch(LineaDeArqueo::cuadra)
                 ? EstadoSesionCaja.CUADRADA : EstadoSesionCaja.DESCUADRADA;
+    }
+
+    private static BigDecimal esperadoDe(List<LineaDeArqueo> lineas, MetodoPagoCaja metodo) {
+        return lineas.stream().filter(l -> l.metodo() == metodo).map(LineaDeArqueo::esperado)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     public boolean quedoDescuadrada() {

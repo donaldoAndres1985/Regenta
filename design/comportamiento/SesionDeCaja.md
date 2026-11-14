@@ -7,10 +7,11 @@
 |---|---|
 | Patrón | Transversal (Venta directa, Reserva, Comanda) |
 | Móvil / Web | `design/pantallas/CobroMovil.html` · `design/pantallas/CobroWeb.html` |
-| Paquete Flutter | `packages/ventas` (pantalla pendiente) |
-| Microservicio | `servicio-caja` |
-| Tablas | `caja.cajas` · `sesiones_caja` · `movimientos_caja` · `caja.consecutivos` |
-| Historias | HU-059 (Abrir y cerrar sesión de caja) · HU-060 (Movimientos desde los tres patrones) · HU-061 (Ingresos, retiros y gastos) · HU-062 (Arqueo por denominaciones) · HU-063 (Reporte de cierre) |
+| Paquete Flutter | `packages/ventas` (`PantallaCaja`, `DialogoDeCierrePorMetodo`) · `packages/usuarios` (`TarjetaMetodosNoCuadrables`) |
+| Módulo | `caja` (monolito) |
+| Tablas | `caja.cajas` · `sesiones_caja` · `movimientos_caja` · `caja.consecutivos` · `config_caja` · `arqueo_metodos` |
+| Historias | HU-059 (Abrir y cerrar sesión de caja) · HU-060 (Movimientos desde los tres patrones) · HU-061 (Ingresos, retiros y gastos) · HU-062 (Arqueo por denominaciones) · HU-063 (Reporte de cierre) · HU-139 (Métodos que no se cuadran) · HU-140 (Arqueo y cierre por método de pago) |
+| Dominio | [`docs/dominio/caja.md`](../../docs/dominio/caja.md) |
 
 Apertura, arqueo y cierre. Caja no vive dentro de Ventas: en Comanda también recibe pagos de
 comandas y en Reserva anticipos. Plan Empresarial.
@@ -127,9 +128,48 @@ reciente primero, cada una con su `estado` y una marca `descuadrada` (criterio 2
 de `packages/reportes` pinta las descuadradas con fondo y etiqueta de alerta frente a las
 cuadradas (criterio 3). Un rango invertido responde **422**.
 
+### R20 · Métodos que no se cuadran (HU-139)
+**Dado** un negocio, **cuando** consulto `GET /api/caja/config`, **entonces** trae
+`metodosNoCuadrables` (por defecto `TARJETA_DEBITO`, `TARJETA_CREDITO`, `BONO`, `CREDITO`). Se
+cambia con `PUT /api/caja/config/metodos-no-cuadrables` (`{metodos: [...]}`, `CAJA_TURNO_EDITAR`).
+Con `EFECTIVO` en la lista, o un método que no existe, **422**. La base rechaza `EFECTIVO`
+(`ck_config_caja_efectivo_cuadrable`). En la app: tarjeta «Cierre de caja» de la configuración del
+negocio, un interruptor por método; el de efectivo está fijo.
+
+### R21 · El arqueo se ve por método de pago (HU-140)
+**Dado** una sesión, **cuando** consulto `GET /api/caja/sesiones/{id}/arqueo/metodos`,
+**entonces** trae una línea por método con movimientos, más la de efectivo siempre:
+`{metodo, cuadrable, esperado, contado, diferencia, movimientos}` y los totales. Con la sesión
+abierta, el `contado` de un no cuadrable es su esperado, el del efectivo es el conteo por
+denominaciones (si hay) y el de los demás cuadrables viene nulo. Con la sesión cerrada, son las
+líneas guardadas al cerrar, sin importar cómo esté hoy la configuración.
+
+### R22 · El cierre se hace por método de pago (HU-140)
+**Dado** una sesión abierta, **cuando** cierro (`POST /{id}/cierre` con `contados: {"EFECTIVO":
+…, "QR": …}`), **entonces** se guarda una fila de `arqueo_metodos` por línea:
+- método no cuadrable: `contado = esperado`, diferencia 0 (lo que llegue en `contados` se ignora);
+- cuadrable sin contado: 0;
+- cuadrable sin movimientos pero con contado: entra con esperado 0 (sobrante a la vista);
+- efectivo: de `contados.EFECTIVO`, o de `montoDeclarado`, o del conteo por denominaciones.
+
+`diferencia` = `contado − esperado` la calcula la base. Si el efectivo contado es 0 o no viene,
+**422** «Debe escribir la cantidad de efectivo que hay en caja.». La sesión queda `CUADRADA` si
+todas las diferencias son 0; si no, `DESCUADRADA` y `caja_descuadrada` lleva
+`lineas_descuadradas`. Todo cierre publica `caja_cerrada` con el arqueo completo.
+`monto_esperado`/`monto_declarado`/`diferencia` de `sesiones_caja` siguen siendo la línea de
+efectivo (R3).
+
+### R23 · La pantalla de cierre recalcula en el momento (HU-140)
+**Dado** el diálogo de cierre, **cuando** escribo el contado de un método, **entonces** su
+diferencia y la diferencia total se recalculan antes de confirmar. Los no cuadrables se muestran
+con «No se cuenta: se concilia aparte», sin campo. «Confirmar cierre» queda deshabilitado mientras
+el efectivo contado sea 0. Faltante en rojo, sobrante en verde.
+
 ## Qué NO debe pasar
 
 - **No** dos sesiones `ABIERTA` de la misma caja — ni por la API ni por un `INSERT` directo.
 - **No** una `diferencia` calculada por la app: es columna generada.
 - **No** cerrar dos veces la misma sesión.
+- **No** un método no cuadrable con diferencia, ni el efectivo como no cuadrable — la base lo rechaza.
+- **No** cambiar un arqueo ya cerrado al cambiar la configuración.
 - **No** un `numero` con huecos: sale de `caja.consecutivos`.
