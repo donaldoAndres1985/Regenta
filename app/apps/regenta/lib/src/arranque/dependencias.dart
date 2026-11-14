@@ -217,6 +217,9 @@ class DependenciasDeLaApp {
     repositorioDeUsuariosProvider.overrideWithValue(
       RepositorioDeUsuarios(http),
     ),
+    repositorioDeConfigDeCajaProvider.overrideWithValue(
+      RepositorioDeConfigDeCaja(http),
+    ),
   ];
 
   Future<void> cerrar() async {

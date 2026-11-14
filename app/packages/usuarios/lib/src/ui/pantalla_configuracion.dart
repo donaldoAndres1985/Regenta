@@ -4,6 +4,7 @@ import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/configuracion_negocio_vista.dart';
 import '../usuarios/proveedores.dart';
+import 'tarjeta_metodos_no_cuadrables.dart';
 
 class PantallaConfiguracion extends ConsumerStatefulWidget {
   const PantallaConfiguracion({super.key});
@@ -483,6 +484,11 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 20),
+
+                      // HU-139: métodos de pago que se cuentan al cerrar la caja.
+                      // Se guarda aparte (su propio botón): vive en el módulo caja.
+                      const TarjetaMetodosNoCuadrables(),
                       const SizedBox(height: 24),
 
                       // Botón Guardar

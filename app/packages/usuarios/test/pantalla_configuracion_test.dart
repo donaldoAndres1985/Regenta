@@ -22,6 +22,15 @@ class _RepoUsuariosFake implements RepositorioDeUsuarios {
   }
 }
 
+/// La pantalla incluye la tarjeta de cierre de caja (HU-139), que lee su propio repositorio.
+class _RepoCajaFake implements RepositorioDeConfigDeCaja {
+  @override
+  Future<List<String>> verMetodosNoCuadrables() async => const ['BONO'];
+
+  @override
+  Future<List<String>> fijarMetodosNoCuadrables(List<String> metodos) async => metodos;
+}
+
 void main() {
   testWidgets('Carga y muestra el formulario de configuración', (tester) async {
     const configInicial = ConfiguracionNegocioVista(
@@ -43,6 +52,7 @@ void main() {
       ProviderScope(
         overrides: [
           repositorioDeUsuariosProvider.overrideWithValue(fakeRepo),
+          repositorioDeConfigDeCajaProvider.overrideWithValue(_RepoCajaFake()),
         ],
         child: const MaterialApp(
           home: PantallaConfiguracion(),
