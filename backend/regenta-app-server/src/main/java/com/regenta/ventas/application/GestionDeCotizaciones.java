@@ -35,14 +35,16 @@ public class GestionDeCotizaciones {
     private final CotizacionLineaRepositorio lineas;
     private final AsignadorDeConsecutivos consecutivos;
     private final GestionDeVentas ventas;
+    private final ConsultaDeClientes clientes;
 
     public GestionDeCotizaciones(CotizacionRepositorio cotizaciones,
             CotizacionLineaRepositorio lineas, AsignadorDeConsecutivos consecutivos,
-            GestionDeVentas ventas) {
+            GestionDeVentas ventas, ConsultaDeClientes clientes) {
         this.cotizaciones = cotizaciones;
         this.lineas = lineas;
         this.consecutivos = consecutivos;
         this.ventas = ventas;
+        this.clientes = clientes;
     }
 
     @Transactional
@@ -101,7 +103,7 @@ public class GestionDeCotizaciones {
     public List<CotizacionDelNegocio> listarCotizaciones() {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         return cotizaciones.findByNegocioIdOrderByCreadoEnDesc(negocioId).stream()
-                .map(GestionDeCotizaciones::comoDto)
+                .map(this::comoDto)
                 .toList();
     }
 
@@ -122,12 +124,14 @@ public class GestionDeCotizaciones {
         return cotizacion;
     }
 
-    private static CotizacionDelNegocio comoDto(Cotizacion c) {
+    private CotizacionDelNegocio comoDto(Cotizacion c) {
+        String clienteNombre = resolverClienteNombre(c.getClienteId());
         return new CotizacionDelNegocio(c.getId(), c.getNumero(), c.getEstado(), c.getValidaHasta(),
-                c.getTotal(), c.getVentaId(), c.getClienteId());
+                c.getTotal(), c.getVentaId(), c.getClienteId(), clienteNombre);
     }
 
-    private static CotizacionDelNegocio comoDtoConLineas(Cotizacion c, List<CotizacionLinea> lineasCot) {
+    private CotizacionDelNegocio comoDtoConLineas(Cotizacion c, List<CotizacionLinea> lineasCot) {
+        String clienteNombre = resolverClienteNombre(c.getClienteId());
         List<CotizacionDelNegocio.LineaDeCotizacionDelNegocio> lineasDto = lineasCot.stream()
                 .map(l -> new CotizacionDelNegocio.LineaDeCotizacionDelNegocio(
                         l.getLinea(), l.getProductoId(), l.getSkuSnapshot(), l.getNombreSnapshot(),
@@ -135,6 +139,16 @@ public class GestionDeCotizaciones {
                         l.getDescuentoPct(), l.getImpuestoPct(), l.getTotal()))
                 .toList();
         return new CotizacionDelNegocio(c.getId(), c.getNumero(), c.getEstado(), c.getValidaHasta(),
-                c.getTotal(), c.getVentaId(), c.getClienteId(), lineasDto);
+                c.getTotal(), c.getVentaId(), c.getClienteId(), clienteNombre, lineasDto);
+    }
+
+    private String resolverClienteNombre(UUID clienteId) {
+        if (clienteId == null) return "Consumidor Final";
+        try {
+            ClienteDeLaVenta cl = clientes.consultar(clienteId);
+            return cl != null ? cl.nombre() : "Cliente";
+        } catch (Exception e) {
+            return "Cliente";
+        }
     }
 }

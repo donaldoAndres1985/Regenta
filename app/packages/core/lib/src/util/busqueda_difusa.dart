@@ -44,6 +44,14 @@ class ConfiguradorDeTicket {
   static String mensajeDevolucion = 'NO SE HACEN DEVOLUCIONES DE DINERO';
   static String softwarePie = 'SARA - PUNTO DE VENTA - SOFTWARE POS';
 
+  /// `true`: abre automáticamente la vista de impresión del tiquete al crear una cotización en el POS.
+  /// `false`: muestra la notificación flotante con el botón interactivo "Imprimir".
+  static bool impresionAutomaticaCotizacion = false;
+
+  /// `true`: abre automáticamente la tirilla de venta para imprimir al cobrar en el POS.
+  /// `false`: no dispara la ventana de impresión automáticamente al cobrar.
+  static bool impresionAutomaticaFactura = false;
+
   static String get nombreNegocioOComercial =>
       razonSocial.trim().isNotEmpty
           ? razonSocial.trim()

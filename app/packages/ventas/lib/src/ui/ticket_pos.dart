@@ -516,6 +516,51 @@ class GeneradorTicketPos {
     );
   }
 
+  /// Abre la vista de impresión o previsualización para una venta cobrada en formato térmico de 80mm.
+  static Future<void> imprimirOPrevisualizarTicketCobrado(
+    BuildContext context, {
+    String? nombreNegocio,
+    required String numeroVenta,
+    String? fechaHora,
+    String? clienteNombre,
+    String? clienteDoc,
+    required List<LineaTicket> lineas,
+    required num total,
+    List<PagoTicket> pagos = const [],
+    num cambio = 0,
+  }) async {
+    final fechaFinal = fechaHora ?? DateTime.now().toString().split('.')[0];
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text('Ticket Venta #$numeroVenta')),
+          body: PdfPreview(
+            build: (format) => crearPdf(
+              nombreNegocio: nombreNegocio ?? ConfiguradorDeTicket.nombreNegocioOComercial,
+              numeroVenta: numeroVenta,
+              fechaHora: fechaFinal,
+              nombreCliente: clienteNombre,
+              identificacionCliente: clienteDoc,
+              lineas: lineas,
+              total: total,
+              pagos: pagos,
+              cambio: cambio,
+            ),
+            canChangeOrientation: false,
+            canChangePageFormat: false,
+            initialPageFormat: formato80mm,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Abre la vista de impresión o previsualización para una cotización en formato térmico de 80mm
   /// con los datos de configuración del negocio (estilo Cotizacion.jrxml de SISTEMA SARA).
   static Future<void> imprimirOPrevisualizarCotizacion(

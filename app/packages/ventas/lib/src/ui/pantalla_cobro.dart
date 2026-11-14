@@ -385,7 +385,7 @@ class _BotonDeMetodo extends StatelessWidget {
   }
 }
 
-class _VistaDeExito extends StatelessWidget {
+class _VistaDeExito extends StatefulWidget {
   const _VistaDeExito({
     required this.numero,
     required this.lineas,
@@ -405,6 +405,34 @@ class _VistaDeExito extends StatelessWidget {
   final num cambio;
 
   @override
+  State<_VistaDeExito> createState() => _VistaDeExitoState();
+}
+
+class _VistaDeExitoState extends State<_VistaDeExito> {
+  @override
+  void initState() {
+    super.initState();
+    if (ConfiguradorDeTicket.impresionAutomaticaFactura) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _imprimir();
+      });
+    }
+  }
+
+  void _imprimir() {
+    GeneradorTicketPos.imprimirOPrevisualizarTicketCobrado(
+      context,
+      numeroVenta: widget.numero,
+      clienteNombre: widget.clienteNombre,
+      clienteDoc: widget.clienteDoc,
+      lineas: widget.lineas,
+      total: widget.total,
+      pagos: widget.pagos,
+      cambio: widget.cambio,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(
@@ -412,7 +440,7 @@ class _VistaDeExito extends StatelessWidget {
         children: [
           const Icon(Icons.check_circle, color: RegentaColors.ok, size: 64),
           const SizedBox(height: 12),
-          Text('Venta $numero cobrada', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          Text('Venta ${widget.numero} cobrada', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 24),
           OutlinedButton.icon(
             key: const Key('boton-imprimir-ticket'),
@@ -421,35 +449,11 @@ class _VistaDeExito extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => Scaffold(
-                    appBar: AppBar(title: Text('Ticket Venta #$numero')),
-                    body: PdfPreview(
-                      build: (format) => GeneradorTicketPos.crearPdf(
-                        nombreNegocio: 'Regenta',
-                        numeroVenta: numero,
-                        fechaHora: DateTime.now().toString().split('.')[0],
-                        nombreCliente: clienteNombre,
-                        identificacionCliente: clienteDoc,
-                        lineas: lineas,
-                        total: total,
-                        pagos: pagos,
-                        cambio: cambio,
-                      ),
-                      canChangeOrientation: false,
-                      canChangePageFormat: false,
-                      initialPageFormat: GeneradorTicketPos.formato80mm,
-                    ),
-                  ),
-                ),
-              );
-            },
+            onPressed: _imprimir,
           ),
           const SizedBox(height: 12),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(numero),
+            onPressed: () => Navigator.of(context).pop(widget.numero),
             style: FilledButton.styleFrom(backgroundColor: RegentaColors.accent, foregroundColor: Colors.white),
             child: const Text('Listo'),
           ),
