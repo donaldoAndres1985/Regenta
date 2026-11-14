@@ -4,8 +4,10 @@ library;
 import 'package:regenta_core/regenta_core.dart';
 
 export 'src/datos/configuracion_negocio_vista.dart';
+export 'src/datos/repositorio_de_config_de_caja.dart';
 export 'src/datos/repositorio_de_usuarios.dart';
 export 'src/ui/pantalla_configuracion.dart';
+export 'src/ui/tarjeta_metodos_no_cuadrables.dart';
 export 'src/usuarios/proveedores.dart';
 
 

@@ -18,6 +18,7 @@ import com.regenta.caja.application.GestionDeMovimientosManuales;
 import com.regenta.caja.application.MovimientoDelNegocio;
 import com.regenta.caja.application.SolicitudDeConfigCaja;
 import com.regenta.caja.application.SolicitudDeIngreso;
+import com.regenta.caja.application.SolicitudDeMetodosNoCuadrables;
 import com.regenta.caja.application.SolicitudDeRetiro;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -67,5 +68,12 @@ public class MovimientosDeCajaControlador {
     @Operation(summary = "Fija el umbral de retiro que exige autorización")
     public ConfigCajaDelNegocio fijarConfig(@Valid @RequestBody SolicitudDeConfigCaja solicitud) {
         return config.fijar(solicitud);
+    }
+
+    @PutMapping("/config/metodos-no-cuadrables")
+    @Operation(summary = "Fija los métodos de pago que no se cuadran al cerrar la caja (HU-139)")
+    public ConfigCajaDelNegocio fijarMetodosNoCuadrables(
+            @Valid @RequestBody SolicitudDeMetodosNoCuadrables solicitud) {
+        return config.fijarMetodosNoCuadrables(solicitud);
     }
 }
