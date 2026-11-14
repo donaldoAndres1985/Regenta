@@ -136,6 +136,13 @@ void main() {
     expect(repo.ultimaCotizacionCreada, isNotNull);
     expect(repo.ultimaCotizacionCreada?.lineas.first.nombre, 'Cemento Gris');
     expect(find.text('Cotización #COT-099 creada exitosamente'), findsOneWidget);
+    // Verificar que el carrito de ventas se limpia automáticamente tras cotizar
+    expect(
+      ProviderScope.containerOf(tester.element(find.byType(PantallaPos)))
+          .read(controladorDelPosProvider)
+          .lineas,
+      isEmpty,
+    );
 
     // 3. Abrir diálogo de cargar cotización desde el AppBar
     await tester.tap(find.byKey(const Key('pos-boton-cargar-cotizacion')));
