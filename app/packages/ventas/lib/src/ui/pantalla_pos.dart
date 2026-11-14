@@ -382,12 +382,9 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
               onPressed: () async {
                 final monto = num.tryParse(montoCtrl.text.trim().replaceAll(',', '.')) ?? 0;
                 final concepto = conceptoCtrl.text.trim();
-                final messenger = ScaffoldMessenger.of(context);
-                final errorColor = Theme.of(context).colorScheme.error;
-
                 if (monto <= 0) {
                   _mostrarNotificacionPos(
-                    context,
+                    ctx,
                     'Falta total del movimiento de caja.',
                     esError: true,
                   );
@@ -396,7 +393,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                 }
                 if (concepto.isEmpty) {
                   _mostrarNotificacionPos(
-                    context,
+                    ctx,
                     'Falta descripción del movimiento de caja.',
                     esError: true,
                   );
@@ -412,14 +409,14 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                   }
                   if (!mounted) return;
                   _mostrarNotificacionPos(
-                    context,
+                    this.context,
                     'Movimiento de ${esIngreso ? "Entrada" : "Salida"} por ${formatearPesos(monto)} registrado correctamente.',
                     esExito: true,
                   );
                 } catch (e) {
                   if (!mounted) return;
                   _mostrarNotificacionPos(
-                    context,
+                    this.context,
                     'Error al registrar movimiento: $e',
                     esError: true,
                   );

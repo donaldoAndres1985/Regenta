@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
-import 'package:printing/printing.dart';
-
 import '../cobro/estado_del_cobro.dart';
 import '../cobro/proveedores.dart';
 import '../datos/repositorio_de_ventas.dart';
