@@ -515,4 +515,62 @@ class GeneradorTicketPos {
       ),
     );
   }
+
+  /// Abre la vista de impresión o previsualización para una cotización en formato térmico de 80mm
+  /// con los datos de configuración del negocio (estilo Cotizacion.jrxml de SISTEMA SARA).
+  static Future<void> imprimirOPrevisualizarCotizacion(
+    BuildContext context, {
+    String? nombreNegocio,
+    required String numeroCotizacion,
+    String? fechaHora,
+    String? clienteNombre,
+    String? clienteDoc,
+    required List<LineaTicket> lineas,
+    required num total,
+    num subtotal = 0,
+    num descuento = 0,
+    num impuesto = 0,
+    String? validaHasta,
+  }) async {
+    final fechaFinal = fechaHora ?? DateTime.now().toString().split('.')[0];
+    final subtotalFinal = subtotal > 0 ? subtotal : (total + descuento - impuesto);
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: Text('Cotización #$numeroCotizacion'),
+          ),
+          body: PdfPreview(
+            build: (format) => crearPdf(
+              nombreNegocio: nombreNegocio,
+              tipoComprobante: 'COTIZACION',
+              numeroVenta: numeroCotizacion,
+              fechaHora: fechaFinal,
+              nombreCliente: clienteNombre,
+              identificacionCliente: clienteDoc,
+              lineas: lineas,
+              total: total,
+              subtotal: subtotalFinal,
+              descuento: descuento,
+              impuesto: impuesto,
+              nota: (validaHasta != null && validaHasta.trim().isNotEmpty)
+                  ? 'Válida hasta: ${validaHasta.trim()}'
+                  : null,
+              mensajeAgradecimiento: 'GRACIAS POR PREFERIRNOS',
+            ),
+            canChangeOrientation: false,
+            canChangePageFormat: false,
+            initialPageFormat: formato80mm,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

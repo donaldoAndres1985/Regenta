@@ -57,17 +57,19 @@ public class GestionDeCotizaciones {
 
         BigDecimal total = BigDecimal.ZERO;
         short numeroLinea = 1;
+        List<CotizacionLinea> lineasGuardadas = new java.util.ArrayList<>();
         for (LineaDeCotizacion l : solicitud.lineas()) {
             CotizacionLinea linea = CotizacionLinea.de(negocioId, cotizacion.getId(), numeroLinea++,
                     l.productoId(), l.sku(), l.nombre(), l.unidad(), l.cantidad(),
                     l.precioUnitario(), l.descuentoPct(), l.impuestoCodigo(), l.impuestoPct(),
                     l.costoUnitario());
             lineas.save(linea);
+            lineasGuardadas.add(linea);
             total = total.add(linea.getTotal());
         }
         cotizacion.fijarTotal(total);
         cotizaciones.save(cotizacion);
-        return comoDto(cotizacion);
+        return comoDtoConLineas(cotizacion, lineasGuardadas);
     }
 
     @Transactional
@@ -106,7 +108,9 @@ public class GestionDeCotizaciones {
     @Transactional(readOnly = true)
     @RequierePermiso("VENTAS_COTIZACION_VER")
     public CotizacionDelNegocio ver(UUID cotizacionId) {
-        return comoDto(cotizacionDelNegocio(cotizacionId));
+        Cotizacion cotizacion = cotizacionDelNegocio(cotizacionId);
+        List<CotizacionLinea> lineasCot = lineas.findByCotizacionIdOrderByLinea(cotizacionId);
+        return comoDtoConLineas(cotizacion, lineasCot);
     }
 
     private Cotizacion cotizacionDelNegocio(UUID cotizacionId) {
@@ -121,5 +125,16 @@ public class GestionDeCotizaciones {
     private static CotizacionDelNegocio comoDto(Cotizacion c) {
         return new CotizacionDelNegocio(c.getId(), c.getNumero(), c.getEstado(), c.getValidaHasta(),
                 c.getTotal(), c.getVentaId(), c.getClienteId());
+    }
+
+    private static CotizacionDelNegocio comoDtoConLineas(Cotizacion c, List<CotizacionLinea> lineasCot) {
+        List<CotizacionDelNegocio.LineaDeCotizacionDelNegocio> lineasDto = lineasCot.stream()
+                .map(l -> new CotizacionDelNegocio.LineaDeCotizacionDelNegocio(
+                        l.getLinea(), l.getProductoId(), l.getSkuSnapshot(), l.getNombreSnapshot(),
+                        l.getUnidadSnapshot(), l.getCantidad(), l.getPrecioUnitario(),
+                        l.getDescuentoPct(), l.getImpuestoPct(), l.getTotal()))
+                .toList();
+        return new CotizacionDelNegocio(c.getId(), c.getNumero(), c.getEstado(), c.getValidaHasta(),
+                c.getTotal(), c.getVentaId(), c.getClienteId(), lineasDto);
     }
 }

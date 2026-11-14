@@ -133,6 +133,10 @@ class _RepoFake implements RepositorioDeVentas {
   Future<List<CotizacionDelNegocio>> listarCotizaciones() async => const [];
 
   @override
+  Future<CotizacionDelNegocio> verCotizacion(String cotizacionId) async =>
+      const CotizacionDelNegocio(id: 'cot-1', numero: 'COT-1', estado: 'ABIERTA', total: 0);
+
+  @override
   Future<ResultadoDeConversion> convertirCotizacion(
     String cotizacionId,
     String bodegaId,

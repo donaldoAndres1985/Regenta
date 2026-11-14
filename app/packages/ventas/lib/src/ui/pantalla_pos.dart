@@ -14,6 +14,7 @@ import 'formato.dart';
 import 'pantalla_buscar_venta.dart';
 import 'pantalla_cliente_de_venta.dart';
 import 'pantalla_cobro.dart';
+import 'ticket_pos.dart';
 
 /// La pantalla de Nueva venta (POS). HU-045 y `design/comportamiento/POS.md`.
 class PantallaPos extends ConsumerStatefulWidget {
@@ -888,9 +889,43 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
 
       final cot = await repo.crearCotizacion(solicitud);
       if (mounted) {
+        final lineasTicket = estado.lineas
+            .map((l) => LineaTicket(
+                  nombre: l.producto.nombre,
+                  cantidad: l.cantidad,
+                  precioUnitario: l.producto.precioVenta,
+                  total: l.total,
+                  descuento: l.descuentoPct > 0
+                      ? (l.producto.precioVenta * l.cantidad * (l.descuentoPct / 100))
+                      : 0,
+                ))
+            .toList();
+
+        void imprimir() {
+          GeneradorTicketPos.imprimirOPrevisualizarCotizacion(
+            context,
+            numeroCotizacion: cot.numero,
+            clienteNombre: estado.cliente?.nombre,
+            clienteDoc: estado.cliente?.numeroDocumento,
+            lineas: lineasTicket,
+            subtotal: estado.subtotalBruto,
+            descuento: estado.descuentoTotal,
+            impuesto: estado.impuesto,
+            total: estado.total,
+            validaHasta: cot.validaHasta,
+          );
+        }
+
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Cotización #${cot.numero} creada exitosamente'),
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'Imprimir',
+              textColor: Colors.white,
+              onPressed: imprimir,
+            ),
           ),
         );
       }
@@ -3521,11 +3556,61 @@ class _DialogoCargarCotizacionState extends State<_DialogoCargarCotizacion> {
                             subtitle: Text(
                               'Total: ${formatearPesos(c.total)}${c.validaHasta != null ? ' · Vence: ${c.validaHasta}' : ''}',
                             ),
-                            trailing: yaConvertida
-                                ? const Chip(
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  key: Key('boton-imprimir-cotizacion-${c.id}'),
+                                  icon: const Icon(Icons.print_outlined, color: RegentaColors.accent),
+                                  tooltip: 'Imprimir cotización',
+                                  onPressed: () async {
+                                    try {
+                                      final detalle = c.lineas.isNotEmpty
+                                          ? c
+                                          : await widget.repo.verCotizacion(c.id);
+                                      if (context.mounted) {
+                                        final lineasTicket = detalle.lineas
+                                            .map((l) => LineaTicket(
+                                                  nombre: l.nombre,
+                                                  cantidad: l.cantidad,
+                                                  precioUnitario: l.precioUnitario,
+                                                  total: l.cantidad *
+                                                      l.precioUnitario *
+                                                      (1 - (l.descuentoPct / 100)),
+                                                  descuento: l.descuentoPct > 0
+                                                      ? (l.precioUnitario *
+                                                          l.cantidad *
+                                                          (l.descuentoPct / 100))
+                                                      : 0,
+                                                ))
+                                            .toList();
+
+                                        await GeneradorTicketPos.imprimirOPrevisualizarCotizacion(
+                                          context,
+                                          numeroCotizacion: detalle.numero,
+                                          lineas: lineasTicket,
+                                          total: detalle.total,
+                                          validaHasta: detalle.validaHasta,
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Error al cargar cotización: $e'),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                                const SizedBox(width: 4),
+                                if (yaConvertida)
+                                  const Chip(
                                     label: Text('Convertida', style: TextStyle(fontSize: 11)),
                                   )
-                                : FilledButton.tonal(
+                                else
+                                  FilledButton.tonal(
                                     key: Key('boton-convertir-cotizacion-${c.id}'),
                                     onPressed: convirtiendo ? null : () => _convertir(c),
                                     child: convirtiendo
@@ -3536,6 +3621,8 @@ class _DialogoCargarCotizacionState extends State<_DialogoCargarCotizacion> {
                                           )
                                         : const Text('Convertir'),
                                   ),
+                              ],
+                            ),
                           );
                         },
                       ),
