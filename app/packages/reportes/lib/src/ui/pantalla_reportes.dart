@@ -378,6 +378,7 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
   }
 
   void _mostrarDetalleSesion(BuildContext context, SesionDeCajaVista sesion) {
+    final reimprimir = ref.read(reimprimirTirillaDeCajaProvider);
     unawaited(
       showDialog<void>(
         context: context,
@@ -403,6 +404,13 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
             ],
           ),
           actions: [
+            // HU-142: reimprimir la tirilla de un turno cerrado.
+            if (reimprimir != null && sesion.estaCerrada)
+              TextButton.icon(
+                icon: const Icon(Icons.print_outlined),
+                label: const Text('Reimprimir tirilla'),
+                onPressed: () => unawaited(reimprimir(sesion.id)),
+              ),
             TextButton(
               onPressed: () => Navigator.of(dialogCtx).pop(),
               child: const Text('Cerrar'),
