@@ -165,6 +165,17 @@ diferencia y la diferencia total se recalculan antes de confirmar. Los no cuadra
 con «No se cuenta: se concilia aparte», sin campo. «Confirmar cierre» queda deshabilitado mientras
 el efectivo contado sea 0. Faltante en rojo, sobrante en verde.
 
+### R24 · Anular un movimiento manual (HU-141)
+**Dado** un ingreso, retiro o gasto de una sesión abierta, **cuando** un usuario con
+`CAJA_MOVIMIENTO_ANULAR` (Administrador o Gerente) lo anula (`POST
+/api/caja/sesiones/{id}/movimientos/{movId}/anulacion` con `motivo`), **entonces** se registra un
+movimiento `ANULACION` de signo contrario, mismo método y monto, con `anula_a` al original, y se
+publica `movimiento_de_caja_anulado`. Sin permiso **403**; sin motivo o sobre un movimiento que no
+es manual **422**; ya anulado o con la sesión cerrada **409**. La base rechaza una segunda
+anulación (`uq_mov_caja_una_anulacion`) y una anulación sin original o sin motivo. En la app, el
+botón «Anular» solo aparece con el permiso y en movimientos manuales no anulados; pide motivo, y el
+anulado queda tachado con la marca «ANULADO».
+
 ## Qué NO debe pasar
 
 - **No** dos sesiones `ABIERTA` de la misma caja — ni por la API ni por un `INSERT` directo.

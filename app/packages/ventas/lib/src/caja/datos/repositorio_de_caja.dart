@@ -80,6 +80,19 @@ class RepositorioDeCaja {
     return MovimientoCajaVista.desdeJson((res as Map).cast<String, dynamic>());
   }
 
+  /// HU-141 · anula un ingreso, retiro o gasto con un movimiento compensatorio.
+  Future<MovimientoCajaVista> anularMovimiento({
+    required String sesionId,
+    required String movimientoId,
+    required String motivo,
+  }) async {
+    final res = await _http.post<Map<String, dynamic>>(
+      '/api/caja/sesiones/$sesionId/movimientos/$movimientoId/anulacion',
+      datos: {'motivo': motivo},
+    );
+    return MovimientoCajaVista.desdeJson((res as Map).cast<String, dynamic>());
+  }
+
   /// HU-140 · el arqueo por método de pago de la sesión (la previa del cierre).
   Future<List<LineaDeArqueoVista>> arqueoPorMetodo(String sesionId) async {
     final res = await _http.get<Map<String, dynamic>>(
