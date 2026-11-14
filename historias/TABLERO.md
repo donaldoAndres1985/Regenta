@@ -125,7 +125,7 @@ Una ferretería puede operar de verdad: catálogo configurable, stock, POS y fac
 
 Compras, caja y los reportes que hacen que el dueño abra la app todos los días.
 
-**20 historias · 110 puntos · acumulado 450**
+**22 historias · 117 puntos · acumulado 457**
 
 | Épica | Nombre | HU | Puntos |
 |---|---|---:|---:|
@@ -147,6 +147,8 @@ Compras, caja y los reportes que hacen que el dueño abra la app todos los días
 - `HU-061` Ingresos, retiros y gastos de caja
 - `HU-062` Arqueo por denominaciones
 - `HU-063` Reporte de cierre de caja
+- `HU-139` Métodos de pago que no se cuadran en el cierre
+- `HU-140` Arqueo y cierre por método de pago
 - `HU-092` Motor de reglas de alerta configurable
 - `HU-093` Alertas de inventario: stock bajo y lotes por vencer
 - `HU-094` Entrega por push, correo y dentro de la app
@@ -165,7 +167,7 @@ Compras, caja y los reportes que hacen que el dueño abra la app todos los días
 
 Un hotel opera sin tocar nada de lo anterior.
 
-**12 historias · 79 puntos · acumulado 529**
+**12 historias · 79 puntos · acumulado 536**
 
 | Épica | Nombre | HU | Puntos |
 |---|---|---:|---:|
@@ -195,7 +197,7 @@ Un hotel opera sin tocar nada de lo anterior.
 
 Un restaurante opera, con cocina e inventario conectados.
 
-**16 historias · 92 puntos · acumulado 621**
+**16 historias · 92 puntos · acumulado 628**
 
 | Épica | Nombre | HU | Puntos |
 |---|---|---:|---:|
@@ -230,7 +232,7 @@ Un restaurante opera, con cocina e inventario conectados.
 
 Multi-sucursal, auditoría y sincronización para el plan Empresarial.
 
-**5 historias · 32 puntos · acumulado 653**
+**5 historias · 32 puntos · acumulado 660**
 
 | Épica | Nombre | HU | Puntos |
 |---|---|---:|---:|

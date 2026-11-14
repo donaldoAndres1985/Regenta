@@ -4,8 +4,11 @@ Apertura, arqueo y cierre. Transversal a los tres patrones.
 
 | | |
 |---|---|
-| Historias | 5 |
-| Puntos | 19 |
+| Historias | 7 |
+| Puntos | 26 |
+
+Modelo de dominio de referencia: [`docs/dominio/caja.md`](../../docs/dominio/caja.md). Las
+historias citan sus invariantes (`I1`…`I13`) y no las repiten.
 | Plan mínimo | Empresarial |
 
 ---
@@ -160,6 +163,89 @@ Apertura, arqueo y cierre. Transversal a los tres patrones.
 - [ ] Los criterios de aceptación pasan como tests automatizados.
 - [ ] Endpoints documentados en el contrato OpenAPI del servicio.
 - [ ] Migración Flyway aplicada y `ddl-auto` sigue en `validate`.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-139 · Métodos de pago que no se cuadran en el cierre
+
+**Como** administrador del negocio, **quiero** indicar qué métodos de pago no se cuentan al cerrar la caja **para** que el cajero solo cuadre lo que tiene físicamente en el cajón y las tarjetas se concilien con el datáfono
+
+| | |
+|---|---|
+| Épica | `E07` · Caja y POS |
+| Puntos | 2 |
+| Módulo | `caja` |
+| Paquete Flutter | `usuarios` (configuración del negocio) |
+| Tablas | `caja.config_caja` |
+| Depende de | HU-059 (Abrir y cerrar sesión de caja) |
+| Invariantes | `I8` |
+| Etiquetas | `caja` · `backend` · `flutter` |
+
+> Viene de Sara POS (`CerrarCaja`, `cerrarCajaCalculado`), donde Débito y Gratis quedaban
+> fuera del cuadre por código fijo. Aquí es configuración del negocio.
+
+**Criterios de aceptación**
+
+1. Dado un negocio que nunca configuró caja, cuando consulto la configuración, entonces los métodos no cuadrables son `TARJETA_DEBITO`, `TARJETA_CREDITO`, `BONO` y `CREDITO`.
+2. Dado un usuario con `CAJA_TURNO_EDITAR`, cuando cambio la lista de métodos no cuadrables, entonces queda guardada y la devuelve la siguiente consulta.
+3. Dado un usuario sin `CAJA_TURNO_EDITAR`, cuando intenta cambiarla, entonces recibe 403.
+4. Dada una lista que incluye `EFECTIVO`, cuando la guardo, entonces se rechaza con 422: el efectivo siempre se cuadra.
+5. Dada una lista con un método que no existe, cuando la guardo, entonces se rechaza con 422.
+6. Dados dos negocios, cuando el negocio A cambia su lista, entonces la del negocio B no cambia y B no puede leer la de A.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados.
+- [ ] Endpoints documentados en el contrato OpenAPI.
+- [ ] Migración Flyway aplicada y `ddl-auto` sigue en `validate`.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-140 · Arqueo y cierre por método de pago
+
+**Como** cajero, **quiero** ver al cerrar lo esperado, lo contado y la diferencia de cada método de pago **para** saber exactamente en qué medio de pago está el descuadre, y no solo si el efectivo cuadra
+
+| | |
+|---|---|
+| Épica | `E07` · Caja y POS |
+| Puntos | 5 |
+| Módulo | `caja` |
+| Paquete Flutter | `ventas` |
+| Tablas | `caja.sesiones_caja` · `caja.movimientos_caja` · `caja.arqueo_metodos` *(nueva)* |
+| Pantalla | `design/pantallas/CobroWeb.html` · `design/pantallas/CobroMovil.html` |
+| Depende de | HU-139 (Métodos que no se cuadran) · HU-062 (Arqueo por denominaciones) |
+| Invariantes | `I4b` · `I7` · `I8b` · `I9` · `I9b` · `I10` · `I11` · `I12` · `I13` |
+| Etiquetas | `caja` · `backend` · `flutter` · `eventos` |
+
+> Viene de Sara POS (`cerrarCajaCalculado`). Reemplaza el criterio 3 de HU-059, que comparaba
+> un solo total de efectivo: `sesiones_caja.monto_esperado`/`monto_declarado` se conservan como
+> la línea de efectivo, por compatibilidad con los reportes existentes.
+
+**Criterios de aceptación**
+
+1. Dada una sesión abierta con movimientos en varios métodos, cuando consulto su arqueo, entonces veo una línea por cada método con movimientos, con su esperado (suma con signo, la base cuenta en efectivo), su cantidad de movimientos y si es cuadrable.
+2. Dado un método no cuadrable, cuando cierro, entonces no se pide su contado: queda contado = esperado y diferencia = 0.
+3. Dado un método cuadrable distinto de efectivo sin contado declarado, cuando cierro, entonces su contado es 0 y su diferencia es menos el esperado.
+4. Dado un efectivo contado de 0 o sin declarar, y sin conteo por denominaciones guardado, cuando cierro, entonces se rechaza con 422 «Debe escribir la cantidad de efectivo que hay en caja.»
+5. Dado un conteo por denominaciones guardado, cuando cierro sin declarar el efectivo, entonces el contado de efectivo es el total de ese conteo.
+6. Dado el cierre, cuando se guarda el arqueo, entonces la diferencia de cada línea es contado − esperado y la calcula la base (columna generada), no la app.
+7. Dadas todas las diferencias en 0, cuando cierro, entonces la sesión queda `CUADRADA`.
+8. Dada al menos una diferencia distinta de 0, cuando cierro, entonces la sesión queda `DESCUADRADA` y se publica `caja_descuadrada` con las líneas descuadradas.
+9. Dado cualquier cierre, cuando termina, entonces se publica `caja_cerrada` con el arqueo completo.
+10. Dado que la configuración de métodos no cuadrables cambia después de un cierre, cuando consulto ese cierre, entonces su arqueo no cambia.
+11. Dada una sesión cerrada, cuando intento cerrarla otra vez, entonces responde 409.
+12. Dados dos negocios, cuando el negocio B consulta, entonces no ve el arqueo del negocio A.
+13. Dada la pantalla de cierre, cuando escribo el contado de un método, entonces su diferencia y la diferencia total se recalculan en el momento, antes de confirmar; los métodos no cuadrables se muestran sin campo editable.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados (1-12 backend, 13 widget).
+- [ ] Endpoints documentados en el contrato OpenAPI.
+- [ ] Migración Flyway aplicada y `ddl-auto` sigue en `validate`.
+- [ ] `design/comportamiento/SesionDeCaja.md` actualizado con las reglas del arqueo por método antes de implementar la pantalla.
+- [ ] La pantalla coincide con `design/pantallas/CobroWeb.html` en medidas y color.
 - [ ] Revisada en PR por otra persona.
 
 ---
