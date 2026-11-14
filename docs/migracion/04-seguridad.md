@@ -50,7 +50,7 @@ La extracción y propagación del contexto de inquilino (*tenant*) se realiza me
 ### A. `@RequiereModulo` y `GuardiaDeModulos`
 - El aspecto `GuardiaDeModulos` intercepta clases o métodos anotados con `@RequiereModulo("NOMBRE_MODULO")`.
 - Comprueba si el conjunto de módulos activos del negocio (`ContextoDeNegocio.actual().tieneModulo(...)`) incluye el módulo solicitado.
-- Si el módulo no está contratado o activo, arroja `ModuloNoIncluidoException`, la cual es traducida por `ManejadorDeErrores` a una respuesta HTTP 403 Forbidden estructurada.
+- Si el módulo no está contratado o activo, arroja `ModuloNoIncluidoException`, la cual es traducida por `ManejadorDeErrores` a una respuesta HTTP 402 Payment Required estructurada (el usuario tiene permiso; lo que falta es el módulo en el plan).
 
 ### B. `@RequierePermiso` y `GuardiaDePermisos`
 - El aspecto `GuardiaDePermisos` intercepta métodos con `@RequierePermiso("PERMISO")`.
