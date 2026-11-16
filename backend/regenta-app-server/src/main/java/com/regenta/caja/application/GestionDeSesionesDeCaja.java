@@ -1,7 +1,9 @@
 package com.regenta.caja.application;
 
 import java.math.BigDecimal;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -9,10 +11,16 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.regenta.caja.domain.ArqueoMetodo;
+import com.regenta.caja.domain.CalculoDeArqueo;
 import com.regenta.caja.domain.Caja;
+import com.regenta.caja.domain.ConfigDeCaja;
 import com.regenta.caja.domain.EstadoSesionCaja;
+import com.regenta.caja.domain.LineaDeArqueo;
+import com.regenta.caja.domain.MetodoPagoCaja;
 import com.regenta.caja.domain.MovimientoDeCaja;
 import com.regenta.caja.domain.SesionDeCaja;
+import com.regenta.caja.infrastructure.ArqueoMetodoRepositorio;
 import com.regenta.caja.infrastructure.AsignadorDeConsecutivos;
 import com.regenta.caja.infrastructure.CajaRepositorio;
 import com.regenta.caja.infrastructure.MovimientoDeCajaRepositorio;
@@ -45,16 +53,21 @@ public class GestionDeSesionesDeCaja {
     private final AsignadorDeConsecutivos consecutivos;
     private final RegistroDeEventos eventos;
     private final GestionDeArqueo arqueo;
+    private final GestionDeConfigDeCaja config;
+    private final ArqueoMetodoRepositorio arqueoMetodos;
 
     public GestionDeSesionesDeCaja(SesionDeCajaRepositorio sesiones, CajaRepositorio cajas,
             MovimientoDeCajaRepositorio movimientos, AsignadorDeConsecutivos consecutivos,
-            RegistroDeEventos eventos, GestionDeArqueo arqueo) {
+            RegistroDeEventos eventos, GestionDeArqueo arqueo, GestionDeConfigDeCaja config,
+            ArqueoMetodoRepositorio arqueoMetodos) {
         this.sesiones = sesiones;
         this.cajas = cajas;
         this.movimientos = movimientos;
         this.consecutivos = consecutivos;
         this.eventos = eventos;
         this.arqueo = arqueo;
+        this.config = config;
+        this.arqueoMetodos = arqueoMetodos;
     }
 
     @Transactional(readOnly = true)
@@ -104,30 +117,51 @@ public class GestionDeSesionesDeCaja {
         return SesionDelNegocio.de(sesion);
     }
 
+    /**
+     * HU-140: cierra la sesión con el arqueo por método de pago.
+     *
+     * <p>El efectivo contado sale, en este orden, de {@code contados["EFECTIVO"]}, de
+     * {@code montoDeclarado} (compatibilidad con HU-059) o del conteo por denominaciones
+     * (HU-062). Los demás métodos cuadrables salen de {@code contados}; los no cuadrables no se
+     * piden. Qué es cuadrable lo decide la configuración vigente al cerrar y queda guardado.
+     */
     @Transactional
     @RequierePermiso("CAJA_TURNO_EDITAR")
     public SesionDelNegocio cerrar(UUID sesionId, SolicitudDeCierre solicitud) {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         SesionDeCaja sesion = delNegocio(sesionId);
+        if (!sesion.getEstado().estaAbierta()) {
+            throw new ConflictoDeEstadoException("La sesión de caja ya está cerrada");
+        }
 
-        BigDecimal esperado = movimientos.efectivoEsperado(sesionId);
-        BigDecimal declarado = solicitud.montoDeclarado();
-        if (declarado == null) {
-            declarado = arqueo.totalContadoDe(sesionId); // HU-062: sale del conteo por denominaciones
+        Map<MetodoPagoCaja, BigDecimal> contados = contadosDe(solicitud);
+        if (!contados.containsKey(MetodoPagoCaja.EFECTIVO)) {
+            BigDecimal efectivo = solicitud.montoDeclarado() != null ? solicitud.montoDeclarado()
+                    : arqueo.totalContadoDe(sesionId);
+            if (efectivo != null) {
+                contados.put(MetodoPagoCaja.EFECTIVO, efectivo);
+            }
         }
-        if (declarado == null) {
-            throw new ReglaDeNegocioException(
-                    "Declara el monto contado o guarda el arqueo por denominaciones antes de cerrar");
-        }
-        sesion.cerrar(ContextoDeNegocio.actual().usuario(), esperado, declarado,
-                esperado, limpiar(solicitud.observaciones()));
+
+        ConfigDeCaja cfg = config.delNegocio(negocioId);
+        List<LineaDeArqueo> lineas = CalculoDeArqueo.calcular(
+                List.copyOf(arqueo.esperadosDe(sesionId).values()), contados, cfg);
+
+        sesion.cerrarConArqueo(ContextoDeNegocio.actual().usuario(), lineas,
+                limpiar(solicitud.observaciones()));
         sesiones.save(sesion);
+        arqueoMetodos.saveAll(lineas.stream()
+                .map(l -> ArqueoMetodo.de(negocioId, sesion.getId(), l)).toList());
         sesiones.flush(); // para leer la columna generada `diferencia`
 
         if (sesion.quedoDescuadrada()) {
-            eventos.registrar(negocioId, "SesionDeCaja", sesion.getId(), "caja_descuadrada",
-                    payloadDescuadre(negocioId, sesion));
+            Map<String, Object> descuadre = payloadDe(negocioId, sesion, lineas);
+            descuadre.put("lineas_descuadradas",
+                    lineas.stream().filter(l -> !l.cuadra()).map(GestionDeSesionesDeCaja::comoMapa).toList());
+            eventos.registrar(negocioId, "SesionDeCaja", sesion.getId(), "caja_descuadrada", descuadre);
         }
+        eventos.registrar(negocioId, "SesionDeCaja", sesion.getId(), "caja_cerrada",
+                payloadDe(negocioId, sesion, lineas));
         return SesionDelNegocio.de(sesion);
     }
 
@@ -136,16 +170,52 @@ public class GestionDeSesionesDeCaja {
                 .orElseThrow(() -> new NoEncontradoException("Esa sesión de caja no existe"));
     }
 
-    private static Map<String, Object> payloadDescuadre(UUID negocioId, SesionDeCaja s) {
+    private static Map<MetodoPagoCaja, BigDecimal> contadosDe(SolicitudDeCierre solicitud) {
+        Map<MetodoPagoCaja, BigDecimal> contados = new EnumMap<>(MetodoPagoCaja.class);
+        if (solicitud.contados() == null) {
+            return contados;
+        }
+        solicitud.contados().forEach((nombre, monto) -> {
+            MetodoPagoCaja metodo;
+            try {
+                metodo = MetodoPagoCaja.valueOf(nombre == null ? "" : nombre.trim());
+            } catch (IllegalArgumentException e) {
+                throw new ReglaDeNegocioException("Método de pago desconocido: " + nombre);
+            }
+            if (monto != null && monto.signum() < 0) {
+                throw new ReglaDeNegocioException("El contado de " + nombre + " no puede ser negativo");
+            }
+            if (monto != null) {
+                contados.put(metodo, monto);
+            }
+        });
+        return contados;
+    }
+
+    private static Map<String, Object> payloadDe(UUID negocioId, SesionDeCaja s,
+            List<LineaDeArqueo> lineas) {
         Map<String, Object> datos = new LinkedHashMap<>();
         datos.put("negocio_id", negocioId.toString());
         datos.put("sesion_id", s.getId().toString());
         datos.put("caja_id", s.getCajaId().toString());
         datos.put("numero", s.getNumero());
+        datos.put("estado", s.getEstado().name());
         datos.put("monto_esperado", s.getMontoEsperado());
         datos.put("monto_declarado", s.getMontoDeclarado());
-        datos.put("diferencia", s.getDiferencia());
+        datos.put("diferencia", s.getMontoDeclarado().subtract(s.getMontoEsperado()));
+        datos.put("arqueo", lineas.stream().map(GestionDeSesionesDeCaja::comoMapa).toList());
         return datos;
+    }
+
+    private static Map<String, Object> comoMapa(LineaDeArqueo l) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("metodo", l.metodo().name());
+        m.put("cuadrable", l.cuadrable());
+        m.put("esperado", l.esperado());
+        m.put("contado", l.contado());
+        m.put("diferencia", l.diferencia());
+        m.put("movimientos", l.movimientos());
+        return m;
     }
 
     private static String limpiar(String v) {

@@ -1,6 +1,8 @@
 package com.regenta.caja.application;
 
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -12,6 +14,7 @@ import com.regenta.caja.domain.SesionDeCaja;
 import com.regenta.caja.domain.TipoMovimientoCaja;
 import com.regenta.caja.infrastructure.MovimientoDeCajaRepositorio;
 import com.regenta.caja.infrastructure.SesionDeCajaRepositorio;
+import com.regenta.shared.events.RegistroDeEventos;
 import com.regenta.shared.web.ConflictoDeEstadoException;
 import com.regenta.shared.web.NoEncontradoException;
 import com.regenta.shared.web.ReglaDeNegocioException;
@@ -30,11 +33,52 @@ public class GestionDeMovimientosManuales {
     private final SesionDeCajaRepositorio sesiones;
     private final GestionDeConfigDeCaja config;
 
+    private final RegistroDeEventos eventos;
+
     public GestionDeMovimientosManuales(MovimientoDeCajaRepositorio movimientos,
-            SesionDeCajaRepositorio sesiones, GestionDeConfigDeCaja config) {
+            SesionDeCajaRepositorio sesiones, GestionDeConfigDeCaja config,
+            RegistroDeEventos eventos) {
         this.movimientos = movimientos;
         this.sesiones = sesiones;
         this.config = config;
+        this.eventos = eventos;
+    }
+
+    /**
+     * HU-141: anula un ingreso, retiro o gasto con un movimiento compensatorio (I5, I6). Solo
+     * con la sesión abierta, una vez por movimiento, y con motivo. Publica
+     * {@code movimiento_de_caja_anulado}.
+     */
+    @Transactional
+    @RequierePermiso("CAJA_MOVIMIENTO_ANULAR")
+    public MovimientoDelNegocio anular(UUID sesionId, UUID movimientoId,
+            SolicitudDeAnulacion solicitud) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        UUID usuario = ContextoDeNegocio.actual().usuario();
+        abierta(sesionId);
+        MovimientoDeCaja original = movimientos.findByIdAndNegocioId(movimientoId, negocioId)
+                .filter(m -> m.getSesionId().equals(sesionId))
+                .orElseThrow(() -> new NoEncontradoException("Ese movimiento no existe en la sesión"));
+        if (movimientos.existsByAnulaA(original.getId())) {
+            throw new ConflictoDeEstadoException("Ese movimiento ya fue anulado");
+        }
+
+        MovimientoDeCaja anulacion = MovimientoDeCaja.anulacionDe(original, usuario,
+                solicitud.motivo(), original.getId() + ":ANULACION");
+        movimientos.save(anulacion);
+
+        Map<String, Object> datos = new LinkedHashMap<>();
+        datos.put("negocio_id", negocioId.toString());
+        datos.put("sesion_id", sesionId.toString());
+        datos.put("movimiento_anulado_id", original.getId().toString());
+        datos.put("anulacion_id", anulacion.getId().toString());
+        datos.put("tipo_anulado", original.getTipo().name());
+        datos.put("monto", original.getMonto());
+        datos.put("usuario_id", usuario.toString());
+        datos.put("motivo", anulacion.getMotivoAnulacion());
+        eventos.registrar(negocioId, "MovimientoDeCaja", anulacion.getId(),
+                "movimiento_de_caja_anulado", datos);
+        return MovimientoDelNegocio.de(anulacion);
     }
 
     /** Criterio 3: un ingreso sube el efectivo esperado con su concepto. */

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import com.regenta.caja.application.ArqueoPorMetodo;
 import com.regenta.caja.application.GestionDeArqueo;
 import com.regenta.caja.application.GestionDeSesionesDeCaja;
 import com.regenta.caja.application.MovimientoDelNegocio;
@@ -23,6 +24,8 @@ import com.regenta.caja.application.SesionDelNegocio;
 import com.regenta.caja.application.SolicitudDeApertura;
 import com.regenta.caja.application.SolicitudDeArqueo;
 import com.regenta.caja.application.SolicitudDeCierre;
+import com.regenta.caja.application.TirillaDeCierre;
+import com.regenta.caja.application.TirillasDeCierre;
 
 import org.springframework.web.bind.annotation.PutMapping;
 
@@ -40,12 +43,14 @@ public class SesionesDeCajaControlador {
     private final GestionDeSesionesDeCaja sesiones;
     private final RegistroDeMovimientos movimientos;
     private final GestionDeArqueo arqueo;
+    private final TirillasDeCierre tirillas;
 
     public SesionesDeCajaControlador(GestionDeSesionesDeCaja sesiones,
-            RegistroDeMovimientos movimientos, GestionDeArqueo arqueo) {
+            RegistroDeMovimientos movimientos, GestionDeArqueo arqueo, TirillasDeCierre tirillas) {
         this.sesiones = sesiones;
         this.movimientos = movimientos;
         this.arqueo = arqueo;
+        this.tirillas = tirillas;
     }
 
     @GetMapping("/activa")
@@ -87,6 +92,19 @@ public class SesionesDeCajaControlador {
     public ResumenDeArqueo guardarArqueo(@PathVariable UUID sesionId,
             @Valid @RequestBody SolicitudDeArqueo solicitud) {
         return arqueo.guardar(sesionId, solicitud);
+    }
+
+    @GetMapping("/{sesionId}/tirilla")
+    @Operation(summary = "Los datos de la tirilla de cierre de una sesión cerrada (HU-142)")
+    @ApiResponse(responseCode = "409", description = "La sesión sigue abierta")
+    public TirillaDeCierre tirilla(@PathVariable UUID sesionId) {
+        return tirillas.de(sesionId);
+    }
+
+    @GetMapping("/{sesionId}/arqueo/metodos")
+    @Operation(summary = "El arqueo por método de pago: esperado, contado y diferencia (HU-140)")
+    public ArqueoPorMetodo arqueoPorMetodo(@PathVariable UUID sesionId) {
+        return arqueo.porMetodo(sesionId);
     }
 
     @PostMapping("/{sesionId}/cierre")

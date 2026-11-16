@@ -114,22 +114,59 @@ class ControladorDeCaja extends StateNotifier<EstadoDeCaja> {
     }
   }
 
-  Future<void> cerrarSesion(num montoDeclarado) async {
+  /// HU-141 · anula un movimiento manual y recarga la lista del turno.
+  Future<void> anularMovimiento(String movimientoId, String motivo) async {
     final sesion = state.sesionActiva;
     if (sesion == null) return;
     state = state.copyWith(cargando: true, clearError: true);
     try {
+      await _repo.anularMovimiento(
+        sesionId: sesion.id,
+        movimientoId: movimientoId,
+        motivo: motivo,
+      );
+      final movs = await _repo.movimientos(sesion.id);
+      state = state.copyWith(cargando: false, movimientos: movs);
+    } catch (e) {
+      state = state.copyWith(cargando: false, error: e.toString());
+    }
+  }
+
+  /// HU-140 · el arqueo por método de la sesión abierta, para la pantalla de cierre.
+  Future<List<LineaDeArqueoVista>> arqueoPorMetodo() async {
+    final sesion = state.sesionActiva;
+    if (sesion == null) return const [];
+    try {
+      return await _repo.arqueoPorMetodo(sesion.id);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return const [];
+    }
+  }
+
+  /// Cierra la sesión abierta. Devuelve el id de la sesión cerrada, o `null` si no se cerró.
+  Future<String?> cerrarSesion(Map<String, num> contados) async {
+    final sesion = state.sesionActiva;
+    if (sesion == null) return null;
+    state = state.copyWith(cargando: true, clearError: true);
+    try {
       await _repo.cerrarSesion(
         sesionId: sesion.id,
-        montoDeclarado: montoDeclarado,
+        contados: contados,
       );
       state = state.copyWith(
         cargando: false,
         clearSesion: true,
         movimientos: const [],
       );
+      return sesion.id;
     } catch (e) {
       state = state.copyWith(cargando: false, error: e.toString());
+      return null;
     }
   }
+
+  /// HU-142 · los datos de la tirilla de una sesión cerrada.
+  Future<TirillaDeCierreVista> tirillaDeCierre(String sesionId) =>
+      _repo.tirillaDeCierre(sesionId);
 }

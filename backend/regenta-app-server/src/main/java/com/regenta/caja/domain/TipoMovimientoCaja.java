@@ -11,5 +11,12 @@ public enum TipoMovimientoCaja {
     RETIRO,
     GASTO,
     AJUSTE,
-    APERTURA
+    APERTURA,
+    /** HU-141: compensa un movimiento manual; apunta al original con {@code anula_a}. */
+    ANULACION;
+
+    /** I5: solo los movimientos que registra el cajero a mano se pueden anular. */
+    public boolean esManual() {
+        return this == INGRESO || this == RETIRO || this == GASTO;
+    }
 }

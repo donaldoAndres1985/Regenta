@@ -7,6 +7,7 @@ import 'package:regenta_core/regenta_core.dart';
 import '../caja/datos/sesion_caja_modelos.dart';
 import '../caja/estado_de_caja.dart';
 import '../caja/proveedores.dart';
+import 'dialogo_de_cierre_por_metodo.dart';
 import 'formato.dart';
 
 class PantallaCaja extends ConsumerStatefulWidget {
@@ -23,6 +24,35 @@ class _PantallaCajaState extends ConsumerState<PantallaCaja> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(controladorDeCajaProvider.notifier).cargar();
     });
+  }
+
+  /// HU-140 + HU-142: cierra y pregunta si se imprime la tirilla de cierre.
+  Future<void> _cerrarEImprimir(Map<String, num> contados) async {
+    final ctrl = ref.read(controladorDeCajaProvider.notifier);
+    final sesionId = await ctrl.cerrarSesion(contados);
+    if (sesionId == null || !mounted) return;
+    final imprimir = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Imprimir tirilla de cierre?'),
+        content: const Text('Sale por la impresora térmica configurada.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('No')),
+          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Imprimir')),
+        ],
+      ),
+    );
+    if (imprimir != true) return;
+    try {
+      final tirilla = await ctrl.tirillaDeCierre(sesionId);
+      await ref.read(impresoraDeTirillaProvider)(tirilla);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo imprimir la tirilla: $e'),
+            backgroundColor: RegentaColors.crit),
+      );
+    }
   }
 
   @override
@@ -128,10 +158,15 @@ class _PantallaCajaState extends ConsumerState<PantallaCaja> {
                     _AccionesDeTurno(
                       onIngreso: (monto, concepto) => ctrl.registrarIngreso(monto, concepto),
                       onRetiro: (monto, concepto) => ctrl.registrarRetiro(monto, concepto),
-                      onCierre: (monto) => ctrl.cerrarSesion(monto),
+                      cargarArqueo: ctrl.arqueoPorMetodo,
+                      onCierre: (contados) => _cerrarEImprimir(contados),
                     ),
                     const SizedBox(height: 24),
-                    _ListaDeMovimientos(movimientos: estado.movimientos),
+                    _ListaDeMovimientos(
+                      movimientos: estado.movimientos,
+                      puedeAnular: ref.watch(puedeAnularMovimientosDeCajaProvider),
+                      onAnular: (id, motivo) => ctrl.anularMovimiento(id, motivo),
+                    ),
                   ],
                 ],
               ),
@@ -369,12 +404,14 @@ class _AccionesDeTurno extends StatelessWidget {
   const _AccionesDeTurno({
     required this.onIngreso,
     required this.onRetiro,
+    required this.cargarArqueo,
     required this.onCierre,
   });
 
   final void Function(num monto, String concepto) onIngreso;
   final void Function(num monto, String concepto) onRetiro;
-  final ValueChanged<num> onCierre;
+  final Future<List<LineaDeArqueoVista>> Function() cargarArqueo;
+  final ValueChanged<Map<String, num>> onCierre;
 
   @override
   Widget build(BuildContext context) {
@@ -395,7 +432,7 @@ class _AccionesDeTurno extends StatelessWidget {
         FilledButton.tonalIcon(
           icon: const Icon(Icons.lock_outline),
           label: const Text('Cerrar Turno (Arqueo)'),
-          onPressed: () => _mostrarDialogoCierre(context),
+          onPressed: () => unawaited(_mostrarDialogoCierre(context)),
         ),
       ],
     );
@@ -456,55 +493,56 @@ class _AccionesDeTurno extends StatelessWidget {
     );
   }
 
-  void _mostrarDialogoCierre(BuildContext context) {
-    final declaradoCtrl = TextEditingController();
-
-    unawaited(
-      showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Cierre y Arqueo de Caja'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Ingrese el monto físico total contado en la caja:'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: declaradoCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Efectivo Contado (\$)',
-                  border: OutlineInputBorder(),
-                  prefixText: '\$ ',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final monto = num.tryParse(declaradoCtrl.text.trim()) ?? 0;
+  /// HU-140 · el cierre se hace por método de pago (R22 y R23 de SesionDeCaja.md).
+  Future<void> _mostrarDialogoCierre(BuildContext context) async {
+    final lineas = await cargarArqueo();
+    if (!context.mounted || lineas.isEmpty) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cierre y Arqueo de Caja'),
+        content: SizedBox(
+          width: 560,
+          child: SingleChildScrollView(
+            child: DialogoDeCierrePorMetodo(
+              lineas: lineas,
+              onConfirmar: (contados) {
                 Navigator.of(ctx).pop();
-                onCierre(monto);
+                onCierre(contados);
               },
-              child: const Text('Confirmar Cierre'),
             ),
-          ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _ListaDeMovimientos extends StatelessWidget {
-  const _ListaDeMovimientos({required this.movimientos});
+  const _ListaDeMovimientos({
+    required this.movimientos,
+    required this.puedeAnular,
+    required this.onAnular,
+  });
 
   final List<MovimientoCajaVista> movimientos;
+  final bool puedeAnular;
+  final void Function(String movimientoId, String motivo) onAnular;
+
+  /// HU-141: pide el motivo; sin motivo no se confirma (I6).
+  Future<void> _pedirMotivo(BuildContext context, MovimientoCajaVista mov) async {
+    final motivo = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _DialogoDeAnulacion(movimiento: mov),
+    );
+    if (motivo != null && motivo.trim().isNotEmpty) onAnular(mov.id, motivo.trim());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -549,9 +587,17 @@ class _ListaDeMovimientos extends StatelessWidget {
                 separatorBuilder: (context, index) => const Divider(color: RegentaColors.line, height: 1),
                 itemBuilder: (context, i) {
                   final mov = movimientos[i];
+                  final anulados = {
+                    for (final m in movimientos)
+                      if (m.anulaA != null) m.anulaA!,
+                  };
+                  final anulado = anulados.contains(mov.id);
+                  final esAnulacion = mov.tipo.toUpperCase() == 'ANULACION';
                   final esIngreso = mov.tipo.toUpperCase() == 'INGRESO' ||
                       mov.tipo.toUpperCase() == 'VENTA' ||
-                      mov.tipo.toUpperCase() == 'APERTURA';
+                      mov.tipo.toUpperCase() == 'APERTURA' ||
+                      (esAnulacion && movimientos.any((m) =>
+                          m.id == mov.anulaA && m.tipo.toUpperCase() != 'INGRESO'));
                   final color = esIngreso ? RegentaColors.ok : RegentaColors.crit;
 
                   return ListTile(
@@ -569,16 +615,43 @@ class _ListaDeMovimientos extends StatelessWidget {
                       mov.concepto.isEmpty ? mov.tipo : mov.concepto,
                       style: RegentaType.cuerpo.copyWith(fontWeight: FontWeight.w600),
                     ),
-                    subtitle: Text(
-                      'Tipo: ${mov.tipo}',
-                      style: RegentaType.etiqueta,
+                    subtitle: Row(
+                      children: [
+                        Text('Tipo: ${mov.tipo}', style: RegentaType.etiqueta),
+                        if (anulado) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            key: ValueKey('anulado-${mov.id}'),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: RegentaColors.critSoft,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text('ANULADO',
+                                style: RegentaType.etiqueta.copyWith(color: RegentaColors.crit)),
+                          ),
+                        ],
+                      ],
                     ),
-                    trailing: Text(
-                      '${esIngreso ? '+' : '-'} ${formatearPesos(mov.monto)}',
-                      style: RegentaType.dinero.copyWith(
-                        fontSize: 15,
-                        color: color,
-                      ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${esIngreso ? '+' : '-'} ${formatearPesos(mov.monto)}',
+                          style: RegentaType.dinero.copyWith(
+                            fontSize: 15,
+                            color: color,
+                            decoration: anulado ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                        if (puedeAnular && mov.esManual && !anulado)
+                          IconButton(
+                            key: ValueKey('anular-${mov.id}'),
+                            tooltip: 'Anular',
+                            icon: const Icon(Icons.undo, color: RegentaColors.crit),
+                            onPressed: () => _pedirMotivo(context, mov),
+                          ),
+                      ],
                     ),
                   );
                 },
@@ -586,6 +659,68 @@ class _ListaDeMovimientos extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// HU-141 · pide el motivo de la anulación. Sin motivo no se puede confirmar.
+class _DialogoDeAnulacion extends StatefulWidget {
+  const _DialogoDeAnulacion({required this.movimiento});
+
+  final MovimientoCajaVista movimiento;
+
+  @override
+  State<_DialogoDeAnulacion> createState() => _DialogoDeAnulacionState();
+}
+
+class _DialogoDeAnulacionState extends State<_DialogoDeAnulacion> {
+  final _motivo = TextEditingController();
+
+  @override
+  void dispose() {
+    _motivo.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mov = widget.movimiento;
+    return AlertDialog(
+      title: const Text('Anular movimiento'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${mov.tipo} · ${formatearPesos(mov.monto)} · ${mov.concepto}',
+              style: RegentaType.cuerpo),
+          const SizedBox(height: 4),
+          Text('Se registra un movimiento que lo compensa; el original no se borra.',
+              style: RegentaType.etiqueta),
+          const SizedBox(height: 12),
+          TextField(
+            key: const ValueKey('motivo-anulacion'),
+            controller: _motivo,
+            decoration: const InputDecoration(
+              labelText: 'Motivo',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: RegentaColors.crit),
+          onPressed: _motivo.text.trim().isEmpty
+              ? null
+              : () => Navigator.of(context).pop(_motivo.text.trim()),
+          child: const Text('Confirmar anulación'),
+        ),
+      ],
     );
   }
 }
