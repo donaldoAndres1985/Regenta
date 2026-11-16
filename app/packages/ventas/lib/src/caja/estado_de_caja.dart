@@ -17,12 +17,24 @@ class EstadoDeCaja {
   final List<MovimientoCajaVista> movimientos;
   final String? error;
 
+  static const _salidas = {'RETIRO', 'GASTO'};
+
+  /// Una anulación (HU-141) entra con el signo contrario del movimiento que compensa.
+  bool _anulaUnaSalida(MovimientoCajaVista anulacion) => movimientos.any(
+      (m) => m.id == anulacion.anulaA && _salidas.contains(m.tipo.toUpperCase()));
+
   num get totalIngresos => movimientos
-      .where((m) => m.tipo.toUpperCase() == 'INGRESO' || m.tipo.toUpperCase() == 'VENTA')
+      .where((m) {
+        final tipo = m.tipo.toUpperCase();
+        return tipo == 'INGRESO' || tipo == 'VENTA' || (tipo == 'ANULACION' && _anulaUnaSalida(m));
+      })
       .fold<num>(0, (sum, m) => sum + m.monto);
 
   num get totalRetiros => movimientos
-      .where((m) => m.tipo.toUpperCase() == 'RETIRO')
+      .where((m) {
+        final tipo = m.tipo.toUpperCase();
+        return _salidas.contains(tipo) || (tipo == 'ANULACION' && !_anulaUnaSalida(m));
+      })
       .fold<num>(0, (sum, m) => sum + m.monto);
 
   num get efectivoEsperado {

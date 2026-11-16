@@ -167,6 +167,13 @@ class DependenciasDeLaApp {
     // Ventas
     repositorioDeVentasProvider.overrideWithValue(RepositorioDeVentas(http)),
     repositorioDeCajaProvider.overrideWithValue(RepositorioDeCaja(http)),
+    // HU-141: anular movimientos de caja solo con el permiso que trae el token.
+    puedeAnularMovimientosDeCajaProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('CAJA_MOVIMIENTO_ANULAR') ??
+          false,
+    ),
     repositorioDeClientesDeVentaProvider.overrideWithValue(
       ClientesDelPos(RepositorioDeClientesHttp(http, base)),
     ),
@@ -211,6 +218,13 @@ class DependenciasDeLaApp {
     // Reportes
     repositorioDeReportesDeCajaProvider.overrideWithValue(
       RepositorioDeReportesDeCaja(http),
+    ),
+    // HU-142: el listado de turnos reimprime la tirilla con el módulo de caja.
+    reimprimirTirillaDeCajaProvider.overrideWith(
+      (ref) => (sesionId) async {
+        final tirilla = await ref.read(repositorioDeCajaProvider).tirillaDeCierre(sesionId);
+        await ref.read(impresoraDeTirillaProvider)(tirilla, reimpresion: true);
+      },
     ),
 
     // Usuarios / Configuración

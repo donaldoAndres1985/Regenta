@@ -73,6 +73,13 @@ public class MovimientoDeCaja {
     @Column(name = "ocurrido_en", nullable = false, updatable = false)
     private OffsetDateTime ocurridoEn;
 
+    /** HU-141: el movimiento manual que esta anulación compensa. */
+    @Column(name = "anula_a", updatable = false)
+    private UUID anulaA;
+
+    @Column(name = "motivo_anulacion", length = 200, updatable = false)
+    private String motivoAnulacion;
+
     protected MovimientoDeCaja() {
     }
 
@@ -192,6 +199,45 @@ public class MovimientoDeCaja {
 
     public UUID getSesionId() {
         return sesionId;
+    }
+
+    /**
+     * HU-141 (I5, I6): la anulación de un movimiento manual es otro movimiento, de signo
+     * contrario, mismo método y mismo monto, que apunta al original. El original no cambia.
+     */
+    public static MovimientoDeCaja anulacionDe(MovimientoDeCaja original, UUID usuarioId,
+            String motivo, String idempotencyKey) {
+        if (!original.tipo.esManual()) {
+            throw new com.regenta.shared.web.ReglaDeNegocioException(
+                    "Solo se anulan ingresos, retiros y gastos: un movimiento manual");
+        }
+        if (motivo == null || motivo.isBlank()) {
+            throw new com.regenta.shared.web.ReglaDeNegocioException(
+                    "La anulación exige un motivo");
+        }
+        String limpio = motivo.trim();
+        MovimientoDeCaja m = base(original.negocioId, original.sesionId, usuarioId,
+                idempotencyKey, "Anulación: " + limpio);
+        m.tipo = TipoMovimientoCaja.ANULACION;
+        m.signo = (short) -original.signo;
+        m.metodoPago = original.metodoPago;
+        m.monto = original.monto;
+        m.documentoRef = original.documentoRef;
+        m.anulaA = original.id;
+        m.motivoAnulacion = limpio;
+        return m;
+    }
+
+    public UUID getAnulaA() {
+        return anulaA;
+    }
+
+    public String getMotivoAnulacion() {
+        return motivoAnulacion;
+    }
+
+    public UUID getUsuarioId() {
+        return usuarioId;
     }
 
     public UUID getAutorizadoPor() {
