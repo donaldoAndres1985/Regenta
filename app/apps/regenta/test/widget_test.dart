@@ -148,6 +148,22 @@ void main() {
     },
   );
 
+  testWidgets(
+    'POS R7e: la app usa siempre el tema claro, aunque el sistema esté en modo oscuro',
+    (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      await _arrancar(tester, guardada: _sesionCon(modulos: ['VENTAS']));
+
+      final material = tester.widget<MaterialApp>(find.byType(MaterialApp));
+      expect(material.themeMode, ThemeMode.light);
+      expect(
+        Theme.of(tester.element(find.text('Inicio'))).brightness,
+        Brightness.light,
+      );
+    },
+  );
+
   testWidgets('Criterio 6: cerrar sesión vuelve a la pantalla de entrada', (
     tester,
   ) async {

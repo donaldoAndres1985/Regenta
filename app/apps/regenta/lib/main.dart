@@ -85,8 +85,10 @@ class _RegentaAppState extends State<RegentaApp> {
       title: 'Regenta',
       debugShowCheckedModeBanner: false,
       theme: PastelTheme.light(patron: patron),
-      darkTheme: PastelTheme.dark(),
-      themeMode: ThemeMode.system,
+      // R7e de POS.md: las pantallas pintan fondos claros (como los mockups de
+      // design/); con el tema oscuro del sistema el texto quedaba claro sobre
+      // blanco. El modo oscuro se diseñará aparte para todas las pantallas.
+      themeMode: ThemeMode.light,
       routerConfig: _enrutador,
       // El menú principal acompaña a todas las pantallas en escritorio.
       builder: (context, child) =>
