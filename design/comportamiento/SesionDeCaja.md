@@ -62,8 +62,8 @@ no los ve: la RLS de `sesiones_caja` y `movimientos_caja` lo corta.
 permiso, **403**. Módulo `CAJA`, plan Empresarial.
 
 ### R9 · Todo cobro entra a la caja, venga del patrón que venga (HU-060)
-**Dado** un evento de cobro con `sesion_caja_id` y `pagos` (`venta_completada` → origen
-`VENTA`, `pedido_completado` → `COMANDA`, `anticipo_reserva_cobrado` → `RESERVA`), **cuando**
+**Dado** un evento de cobro con `sesion_caja_id` y `pagos` (`venta_pagada` → origen
+`VENTA` —HU-146: no `venta_completada`, que sale antes de los pagos—, `pedido_completado` → `COMANDA`, `anticipo_reserva_cobrado` → `RESERVA`), **cuando**
 lo consume Caja, **entonces** registra un `movimientos_caja` por cada pago (signo `+1`, método
 mapeado, `origen_tipo`/`origen_id`/`documento_ref` del evento) en esa sesión (criterios 1-3).
 Un cobro mixto genera un movimiento por método. Un cobro sin `sesion_caja_id`, o para una
@@ -184,6 +184,14 @@ del POS). Los datos salen de `GET /api/caja/sesiones/{id}/tirilla` (solo sesione
 base, cada método con esperado/contado/diferencia (los no cuadrables con «NO SE CUADRA»), diferencia
 total, estado y observaciones; razón social y NIT los pone la app. Desde el detalle de un turno
 cerrado en Reportes, «Reimprimir tirilla» sale con la marca «*** REIMPRESIÓN ***».
+
+### R26 · No se vende sin caja abierta (HU-146)
+**Dado** un usuario sin sesión de caja abierta por él, **cuando** confirma una venta (de contado o a
+crédito), **entonces** responde **422** «Abre la caja antes de vender.» y la venta sigue en
+borrador sin reservar stock; el POS muestra ese mensaje tal cual. Con caja abierta, la venta guarda
+`sesion_caja_id` y al cerrar el cobro `venta_pagada` lleva cada pago (método y monto aplicado): la
+caja registra un movimiento por pago. Una venta cobrada sin señal no se rechaza: si hay caja
+abierta entra a ella, si no, queda sin sesión.
 
 ## Qué NO debe pasar
 

@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.regenta.caja.api.CajaApi;
 import com.regenta.shared.web.NoEncontradoException;
 import com.regenta.shared.web.ReglaDeNegocioException;
 import com.regenta.shared.tenancy.ContextoDeNegocio;
@@ -35,15 +36,17 @@ public class GestionDeVentas {
     private final AsignadorDeConsecutivos consecutivos;
     private final SagaDeConfirmacionDeVenta saga;
     private final ConfiguracionDelNegocio configuracion;
+    private final CajaApi caja;
 
     public GestionDeVentas(VentaRepositorio ventas, VentaLineaRepositorio lineas,
             AsignadorDeConsecutivos consecutivos, SagaDeConfirmacionDeVenta saga,
-            ConfiguracionDelNegocio configuracion) {
+            ConfiguracionDelNegocio configuracion, CajaApi caja) {
         this.ventas = ventas;
         this.lineas = lineas;
         this.consecutivos = consecutivos;
         this.saga = saga;
         this.configuracion = configuracion;
+        this.caja = caja;
     }
 
     @Transactional
@@ -114,7 +117,13 @@ public class GestionDeVentas {
     @Transactional
     @RequierePermiso("VENTAS_VENTA_CONFIRMAR")
     public void confirmar(UUID ventaId) {
-        exigirCompradorSiHaceFalta(ventaDelNegocio(ventaId));
+        Venta venta = ventaDelNegocio(ventaId);
+        exigirCompradorSiHaceFalta(venta);
+        // HU-146: no se vende sin caja abierta; el dinero entra a la sesión de quien vende.
+        UUID sesion = caja.sesionAbiertaDe(venta.getNegocioId(), ContextoDeNegocio.actual().usuario())
+                .orElseThrow(() -> new ReglaDeNegocioException("Abre la caja antes de vender."));
+        venta.asociarASesionDeCaja(sesion);
+        ventas.save(venta);
         saga.iniciar(ventaId, SagaDeConfirmacionDeVenta.TIMEOUT_POR_DEFECTO);
     }
 
@@ -127,7 +136,13 @@ public class GestionDeVentas {
     @Transactional
     @RequierePermiso("VENTAS_VENTA_CONFIRMAR")
     public void confirmarLaQueYaSeCobroSinSenal(UUID ventaId) {
-        ventaDelNegocio(ventaId);   // valida negocio y existencia
+        Venta venta = ventaDelNegocio(ventaId);   // valida negocio y existencia
+        // HU-146 C3: ya se cobró; si hay caja abierta entra a ella, si no, no se rechaza.
+        caja.sesionAbiertaDe(venta.getNegocioId(), ContextoDeNegocio.actual().usuario())
+                .ifPresent(sesion -> {
+                    venta.asociarASesionDeCaja(sesion);
+                    ventas.save(venta);
+                });
         saga.iniciar(ventaId, SagaDeConfirmacionDeVenta.TIMEOUT_POR_DEFECTO);
     }
 

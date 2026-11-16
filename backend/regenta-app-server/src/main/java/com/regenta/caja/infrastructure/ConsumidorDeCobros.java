@@ -39,7 +39,9 @@ public class ConsumidorDeCobros {
             return;
         }
         String tipoEvento = evento.tipoEvento();
-        if (!"venta_completada".equals(tipoEvento)
+        // HU-146: de Ventas se escucha venta_pagada, no venta_completada: la venta se
+        // completa (stock reservado) antes de que existan sus pagos.
+        if (!"venta_pagada".equals(tipoEvento)
                 && !"pedido_completado".equals(tipoEvento)
                 && !"anticipo_reserva_cobrado".equals(tipoEvento)) {
             return;

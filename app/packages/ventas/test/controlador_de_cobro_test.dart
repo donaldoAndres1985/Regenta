@@ -59,6 +59,7 @@ class _RepoDeCobroFake implements RepositorioDeVentas {
   final List<PagoParaEnviar> pagosRecibidos = [];
   bool cerrada = false;
   bool confirmadaPorPasos = false;
+  ErrorDeApi? errorAlConfirmar;
   String? clienteDelBorrador;
   String? notaDelBorrador;
 
@@ -81,6 +82,7 @@ class _RepoDeCobroFake implements RepositorioDeVentas {
 
   @override
   Future<void> confirmarBorrador(String ventaId) async {
+    if (errorAlConfirmar != null) throw errorAlConfirmar!;
     confirmadaPorPasos = true;
   }
 
@@ -172,6 +174,21 @@ ControladorDeCobro _controlador(
     );
 
 void main() {
+  test(
+      'HU-146 C8 · Sin caja abierta, el cobro muestra «Abre la caja antes de vender.» '
+      'y no un error técnico', () async {
+    final repo = _RepoDeCobroFake()
+      ..errorAlConfirmar = const ErroresDeValidacion({}, 'Abre la caja antes de vender.');
+    final controlador = _controlador(repo);
+    controlador.pagarSaldoCon('EFECTIVO');
+
+    await controlador.confirmarCobro();
+
+    expect(controlador.state.error, 'Abre la caja antes de vender.');
+    expect(controlador.state.procesando, isFalse);
+    expect(repo.cerrada, isFalse);
+  });
+
   test('pago único: cubre el total con un solo método y cierra la venta', () async {
     final repo = _RepoDeCobroFake();
     final controlador = _controlador(repo);

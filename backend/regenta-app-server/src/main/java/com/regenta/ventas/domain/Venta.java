@@ -47,6 +47,10 @@ public class Venta {
     @Column(name = "cliente_id")
     private UUID clienteId;
 
+    /** HU-146: la sesión de caja abierta por quien vendió (referencia lógica a caja). */
+    @Column(name = "sesion_caja_id")
+    private UUID sesionCajaId;
+
     /**
      * Quién compró, congelado (HU-113). Es lo que evita que el histórico se
      * corrompa: {@code crm.clientes} cambia, esta venta no.
@@ -369,6 +373,15 @@ public class Venta {
 
     public UUID getBodegaId() {
         return bodegaId;
+    }
+
+    /** HU-146: la sesión de caja a la que entra el dinero de esta venta. */
+    public void asociarASesionDeCaja(UUID sesionCajaId) {
+        this.sesionCajaId = sesionCajaId;
+    }
+
+    public UUID getSesionCajaId() {
+        return sesionCajaId;
     }
 
     public UUID getClienteId() {

@@ -125,9 +125,31 @@ public class GestionDePagos {
             throw new ReglaDeNegocioException(
                     "Faltan " + falta + " por pagar para cerrar la venta " + venta.getNumero());
         }
-        eventos.registrar(negocioId, "Venta", ventaId, "venta_pagada",
-                Map.of("negocio_id", negocioId.toString(), "venta_id", ventaId.toString(),
-                        "numero", venta.getNumero(), "total", venta.getTotal()));
+        eventos.registrar(negocioId, "Venta", ventaId, "venta_pagada", payloadPagada(negocioId, venta));
+    }
+
+    /**
+     * HU-146: Caja registra un movimiento por cada pago en la sesión de la venta. Va el monto
+     * aplicado, no el recibido: el cambio que se devolvió no se queda en la caja.
+     */
+    private Map<String, Object> payloadPagada(UUID negocioId, Venta venta) {
+        Map<String, Object> datos = new LinkedHashMap<>();
+        datos.put("negocio_id", negocioId.toString());
+        datos.put("venta_id", venta.getId().toString());
+        datos.put("numero", venta.getNumero());
+        datos.put("total", venta.getTotal());
+        datos.put("usuario_id", ContextoDeNegocio.actual().usuario().toString());
+        datos.put("sesion_caja_id",
+                venta.getSesionCajaId() == null ? null : venta.getSesionCajaId().toString());
+        List<Map<String, Object>> detalle = new java.util.ArrayList<>();
+        for (PagoDeVenta pago : pagos.findByVentaIdOrderByRecibidoEn(venta.getId())) {
+            Map<String, Object> p = new LinkedHashMap<>();
+            p.put("metodo", pago.getMetodo().name());
+            p.put("monto", pago.getMonto());
+            detalle.add(p);
+        }
+        datos.put("pagos", detalle);
+        return datos;
     }
 
     private String formaPagoDe(UUID ventaId) {
