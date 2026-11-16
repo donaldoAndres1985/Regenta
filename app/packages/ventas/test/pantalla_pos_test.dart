@@ -936,6 +936,24 @@ void main() {
     );
 
     testWidgets(
+      'R11: el aviso «Venta cobrada» con Imprimir se cierra solo',
+      (tester) async {
+        final repo = _RepoFake();
+        await _montar(tester, repo, size: const Size(1280, 900));
+        await _agregar(tester, repo, _prod());
+
+        await _cobrarConUnPago(tester);
+        expect(find.textContaining('Venta FV-1 cobrada'), findsOneWidget);
+        expect(find.text('Imprimir'), findsOneWidget);
+
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('Venta FV-1 cobrada'), findsNothing);
+      },
+    );
+
+    testWidgets(
       'R12: Efectivo pone el foco en Recibido; Enter cobra y el POS avisa el cambio',
       (tester) async {
         final repo = _RepoFake();
