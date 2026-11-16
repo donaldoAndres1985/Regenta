@@ -701,6 +701,9 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     } on ErrorDeRed {
       // Sin conexión: contingencia a offline
       await pos.cobrar();
+    } on ErrorDeApi catch (e) {
+      // HU-146 C8: la regla del backend (p. ej. «Abre la caja antes de vender.») tal cual.
+      if (mounted) _mostrarNotificacionPos(context, e.mensaje, esError: true);
     } catch (e) {
       if (mounted) {
         _mostrarNotificacionPos(

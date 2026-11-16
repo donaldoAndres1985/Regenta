@@ -236,6 +236,10 @@ public class MovimientoDeCaja {
         return motivoAnulacion;
     }
 
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
     public UUID getUsuarioId() {
         return usuarioId;
     }

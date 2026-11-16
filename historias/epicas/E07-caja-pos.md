@@ -4,8 +4,8 @@ Apertura, arqueo y cierre. Transversal a los tres patrones.
 
 | | |
 |---|---|
-| Historias | 12 |
-| Puntos | 43 |
+| Historias | 13 |
+| Puntos | 48 |
 | Plan mínimo | Empresarial |
 
 Modelo de dominio de referencia: [`docs/dominio/caja.md`](../../docs/dominio/caja.md). Las
@@ -436,6 +436,47 @@ aprobaron el 2026-11-14.
 - [ ] Endpoints documentados en el contrato OpenAPI.
 - [ ] Migración Flyway aplicada y `ddl-auto` sigue en `validate` (tipo `PAGO_PROVEEDOR` en el `CHECK` de `movimientos_caja`).
 - [ ] `ModularityTests` en verde: Compras solo usa `caja.api`.
+- [ ] Revisada en PR por otra persona.
+
+---
+
+### HU-146 · Las ventas del POS entran a la caja abierta
+
+> Aprobada 2026-11-16. Corrige la mitad de HU-060 que nunca se conectó: Ventas no le decía a
+> Caja en qué sesión entró el dinero, y Caja descartaba todos los cobros del POS.
+
+**Como** cajero, **quiero** que cada venta que cobro entre sola a mi caja con su método de pago **para** que el cierre cuadre con lo que de verdad vendí
+
+| | |
+|---|---|
+| Épica | `E07` · Caja y POS |
+| Puntos | 5 |
+| Módulos | `ventas` (asocia y publica) · `caja` (expone la sesión abierta y registra) |
+| Paquete Flutter | `ventas` |
+| Tablas | `ventas.ventas` · `caja.movimientos_caja` |
+| Depende de | HU-060 (Movimientos de caja desde los tres patrones) · HU-039 (Cobro de la venta) |
+| Invariantes | `I2` · `I3` · `I7` · `I13` |
+| Etiquetas | `caja` · `ventas` · `backend` · `flutter` · `eventos` |
+
+> Regla de Sara POS adoptada: **no se vende sin caja abierta**. La caja de la venta es la sesión
+> abierta por el usuario que vende (en Sara la caja era del usuario).
+
+**Criterios de aceptación**
+
+1. Dado un usuario con una sesión de caja abierta por él, cuando confirma una venta, entonces la venta queda asociada a esa sesión.
+2. Dado un usuario sin sesión de caja abierta, cuando intenta confirmar una venta (de contado o a crédito), entonces se rechaza con 422 «Abre la caja antes de vender.» y la venta sigue en borrador, sin reservar stock.
+3. Dada una venta cobrada sin señal (HU-043) que se sube cuando no hay caja abierta, cuando se confirma, entonces no se rechaza —el dinero ya se recibió— y queda sin sesión.
+4. Dada una venta asociada a una sesión, cuando se cierra su cobro, entonces `venta_pagada` lleva la sesión, el número de la venta, quién cobró y cada pago con su método y su monto aplicado.
+5. Dado `venta_pagada` de una sesión abierta, cuando lo recibe Caja, entonces registra un movimiento de origen `VENTA` por cada pago (un cobro mixto genera varios) y el esperado de cada método sube en ese monto.
+6. Dado el mismo `venta_pagada` entregado dos veces, cuando llega el duplicado, entonces Caja no registra los pagos otra vez.
+7. Dados dos negocios, cuando un usuario del negocio B confirma una venta, entonces nunca se asocia a una sesión de caja del negocio A.
+8. Dado el POS sin caja abierta, cuando intento cobrar, entonces veo «Abre la caja antes de vender.» y no un error técnico.
+
+**Terminado cuando**
+
+- [ ] Los criterios de aceptación pasan como tests automatizados.
+- [ ] Migración Flyway aplicada y `ddl-auto` sigue en `validate`.
+- [ ] `ModularityTests` en verde: Ventas solo usa `caja.api`.
 - [ ] Revisada en PR por otra persona.
 
 ---

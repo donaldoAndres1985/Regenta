@@ -18,6 +18,10 @@ public interface SesionDeCajaRepositorio extends JpaRepository<SesionDeCaja, UUI
 
     List<SesionDeCaja> findByNegocioIdOrderByAbiertaEnDesc(UUID negocioId);
 
+    /** HU-146 · la sesión abierta más reciente que abrió ese usuario. */
+    Optional<SesionDeCaja> findFirstByNegocioIdAndUsuarioAperturaIdAndEstadoOrderByAbiertaEnDesc(
+            UUID negocioId, UUID usuarioAperturaId, EstadoSesionCaja estado);
+
     /** Sesiones en un rango de fechas, con filtro opcional de estado y de caja (HU-063). */
     @org.springframework.data.jpa.repository.Query("""
             select s from SesionDeCaja s

@@ -99,7 +99,7 @@ restricción en PostgreSQL probada con Testcontainers.
 
 | Dirección | Evento | Para qué |
 |---|---|---|
-| Consume | `venta_completada`, `pedido_completado`, `anticipo_reserva_cobrado`, `estancia_finalizada` | Registrar el cobro en la sesión abierta |
+| Consume | `venta_pagada` *(HU-146: antes `venta_completada`, que sale antes de los pagos)*, `pedido_completado`, `anticipo_reserva_cobrado`, `estancia_finalizada` | Registrar el cobro en la sesión abierta |
 | Consume | `aporte_venta_acumulada_registrado` *(nuevo)* | Registrar en efectivo cada aporte a la venta acumulada. La emisión de la venta acumulada **no** genera otro cobro |
 | Consume | `pago_a_proveedor_registrado` *(nuevo, HU-145)* | Registrar la salida de efectivo de un pago a proveedor hecho desde la caja abierta |
 | Publica | `caja_descuadrada` | Alertar cuando el cierre no cuadra (ya existe) |
