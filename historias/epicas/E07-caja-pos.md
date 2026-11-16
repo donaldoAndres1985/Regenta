@@ -226,7 +226,7 @@ aprobaron el 2026-11-14.
 
 **Criterios de aceptación**
 
-1. Dada una sesión abierta con movimientos en varios métodos, cuando consulto su arqueo, entonces veo una línea por cada método con movimientos, con su esperado (suma con signo, la base cuenta en efectivo), su cantidad de movimientos y si es cuadrable.
+1. Dada una sesión abierta, cuando consulto su arqueo, entonces veo una línea por **cada método cuadrable configurado** (aunque no haya tenido movimientos: esperado 0) y por cada método no cuadrable que sí tuvo movimientos, con su esperado (suma con signo, la base cuenta en efectivo), su cantidad de movimientos y si es cuadrable. *(Ajustado 2026-11-16 al probar: antes solo salían los métodos con movimientos — invariante I9d.)*
 2. Dado un método no cuadrable, cuando cierro, entonces no se pide su contado: queda contado = esperado y diferencia = 0.
 3. Dado un método cuadrable distinto de efectivo sin contado declarado, cuando cierro, entonces su contado es 0 y su diferencia es menos el esperado.
 4. Dado un efectivo contado de 0 o sin declarar, y sin conteo por denominaciones guardado, cuando cierro, entonces se rechaza con 422 «Debe escribir la cantidad de efectivo que hay en caja.»

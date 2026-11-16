@@ -45,13 +45,35 @@ class CalculoDeArqueoTest {
                 contados(MetodoPagoCaja.EFECTIVO, $(150_000), MetodoPagoCaja.TRANSFERENCIA, $(80_000)),
                 config);
 
+        // I9d: además de los métodos con movimientos, todos los cuadrables (QR y OTRO por defecto).
         assertThat(lineas).extracting(LineaDeArqueo::metodo).containsExactlyInAnyOrder(
-                MetodoPagoCaja.EFECTIVO, MetodoPagoCaja.TRANSFERENCIA, MetodoPagoCaja.TARJETA_DEBITO);
+                MetodoPagoCaja.EFECTIVO, MetodoPagoCaja.TRANSFERENCIA, MetodoPagoCaja.TARJETA_DEBITO,
+                MetodoPagoCaja.QR, MetodoPagoCaja.OTRO);
         LineaDeArqueo transferencia = linea(lineas, MetodoPagoCaja.TRANSFERENCIA);
         assertThat(transferencia.esperado()).isEqualByComparingTo("80000");
         assertThat(transferencia.movimientos()).isEqualTo(2);
         assertThat(transferencia.cuadrable()).isTrue();
         assertThat(linea(lineas, MetodoPagoCaja.TARJETA_DEBITO).cuadrable()).isFalse();
+    }
+
+    @Test
+    @DisplayName("HU-140 C1 (I9d) · Los métodos cuadrables configurados aparecen aunque no tengan movimientos; los no cuadrables sin movimientos no")
+    void losCuadrablesSinMovimientosAparecen() {
+        ConfigDeCaja soloQrNoCuadrable = ConfigDeCaja.porDefecto(UUID.randomUUID());
+        soloQrNoCuadrable.fijarMetodosNoCuadrables(java.util.EnumSet.of(MetodoPagoCaja.QR));
+
+        List<LineaDeArqueo> lineas = CalculoDeArqueo.calcular(
+                List.of(new EsperadoDeMetodo(MetodoPagoCaja.EFECTIVO, $(10_000), 1)),
+                contados(MetodoPagoCaja.EFECTIVO, $(10_000)), soloQrNoCuadrable);
+
+        assertThat(lineas).extracting(LineaDeArqueo::metodo).containsExactly(
+                MetodoPagoCaja.EFECTIVO, MetodoPagoCaja.TARJETA_DEBITO, MetodoPagoCaja.TARJETA_CREDITO,
+                MetodoPagoCaja.TRANSFERENCIA, MetodoPagoCaja.BONO, MetodoPagoCaja.CREDITO,
+                MetodoPagoCaja.OTRO);
+        LineaDeArqueo transferencia = linea(lineas, MetodoPagoCaja.TRANSFERENCIA);
+        assertThat(transferencia.esperado()).isEqualByComparingTo("0");
+        assertThat(transferencia.movimientos()).isZero();
+        assertThat(transferencia.cuadra()).isTrue();
     }
 
     @Test

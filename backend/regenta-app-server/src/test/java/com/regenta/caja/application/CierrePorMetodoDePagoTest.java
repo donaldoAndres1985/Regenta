@@ -86,8 +86,10 @@ class CierrePorMetodoDePagoTest {
     void elArqueoDeUnaSesionAbierta() {
         ArqueoPorMetodo vista = arqueo.porMetodo(sesion.getId());
 
+        // I9d: QR y OTRO son cuadrables por defecto y salen aunque no tengan movimientos.
         assertThat(vista.lineas()).extracting(ArqueoPorMetodo.Linea::metodo)
-                .containsExactly("EFECTIVO", "TARJETA_DEBITO", "TRANSFERENCIA");
+                .containsExactly("EFECTIVO", "TARJETA_DEBITO", "TRANSFERENCIA", "QR", "OTRO");
+        assertThat(vista.lineas().get(3).esperado()).isEqualByComparingTo("0");
         ArqueoPorMetodo.Linea debito = vista.lineas().get(1);
         assertThat(debito.cuadrable()).isFalse();
         assertThat(debito.esperado()).isEqualByComparingTo("80000");
@@ -143,7 +145,7 @@ class CierrePorMetodoDePagoTest {
         Map<String, Object> payload = payloadDe("caja_cerrada");
         assertThat(payload.get("estado")).isEqualTo("CUADRADA");
         assertThat(lineasDe(payload, "arqueo")).extracting(l -> l.get("metodo"))
-                .containsExactlyInAnyOrder("EFECTIVO", "TRANSFERENCIA", "TARJETA_DEBITO");
+                .containsExactlyInAnyOrder("EFECTIVO", "TRANSFERENCIA", "TARJETA_DEBITO", "QR", "OTRO");
         verify(eventos, never()).registrar(any(), anyString(), any(), eq("caja_descuadrada"), any());
     }
 
