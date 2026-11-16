@@ -90,6 +90,7 @@ restricción en PostgreSQL probada con Testcontainers.
 | I9 | En un método no cuadrable el contado no se pide: contado = esperado y diferencia = 0. |
 | I9b | En un método cuadrable distinto de efectivo, si el cajero no declara contado, cuenta como 0 (como en Sara: no bloquea el cierre, pero deja la diferencia a la vista). |
 | I9c | **Aprobada** 2026-11-14: un método cuadrable sin movimientos en la sesión, pero con contado declarado, entra al arqueo con esperado 0 — el sobrante queda a la vista en vez de ignorarse. La línea de efectivo existe siempre, aunque no haya movimientos en efectivo. |
+| I9d | **Aprobada** 2026-11-16: el arqueo muestra **siempre todos los métodos cuadrables configurados**, aunque no hayan tenido movimientos (esperado 0), para que el cajero pueda contarlos (como Sara, que mostraba todas las formas de pago). Los no cuadrables solo aparecen si tuvieron movimientos. |
 | I10 | Para cerrar, el efectivo contado debe ser **mayor que 0**. |
 | I11 | Al cerrar, la sesión queda `CUADRADA` si todas las diferencias son 0; si no, `DESCUADRADA`. |
 | I12 | Una sesión cerrada es inmutable: no admite movimientos, anulaciones ni un nuevo arqueo. |

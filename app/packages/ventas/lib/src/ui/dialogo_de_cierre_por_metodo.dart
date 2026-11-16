@@ -83,7 +83,7 @@ class _DialogoDeCierrePorMetodoState extends State<DialogoDeCierrePorMetodo> {
           children: [
             Expanded(
               child: Text('Diferencia total',
-                  style: RegentaType.seccion.copyWith(fontSize: 15)),
+                  style: RegentaType.seccion.copyWith(fontSize: 15, color: _texto(context))),
             ),
             _diferencia(_diferenciaTotal, const ValueKey('diferencia-total'), grande: true),
           ],
@@ -117,9 +117,10 @@ class _DialogoDeCierrePorMetodoState extends State<DialogoDeCierrePorMetodo> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(nombre,
-                    style: RegentaType.cuerpo.copyWith(fontWeight: FontWeight.w600)),
+                    style: RegentaType.cuerpo.copyWith(
+                        fontWeight: FontWeight.w600, color: _texto(context))),
                 Text('Esperado ${formatearPesos(l.esperado)} · ${l.movimientos} mov.',
-                    style: RegentaType.etiqueta),
+                    style: RegentaType.etiqueta.copyWith(color: _textoSecundario(context))),
               ],
             ),
           ),
@@ -131,7 +132,7 @@ class _DialogoDeCierrePorMetodoState extends State<DialogoDeCierrePorMetodo> {
                     key: ValueKey('contado-${l.metodo}'),
                     controller: _contados[l.metodo],
                     keyboardType: TextInputType.number,
-                    style: RegentaType.dinero.copyWith(fontSize: 15),
+                    style: RegentaType.dinero.copyWith(fontSize: 15, color: _texto(context)),
                     decoration: const InputDecoration(
                       labelText: 'Contado',
                       prefixText: '\$ ',
@@ -141,7 +142,7 @@ class _DialogoDeCierrePorMetodoState extends State<DialogoDeCierrePorMetodo> {
                     onChanged: (_) => setState(() {}),
                   )
                 : Text('No se cuenta: se concilia aparte',
-                    style: RegentaType.etiqueta.copyWith(color: RegentaColors.muted)),
+                    style: RegentaType.etiqueta.copyWith(color: _textoSecundario(context))),
           ),
           const SizedBox(width: 12),
           SizedBox(
@@ -156,12 +157,18 @@ class _DialogoDeCierrePorMetodoState extends State<DialogoDeCierrePorMetodo> {
     );
   }
 
+  /// El diálogo puede ir sobre fondo claro u oscuro: el texto toma el color del tema activo.
+  Color _texto(BuildContext context) => Theme.of(context).colorScheme.onSurface;
+
+  Color _textoSecundario(BuildContext context) =>
+      Theme.of(context).colorScheme.onSurfaceVariant;
+
   Widget _diferencia(num valor, Key key, {bool grande = false}) {
     final color = valor < 0
         ? RegentaColors.crit
         : valor > 0
             ? RegentaColors.ok
-            : RegentaColors.ink2;
+            : _textoSecundario(context);
     return Text(
       formatearPesos(valor),
       key: key,

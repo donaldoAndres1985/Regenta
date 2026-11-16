@@ -72,6 +72,12 @@ public class GestionDeArqueo {
         ConfigDeCaja cfg = config.delNegocio(sesion.getNegocioId());
         BigDecimal efectivoContado = totalContadoDe(sesionId);
         Map<MetodoPagoCaja, EsperadoDeMetodo> esperados = esperadosDe(sesionId);
+        // I9d: los cuadrables configurados salen aunque no tengan movimientos, para poder contarlos.
+        for (MetodoPagoCaja metodo : MetodoPagoCaja.values()) {
+            if (cfg.esCuadrable(metodo)) {
+                esperados.putIfAbsent(metodo, new EsperadoDeMetodo(metodo, BigDecimal.ZERO, 0));
+            }
+        }
         List<ArqueoPorMetodo.Linea> lineas = esperados.values().stream().map(e -> {
             boolean cuadrable = cfg.esCuadrable(e.metodo());
             BigDecimal contado = !cuadrable ? e.esperado()

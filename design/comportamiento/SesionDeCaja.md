@@ -138,7 +138,7 @@ negocio, un interruptor por método; el de efectivo está fijo.
 
 ### R21 · El arqueo se ve por método de pago (HU-140)
 **Dado** una sesión, **cuando** consulto `GET /api/caja/sesiones/{id}/arqueo/metodos`,
-**entonces** trae una línea por método con movimientos, más la de efectivo siempre:
+**entonces** trae una línea por cada método **cuadrable configurado** (aunque esté en 0) y por cada no cuadrable que tuvo movimientos (I9d):
 `{metodo, cuadrable, esperado, contado, diferencia, movimientos}` y los totales. Con la sesión
 abierta, el `contado` de un no cuadrable es su esperado, el del efectivo es el conteo por
 denominaciones (si hay) y el de los demás cuadrables viene nulo. Con la sesión cerrada, son las

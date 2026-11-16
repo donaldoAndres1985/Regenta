@@ -14,7 +14,8 @@ import com.regenta.shared.web.ReglaDeNegocioException;
  *
  * <ul>
  * <li>I7: el esperado de cada método es la suma con signo de sus movimientos.</li>
- * <li>Siempre hay línea de efectivo, aunque no haya movimientos en efectivo (I10 exige contarlo).</li>
+ * <li>I9d: hay línea para cada método cuadrable, aunque no tenga movimientos (el efectivo
+ * siempre: I10 exige contarlo). Los no cuadrables, solo si tuvieron movimientos.</li>
  * <li>I9: en un método no cuadrable el contado no se pide: contado = esperado.</li>
  * <li>I9b: un cuadrable distinto de efectivo sin contado declarado cuenta como 0.</li>
  * <li>I9c: un cuadrable sin movimientos pero con contado declarado entra con esperado 0.</li>
@@ -37,13 +38,13 @@ public final class CalculoDeArqueo {
 
         Map<MetodoPagoCaja, EsperadoDeMetodo> porMetodo = new EnumMap<>(MetodoPagoCaja.class);
         esperados.forEach(e -> porMetodo.put(e.metodo(), e));
-        porMetodo.putIfAbsent(MetodoPagoCaja.EFECTIVO,
-                new EsperadoDeMetodo(MetodoPagoCaja.EFECTIVO, BigDecimal.ZERO, 0));
-        contados.forEach((metodo, contado) -> {
-            if (config.esCuadrable(metodo) && contado != null && contado.signum() != 0) {
+        // I9d: todo método cuadrable tiene línea, aunque no haya tenido movimientos (incluye el
+        // efectivo y cubre I9c: lo contado de un cuadrable sin movimientos entra con esperado 0).
+        for (MetodoPagoCaja metodo : MetodoPagoCaja.values()) {
+            if (config.esCuadrable(metodo)) {
                 porMetodo.putIfAbsent(metodo, new EsperadoDeMetodo(metodo, BigDecimal.ZERO, 0));
             }
-        });
+        }
 
         List<LineaDeArqueo> lineas = new ArrayList<>();
         for (EsperadoDeMetodo e : porMetodo.values()) {
