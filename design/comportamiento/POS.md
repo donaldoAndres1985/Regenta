@@ -83,6 +83,17 @@ el primero. Sin resultados, aviso *No se encontró «texto»* y no se agrega nad
 `F2` lleva el foco al buscador, `F12` cobra (si se puede cobrar) y `Esc` cierra el desplegable
 sin borrar lo escrito.
 
+### R7d · Ctrl+C cambia la cantidad sobrescribiendo
+**Dada** una venta con líneas, **cuando** pulso `Ctrl+C`, **entonces** se abre *Modificar
+cantidad* de la última línea con la cantidad actual **ya seleccionada** y el foco en el campo:
+lo que escribo la reemplaza, sin borrar antes. Enter guarda y el foco vuelve al buscador.
+
+### R7e · Todo se lee sobre fondo claro (decidido 2026-11-16)
+**Dado** el sistema operativo en modo oscuro, **entonces** la app se ve igual que en modo claro:
+los mockups de `design/` son claros y las pantallas pintan fondos claros, así que la app usa
+siempre el tema claro. El nombre de cada producto de la venta se lee en `inkFuerte`. Un modo
+oscuro, si se quiere, se diseña aparte para todas las pantallas.
+
 ### R8 · Un producto sin stock se agrega igual y bloquea el cobro
 **Dado** un producto con nivel de stock CERO, **cuando** lo agrego, **entonces** la línea entra
 igual con el fondo `critSoft` y el subtítulo *SKU · sin stock*, aparece el aviso
@@ -121,8 +132,10 @@ nombre, precio y existencia. **Cuando** agrego un producto, borro la búsqueda o
 **Dado** un carrito con al menos una línea y sin líneas sin stock, **cuando** toco *Cobrar* (o
 `F12`), **entonces** se abre `PantallaCobro` con el carrito ya congelado (líneas, cliente, nota,
 descuento) — ver `design/comportamiento/Cobro.md` R5-R10 para el método de pago, el pago mixto,
-la venta a crédito y el camino sin conexión. Al terminar con éxito, la pestaña queda vacía, se
-avisa *Venta {número} cobrada* y se dispara `onVentaCobrada`, igual que antes.
+la venta a crédito y el camino sin conexión. Al terminar con éxito se vuelve directo al POS
+(sin pantalla intermedia, R11 de `Cobro.md`): la pestaña queda vacía, se imprime el ticket si
+la impresión automática está activa, se avisa *Venta {número} cobrada* (con *Cambio: $X* si
+hubo cambio en efectivo) y se dispara `onVentaCobrada`.
 
 Esto reemplaza el camino anterior (una sola llamada a `/api/ventas/offline` sin pedir método de
 pago): ese llamado sigue existiendo tal cual —y se sigue usando— pero solo como red de seguridad

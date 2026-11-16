@@ -49,10 +49,8 @@ cambia: `facturas.cliente_snapshot` guarda los datos del momento de la emisión.
 ### R5 · Cobrar en el POS congela el carrito y recién ahí arma la venta real
 **Dado** el botón *Cobrar* del POS con el carrito ya validado (R8/R11 de `POS.md`), **cuando**
 se toca, **entonces** se abre esta pantalla con el total, el cliente y las líneas ya congeladas;
-nada se manda al backend todavía. **Cuando** se elige un método que no es `EFECTIVO` ni
-`CREDITO`, **entonces** se agrega de una vez un pago por el saldo pendiente (HU-039: "pagar todo
-con este método"). `EFECTIVO` pide el monto recibido antes de agregar el pago, para calcular el
-cambio. Varios pagos se pueden combinar (pago mixto) hasta cubrir el saldo.
+nada se manda al backend todavía. Cómo se elige el pago lo dicen R11 (un solo método, el camino
+normal) y R13 (pago mixto).
 
 ### R6 · Confirmar cobro arma la venta por los pasos reales, no de una sola llamada
 **Dado** el pago ya completo (`saldoPendiente == 0`), **cuando** se toca *Confirmar cobro*,
@@ -92,6 +90,27 @@ venta ya se cobró físicamente. Si la red se cae a mitad del flujo (después de
 pero antes de cerrar la venta), el borrador queda huérfano en `BORRADOR` en el servidor —no
 afecta inventario ni caja— y la persona simplemente reintenta; limpiarlo es trabajo pendiente,
 no algo que haya que resolver ahora.
+
+### R11 · Un solo método cobra de un toque (decidido 2026-11-16)
+**Dado** el cobro abierto, **cuando** se toca un método que no es `EFECTIVO` (tarjeta débito,
+tarjeta crédito, transferencia, QR, bono) o *Crédito*, **entonces** se cobra en ese momento el
+total con ese método, sin botón *Confirmar cobro* ni pantalla de "Venta cobrada": se hacen los
+pasos de R6 (o de R8 para crédito), se imprime el ticket si la impresión automática está activa
+y se vuelve al POS con la venta vacía, lista para la siguiente. Si el cobro falla (sin stock,
+caja cerrada, error del servidor), se queda en esta pantalla con el error y sin pagos armados,
+para elegir otro método o volver a intentar.
+
+### R12 · Efectivo: monto recibido y Enter
+**Dado** el cobro abierto, **cuando** se toca *Efectivo*, **entonces** aparece el campo
+*Recibido* con el foco. **Cuando** se pulsa Enter (o *Cobrar*), **entonces** se cobra como en
+R11. Vacío significa efectivo exacto. Un monto menor que el total no cobra y avisa "El efectivo
+recibido no alcanza para el total". Al volver al POS se muestra "Cambio: $X" si hubo cambio.
+
+### R13 · El pago mixto sigue disponible aparte
+**Dado** el cobro abierto, **cuando** se toca *Pago mixto*, **entonces** los métodos dejan de
+cobrar de un toque: cada uno agrega un pago por el saldo pendiente (efectivo pide el monto y
+puede ser parcial) y se cobra con *Confirmar cobro* cuando el saldo llega a 0, como en R6. Al
+terminar también se vuelve directo al POS.
 
 
 ## Al abrir
