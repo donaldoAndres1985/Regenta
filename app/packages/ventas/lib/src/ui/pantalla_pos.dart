@@ -80,6 +80,9 @@ void _mostrarNotificacionPos(
           ),
         ],
       ),
+      // Con un botón (p. ej. Imprimir), Flutter deja el aviso fijo si no se le
+      // dice lo contrario: en el POS siempre se cierra solo tras [duracion].
+      persist: false,
       action: (accionLabel != null && onAccion != null)
           ? SnackBarAction(
               label: accionLabel,
