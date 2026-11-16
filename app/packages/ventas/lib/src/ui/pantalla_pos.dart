@@ -239,7 +239,11 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     final pos = ref.read(controladorDelPosProvider.notifier);
     final indice = estado.lineas.length - 1;
     final linea = estado.lineas[indice];
-    final ctrl = TextEditingController(text: formatearCantidadExacta(linea.cantidad));
+    final texto = formatearCantidadExacta(linea.cantidad);
+    // R7d: la cantidad llega seleccionada para sobrescribirla con lo que se escriba.
+    final ctrl = TextEditingController(text: texto)
+      ..selection = TextSelection(baseOffset: 0, extentOffset: texto.length);
+    final foco = FocusNode();
 
     await showDialog<void>(
       context: context,
@@ -256,6 +260,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
               const SizedBox(height: 12),
               TextField(
                 controller: ctrl,
+                focusNode: foco,
                 autofocus: true,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
@@ -569,8 +574,21 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     if (!estado.puedeCobrar) return;
     final pos = ref.read(controladorDelPosProvider.notifier);
 
-    final resultado = await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(
+    // Lo necesario para el ticket, antes de que la venta se vacíe.
+    final lineasTicket = estado.lineas
+        .map((l) => LineaTicket(
+              nombre: l.producto.nombre,
+              cantidad: l.cantidad,
+              precioUnitario: l.producto.precioVenta,
+              total: l.total,
+            ))
+        .toList();
+    final clienteNombre = estado.cliente?.nombre;
+    final clienteDoc = estado.cliente?.documento;
+    final total = estado.total;
+
+    final resultado = await Navigator.of(context).push<Object>(
+      MaterialPageRoute<Object>(
         builder: (_) => PantallaCobro(
           total: estado.total,
           clienteAsignado: estado.cliente != null,
@@ -587,11 +605,32 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     if (resultado == PantallaCobro.sinConexion) {
       // Sin señal: HU-043 cobra directo, sin pedir metodo de pago.
       await pos.cobrar();
-    } else if (resultado != null) {
-      pos.vaciarTrasCobro(resultado);
+    } else if (resultado is CobroTerminado && mounted) {
+      // R11 de Cobro.md: se vuelve directo; aquí se imprime y se avisa el cambio.
+      void imprimir({bool directo = false}) {
+        GeneradorTicketPos.imprimirOPrevisualizarTicketCobrado(
+          context,
+          numeroVenta: resultado.numero,
+          clienteNombre: clienteNombre,
+          clienteDoc: clienteDoc,
+          lineas: lineasTicket,
+          total: total,
+          pagos: resultado.pagos,
+          cambio: resultado.cambio,
+          directo: directo,
+        );
+      }
+
+      _ultimoCobro = (numero: resultado.numero, cambio: resultado.cambio, imprimir: imprimir);
+      pos.vaciarTrasCobro(resultado.numero);
+      if (ConfiguradorDeTicket.impresionAutomaticaFactura) imprimir(directo: true);
     }
     if (mounted) _enfocarBuscador();
   }
+
+  /// El último cobro hecho desde [PantallaCobro], para que el aviso de
+  /// "Venta cobrada" muestre el cambio y ofrezca reimprimir.
+  ({String numero, num cambio, void Function({bool directo}) imprimir})? _ultimoCobro;
 
   Future<void> _ventaRapidaEfectivo() async {
     final estado = ref.read(controladorDelPosProvider);
@@ -1109,10 +1148,17 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       }
       if (ahora.ventaNumero != null && ahora.ventaNumero != antes?.ventaNumero) {
         widget.onVentaCobrada?.call(ahora.ventaNumero!);
+        final cobro = _ultimoCobro?.numero == ahora.ventaNumero ? _ultimoCobro : null;
+        final cambio = cobro?.cambio ?? 0;
         _mostrarNotificacionPos(
           context,
-          'Venta ${ahora.ventaNumero} cobrada',
+          cambio > 0
+              ? 'Venta ${ahora.ventaNumero} cobrada · Cambio: ${formatearPesos(cambio)}'
+              : 'Venta ${ahora.ventaNumero} cobrada',
           esExito: true,
+          duracion: Duration(seconds: cambio > 0 ? 10 : 4),
+          accionLabel: cobro == null ? null : 'Imprimir',
+          onAccion: cobro == null ? null : () => cobro.imprimir(directo: false),
         );
       } else if (ahora.ventaEnCola && !(antes?.ventaEnCola ?? false)) {
         _mostrarNotificacionPos(
@@ -2353,9 +2399,7 @@ class _FilaDeVenta extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? RegentaColors.kdsTexto
-                                : RegentaColors.inkFuerte,
+                            color: RegentaColors.inkFuerte, // R7e: la fila es clara siempre
                           ),
                         ),
                       ),
@@ -2811,9 +2855,7 @@ class _TarjetaDeLineaMovil extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? RegentaColors.kdsTexto
-                                    : RegentaColors.inkFuerte,
+                                color: RegentaColors.inkFuerte, // R7e: la fila es clara siempre
                               ),
                             ),
                           ),

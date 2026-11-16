@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
+import '../cobro/controlador_de_cobro.dart';
 import '../cobro/estado_del_cobro.dart';
 import '../cobro/proveedores.dart';
 import '../datos/repositorio_de_ventas.dart';
@@ -21,10 +22,20 @@ const _metodos = <(String valor, String etiqueta, IconData icono)>[
 String _etiquetaMetodo(String valor) =>
     _metodos.firstWhere((m) => m.$1 == valor, orElse: () => (valor, valor, Icons.payments)).$2;
 
+/// Lo que devuelve [PantallaCobro] al cobrar: el POS vacía la venta, imprime
+/// si la impresión automática está activa y avisa el cambio (R11 de `Cobro.md`).
+class CobroTerminado {
+  const CobroTerminado({required this.numero, this.pagos = const [], this.cambio = 0});
+
+  final String numero;
+  final List<PagoTicket> pagos;
+  final num cambio;
+}
+
 /// La pantalla de Cobro (HU-039/040, `design/comportamiento/Cobro.md`): se
-/// abre con el carrito ya congelado y arma el pago -único o mixto- o la
-/// venta a crédito, mostrando cada paso real contra el backend (crear venta,
-/// confirmar disponibilidad, registrar pago, cerrar).
+/// abre con el carrito ya congelado. Un método cobra de un toque (R11), el
+/// efectivo pide el monto recibido y cobra con Enter (R12) y el pago mixto
+/// queda aparte (R13). Al cobrar vuelve directo al POS con [CobroTerminado].
 class PantallaCobro extends ConsumerStatefulWidget {
   /// Lo que devuelve el `Navigator.pop` cuando no hay conexión: quien abrió
   /// esta pantalla debe caer al camino `/offline` de `ControladorDelPos`.
@@ -58,7 +69,11 @@ class PantallaCobro extends ConsumerStatefulWidget {
 class _PantallaCobroState extends ConsumerState<PantallaCobro> {
   late final ParametrosDeCobro _parametros;
   final TextEditingController _montoRecibido = TextEditingController();
+  final FocusNode _focoRecibido = FocusNode();
   bool _pidiendoEfectivo = false;
+
+  /// R13: con pago mixto los métodos solo agregan pagos y se confirma aparte.
+  bool _mixto = false;
 
   @override
   void initState() {
@@ -76,6 +91,7 @@ class _PantallaCobroState extends ConsumerState<PantallaCobro> {
   @override
   void dispose() {
     _montoRecibido.dispose();
+    _focoRecibido.dispose();
     super.dispose();
   }
 
@@ -87,6 +103,15 @@ class _PantallaCobroState extends ConsumerState<PantallaCobro> {
     ref.listen(controladorDeCobroProvider(_parametros), (previo, actual) {
       if (actual.sinConexion && !(previo?.sinConexion ?? false)) {
         Navigator.of(context).pop(PantallaCobro.sinConexion);
+      } else if (actual.terminado && !(previo?.terminado ?? false)) {
+        // R11: sin pantalla de "Venta cobrada": se vuelve directo al POS.
+        Navigator.of(context).pop(CobroTerminado(
+          numero: actual.ventaNumero!,
+          pagos: [
+            for (final p in actual.pagos) PagoTicket(metodo: p.metodo, monto: p.monto),
+          ],
+          cambio: actual.pagos.fold<num>(0, (acc, p) => acc + p.cambio),
+        ));
       }
     });
 
@@ -100,27 +125,7 @@ class _PantallaCobroState extends ConsumerState<PantallaCobro> {
         ),
       ),
       body: estado.terminado
-          ? _VistaDeExito(
-              numero: estado.ventaNumero!,
-              lineas: widget.lineas
-                  .map((l) => LineaTicket(
-                        nombre: l.nombre,
-                        cantidad: l.cantidad,
-                        precioUnitario: l.precioUnitario,
-                        total: l.cantidad * l.precioUnitario,
-                      ))
-                  .toList(),
-              total: widget.total,
-              clienteNombre: widget.clienteNombre,
-              clienteDoc: widget.clienteDoc,
-              pagos: estado.pagos
-                  .map((p) => PagoTicket(
-                        metodo: p.metodo,
-                        monto: p.monto,
-                      ))
-                  .toList(),
-              cambio: estado.pagos.fold<num>(0, (acc, p) => acc + p.cambio),
-            )
+          ? const SizedBox.shrink()
           : SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -146,7 +151,27 @@ class _PantallaCobroState extends ConsumerState<PantallaCobro> {
                     ],
                     const SizedBox(height: 16),
                     if (!estado.cubierto) ...[
-                      const Text('Método de pago', style: TextStyle(fontWeight: FontWeight.w700)),
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text('Método de pago',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700, color: RegentaColors.inkFuerte)),
+                          ),
+                          TextButton.icon(
+                            key: const Key('cobro-pago-mixto'),
+                            icon: Icon(_mixto ? Icons.check_box : Icons.check_box_outline_blank,
+                                size: 18),
+                            label: const Text('Pago mixto'),
+                            onPressed: estado.procesando
+                                ? null
+                                : () => setState(() {
+                                      _mixto = !_mixto;
+                                      _pidiendoEfectivo = false;
+                                    }),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
@@ -197,6 +222,7 @@ class _PantallaCobroState extends ConsumerState<PantallaCobro> {
                           ],
                         ),
                       ),
+                    if (_mixto || estado.cubierto)
                     FilledButton(
                       onPressed: estado.cubierto && !estado.procesando
                           ? controlador.confirmarCobro
@@ -219,45 +245,63 @@ class _PantallaCobroState extends ConsumerState<PantallaCobro> {
     );
   }
 
-  void _elegirMetodo(String metodo, dynamic controlador) {
+  void _elegirMetodo(String metodo, ControladorDeCobro controlador) {
     if (metodo == 'EFECTIVO') {
       setState(() => _pidiendoEfectivo = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focoRecibido.requestFocus();
+      });
       return;
     }
-    controlador.pagarSaldoCon(metodo);
+    if (_mixto) {
+      controlador.pagarSaldoCon(metodo);
+    } else {
+      controlador.cobrarTodoCon(metodo); // R11: un toque cobra
+    }
   }
 
-  Widget _campoDeEfectivo(EstadoDelCobro estado, dynamic controlador) {
+  /// R12: vacío es efectivo exacto. En pago mixto el monto puede ser parcial.
+  void _usarEfectivo(ControladorDeCobro controlador) {
+    final texto = _montoRecibido.text.trim().replaceAll('.', '').replaceAll(',', '.');
+    final recibido = texto.isEmpty ? null : num.tryParse(texto);
+    if (texto.isNotEmpty && (recibido == null || recibido <= 0)) return;
+    if (_mixto) {
+      controlador.pagarSaldoCon('EFECTIVO', montoRecibido: recibido);
+      _montoRecibido.clear();
+      setState(() => _pidiendoEfectivo = false);
+    } else {
+      controlador.cobrarTodoCon('EFECTIVO', montoRecibido: recibido);
+    }
+  }
+
+  Widget _campoDeEfectivo(EstadoDelCobro estado, ControladorDeCobro controlador) {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
-            controller: _montoRecibido,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: 'Monto recibido en efectivo',
-              prefixText: '\$ ',
-              border: const OutlineInputBorder(),
-              suffixIcon: TextButton(
-                onPressed: () => _montoRecibido.text = estado.saldoPendiente.round().toString(),
-                child: const Text('Exacto'),
+          KeyedSubtree(
+            key: const Key('cobro-recibido'),
+            child: TextField(
+              controller: _montoRecibido,
+              focusNode: _focoRecibido,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              textInputAction: TextInputAction.done,
+              style: const TextStyle(color: RegentaColors.inkFuerte),
+              decoration: InputDecoration(
+                labelText: _mixto ? 'Monto recibido en efectivo' : 'Recibido (vacío = exacto)',
+                prefixText: '\$ ',
+                border: const OutlineInputBorder(),
               ),
+              onSubmitted: estado.procesando ? null : (_) => _usarEfectivo(controlador),
             ),
           ),
           const SizedBox(height: 10),
           FilledButton.tonal(
             key: const Key('cobro-confirmar-efectivo'),
-            onPressed: () {
-              final recibido = num.tryParse(_montoRecibido.text.trim());
-              if (recibido == null || recibido <= 0) return;
-              controlador.pagarSaldoCon('EFECTIVO', montoRecibido: recibido);
-              _montoRecibido.clear();
-              setState(() => _pidiendoEfectivo = false);
-            },
-            child: const Text('Agregar pago en efectivo'),
+            onPressed: estado.procesando ? null : () => _usarEfectivo(controlador),
+            child: Text(_mixto ? 'Agregar pago en efectivo' : 'Cobrar en efectivo (Enter)'),
           ),
         ],
       ),
@@ -266,7 +310,8 @@ class _PantallaCobroState extends ConsumerState<PantallaCobro> {
 
   List<Widget> _listaDePagos(EstadoDelCobro estado, dynamic controlador) {
     return [
-      const Text('Pagos registrados', style: TextStyle(fontWeight: FontWeight.w700)),
+      const Text('Pagos registrados',
+          style: TextStyle(fontWeight: FontWeight.w700, color: RegentaColors.inkFuerte)),
       const SizedBox(height: 6),
       for (var i = 0; i < estado.pagos.length; i++)
         Card(
@@ -378,85 +423,6 @@ class _BotonDeMetodo extends StatelessWidget {
         minimumSize: const Size(0, RegentaSpacing.hitTarget),
         padding: const EdgeInsets.symmetric(horizontal: 14),
         shape: const StadiumBorder(),
-      ),
-    );
-  }
-}
-
-class _VistaDeExito extends StatefulWidget {
-  const _VistaDeExito({
-    required this.numero,
-    required this.lineas,
-    required this.total,
-    this.clienteNombre,
-    this.clienteDoc,
-    this.pagos = const [],
-    this.cambio = 0,
-  });
-
-  final String numero;
-  final List<LineaTicket> lineas;
-  final num total;
-  final String? clienteNombre;
-  final String? clienteDoc;
-  final List<PagoTicket> pagos;
-  final num cambio;
-
-  @override
-  State<_VistaDeExito> createState() => _VistaDeExitoState();
-}
-
-class _VistaDeExitoState extends State<_VistaDeExito> {
-  @override
-  void initState() {
-    super.initState();
-    if (ConfiguradorDeTicket.impresionAutomaticaFactura) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _imprimir(directo: true);
-      });
-    }
-  }
-
-  void _imprimir({bool directo = false}) {
-    GeneradorTicketPos.imprimirOPrevisualizarTicketCobrado(
-      context,
-      numeroVenta: widget.numero,
-      clienteNombre: widget.clienteNombre,
-      clienteDoc: widget.clienteDoc,
-      lineas: widget.lineas,
-      total: widget.total,
-      pagos: widget.pagos,
-      cambio: widget.cambio,
-      directo: directo,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.check_circle, color: RegentaColors.ok, size: 64),
-          const SizedBox(height: 12),
-          Text('Venta ${widget.numero} cobrada', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            key: const Key('boton-imprimir-ticket'),
-            icon: const Icon(Icons.print_outlined),
-            label: const Text('Imprimir ticket'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            onPressed: _imprimir,
-          ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(widget.numero),
-            style: FilledButton.styleFrom(backgroundColor: RegentaColors.accent, foregroundColor: Colors.white),
-            child: const Text('Listo'),
-          ),
-        ],
       ),
     );
   }

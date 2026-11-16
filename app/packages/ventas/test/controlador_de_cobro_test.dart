@@ -174,6 +174,64 @@ ControladorDeCobro _controlador(
     );
 
 void main() {
+  group('Cobro.md R11/R12 · cobro de un toque', () {
+    test('R11 · un solo método cobra el total de una vez y termina', () async {
+      final repo = _RepoDeCobroFake();
+      final controlador = _controlador(repo);
+
+      await controlador.cobrarTodoCon('TARJETA_CREDITO');
+
+      expect(repo.pagosRecibidos.single.metodo, 'TARJETA_CREDITO');
+      expect(repo.pagosRecibidos.single.monto, 64000);
+      expect(repo.cerrada, isTrue);
+      expect(controlador.state.terminado, isTrue);
+    });
+
+    test('R11 · si el cobro falla, queda el error y ningún pago armado', () async {
+      final repo = _RepoDeCobroFake()
+        ..errorAlConfirmar = const ErroresDeValidacion({}, 'Abre la caja antes de vender.');
+      final controlador = _controlador(repo);
+
+      await controlador.cobrarTodoCon('QR');
+
+      expect(controlador.state.error, 'Abre la caja antes de vender.');
+      expect(controlador.state.pagos, isEmpty);
+      expect(controlador.state.terminado, isFalse);
+    });
+
+    test('R12 · efectivo con monto recibido cobra y deja el cambio', () async {
+      final repo = _RepoDeCobroFake();
+      final controlador = _controlador(repo);
+
+      await controlador.cobrarTodoCon('EFECTIVO', montoRecibido: 70000);
+
+      expect(repo.pagosRecibidos.single.montoRecibido, 70000);
+      expect(controlador.state.pagos.single.cambio, 6000);
+      expect(controlador.state.terminado, isTrue);
+    });
+
+    test('R12 · efectivo sin monto es efectivo exacto', () async {
+      final repo = _RepoDeCobroFake();
+      final controlador = _controlador(repo);
+
+      await controlador.cobrarTodoCon('EFECTIVO');
+
+      expect(repo.pagosRecibidos.single.montoRecibido, 64000);
+      expect(controlador.state.pagos.single.cambio, 0);
+    });
+
+    test('R12 · efectivo menor que el total no cobra y avisa', () async {
+      final repo = _RepoDeCobroFake();
+      final controlador = _controlador(repo);
+
+      await controlador.cobrarTodoCon('EFECTIVO', montoRecibido: 50000);
+
+      expect(controlador.state.error, 'El efectivo recibido no alcanza para el total');
+      expect(repo.lineasRecibidas, isEmpty, reason: 'no se manda nada al backend');
+      expect(controlador.state.pagos, isEmpty);
+    });
+  });
+
   test(
       'HU-146 C8 · Sin caja abierta, el cobro muestra «Abre la caja antes de vender.» '
       'y no un error técnico', () async {

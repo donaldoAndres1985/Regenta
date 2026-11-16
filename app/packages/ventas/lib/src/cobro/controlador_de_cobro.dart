@@ -57,6 +57,33 @@ class ControladorDeCobro extends StateNotifier<EstadoDelCobro> {
     ));
   }
 
+  /// R11/R12 de `Cobro.md`: cobra el total con un solo método, de un toque.
+  /// En efectivo, [montoRecibido] es lo que entregó el cliente (null = exacto)
+  /// y no puede ser menor que el total. Si el cobro falla, no deja pagos
+  /// armados: se elige otro método o se reintenta.
+  Future<void> cobrarTodoCon(String metodo, {num? montoRecibido}) async {
+    if (state.procesando) return;
+    final efectivo = metodo == 'EFECTIVO';
+    if (efectivo && montoRecibido != null && montoRecibido < state.total) {
+      state = state.copiar(error: 'El efectivo recibido no alcanza para el total');
+      return;
+    }
+    state = state.copiar(
+      pagos: [
+        LineaDePagoEnCurso(
+          metodo: metodo,
+          monto: state.total,
+          montoRecibido: efectivo ? (montoRecibido ?? state.total) : null,
+        ),
+      ],
+      error: null,
+    );
+    await confirmarCobro();
+    if (!state.terminado && !state.sinConexion) {
+      state = state.copiar(pagos: const []);
+    }
+  }
+
   /// HU-040: vende a crédito en vez de registrar pago. [autorizado] es el
   /// reintento deliberado cuando el cliente tiene cartera vencida
   /// (criterio 4) — nunca `true` en el primer intento.

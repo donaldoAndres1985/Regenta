@@ -271,17 +271,13 @@ Future<void> _escribir(WidgetTester tester, String texto) async {
   );
 }
 
-/// Toca Cobrar, abre la pantalla de Cobro, paga todo con Transferencia (un
-/// solo toque, sin pedir monto) y confirma. Se usa en los tests que no
-/// prueban el flujo de pago en sí, solo que Cobrar dispare la venta.
+/// Toca Cobrar y paga todo con Transferencia: desde R11 de `Cobro.md` eso
+/// solo ya cobra y vuelve al POS (sin *Confirmar cobro* ni *Listo*). Se usa en
+/// los tests que no prueban el flujo de pago en sí.
 Future<void> _cobrarConUnPago(WidgetTester tester) async {
   await tester.tap(find.widgetWithText(FilledButton, 'Cobrar'));
   await tester.pumpAndSettle();
   await tester.tap(find.widgetWithText(OutlinedButton, 'Transferencia'));
-  await tester.pump();
-  await tester.tap(find.widgetWithText(FilledButton, 'Confirmar cobro'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.widgetWithText(FilledButton, 'Listo'));
   await tester.pumpAndSettle();
 }
 
@@ -917,6 +913,140 @@ void main() {
     },
   );
 
+  group('Cobro.md R11-R13: cobrar sin pasos de más', () {
+    testWidgets(
+      'R11: elegir Tarjeta crédito cobra y vuelve al POS, sin Confirmar ni Listo',
+      (tester) async {
+        final repo = _RepoFake();
+        await _montar(tester, repo, size: const Size(1280, 900));
+        await _agregar(tester, repo, _prod());
+
+        await tester.tap(find.widgetWithText(FilledButton, 'Cobrar'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Tarjeta crédito'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(PantallaCobro), findsNothing);
+        expect(find.text('Listo'), findsNothing);
+        expect(repo.pagosRegistrados.single.metodo, 'TARJETA_CREDITO');
+        expect(repo.ventasCerradas, hasLength(1));
+        expect(_estado(tester).lineas, isEmpty);
+        expect(find.textContaining('Venta FV-1 cobrada'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'R12: Efectivo pone el foco en Recibido; Enter cobra y el POS avisa el cambio',
+      (tester) async {
+        final repo = _RepoFake();
+        await _montar(tester, repo, size: const Size(1280, 900));
+        await _agregar(tester, repo, _prod()); // 32.000
+
+        await tester.tap(find.widgetWithText(FilledButton, 'Cobrar'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Efectivo'));
+        await tester.pump();
+
+        final recibido = find.byKey(const Key('cobro-recibido'));
+        final campo = tester.widget<TextField>(
+          find.descendant(of: recibido, matching: find.byType(TextField)),
+        );
+        expect(campo.focusNode?.hasFocus ?? false, isTrue, reason: 'el foco va al monto');
+
+        await tester.enterText(recibido, '50000');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(PantallaCobro), findsNothing);
+        expect(repo.pagosRegistrados.single.montoRecibido, 50000);
+        expect(find.textContaining('Cambio: ${formatearPesos(18000)}'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'R13: con Pago mixto, elegir un método solo agrega el pago y se confirma aparte',
+      (tester) async {
+        final repo = _RepoFake();
+        await _montar(tester, repo, size: const Size(1280, 900));
+        await _agregar(tester, repo, _prod());
+
+        await tester.tap(find.widgetWithText(FilledButton, 'Cobrar'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Pago mixto'));
+        await tester.pump();
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Transferencia'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(PantallaCobro), findsOneWidget);
+        expect(repo.pagosRegistrados, isEmpty);
+
+        await tester.tap(find.widgetWithText(FilledButton, 'Confirmar cobro'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(PantallaCobro), findsNothing);
+        expect(repo.ventasCerradas, hasLength(1));
+      },
+    );
+  });
+
+  testWidgets(
+    'POS R7d: Ctrl+C abre la cantidad seleccionada y con el foco, para sobrescribirla',
+    (tester) async {
+      final repo = _RepoFake();
+      await _montar(tester, repo, size: const Size(1280, 900));
+      await _agregar(tester, repo, _prod());
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      final campo = tester.widget<TextField>(
+        find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)),
+      );
+      expect(campo.controller!.text, '1');
+      expect(
+        campo.controller!.selection,
+        const TextSelection(baseOffset: 0, extentOffset: 1),
+        reason: 'lo que se escriba reemplaza la cantidad',
+      );
+      expect(campo.focusNode?.hasFocus ?? false, isTrue);
+    },
+  );
+
+  testWidgets(
+    'POS R7e: con el sistema en modo oscuro, el nombre del producto se lee en inkFuerte',
+    (tester) async {
+      final repo = _RepoFake();
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            repositorioDeVentasProvider.overrideWithValue(repo),
+            bodegaDeVentaProvider.overrideWithValue('bodega-1'),
+            escanerProvider.overrideWithValue(_EscanerFake()),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark(),
+            home: const PantallaPos(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await _agregar(tester, repo, _prod());
+
+      final nombre = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const Key('pos-carrito')),
+          matching: find.text('Cemento gris 50 kg'),
+        ),
+      );
+      expect(nombre.style?.color, RegentaColors.inkFuerte);
+    },
+  );
+
   testWidgets(
     'HU-043 criterio 1: sin señal, cobrar avisa que la venta quedó guardada',
     (tester) async {
@@ -932,11 +1062,9 @@ void main() {
       await _agregar(tester, repo, _prod());
       await tester.tap(find.widgetWithText(FilledButton, 'Cobrar'));
       await tester.pumpAndSettle();
+      // Elegir el método ya cobra (R11 de Cobro.md): el primer paso falla sin
+      // red y cae directo al camino /offline (HU-043).
       await tester.tap(find.widgetWithText(OutlinedButton, 'Transferencia'));
-      await tester.pump();
-      // Al confirmar, el primer paso del flujo por pasos falla sin red y cae
-      // directo al camino /offline (HU-043).
-      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar cobro'));
       await tester.pumpAndSettle();
 
       expect(
