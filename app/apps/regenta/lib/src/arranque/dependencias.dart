@@ -177,6 +177,13 @@ class DependenciasDeLaApp {
               .contains('INVENTARIO_DETALLAR') ??
           false,
     ),
+    // HU-164: importar productos solo con el permiso que trae el token.
+    puedeImportarProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('INVENTARIO_IMPORTAR') ??
+          false,
+    ),
     // HU-161: detallar solo con el permiso que trae el token.
     puedeDetallarProvider.overrideWith(
       (ref) =>

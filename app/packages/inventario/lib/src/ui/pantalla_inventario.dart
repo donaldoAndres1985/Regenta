@@ -8,7 +8,9 @@ import '../datos/producto_encontrado.dart';
 import '../escaner/escaner_de_codigos.dart';
 import 'captura_manual_de_codigo.dart';
 import 'fila_de_producto.dart';
+import '../datos/importacion.dart';
 import 'pantalla_equivalencias.dart';
+import 'pantalla_importacion.dart';
 import 'pantalla_ficha_de_producto.dart';
 import 'pantalla_inventario_general.dart';
 import 'pantalla_tablas_de_fracciones.dart';
@@ -93,7 +95,10 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
 
     return Scaffold(
       backgroundColor: RegentaColors.paper,
-      appBar: _AppBar(titulo: widget.titulo, onNuevo: () => _abrirDialogoCrearProducto(context)),
+      appBar: _AppBar(
+          titulo: widget.titulo,
+          onNuevo: () => _abrirDialogoCrearProducto(context),
+          puedeImportar: ref.watch(puedeImportarProvider)),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _abrirDialogoCrearProducto(context),
         backgroundColor: RegentaColors.accent,
@@ -310,9 +315,10 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
 }
 
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _AppBar({required this.titulo, this.onNuevo});
+  const _AppBar({required this.titulo, this.onNuevo, this.puedeImportar = false});
   final String titulo;
   final VoidCallback? onNuevo;
+  final bool puedeImportar;
 
   @override
   Size get preferredSize => const Size.fromHeight(56);
@@ -364,6 +370,16 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
             builder: (_) => const PantallaTablasDeFracciones(),
           )),
         ),
+        // HU-164: importar productos desde Excel.
+        if (puedeImportar)
+          IconButton(
+            key: const Key('inventario-importar'),
+            tooltip: 'Importar desde Excel',
+            icon: const Icon(Icons.upload_file, size: 22, color: RegentaColors.accent),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => const PantallaImportacion(),
+            )),
+          ),
         // HU-161: equivalencias de detallado (cuñete -> galones).
         IconButton(
           key: const Key('inventario-equivalencias'),

@@ -37,6 +37,20 @@ class ClienteHttp {
           {Object? datos, bool encolable = false}) =>
       _enviar<T>('DELETE', ruta, datos: datos, encolable: encolable);
 
+  /// Un pedido cuya respuesta es un archivo (ej. un .xlsx): devuelve sus bytes crudos.
+  Future<List<int>> bytes(String metodo, String ruta, {Object? datos}) async {
+    try {
+      final respuesta = await _dio.request<List<int>>(
+        ruta,
+        data: datos,
+        options: Options(method: metodo, responseType: ResponseType.bytes),
+      );
+      return respuesta.data ?? const [];
+    } on DioException catch (fallo) {
+      throw mapearError(fallo);
+    }
+  }
+
   Future<dynamic> _enviar<T>(
     String metodo,
     String ruta, {
