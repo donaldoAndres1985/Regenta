@@ -9,6 +9,7 @@ export 'src/busqueda/estado_de_busqueda.dart';
 export 'src/busqueda/proveedores.dart';
 export 'src/datos/bodega_del_negocio.dart';
 export 'src/datos/codigo_resuelto.dart';
+export 'src/datos/ficha_de_producto.dart';
 export 'src/datos/producto_encontrado.dart';
 export 'src/datos/repositorio_de_inventario.dart';
 export 'src/escaner/escaner_de_codigos.dart';
@@ -16,6 +17,7 @@ export 'src/escaner/escaner_mobile_scanner.dart';
 export 'src/ui/captura_manual_de_codigo.dart';
 export 'src/ui/fila_de_producto.dart';
 export 'src/ui/formato.dart';
+export 'src/ui/pantalla_ficha_de_producto.dart';
 export 'src/ui/pantalla_inventario.dart';
 
 /// Nombre del modulo, para el registro de paquetes activos por patron/plan.

@@ -2,6 +2,7 @@ import 'package:regenta_core/regenta_core.dart';
 
 import 'bodega_del_negocio.dart';
 import 'codigo_resuelto.dart';
+import 'ficha_de_producto.dart';
 import 'producto_encontrado.dart';
 
 /// El acceso a `servicio-inventario` desde la app. Se apoya en el [ClienteHttp]
@@ -50,6 +51,40 @@ class RepositorioDeInventario {
       '/api/inventario/productos/codigo/${Uri.encodeComponent(codigo.trim())}',
     );
     return CodigoResuelto.desdeJson(cuerpo);
+  }
+
+  /// HU-150 · la ficha completa de un producto.
+  Future<FichaDeProducto> verProducto(String id) async {
+    final cuerpo = await _http.get<Map<String, dynamic>>('/api/inventario/productos/$id');
+    return FichaDeProducto.desdeJson(cuerpo);
+  }
+
+  /// HU-150 · guarda la ficha. El backend rechaza con 409 si alguien guardó antes (C5) o si el
+  /// SKU o el código de barras ya los usa otro producto (C2).
+  Future<FichaDeProducto> editarProducto(String id, EdicionDeProducto edicion) async {
+    final cuerpo = await _http.put<Map<String, dynamic>>(
+      '/api/inventario/productos/$id',
+      datos: edicion.aJson(),
+    ) as Map<String, dynamic>;
+    return FichaDeProducto.desdeJson(cuerpo);
+  }
+
+  /// Las categorías del negocio, para elegir en la ficha.
+  Future<List<OpcionDeFicha>> categorias() async {
+    final cuerpo = await _http.get<List<dynamic>>('/api/inventario/categorias');
+    return [
+      for (final c in cuerpo.cast<Map<String, dynamic>>())
+        OpcionDeFicha(id: c['id'] as String, nombre: (c['nombre'] ?? '') as String),
+    ];
+  }
+
+  /// Las unidades de medida del negocio, para elegir en la ficha.
+  Future<List<OpcionDeFicha>> unidades() async {
+    final cuerpo = await _http.get<List<dynamic>>('/api/inventario/unidades');
+    return [
+      for (final u in cuerpo.cast<Map<String, dynamic>>())
+        OpcionDeFicha(id: u['id'] as String, nombre: '${u['codigo']} · ${u['nombre']}'),
+    ];
   }
 
   /// Registra un nuevo producto en el catálogo.
