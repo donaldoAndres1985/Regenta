@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import com.regenta.inventario.domain.Existencia;
 import com.regenta.inventario.domain.NivelStock;
 import com.regenta.inventario.domain.Producto;
+import com.regenta.inventario.domain.TarifaIva;
 import com.regenta.inventario.infrastructure.CategoriaRepositorio;
 import com.regenta.inventario.infrastructure.ExistenciaRepositorio;
 import com.regenta.inventario.infrastructure.ProductoCodigoRepositorio;
@@ -57,7 +58,7 @@ class BusquedaDeProductosTest {
     @Test
     void elStockMostradoDescuentaLoYaReservadoPorOtrasVentas() {
         Producto producto = Producto.nuevo(negocioId, "MANT-001", "Manto real", UUID.randomUUID(),
-                UUID.randomUUID(), UUID.randomUUID());
+                UUID.randomUUID(), TarifaIva.IVA_19, UUID.randomUUID());
         when(productos.findByNegocioIdAndActivoTrueOrderByNombreAsc(negocioId))
                 .thenReturn(List.of(producto));
 
@@ -77,7 +78,7 @@ class BusquedaDeProductosTest {
     @Test
     void sinReservasElStockEsLaCantidadCompleta() {
         Producto producto = Producto.nuevo(negocioId, "MANT-002", "Manto real 2", UUID.randomUUID(),
-                UUID.randomUUID(), UUID.randomUUID());
+                UUID.randomUUID(), TarifaIva.IVA_19, UUID.randomUUID());
         when(productos.findByNegocioIdAndActivoTrueOrderByNombreAsc(negocioId))
                 .thenReturn(List.of(producto));
 

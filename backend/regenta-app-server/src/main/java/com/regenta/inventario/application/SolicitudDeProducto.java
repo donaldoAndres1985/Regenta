@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
+import com.regenta.inventario.domain.TarifaIva;
 import com.regenta.inventario.domain.TipoProducto;
 
 import jakarta.validation.constraints.NotBlank;
@@ -23,7 +24,10 @@ public record SolicitudDeProducto(
         @NotNull UUID unidadMedidaId,
         UUID marcaId,
         TipoProducto tipo,
+        /** HU-147: el precio de la etiqueta, con IVA incluido (I2). */
         @PositiveOrZero BigDecimal precioVenta,
+        /** HU-147 C1: obligatoria; sin ella se rechaza con la regla de negocio. */
+        TarifaIva tarifaIva,
         Boolean controlaStock,
         BigDecimal stockMinimo,
         BigDecimal stockMaximo,

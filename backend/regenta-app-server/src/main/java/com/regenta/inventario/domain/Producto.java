@@ -19,6 +19,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+import com.regenta.shared.web.ReglaDeNegocioException;
+
 /**
  * Un producto del catalogo. Los campos que varian por tipo de negocio no son
  * columnas: van en el JSONB {@code atributos}, validados contra
@@ -63,6 +65,15 @@ public class Producto {
 
     @Column(name = "precio_venta", nullable = false)
     private BigDecimal precioVenta;
+
+    /** HU-147 · I1: toda tarifa sale de la lista cerrada; el precio la incluye (I2). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tarifa_iva", nullable = false, length = 10)
+    private TarifaIva tarifaIva;
+
+    /** I6: la tarifa la puso la migración y nadie la ha confirmado todavía. */
+    @Column(name = "tarifa_por_revisar", nullable = false)
+    private boolean tarifaPorRevisar;
 
     /** El costo de la ultima entrada con costo (HU-138). Cero = sin costo conocido. */
     @Column(name = "costo_ultimo", nullable = false)
@@ -121,8 +132,11 @@ public class Producto {
     }
 
     public static Producto nuevo(UUID negocioId, String sku, String nombre, UUID categoriaId,
-            UUID unidadMedidaId, UUID creadoPor) {
+            UUID unidadMedidaId, TarifaIva tarifaIva, UUID creadoPor) {
+        exigirTarifa(tarifaIva);
         Producto producto = new Producto();
+        producto.tarifaIva = tarifaIva;
+        producto.tarifaPorRevisar = false;
         producto.id = UUID.randomUUID();
         producto.negocioId = negocioId;
         producto.sku = sku;
@@ -170,6 +184,35 @@ public class Producto {
         this.manejaSeries = manejaSeries;
         this.perecedero = perecedero;
         this.permiteVentaSinStock = permiteVentaSinStock;
+    }
+
+    /**
+     * HU-147 C4 e I6: cambia (o confirma) la tarifa. El precio de la etiqueta no cambia; cambia
+     * la base. Al fijarla una persona, deja de estar «por revisar».
+     */
+    public void cambiarTarifa(TarifaIva tarifa) {
+        exigirTarifa(tarifa);
+        this.tarifaIva = tarifa;
+        this.tarifaPorRevisar = false;
+    }
+
+    /** El precio de venta con su base y su IVA (I2). */
+    public PrecioConIva precio() {
+        return new PrecioConIva(precioVenta, tarifaIva);
+    }
+
+    private static void exigirTarifa(TarifaIva tarifa) {
+        if (tarifa == null) {
+            throw new ReglaDeNegocioException("Elige la tarifa de IVA del producto.");
+        }
+    }
+
+    public TarifaIva getTarifaIva() {
+        return tarifaIva;
+    }
+
+    public boolean isTarifaPorRevisar() {
+        return tarifaPorRevisar;
     }
 
     public void fijarAtributos(Map<String, Object> atributos) {

@@ -76,7 +76,7 @@ public class GestionDeProductos {
                 solicitud.atributos());
 
         Producto producto = Producto.nuevo(negocioId, solicitud.sku(), solicitud.nombre(),
-                solicitud.categoriaId(), solicitud.unidadMedidaId(),
+                solicitud.categoriaId(), solicitud.unidadMedidaId(), solicitud.tarifaIva(),
                 ContextoDeNegocio.actual().usuario());
         producto.datosBasicos(solicitud.descripcion(), solicitud.marcaId(), solicitud.tipo(),
                 solicitud.precioVenta(), codigoBarras);
@@ -140,6 +140,7 @@ public class GestionDeProductos {
     private static ProductoDelNegocio comoDto(Producto p) {
         return new ProductoDelNegocio(p.getId(), p.getSku(), p.getCodigoBarras(), p.getNombre(),
                 p.getCategoriaId(), p.getUnidadMedidaId(), p.getTipo(), p.getPrecioVenta(),
+                p.getTarifaIva(), p.isTarifaPorRevisar(), p.precio().base(), p.precio().iva(),
                 p.isManejaLotes(), p.isPerecedero(), p.getAtributos(), p.isActivo());
     }
 
