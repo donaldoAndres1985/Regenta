@@ -1008,6 +1008,36 @@ void main() {
   });
 
   testWidgets(
+    'HU-152 C2: el detalle del producto (Ctrl+D) muestra su ubicación en la bodega de la venta',
+    (tester) async {
+      final repo = _RepoFake();
+      await _montar(tester, repo, size: const Size(1280, 900));
+      await _agregar(
+        tester,
+        repo,
+        ProductoBuscado.desdeJson({
+          'id': 'p1',
+          'sku': 'CEM-050',
+          'nombre': 'Cemento gris 50 kg',
+          'precioVenta': 32000,
+          'nivelStock': 'NORMAL',
+          'ubicaciones': {'bodega-1': 'Pasillo 3 – E2', 'bodega-2': 'Estiba 5'},
+        }),
+      );
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pasillo 3 – E2'), findsOneWidget);
+      expect(find.text('Estiba 5'), findsNothing);
+      expect(find.textContaining('Bodega Principal · Pasillo'), findsNothing,
+          reason: 'ya no se muestra la ubicación inventada');
+    },
+  );
+
+  testWidgets(
     'POS R7d: Ctrl+C abre la cantidad seleccionada y con el foco, para sobrescribirla',
     (tester) async {
       final repo = _RepoFake();

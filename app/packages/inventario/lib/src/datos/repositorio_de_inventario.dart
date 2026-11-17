@@ -86,6 +86,26 @@ class RepositorioDeInventario {
     ];
   }
 
+  /// HU-152 · la ubicación del producto en cada bodega del negocio (vacía donde no se dijo).
+  Future<List<UbicacionEnBodega>> ubicacionesDe(String id) async {
+    final todas = await bodegas();
+    final cuerpo = await _http.get<Map<String, dynamic>>('/api/inventario/productos/$id/stock');
+    final dichas = <String, String>{
+      for (final e in ((cuerpo['porBodega'] ?? const []) as List).cast<Map<String, dynamic>>())
+        if (e['ubicacion'] != null) e['bodegaId'] as String: e['ubicacion'] as String,
+    };
+    return [
+      for (final b in todas)
+        UbicacionEnBodega(bodegaId: b.id, bodegaNombre: b.nombre, ubicacion: dichas[b.id]),
+    ];
+  }
+
+  /// HU-152 · fija la ubicación en una bodega; en blanco la quita.
+  Future<void> fijarUbicacion(String id, String bodegaId, String ubicacion) async {
+    await _http.put<void>('/api/inventario/productos/$id/ubicaciones/$bodegaId',
+        datos: {'ubicacion': ubicacion});
+  }
+
   /// Las categorías del negocio, para elegir en la ficha.
   Future<List<OpcionDeFicha>> categorias() async {
     final cuerpo = await _http.get<List<dynamic>>('/api/inventario/categorias');

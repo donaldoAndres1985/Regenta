@@ -538,7 +538,9 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                   valorColor: stockBadgeTexto,
                 ),
                 const Divider(height: 1, color: RegentaColors.posModalBorde),
-                const _FilaDetalle('Ubicación / Sección', 'Bodega Principal · Pasillo'),
+                // HU-152 C2: la ubicación real en la bodega de esta venta.
+                _FilaDetalle('Ubicación',
+                    p.ubicaciones[ref.read(bodegaDeVentaProvider)] ?? 'Sin ubicación'),
                 const Divider(height: 1, color: RegentaColors.posModalBorde),
                 _FilaDetalle('Precio de venta', formatearPesos(p.precioVenta)),
                 const Divider(height: 1, color: RegentaColors.posModalBorde),

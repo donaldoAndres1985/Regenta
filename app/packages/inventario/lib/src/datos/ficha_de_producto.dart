@@ -82,6 +82,15 @@ class EdicionDeProducto {
       };
 }
 
+/// HU-152 · la ubicación del producto en una bodega (vacía si no se ha dicho).
+class UbicacionEnBodega {
+  const UbicacionEnBodega({required this.bodegaId, required this.bodegaNombre, this.ubicacion});
+
+  final String bodegaId;
+  final String bodegaNombre;
+  final String? ubicacion;
+}
+
 /// Una opción para elegir en la ficha (categoría o unidad).
 class OpcionDeFicha {
   const OpcionDeFicha({required this.id, required this.nombre});

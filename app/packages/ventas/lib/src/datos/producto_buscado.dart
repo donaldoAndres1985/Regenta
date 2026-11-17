@@ -22,7 +22,11 @@ class ProductoBuscado {
     this.existencia,
     this.codigoBarras,
     this.tarifaIva,
+    this.ubicaciones = const {},
   });
+
+  /// HU-152: dónde está en cada bodega (id de bodega → ubicación), si se dijo.
+  final Map<String, String> ubicaciones;
 
   /// HU-149: IVA_19, IVA_5, EXENTO o EXCLUIDO, como la devuelve el catálogo.
   final String? tarifaIva;
@@ -61,6 +65,10 @@ class ProductoBuscado {
         codigoBarras: json['codigoBarras'] as String?,
         impuestoPct: (json['impuestoPct'] ?? 0) as num,
         tarifaIva: json['tarifaIva'] as String?,
+        ubicaciones: {
+          for (final e in ((json['ubicaciones'] ?? const {}) as Map).entries)
+            e.key.toString(): e.value.toString(),
+        },
       );
 }
 

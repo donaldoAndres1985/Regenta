@@ -10,5 +10,7 @@ public record ExistenciaEnBodega(
         String bodegaNombre,
         BigDecimal cantidad,
         BigDecimal cantidadReservada,
-        BigDecimal cantidadDisponible) {
+        BigDecimal cantidadDisponible,
+        /** HU-152: dónde está dentro de la bodega; null si no se ha dicho. */
+        String ubicacion) {
 }

@@ -93,8 +93,13 @@ public class BusquedaDeProductos {
             // bruta aqui dejaba un producto en pantalla como "Disponible" aunque ya
             // no hubiera nada que de verdad se pudiera vender, y la venta rebotaba
             // al cobrar con "no hay stock suficiente" sin que nada lo explicara.
-            BigDecimal stock = existencias.findByProductoIdOrderByBodegaId(producto.getId()).stream()
+            List<Existencia> enBodegas = existencias.findByProductoIdOrderByBodegaId(producto.getId());
+            BigDecimal stock = enBodegas.stream()
                     .map(Existencia::disponible).reduce(BigDecimal.ZERO, BigDecimal::add);
+            // HU-152 C2: el POS muestra la ubicación en la bodega de la venta.
+            Map<UUID, String> ubicaciones = new java.util.LinkedHashMap<>();
+            enBodegas.stream().filter(e -> e.getUbicacion() != null)
+                    .forEach(e -> ubicaciones.put(e.getBodegaId(), e.getUbicacion()));
             NivelStock nivel = nivelDe(stock, producto.getStockMinimo());
             if (filtro.soloBajoMinimo() && nivel == NivelStock.NORMAL) {
                 continue;
@@ -103,7 +108,7 @@ public class BusquedaDeProductos {
                     producto.getCodigoBarras(), producto.getNombre(), producto.getCategoriaId(),
                     nombreDeCategoria.getOrDefault(producto.getCategoriaId(), "?"),
                     producto.getPrecioVenta(), stock, nivel, producto.getTarifaIva(),
-                    producto.getTarifaIva().porcentaje()));
+                    producto.getTarifaIva().porcentaje(), ubicaciones));
         }
         return new ResultadoDeBusqueda(filas, filas.size());
     }
