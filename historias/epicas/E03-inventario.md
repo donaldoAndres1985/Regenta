@@ -778,8 +778,10 @@ El catálogo configurable, el stock por bodega y el libro mayor de movimientos. 
 
 1. Dado el botón «Descargar plantilla», cuando lo uso, entonces obtengo un `.xlsx` con las columnas SKU, código de barras, nombre, categoría, unidad, tarifa de IVA, precio con IVA, costo, existencia inicial y bodega.
 2. Dado un archivo con 100 filas, cuando lo subo, entonces veo una vista previa con cada fila y sus errores: SKU o código de barras repetido (en el archivo o en el negocio), tarifa inválida, categoría o unidad inexistente, obligatorios vacíos, números mal escritos.
-3. Dada una vista previa con errores, cuando intento importar, entonces no se graba nada (ver P3).
-4. Dada una vista previa sin errores, cuando importo, entonces se crean los productos y la existencia de cada uno entra como ajuste de «carga inicial» en el historial.
-5. Dados dos negocios, cuando uno importa, entonces el chequeo de duplicados es solo contra sus propios productos.
+3. Dada una vista previa con 92 filas válidas y 8 con error, cuando confirmo «Importar 92 productos (se omiten 8 con error)», entonces se crean los 92 y ninguna de las 8.
+4. Dado un archivo con dos filas del mismo SKU, cuando veo la vista previa, entonces las dos aparecen con error «SKU repetido en el archivo».
+5. Dada una importación terminada, cuando veo el resultado, entonces dice cuántos se importaron y lista las filas omitidas con su error, y puedo descargarlas en un `.xlsx` para corregirlas y volver a subirlas.
+6. Dado cada producto importado, cuando miro su historial, entonces su existencia inicial entró como ajuste de «carga inicial».
+7. Dados dos negocios, cuando uno importa, entonces el chequeo de duplicados es solo contra sus propios productos.
 
 ---

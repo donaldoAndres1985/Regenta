@@ -131,8 +131,10 @@ MovimientoInventario (existente,            → MovimientoInventario ENTRADA_DET
 ### Importación
 - **I19** · Una importación muestra primero una vista previa con los errores de cada fila (SKU o
   código de barras repetido —en el archivo o en el negocio—, tarifa inválida, campos
-  obligatorios vacíos, números mal escritos). No graba nada mientras haya errores (ver
-  Pendientes P3).
+  obligatorios vacíos, números mal escritos). Al confirmar, **las filas con error no se
+  importan y las válidas sí** (decidido 2026-11-16). Si dos filas del archivo traen el mismo SKU
+  o código de barras, las dos son error: no se adivina cuál vale. Al terminar se ve cuántas se
+  importaron y la lista de las omitidas con su error, descargable para corregir y volver a subir.
 - **I20** · La existencia inicial de cada producto importado entra como ajuste de "carga inicial"
   en el libro mayor, no como un número escrito directo.
 
@@ -188,7 +190,7 @@ también a Vendedor/Cajero, para poder detallar desde el POS.
 | 7 | SKU obligatorio, **sin** autogenerar (I7). |
 | 8 | Nunca se borra: desactivar con confirmación y reactivar (I8). |
 | 9 | Ubicación por producto y bodega (I9). |
-| 10 | Importación desde Excel **dentro** del alcance, como última etapa (I19-I20). |
+| 10 | Importación desde Excel **dentro** del alcance, como última etapa (I19-I20). Las filas con error se omiten; las válidas se importan. |
 | 11 | Orden: 1 IVA · 2 ficha · 3 inventario general · 4 unidades y fracciones · 5 ajustes · 6 detallar · 7 importación. |
 
 ## 9. Pendientes
@@ -198,7 +200,6 @@ también a Vendedor/Cajero, para poder detallar desde el POS.
   HU-036 se conserva sin pantalla.
 - **P2** · Compras (E05): costo sin IVA; si el negocio es responsable, el IVA de la compra es
   descontable, si no, suma al costo.
-- **P3** · Importación con errores: ¿no graba nada hasta que no haya errores (lo conservador,
-  escrito en I19) o permite grabar solo las filas válidas? **Por confirmar con el usuario.**
+- ~~**P3**~~ · Resuelto 2026-11-16: las filas con error se omiten y las válidas se importan (I19).
 - **P4** · Impuesto al consumo (INC 8 %) del patrón Comanda: el modelo de tarifas lo admite, fuera
   de alcance.
