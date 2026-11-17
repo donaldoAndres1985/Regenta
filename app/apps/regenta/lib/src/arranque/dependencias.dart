@@ -166,6 +166,8 @@ class DependenciasDeLaApp {
 
     // Ventas
     repositorioDeVentasProvider.overrideWithValue(RepositorioDeVentas(http)),
+    // HU-158: las fracciones reales del catálogo para el POS.
+    consultaDeFraccionesProvider.overrideWithValue(ConsultaDeFraccionesHttp(http)),
     repositorioDeCajaProvider.overrideWithValue(RepositorioDeCaja(http)),
     // HU-156: tablas de fracciones solo con el permiso que trae el token.
     puedeGestionarFraccionesProvider.overrideWith(

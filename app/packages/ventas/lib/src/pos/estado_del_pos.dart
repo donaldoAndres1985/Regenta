@@ -129,10 +129,11 @@ class EstadoDelPos {
           sku: l.producto.sku,
           nombre: l.producto.nombre,
           cantidad: l.cantidad,
-          precioUnitario: l.producto.precioVenta,
+          precioUnitario: l.precioUnitario,
           impuestoPct: l.producto.impuestoPct,
           costoUnitario: l.producto.costoUnitario,
           descuentoPct: _descuentoEfectivoPct(l, brutoTotal),
+          fraccion: l.fraccion?.medida,
         ),
     ];
   }

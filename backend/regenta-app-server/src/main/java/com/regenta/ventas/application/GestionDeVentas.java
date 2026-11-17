@@ -87,6 +87,16 @@ public class GestionDeVentas {
     @RequierePermiso("VENTAS_VENTA_CREAR")
     public LineaDeVenta agregarLinea(UUID ventaId, SolicitudDeLinea solicitud) {
         Venta venta = ventaDelNegocio(ventaId);
+        if (solicitud.fraccion() != null && !solicitud.fraccion().isBlank()) {
+            // HU-158 · I15: n fracciones descuentan n × factor y cobran n × precio de la fracción.
+            PrecioDeLinea.Fraccionada f = precios.deFraccion(venta.getNegocioId(),
+                    solicitud.productoId(), solicitud.fraccion(), solicitud.cantidad());
+            SolicitudDeLinea comoUnidades = new SolicitudDeLinea(solicitud.productoId(),
+                    solicitud.sku(), solicitud.nombre() + " (" + solicitud.fraccion() + ")",
+                    solicitud.unidad(), f.cantidad(), solicitud.precioUnitario(),
+                    solicitud.descuentoPct(), null, null, solicitud.costoUnitario(), null);
+            return agregar(venta, comoUnidades, f.precio());
+        }
         // HU-148 · I4: precio e IVA salen del catálogo; lo que mande el cliente se ignora.
         PrecioDeLinea.Resuelto precio = precios.de(venta.getNegocioId(), solicitud.productoId());
         return agregar(venta, solicitud, precio);
