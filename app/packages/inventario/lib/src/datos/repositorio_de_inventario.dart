@@ -129,6 +129,31 @@ class RepositorioDeInventario {
     return ((cuerpo['cambiados'] ?? 0) as num).toInt();
   }
 
+  /// HU-155 · las unidades de medida del negocio, con todos sus datos.
+  Future<List<UnidadDeMedida>> unidadesDeMedida() async {
+    final cuerpo = await _http.get<List<dynamic>>('/api/inventario/unidades');
+    return [
+      for (final u in cuerpo.cast<Map<String, dynamic>>()) UnidadDeMedida.desdeJson(u),
+    ];
+  }
+
+  /// HU-155 C1/C2 · crea una unidad; el backend rechaza un código repetido.
+  Future<UnidadDeMedida> crearUnidad(String codigo, String nombre, bool permiteDecimales) async {
+    final cuerpo = await _http.post<Map<String, dynamic>>('/api/inventario/unidades', datos: {
+      'codigo': codigo,
+      'nombre': nombre,
+      'permiteDecimales': permiteDecimales,
+    }) as Map<String, dynamic>;
+    return UnidadDeMedida.desdeJson(cuerpo);
+  }
+
+  /// HU-155 C3 · desactiva una unidad; el backend la rechaza si algún producto la usa.
+  Future<UnidadDeMedida> desactivarUnidad(String id) async {
+    final cuerpo = await _http.post<Map<String, dynamic>>(
+        '/api/inventario/unidades/$id/desactivacion') as Map<String, dynamic>;
+    return UnidadDeMedida.desdeJson(cuerpo);
+  }
+
   /// Las categorías del negocio, para elegir en la ficha.
   Future<List<OpcionDeFicha>> categorias() async {
     final cuerpo = await _http.get<List<dynamic>>('/api/inventario/categorias');

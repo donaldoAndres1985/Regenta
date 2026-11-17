@@ -50,6 +50,21 @@ public class UnidadMedida {
         return unidad;
     }
 
+    /** HU-155 · el código no cambia (es lo que se busca); el nombre y los decimales sí. */
+    public void editar(String nombre, boolean permiteDecimales) {
+        this.nombre = nombre;
+        this.permiteDecimales = permiteDecimales;
+    }
+
+    /** HU-155 C3 · la aplicación revisa antes que ningún producto la use. */
+    public void desactivar() {
+        this.activa = false;
+    }
+
+    public void reactivar() {
+        this.activa = true;
+    }
+
     public UUID getId() {
         return id;
     }
