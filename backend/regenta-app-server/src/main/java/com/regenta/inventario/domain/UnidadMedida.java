@@ -51,7 +51,8 @@ public class UnidadMedida {
     }
 
     /** HU-155 · el código no cambia (es lo que se busca); el nombre y los decimales sí. */
-    public void editar(String nombre, boolean permiteDecimales) {
+    public void editar(String codigo, String nombre, boolean permiteDecimales) {
+        this.codigo = codigo;
         this.nombre = nombre;
         this.permiteDecimales = permiteDecimales;
     }

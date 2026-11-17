@@ -152,6 +152,17 @@ class RepositorioDeInventario {
     return UnidadDeMedida.desdeJson(cuerpo);
   }
 
+  /// Corrige una unidad: código (el backend no deja repetir el de otra), nombre y decimales.
+  Future<UnidadDeMedida> editarUnidad(
+      String id, String codigo, String nombre, bool permiteDecimales) async {
+    final cuerpo = await _http.put<Map<String, dynamic>>('/api/inventario/unidades/$id', datos: {
+      'codigo': codigo,
+      'nombre': nombre,
+      'permiteDecimales': permiteDecimales,
+    }) as Map<String, dynamic>;
+    return UnidadDeMedida.desdeJson(cuerpo);
+  }
+
   /// HU-155 C3 · desactiva una unidad; el backend la rechaza si algún producto la usa.
   Future<UnidadDeMedida> desactivarUnidad(String id) async {
     final cuerpo = await _http.post<Map<String, dynamic>>(

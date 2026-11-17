@@ -113,6 +113,32 @@ class UnidadesDelNegocioTest {
     }
 
     @Test
+    @DisplayName("Unidades · Un código mal escrito se corrige al editar, en mayúsculas")
+    void seCorrigeElCodigo() {
+        UnidadMedida gl = UnidadMedida.nueva(negocioId, "GNL", "Galón", true);
+        when(unidades.findById(gl.getId())).thenReturn(Optional.of(gl));
+
+        UnidadDelNegocio u = gestion("INVENTARIO_PRODUCTO_EDITAR")
+                .editar(gl.getId(), new SolicitudDeUnidad("gln", "Galón", true));
+
+        assertThat(u.codigo()).isEqualTo("GLN");
+    }
+
+    @Test
+    @DisplayName("Unidades · Corregir el código a uno que ya tiene otra unidad se rechaza")
+    void corregirAUnCodigoAjenoSeRechaza() {
+        UnidadMedida gl = UnidadMedida.nueva(negocioId, "GNL", "Galón", true);
+        when(unidades.findById(gl.getId())).thenReturn(Optional.of(gl));
+        when(unidades.findByNegocioIdAndCodigoIgnoreCase(negocioId, "KG"))
+                .thenReturn(Optional.of(UnidadMedida.nueva(negocioId, "KG", "Kilo", true)));
+
+        assertThatThrownBy(() -> gestion("INVENTARIO_PRODUCTO_EDITAR")
+                .editar(gl.getId(), new SolicitudDeUnidad("kg", "Galón", true)))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessageContaining("Ya existe la unidad KG.");
+    }
+
+    @Test
     @DisplayName("HU-155 · Sin permiso no se crea (403)")
     void sinPermiso() {
         assertThatThrownBy(() -> gestion("INVENTARIO_PRODUCTO_VER")
