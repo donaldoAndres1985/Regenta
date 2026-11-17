@@ -151,6 +151,26 @@ public class GestionDeDetallado {
                 destino.getNombre(), entra, nuevoCosto);
     }
 
+    /**
+     * HU-163 · si falta {@code destinoId}, qué se puede abrir para conseguirlo: la primera
+     * equivalencia hacia él cuyo origen tenga existencia en la bodega. Vacío si no hay.
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("INVENTARIO_DETALLAR")
+    public java.util.Optional<OfertaDeDetallado> ofertaPara(UUID destinoId, UUID bodegaId) {
+        Producto destino = delNegocio(destinoId);
+        for (EquivalenciaDeDetallado eq : equivalencias.findByDestinoId(destinoId)) {
+            BigDecimal hay = existencias.findByProductoIdAndBodegaId(eq.getOrigenId(), bodegaId)
+                    .map(e -> e.getCantidad()).orElse(BigDecimal.ZERO);
+            if (hay.compareTo(BigDecimal.ONE) >= 0) {
+                Producto origen = delNegocio(eq.getOrigenId());
+                return java.util.Optional.of(new OfertaDeDetallado(origen.getId(), origen.getNombre(),
+                        destino.getId(), destino.getNombre(), eq.getFactor(), hay));
+            }
+        }
+        return java.util.Optional.empty();
+    }
+
     private static String texto(BigDecimal v) {
         return v.stripTrailingZeros().toPlainString();
     }

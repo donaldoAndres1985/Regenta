@@ -5,6 +5,7 @@ import 'package:regenta_core/regenta_core.dart';
 
 import '../caja/proveedores.dart';
 import '../datos/cliente_de_la_venta.dart';
+import '../datos/detallado_en_pos.dart';
 import '../datos/producto_buscado.dart';
 import '../datos/repositorio_de_ventas.dart';
 import '../pos/estado_del_pos.dart';
@@ -575,6 +576,46 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     ).then((_) {
       if (mounted) _enfocarBuscador();
     });
+  }
+
+  /// HU-163 · falta [producto] y hay algo que abrir: se ofrece detallar 1; al aceptar, se
+  /// detalla (HU-162) y la línea queda vendible.
+  Future<void> _ofrecerDetallado(ProductoBuscado producto) async {
+    final consulta = ref.read(consultaDeDetalladoProvider);
+    final bodegaId = ref.read(bodegaDeVentaProvider);
+    final OfertaDeDetalladoPos? oferta;
+    try {
+      oferta = await consulta.oferta(producto.id, bodegaId);
+    } catch (_) {
+      return; // sin oferta (o sin red): el POS sigue como siempre
+    }
+    if (oferta == null || !mounted) return;
+    final factor = oferta.factor == oferta.factor.roundToDouble()
+        ? '${oferta.factor.round()}'
+        : '${oferta.factor}';
+    final acepta = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('No hay existencia'),
+        content: Text('¿Detallar 1 ${oferta!.origen} → $factor ${oferta.destino}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Ahora no')),
+          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Detallar')),
+        ],
+      ),
+    );
+    if (acepta != true || !mounted) return;
+    try {
+      final entra = await consulta.detallar(oferta.origenId, bodegaId, 1);
+      ref.read(controladorDelPosProvider.notifier).recibirExistencia(producto.id, entra);
+      if (mounted) {
+        _mostrarNotificacionPos(context, 'Se abrió 1 ${oferta.origen}: entraron $factor ${oferta.destino}',
+            esExito: true);
+      }
+    } on ErrorDeApi catch (e) {
+      if (mounted) _mostrarNotificacionPos(context, e.mensaje, esError: true);
+    }
+    if (mounted) _enfocarBuscador();
   }
 
   Future<void> _cobrar() async {
@@ -1152,6 +1193,16 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     final pos = ref.read(controladorDelPosProvider.notifier);
 
     ref.listen<EstadoDelPos>(controladorDelPosProvider, (antes, ahora) {
+      // HU-163: si entra una línea sin existencia, ofrecer abrir lo que la produce.
+      if (ahora.lineas.length > (antes?.lineas.length ?? 0) &&
+          ahora.lineas.isNotEmpty &&
+          ahora.lineas.last.producto.sinStock &&
+          ref.read(puedeDetallarEnPosProvider)) {
+        final producto = ahora.lineas.last.producto;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _ofrecerDetallado(producto);
+        });
+      }
       if (!identical(antes?.resultados, ahora.resultados)) _resaltado = 0;
       if (ahora.termino.isEmpty && _buscador.text.isNotEmpty) {
         _buscador.clear();
