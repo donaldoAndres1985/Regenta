@@ -39,6 +39,12 @@ public class InventarioServicio implements InventarioApi {
     }
 
     @Override
+    public java.util.Optional<com.regenta.inventario.api.PrecioDeCatalogo> precioDeCatalogo(
+            UUID negocioId, UUID productoId) {
+        return productos.precioDeCatalogo(negocioId, productoId);
+    }
+
+    @Override
     @Transactional
     public void confirmarReserva(String origenTipo, UUID origenId) {
         reservas.confirmar(origenTipo, origenId);

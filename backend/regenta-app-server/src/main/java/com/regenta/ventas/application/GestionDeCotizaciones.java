@@ -36,10 +36,12 @@ public class GestionDeCotizaciones {
     private final AsignadorDeConsecutivos consecutivos;
     private final GestionDeVentas ventas;
     private final ConsultaDeClientes clientes;
+    private final PrecioDeLinea precios;
 
     public GestionDeCotizaciones(CotizacionRepositorio cotizaciones,
             CotizacionLineaRepositorio lineas, AsignadorDeConsecutivos consecutivos,
-            GestionDeVentas ventas, ConsultaDeClientes clientes) {
+            GestionDeVentas ventas, ConsultaDeClientes clientes, PrecioDeLinea precios) {
+        this.precios = precios;
         this.cotizaciones = cotizaciones;
         this.lineas = lineas;
         this.consecutivos = consecutivos;
@@ -61,9 +63,11 @@ public class GestionDeCotizaciones {
         short numeroLinea = 1;
         List<CotizacionLinea> lineasGuardadas = new java.util.ArrayList<>();
         for (LineaDeCotizacion l : solicitud.lineas()) {
+            // HU-148 C5 · I4: precio e IVA del catálogo, igual que la venta.
+            PrecioDeLinea.Resuelto precio = precios.de(negocioId, l.productoId());
             CotizacionLinea linea = CotizacionLinea.de(negocioId, cotizacion.getId(), numeroLinea++,
                     l.productoId(), l.sku(), l.nombre(), l.unidad(), l.cantidad(),
-                    l.precioUnitario(), l.descuentoPct(), l.impuestoCodigo(), l.impuestoPct(),
+                    precio.precio(), l.descuentoPct(), precio.impuestoCodigo(), precio.impuestoPct(),
                     l.costoUnitario());
             lineas.save(linea);
             lineasGuardadas.add(linea);
@@ -86,7 +90,7 @@ public class GestionDeCotizaciones {
         VentaDelNegocio venta = ventas.crearBorrador(new SolicitudDeVenta(bodegaId,
                 cotizacion.getClienteId(), null, "MOSTRADOR", null));
         for (CotizacionLinea cl : lineas.findByCotizacionIdOrderByLinea(cotizacionId)) {
-            ventas.agregarLinea(venta.id(), new SolicitudDeLinea(cl.getProductoId(),
+            ventas.agregarLineaCotizada(venta.id(), new SolicitudDeLinea(cl.getProductoId(),
                     cl.getSkuSnapshot(), cl.getNombreSnapshot(), cl.getUnidadSnapshot(),
                     cl.getCantidad(), cl.getPrecioUnitario(), cl.getDescuentoPct(),
                     cl.getImpuestoCodigo(), cl.getImpuestoPct(), cl.getCostoUnitarioSnapshot()));

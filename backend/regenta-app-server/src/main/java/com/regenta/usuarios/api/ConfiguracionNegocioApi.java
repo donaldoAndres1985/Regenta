@@ -17,6 +17,12 @@ public interface ConfiguracionNegocioApi {
      */
     DatosNegocioTicket datosTicket(UUID negocioId);
 
+    /**
+     * HU-148 · I3: si el negocio cobra IVA. Solo un régimen {@code NO_RESPONSABLE_IVA} explícito
+     * lo apaga; el precio con IVA incluido hace que el cliente pague lo mismo en ambos casos.
+     */
+    boolean responsableDeIva(UUID negocioId);
+
     record DatosNegocioTicket(
         String razonSocial,
         String nombreComercial,

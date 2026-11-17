@@ -37,7 +37,7 @@ class GestionDeVentasTest {
 
     private final GestionDeVentas gestion =
             new GestionDeVentas(ventas, lineas, consecutivos, saga, configuracion,
-                    mock(com.regenta.caja.api.CajaApi.class));
+                    mock(com.regenta.caja.api.CajaApi.class), mock(PrecioDeLinea.class));
 
     private final UUID negocioId = UUID.randomUUID();
     private final UUID usuarioId = UUID.randomUUID();

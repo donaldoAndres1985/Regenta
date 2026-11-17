@@ -65,6 +65,15 @@ public class GestionDeConfiguracion implements ConfiguracionNegocioApi {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean responsableDeIva(UUID negocioId) {
+        if (negocioId == null) return true;
+        return configuraciones.findById(negocioId)
+                .map(c -> !"NO_RESPONSABLE_IVA".equalsIgnoreCase(c.getRegimenFiscal()))
+                .orElse(true);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public DatosNegocioTicket datosTicket(UUID negocioId) {
         if (negocioId == null) return new DatosNegocioTicket("", "", "", "", "", "", "");
         Negocio n = negocios.findById(negocioId).orElse(null);

@@ -105,6 +105,18 @@ public class GestionDeProductos {
         return comoDto(producto);
     }
 
+    /**
+     * HU-148 · para Ventas (por {@code InventarioApi}): sin permiso propio, porque quien vende no
+     * necesita el de ver el catálogo; sí exige que el producto sea del negocio y esté activo (I8).
+     */
+    @Transactional(readOnly = true)
+    public java.util.Optional<PrecioDeCatalogo> precioDeCatalogo(UUID negocioId, UUID productoId) {
+        return productos.findById(productoId)
+                .filter(p -> p.getNegocioId().equals(negocioId) && p.isActivo())
+                .map(p -> new PrecioDeCatalogo(p.getPrecioVenta(), p.getTarifaIva().name(),
+                        p.getTarifaIva().porcentaje()));
+    }
+
     private Categoria categoriaDelNegocio(UUID categoriaId) {
         Categoria categoria = categorias.findById(categoriaId)
                 .orElseThrow(() -> new NoEncontradoException("Esa categoria no existe"));

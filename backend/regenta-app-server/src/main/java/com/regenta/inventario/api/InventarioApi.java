@@ -17,6 +17,12 @@ public interface InventarioApi {
     /** Costo unitario por producto de los insumos solicitados. */
     Map<UUID, BigDecimal> costoUnitarioDe(UUID negocioId, Collection<UUID> productoIds);
 
+    /**
+     * HU-148 · precio con IVA incluido y tarifa de un producto activo del negocio; vacío si no
+     * existe, es de otro negocio o está inactivo.
+     */
+    java.util.Optional<PrecioDeCatalogo> precioDeCatalogo(UUID negocioId, UUID productoId);
+
     /** Confirma una reserva de stock previa, convirtiéndola en salida definitiva. */
     void confirmarReserva(String origenTipo, UUID origenId);
 }
