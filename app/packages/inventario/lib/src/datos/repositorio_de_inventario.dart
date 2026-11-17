@@ -3,6 +3,7 @@ import 'package:regenta_core/regenta_core.dart';
 import 'bodega_del_negocio.dart';
 import 'codigo_resuelto.dart';
 import 'ficha_de_producto.dart';
+import 'inventario_general.dart';
 import 'producto_encontrado.dart';
 
 /// El acceso a `servicio-inventario` desde la app. Se apoya en el [ClienteHttp]
@@ -104,6 +105,13 @@ class RepositorioDeInventario {
   Future<void> fijarUbicacion(String id, String bodegaId, String ubicacion) async {
     await _http.put<void>('/api/inventario/productos/$id/ubicaciones/$bodegaId',
         datos: {'ubicacion': ubicacion});
+  }
+
+  /// HU-153 · el inventario general, filtrado y paginado, con los totales de todo lo filtrado.
+  Future<ResultadoDeInventario> inventarioGeneral(ConsultaDeInventario consulta) async {
+    final cuerpo = await _http.get<Map<String, dynamic>>('/api/inventario/general',
+        query: consulta.comoQuery());
+    return ResultadoDeInventario.desdeJson(cuerpo);
   }
 
   /// Las categorías del negocio, para elegir en la ficha.

@@ -25,6 +25,9 @@ public interface ProductoRepositorio extends JpaRepository<Producto, UUID>, Prod
 
     List<Producto> findByNegocioIdAndActivoTrueOrderByNombreAsc(UUID negocioId);
 
+    /** HU-153: todos, activos e inactivos, para el inventario general. */
+    List<Producto> findByNegocioIdOrderByNombreAsc(UUID negocioId);
+
     /**
      * BÃºsqueda del vendedor (HU-035): por nombre, SKU, cÃ³digo de barras propio o
      * un cÃ³digo alterno. El {@code termino} llega ya en minÃºsculas y con los

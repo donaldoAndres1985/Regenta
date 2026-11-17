@@ -9,6 +9,7 @@ import '../escaner/escaner_de_codigos.dart';
 import 'captura_manual_de_codigo.dart';
 import 'fila_de_producto.dart';
 import 'pantalla_ficha_de_producto.dart';
+import 'pantalla_inventario_general.dart';
 
 /// La pantalla de inventario del vendedor. HU-035.
 ///
@@ -342,6 +343,15 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
       ),
       actions: [
+        // HU-153: el listado completo con valor y filtros.
+        IconButton(
+          key: const Key('inventario-general'),
+          tooltip: 'Inventario general',
+          icon: const Icon(Icons.table_chart_outlined, size: 22, color: RegentaColors.accent),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const PantallaInventarioGeneral(),
+          )),
+        ),
         IconButton(
           tooltip: 'Nuevo producto',
           icon: const Icon(Icons.add, size: 22, color: RegentaColors.accent),
