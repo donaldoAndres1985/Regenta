@@ -75,7 +75,7 @@ Una ferretería puede operar de verdad: catálogo configurable, stock, POS y fac
 
 | Épica | Nombre | HU | Puntos |
 |---|---|---:|---:|
-| `E03` | Inventario · catálogo del patrón Venta directa | 11 | 65 |
+| `E03` | Inventario · catálogo del patrón Venta directa | 29 | 140 |
 | `E04` | Ventas · transacción del patrón Venta directa | 11 | 68 |
 | `E02` | Clientes y cartera | 5 | 20 |
 | `E06` | Facturación electrónica DIAN | 7 | 57 |
@@ -93,6 +93,24 @@ Una ferretería puede operar de verdad: catálogo configurable, stock, POS y fac
 - `HU-034` Reserva y liberación de stock para la saga de ventas
 - `HU-035` Búsqueda de productos y escaneo de código de barras
 - `HU-036` Listas de precios y precios por volumen
+- `HU-147` Tarifa de IVA en el producto y precio con IVA incluido
+- `HU-148` La venta toma el IVA del catálogo, no del POS
+- `HU-149` El ticket y la factura muestran el IVA real
+- `HU-150` Editar un producto desde la ficha
+- `HU-151` Desactivar y reactivar un producto
+- `HU-152` Ubicación del producto en cada bodega
+- `HU-153` Inventario general con filtros y valor
+- `HU-154` Cambiar la tarifa de IVA en bloque
+- `HU-155` Unidades de medida del negocio
+- `HU-156` Tablas de fracciones y asignación de productos
+- `HU-157` Precio propio de una fracción para un producto
+- `HU-158` Vender fracciones en el POS con datos reales
+- `HU-159` Ajustes de existencia desde la app
+- `HU-160` Historial de movimientos del producto en la app
+- `HU-161` Equivalencias de detallado
+- `HU-162` Detallar un producto
+- `HU-163` Detallar desde el POS cuando falta existencia
+- `HU-164` Importar productos desde Excel
 - `HU-037` Crear una venta en borrador con sus líneas
 - `HU-038` Saga de confirmación de venta con reserva de stock
 - `HU-039` Registrar el pago de una venta, incluso mixto
