@@ -93,6 +93,24 @@ class BusquedaDeProductosTest {
     }
 
     @Test
+    @org.junit.jupiter.api.DisplayName("HU-152 C2 · La búsqueda del POS trae la ubicación del producto en cada bodega")
+    void laBusquedaTraeLaUbicacion() {
+        Producto producto = Producto.nuevo(negocioId, "MANT-004", "Manto 6", UUID.randomUUID(),
+                UUID.randomUUID(), TarifaIva.IVA_19, UUID.randomUUID());
+        when(productos.findByNegocioIdAndActivoTrueOrderByNombreAsc(negocioId))
+                .thenReturn(List.of(producto));
+        Existencia existencia = Existencia.enCero(negocioId, producto.getId(), bodegaId);
+        existencia.fijarUbicacion("Pasillo 3 – E2");
+        when(existencias.findByProductoIdOrderByBodegaId(producto.getId()))
+                .thenReturn(List.of(existencia));
+
+        ProductoEncontrado fila = busqueda.buscar(new FiltroDeBusqueda(null, null, false, null))
+                .productos().get(0);
+
+        assertThat(fila.ubicaciones()).containsEntry(bodegaId, "Pasillo 3 – E2");
+    }
+
+    @Test
     @org.junit.jupiter.api.DisplayName("HU-149 C1 · La búsqueda del POS devuelve la tarifa real del producto")
     void laBusquedaDevuelveLaTarifa() {
         Producto producto = Producto.nuevo(negocioId, "MANT-003", "Manto 5", UUID.randomUUID(),

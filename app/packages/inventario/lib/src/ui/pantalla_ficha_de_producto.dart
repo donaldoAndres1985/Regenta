@@ -26,6 +26,10 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
   final _costo = TextEditingController();
 
   FichaDeProducto? _ficha;
+
+  /// HU-152: la ubicación en cada bodega, y lo que tenía al cargar (solo se guarda lo que cambió).
+  List<UbicacionEnBodega> _ubicaciones = const [];
+  final Map<String, TextEditingController> _ubicacionCtrl = {};
   List<OpcionDeFicha> _categorias = const [];
   List<OpcionDeFicha> _unidades = const [];
   String? _categoriaId;
@@ -42,7 +46,7 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
 
   @override
   void dispose() {
-    for (final c in [_nombre, _sku, _codigo, _precio, _costo]) {
+    for (final c in [_nombre, _sku, _codigo, _precio, _costo, ..._ubicacionCtrl.values]) {
       c.dispose();
     }
     super.dispose();
@@ -54,10 +58,15 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
       final ficha = await repo.verProducto(widget.productoId);
       final categorias = await repo.categorias();
       final unidades = await repo.unidades();
+      final ubicaciones = await repo.ubicacionesDe(widget.productoId);
       if (!mounted) return;
       setState(() {
         _categorias = categorias;
         _unidades = unidades;
+        _ubicaciones = ubicaciones;
+        for (final u in ubicaciones) {
+          _ubicacionCtrl[u.bodegaId] = TextEditingController(text: u.ubicacion ?? '');
+        }
         _mostrar(ficha);
       });
     } on ErrorDeApi catch (e) {
@@ -104,8 +113,22 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
               version: f.version,
             ),
           );
+      // HU-152: solo las ubicaciones que cambiaron.
+      final repo = ref.read(repositorioDeInventarioProvider);
+      final nuevas = <UbicacionEnBodega>[];
+      for (final u in _ubicaciones) {
+        final texto = _ubicacionCtrl[u.bodegaId]!.text.trim();
+        if (texto != (u.ubicacion ?? '')) await repo.fijarUbicacion(f.id, u.bodegaId, texto);
+        nuevas.add(UbicacionEnBodega(
+            bodegaId: u.bodegaId,
+            bodegaNombre: u.bodegaNombre,
+            ubicacion: texto.isEmpty ? null : texto));
+      }
       if (!mounted) return;
-      setState(() => _mostrar(guardada));
+      setState(() {
+        _ubicaciones = nuevas;
+        _mostrar(guardada);
+      });
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Producto guardado')));
     } on ErrorDeApi catch (e) {
@@ -220,6 +243,29 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
                     clave: const Key('ficha-precio'), numero: true),
                 _campo('Costo', _costo, puedeEditar, clave: const Key('ficha-costo'), numero: true),
                 _resumen(),
+                if (_ubicaciones.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text('Ubicación en cada bodega',
+                      style: RegentaType.seccion.copyWith(color: RegentaColors.inkFuerte)),
+                  const SizedBox(height: 8),
+                  for (final u in _ubicaciones)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: TextField(
+                        key: Key('ubicacion-${u.bodegaId}'),
+                        controller: _ubicacionCtrl[u.bodegaId],
+                        enabled: puedeEditar,
+                        maxLength: 60,
+                        style: const TextStyle(color: RegentaColors.inkFuerte),
+                        decoration: InputDecoration(
+                          labelText: u.bodegaNombre,
+                          hintText: 'Ej. Pasillo 3 – E2',
+                          border: const OutlineInputBorder(),
+                          counterText: '',
+                        ),
+                      ),
+                    ),
+                ],
                 if (puedeEditar) ...[
                   const SizedBox(height: 16),
                   FilledButton(

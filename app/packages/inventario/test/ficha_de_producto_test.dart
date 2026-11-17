@@ -42,6 +42,18 @@ class _RepoFicha implements RepositorioDeInventario {
       const [OpcionDeFicha(id: 'u1', nombre: 'GLN · Galón')];
 
   List<(String, num)> existencias = const [];
+  final Map<String, String> ubicacionesGuardadas = {};
+
+  @override
+  Future<List<UbicacionEnBodega>> ubicacionesDe(String id) async => const [
+        UbicacionEnBodega(bodegaId: 'b1', bodegaNombre: 'Principal', ubicacion: 'Pasillo 3 – E2'),
+        UbicacionEnBodega(bodegaId: 'b2', bodegaNombre: 'Bodega 2'),
+      ];
+
+  @override
+  Future<void> fijarUbicacion(String id, String bodegaId, String ubicacion) async {
+    ubicacionesGuardadas[bodegaId] = ubicacion;
+  }
 
   @override
   Future<List<(String bodega, num cantidad)>> existenciasDe(String id) async => existencias;
@@ -81,7 +93,7 @@ const _barniz = FichaDeProducto(
 );
 
 Future<void> _montar(WidgetTester tester, _RepoFicha repo, {bool puedeEditar = true}) async {
-  tester.view.physicalSize = const Size(1280, 1000);
+  tester.view.physicalSize = const Size(1280, 2000); // la ficha completa, sin scroll
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(ProviderScope(
@@ -182,6 +194,19 @@ void main() {
 
     expect(repo.ficha.activo, isTrue);
     expect(find.byKey(const Key('ficha-desactivar')), findsOneWidget);
+  });
+
+  testWidgets('HU-152 C1 · la ficha muestra y guarda la ubicación de cada bodega', (tester) async {
+    final repo = _RepoFicha(_barniz);
+    await _montar(tester, repo);
+
+    expect(find.text('Pasillo 3 – E2'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('ubicacion-b2')), 'Estiba 5');
+    await tester.tap(find.byKey(const Key('ficha-guardar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.ubicacionesGuardadas, {'b2': 'Estiba 5'},
+        reason: 'solo se manda la que cambió');
   });
 
   testWidgets('HU-150 C4 · sin permiso de editar, la ficha se ve sin poder guardar', (tester) async {

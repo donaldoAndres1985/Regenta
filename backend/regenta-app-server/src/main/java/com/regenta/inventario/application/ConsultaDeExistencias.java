@@ -50,7 +50,8 @@ public class ConsultaDeExistencias {
                 .stream()
                 .map(e -> new ExistenciaEnBodega(e.getBodegaId(),
                         nombreDeBodega.getOrDefault(e.getBodegaId(), "?"),
-                        e.getCantidad(), e.getCantidadReservada(), e.getCantidadDisponible()))
+                        e.getCantidad(), e.getCantidadReservada(), e.getCantidadDisponible(),
+                        e.getUbicacion()))
                 .toList();
 
         BigDecimal total = lineas.stream().map(ExistenciaEnBodega::cantidad)
