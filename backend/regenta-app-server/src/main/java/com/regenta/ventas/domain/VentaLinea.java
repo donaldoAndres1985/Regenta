@@ -154,6 +154,14 @@ public class VentaLinea {
         this.total = c.total();
     }
 
+    public String getUnidadSnapshot() {
+        return unidadSnapshot;
+    }
+
+    public BigDecimal getDescuentoPct() {
+        return descuentoPct;
+    }
+
     public String getImpuestoCodigo() {
         return impuestoCodigo;
     }

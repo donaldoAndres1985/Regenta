@@ -17,5 +17,8 @@ public record ProductoEncontrado(
         String categoriaNombre,
         BigDecimal precioVenta,
         BigDecimal stockTotal,
-        NivelStock nivelStock) {
+        NivelStock nivelStock,
+        /** HU-149 C1: la tarifa real, para que el POS no muestre un 0 fijo. */
+        com.regenta.inventario.domain.TarifaIva tarifaIva,
+        java.math.BigDecimal impuestoPct) {
 }

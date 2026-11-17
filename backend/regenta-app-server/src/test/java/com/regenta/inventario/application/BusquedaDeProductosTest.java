@@ -91,4 +91,20 @@ class BusquedaDeProductosTest {
 
         assertThat(resultado.productos().get(0).stockTotal()).isEqualByComparingTo(new BigDecimal("3"));
     }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("HU-149 C1 · La búsqueda del POS devuelve la tarifa real del producto")
+    void laBusquedaDevuelveLaTarifa() {
+        Producto producto = Producto.nuevo(negocioId, "MANT-003", "Manto 5", UUID.randomUUID(),
+                UUID.randomUUID(), TarifaIva.IVA_5, UUID.randomUUID());
+        when(productos.findByNegocioIdAndActivoTrueOrderByNombreAsc(negocioId))
+                .thenReturn(List.of(producto));
+        when(existencias.findByProductoIdOrderByBodegaId(producto.getId())).thenReturn(List.of());
+
+        ProductoEncontrado fila = busqueda.buscar(new FiltroDeBusqueda(null, null, false, null))
+                .productos().get(0);
+
+        assertThat(fila.tarifaIva()).isEqualTo(TarifaIva.IVA_5);
+        assertThat(fila.impuestoPct()).isEqualByComparingTo("5");
+    }
 }

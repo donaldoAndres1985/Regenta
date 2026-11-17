@@ -21,7 +21,11 @@ class ProductoBuscado {
     this.costoUnitario = 0,
     this.existencia,
     this.codigoBarras,
+    this.tarifaIva,
   });
+
+  /// HU-149: IVA_19, IVA_5, EXENTO o EXCLUIDO, como la devuelve el catálogo.
+  final String? tarifaIva;
 
   final String id;
   final String sku;
@@ -55,6 +59,8 @@ class ProductoBuscado {
         nivelStock: _nivel(json['nivelStock'] as String?),
         existencia: json['stockTotal'] as num?,
         codigoBarras: json['codigoBarras'] as String?,
+        impuestoPct: (json['impuestoPct'] ?? 0) as num,
+        tarifaIva: json['tarifaIva'] as String?,
       );
 }
 

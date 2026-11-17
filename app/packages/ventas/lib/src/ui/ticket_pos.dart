@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/repositorio_de_ventas.dart';
+import '../pos/iva.dart';
 import 'formato.dart';
 
 /// Datos formateados para imprimir una línea en el ticket térmico.
@@ -17,6 +18,7 @@ class LineaTicket {
     required this.precioUnitario,
     required this.total,
     this.descuento = 0,
+    this.impuestoPct = 0,
   });
 
   final String nombre;
@@ -24,6 +26,25 @@ class LineaTicket {
   final num precioUnitario;
   final num total;
   final num descuento;
+
+  /// HU-149: la tarifa de la línea; su [total] ya incluye el IVA.
+  final num impuestoPct;
+}
+
+/// HU-149 C2 · base e IVA por tarifa, de mayor a menor porcentaje, para el pie del ticket.
+List<IvaDeTarifa> desgloseDeIva(List<LineaTicket> lineas) {
+  final porTarifa = <num, num>{};
+  for (final l in lineas) {
+    porTarifa[l.impuestoPct] = (porTarifa[l.impuestoPct] ?? 0) + l.total;
+  }
+  final tarifas = porTarifa.keys.toList()..sort((a, b) => b.compareTo(a));
+  return [
+    for (final t in tarifas)
+      () {
+        final base = baseSinIva(porTarifa[t]!, t);
+        return IvaDeTarifa(porcentaje: t, base: base, iva: redondear2(porTarifa[t]! - base));
+      }(),
+  ];
 }
 
 /// Datos formateados de un pago registrado.
@@ -119,7 +140,10 @@ class GeneradorTicketPos {
       horaStr = partes.length > 1 ? partes[1].split('.')[0] : '';
     }
 
-    final subtotalFinal = subtotal > 0 ? subtotal : (total + descuento - impuesto);
+    // HU-149 C2: si no llega el IVA, sale de las líneas (su total ya lo incluye).
+    final desglose = desgloseDeIva(lineas);
+    final impuestoFinal = impuesto > 0 ? impuesto : desglose.fold<num>(0, (a, d) => a + d.iva);
+    final subtotalFinal = subtotal > 0 ? subtotal : (total + descuento - impuestoFinal);
 
     pdf.addPage(
       pw.Page(
@@ -280,8 +304,14 @@ class GeneradorTicketPos {
               _filaTotal('SUBTOTAL', formatearPesos(subtotalFinal)),
               if (descuento > 0)
                 _filaTotal('DESCUENTO', '- ${formatearPesos(descuento)}'),
-              if (impuesto > 0)
-                _filaTotal('IVA', formatearPesos(impuesto)),
+              for (final d in desglose.where((d) => d.porcentaje > 0)) ...[
+                _filaTotal('BASE IVA ${d.porcentaje}%', formatearPesos(d.base)),
+                _filaTotal('IVA ${d.porcentaje}%', formatearPesos(d.iva)),
+              ],
+              if (desglose.any((d) => d.porcentaje == 0 && d.base > 0))
+                _filaTotal('EXENTO / EXCLUIDO', formatearPesos(desglose.where((d) => d.porcentaje == 0).fold<num>(0, (a, d) => a + d.base))),
+              if (impuestoFinal > 0)
+                _filaTotal('TOTAL IVA', formatearPesos(impuestoFinal)),
               pw.Padding(
                 padding: const pw.EdgeInsets.symmetric(vertical: 1),
                 child: _filaTotal(
@@ -597,7 +627,8 @@ class GeneradorTicketPos {
     bool directo = false,
   }) async {
     final fechaFinal = fechaHora ?? DateTime.now().toString().split('.')[0];
-    final subtotalFinal = subtotal > 0 ? subtotal : (total + descuento - impuesto);
+    // HU-149: el subtotal (base) y el IVA los calcula crearPdf desde las líneas si no llegan.
+    final subtotalFinal = subtotal;
 
     Future<Uint8List> construirPdf() => crearPdf(
           nombreNegocio: nombreNegocio,
