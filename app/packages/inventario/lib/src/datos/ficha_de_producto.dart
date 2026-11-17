@@ -91,6 +91,43 @@ class UbicacionEnBodega {
   final String? ubicacion;
 }
 
+/// HU-159 · un ajuste de existencia desde la app: SUMAR, RESTAR o CONTEO (fijar por conteo
+/// físico), con su tipo (CONTEO_FISICO, MERMA, AVERIA, VENCIMIENTO) y motivo.
+class AjusteDeExistencia {
+  const AjusteDeExistencia({
+    required this.productoId,
+    required this.bodegaId,
+    required this.operacion,
+    required this.cantidad,
+    required this.tipo,
+    required this.motivo,
+  });
+
+  final String productoId;
+  final String bodegaId;
+  final String operacion;
+  final num cantidad;
+  final String tipo;
+  final String motivo;
+
+  Map<String, dynamic> aJson() => {
+        'productoId': productoId,
+        'bodegaId': bodegaId,
+        'operacion': operacion,
+        'cantidad': cantidad,
+        'tipo': tipo,
+        'motivo': motivo,
+      };
+}
+
+/// HU-159 · los tipos de ajuste que se ofrecen, con su nombre para mostrar.
+const tiposDeAjuste = <(String, String)>[
+  ('CONTEO_FISICO', 'Conteo físico'),
+  ('MERMA', 'Merma'),
+  ('AVERIA', 'Avería'),
+  ('VENCIMIENTO', 'Vencimiento'),
+];
+
 /// HU-155 · una unidad de medida del negocio.
 class UnidadDeMedida {
   const UnidadDeMedida({

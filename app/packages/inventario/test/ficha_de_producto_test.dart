@@ -42,6 +42,14 @@ class _RepoFicha implements RepositorioDeInventario {
       const [OpcionDeFicha(id: 'u1', nombre: 'GLN · Galón')];
 
   List<(String, num)> existencias = const [];
+  AjusteDeExistencia? ajuste;
+  ErrorDeApi? errorAlAjustar;
+
+  @override
+  Future<void> ajustarExistencia(AjusteDeExistencia a) async {
+    if (errorAlAjustar != null) throw errorAlAjustar!;
+    ajuste = a;
+  }
   List<FraccionDeTabla> fracciones = const [];
   final Map<String, num?> preciosPropios = {};
 
@@ -128,6 +136,7 @@ Future<void> _montar(WidgetTester tester, _RepoFicha repo, {bool puedeEditar = t
       repositorioDeInventarioProvider.overrideWithValue(repo),
       puedeEditarProductosProvider.overrideWithValue(puedeEditar),
       puedeGestionarFraccionesProvider.overrideWithValue(puedeEditar),
+      puedeAjustarExistenciasProvider.overrideWithValue(puedeEditar),
     ],
     child: const MaterialApp(home: PantallaFichaDeProducto(productoId: 'p1')),
   ));
@@ -266,6 +275,49 @@ void main() {
     expect(repo.preciosPropios.containsKey('¼ galón'), isTrue);
     expect(repo.preciosPropios['¼ galón'], isNull);
     expect(find.text('de la tabla'), findsOneWidget);
+  });
+
+  testWidgets('HU-159 C1 · se resta una cantidad de una bodega con su motivo', (tester) async {
+    final repo = _RepoFicha(_barniz);
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('ficha-ajustar')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Restar'));
+    await tester.enterText(find.byKey(const Key('ajuste-cantidad')), '5');
+    await tester.tap(find.byKey(const Key('ajuste-tipo')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Avería').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('ajuste-motivo')), 'Se cayó del estante');
+    await tester.tap(find.byKey(const Key('ajuste-aplicar')));
+    await tester.pumpAndSettle();
+
+    final a = repo.ajuste!;
+    expect(a.bodegaId, 'b1');
+    expect(a.operacion, 'RESTAR');
+    expect(a.cantidad, 5);
+    expect(a.tipo, 'AVERIA');
+    expect(a.motivo, 'Se cayó del estante');
+    expect(find.text('Existencia ajustada'), findsOneWidget);
+  });
+
+  testWidgets('HU-159 C2 · si no alcanza la existencia, se ve el mensaje del backend y no se cierra', (tester) async {
+    final repo = _RepoFicha(_barniz)
+      ..errorAlAjustar = const ErroresDeValidacion(
+          {}, 'Solo hay 3 unidades de Barniz galón en Principal. No puedes sacar 5.');
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('ficha-ajustar')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Restar'));
+    await tester.enterText(find.byKey(const Key('ajuste-cantidad')), '5');
+    await tester.enterText(find.byKey(const Key('ajuste-motivo')), 'x');
+    await tester.tap(find.byKey(const Key('ajuste-aplicar')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Solo hay 3 unidades de Barniz galón en Principal. No puedes sacar 5.'), findsOneWidget);
+    expect(find.byKey(const Key('ajuste-aplicar')), findsOneWidget);
   });
 
   testWidgets('HU-150 C4 · sin permiso de editar, la ficha se ve sin poder guardar', (tester) async {
