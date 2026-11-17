@@ -167,6 +167,13 @@ class DependenciasDeLaApp {
     // Ventas
     repositorioDeVentasProvider.overrideWithValue(RepositorioDeVentas(http)),
     repositorioDeCajaProvider.overrideWithValue(RepositorioDeCaja(http)),
+    // HU-156: tablas de fracciones solo con el permiso que trae el token.
+    puedeGestionarFraccionesProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('INVENTARIO_FRACCION_GESTIONAR') ??
+          false,
+    ),
     // HU-150: editar productos solo con el permiso que trae el token.
     puedeEditarProductosProvider.overrideWith(
       (ref) =>

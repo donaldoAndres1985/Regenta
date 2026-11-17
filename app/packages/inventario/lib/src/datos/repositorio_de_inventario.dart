@@ -4,6 +4,7 @@ import 'bodega_del_negocio.dart';
 import 'codigo_resuelto.dart';
 import 'ficha_de_producto.dart';
 import 'inventario_general.dart';
+import 'tablas_de_fracciones.dart';
 import 'producto_encontrado.dart';
 
 /// El acceso a `servicio-inventario` desde la app. Se apoya en el [ClienteHttp]
@@ -152,6 +153,35 @@ class RepositorioDeInventario {
     final cuerpo = await _http.post<Map<String, dynamic>>(
         '/api/inventario/unidades/$id/desactivacion') as Map<String, dynamic>;
     return UnidadDeMedida.desdeJson(cuerpo);
+  }
+
+  /// HU-156 · las tablas de fracciones del negocio.
+  Future<List<TablaDeFracciones>> tablasDeFracciones() async {
+    final cuerpo = await _http.get<List<dynamic>>('/api/inventario/fracciones/tablas');
+    return [
+      for (final t in cuerpo.cast<Map<String, dynamic>>()) TablaDeFracciones.desdeJson(t),
+    ];
+  }
+
+  /// HU-156 · crea la tabla (sin id) o la reemplaza (con id): aplica a todos sus productos.
+  Future<TablaDeFracciones> guardarTablaDeFracciones(TablaDeFracciones tabla) async {
+    final Object? cuerpo = tabla.id == null
+        ? await _http.post<Map<String, dynamic>>('/api/inventario/fracciones/tablas',
+            datos: tabla.aJson())
+        : await _http.put<Map<String, dynamic>>('/api/inventario/fracciones/tablas/${tabla.id}',
+            datos: tabla.aJson());
+    return TablaDeFracciones.desdeJson(cuerpo! as Map<String, dynamic>);
+  }
+
+  /// HU-156 C3/C5 · asigna productos a la tabla. Si alguno ya tiene otra, el backend responde
+  /// 409 ([RecursoDuplicado]) y hay que reenviar con [confirmarCambio].
+  Future<int> asignarTablaDeFracciones(String tablaId, List<String> productoIds,
+      {bool confirmarCambio = false}) async {
+    final cuerpo = await _http.post<Map<String, dynamic>>(
+      '/api/inventario/fracciones/tablas/$tablaId/asignacion',
+      datos: {'productoIds': productoIds, 'confirmarCambio': confirmarCambio},
+    ) as Map<String, dynamic>;
+    return ((cuerpo['asignados'] ?? 0) as num).toInt();
   }
 
   /// Las categorías del negocio, para elegir en la ficha.

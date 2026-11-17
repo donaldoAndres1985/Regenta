@@ -75,6 +75,10 @@ public class Producto {
     @Column(name = "tarifa_por_revisar", nullable = false)
     private boolean tarifaPorRevisar;
 
+    /** HU-156 · la tabla de fracciones que usa (a lo sumo una); null = no se vende fraccionado. */
+    @Column(name = "tabla_fracciones_id")
+    private UUID tablaFraccionesId;
+
     /** El costo de la ultima entrada con costo (HU-138). Cero = sin costo conocido. */
     @Column(name = "costo_ultimo", nullable = false)
     private BigDecimal costoUltimo;
@@ -212,6 +216,15 @@ public class Producto {
         if (costo != null) {
             this.costoUltimo = costo;
         }
+    }
+
+    /** HU-156 · asigna (o quita, con null) la tabla de fracciones. */
+    public void asignarTablaDeFracciones(UUID tablaId) {
+        this.tablaFraccionesId = tablaId;
+    }
+
+    public UUID getTablaFraccionesId() {
+        return tablaFraccionesId;
     }
 
     /** HU-151 · I8: un producto nunca se borra; se desactiva y conserva su historial. */
