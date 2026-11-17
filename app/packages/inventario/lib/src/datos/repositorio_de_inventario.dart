@@ -3,6 +3,7 @@ import 'package:regenta_core/regenta_core.dart';
 import 'bodega_del_negocio.dart';
 import 'codigo_resuelto.dart';
 import 'ficha_de_producto.dart';
+import 'historial_de_producto.dart';
 import 'inventario_general.dart';
 import 'tablas_de_fracciones.dart';
 import 'producto_encontrado.dart';
@@ -206,6 +207,22 @@ class RepositorioDeInventario {
   /// que hay (I10) con un mensaje que se muestra tal cual.
   Future<void> ajustarExistencia(AjusteDeExistencia ajuste) async {
     await _http.post<Map<String, dynamic>>('/api/inventario/ajustes/rapido', datos: ajuste.aJson());
+  }
+
+  /// HU-160 · el historial del producto, del más nuevo al más viejo, filtrado.
+  Future<List<MovimientoDeHistorial>> historialDe(String productoId,
+      {DateTime? desde, DateTime? hasta, String? bodegaId}) async {
+    String dia(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final cuerpo = await _http.get<List<dynamic>>(
+      '/api/inventario/movimientos/producto/$productoId/historial',
+      query: {
+        if (desde != null) 'desde': dia(desde),
+        if (hasta != null) 'hasta': dia(hasta),
+        'bodegaId': ?bodegaId,
+      },
+    );
+    return [for (final m in cuerpo.cast<Map<String, dynamic>>()) MovimientoDeHistorial.desdeJson(m)];
   }
 
   /// Las categorías del negocio, para elegir en la ficha.
