@@ -91,6 +91,31 @@ class UbicacionEnBodega {
   final String? ubicacion;
 }
 
+/// HU-155 · una unidad de medida del negocio.
+class UnidadDeMedida {
+  const UnidadDeMedida({
+    required this.id,
+    required this.codigo,
+    required this.nombre,
+    this.permiteDecimales = false,
+    this.activa = true,
+  });
+
+  final String id;
+  final String codigo;
+  final String nombre;
+  final bool permiteDecimales;
+  final bool activa;
+
+  factory UnidadDeMedida.desdeJson(Map<String, dynamic> j) => UnidadDeMedida(
+        id: j['id'] as String,
+        codigo: (j['codigo'] ?? '') as String,
+        nombre: (j['nombre'] ?? '') as String,
+        permiteDecimales: (j['permiteDecimales'] ?? false) as bool,
+        activa: (j['activa'] ?? true) as bool,
+      );
+}
+
 /// Una opción para elegir en la ficha (categoría o unidad).
 class OpcionDeFicha {
   const OpcionDeFicha({required this.id, required this.nombre});

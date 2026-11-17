@@ -21,6 +21,7 @@ export 'src/ui/formato.dart';
 export 'src/ui/pantalla_ficha_de_producto.dart';
 export 'src/ui/pantalla_inventario.dart';
 export 'src/ui/pantalla_inventario_general.dart';
+export 'src/ui/pantalla_unidades.dart';
 
 /// Nombre del modulo, para el registro de paquetes activos por patron/plan.
 const String nombreDelModulo = 'inventario';

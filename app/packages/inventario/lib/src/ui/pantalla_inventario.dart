@@ -10,6 +10,7 @@ import 'captura_manual_de_codigo.dart';
 import 'fila_de_producto.dart';
 import 'pantalla_ficha_de_producto.dart';
 import 'pantalla_inventario_general.dart';
+import 'pantalla_unidades.dart';
 
 /// La pantalla de inventario del vendedor. HU-035.
 ///
@@ -350,6 +351,15 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.table_chart_outlined, size: 22, color: RegentaColors.accent),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
             builder: (_) => const PantallaInventarioGeneral(),
+          )),
+        ),
+        // HU-155: unidades de medida del negocio.
+        IconButton(
+          key: const Key('inventario-unidades'),
+          tooltip: 'Unidades de medida',
+          icon: const Icon(Icons.straighten, size: 22, color: RegentaColors.accent),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const PantallaUnidades(),
           )),
         ),
         IconButton(
