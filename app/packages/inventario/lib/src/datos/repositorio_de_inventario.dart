@@ -184,6 +184,24 @@ class RepositorioDeInventario {
     return ((cuerpo['asignados'] ?? 0) as num).toInt();
   }
 
+  /// HU-156/157 · las fracciones con que se vende un producto, con su origen (TABLA o PROPIO).
+  Future<List<FraccionDeTabla>> fraccionesDe(String id) async {
+    final cuerpo = await _http.get<List<dynamic>>('/api/inventario/productos/$id/fracciones');
+    return [for (final f in cuerpo.cast<Map<String, dynamic>>()) FraccionDeTabla.desdeJson(f)];
+  }
+
+  /// HU-157 C1 · precio propio de una fracción para este producto.
+  Future<void> fijarPrecioPropio(String id, String medida, num precio) async {
+    await _http.put<void>('/api/inventario/productos/$id/fracciones/precio-propio',
+        datos: {'medida': medida, 'precio': precio});
+  }
+
+  /// HU-157 C3 · vuelve al precio de la tabla.
+  Future<void> quitarPrecioPropio(String id, String medida) async {
+    await _http.delete<void>(
+        '/api/inventario/productos/$id/fracciones/precio-propio?medida=${Uri.encodeQueryComponent(medida)}');
+  }
+
   /// Las categorías del negocio, para elegir en la ficha.
   Future<List<OpcionDeFicha>> categorias() async {
     final cuerpo = await _http.get<List<dynamic>>('/api/inventario/categorias');

@@ -45,7 +45,8 @@ class AsignacionDeFraccionesTest {
     private GestionDeFracciones gestion(String... permisos) {
         ContextoDeNegocio.establecer(new DatosDelNegocio(negocioId, UUID.randomUUID(), "BASICO",
                 "VENTA_DIRECTA", Set.of(), Set.of(), Set.of(permisos), Set.of()));
-        AspectJProxyFactory fabrica = new AspectJProxyFactory(new GestionDeFracciones(tablas, productos));
+        AspectJProxyFactory fabrica = new AspectJProxyFactory(new GestionDeFracciones(tablas, productos,
+                mock(com.regenta.inventario.infrastructure.PrecioPropioDeFraccionRepositorio.class)));
         fabrica.addAspect(new GuardiaDePermisos());
         return fabrica.getProxy();
     }

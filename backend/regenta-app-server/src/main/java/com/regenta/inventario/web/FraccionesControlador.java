@@ -65,6 +65,22 @@ public class FraccionesControlador {
         return Map.of("asignados", fracciones.asignar(tablaId, asignacion));
     }
 
+    @PutMapping("/productos/{productoId}/fracciones/precio-propio")
+    @Operation(summary = "Fija el precio propio de una fraccion para este producto (HU-157)")
+    public void fijarPrecioPropio(@PathVariable UUID productoId, @RequestBody PrecioPropio cuerpo) {
+        fracciones.fijarPrecioPropio(productoId, cuerpo.medida(), cuerpo.precio());
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/productos/{productoId}/fracciones/precio-propio")
+    @Operation(summary = "Quita el precio propio: vuelve al de la tabla (HU-157)")
+    public void quitarPrecioPropio(@PathVariable UUID productoId,
+            @org.springframework.web.bind.annotation.RequestParam String medida) {
+        fracciones.quitarPrecioPropio(productoId, medida);
+    }
+
+    public record PrecioPropio(String medida, java.math.BigDecimal precio) {
+    }
+
     @GetMapping("/productos/{productoId}/fracciones")
     @Operation(summary = "Las fracciones con que se vende un producto, con su precio y su origen")
     public List<FraccionDelNegocio> deProducto(@PathVariable UUID productoId) {

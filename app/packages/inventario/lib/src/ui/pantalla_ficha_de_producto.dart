@@ -4,6 +4,7 @@ import 'package:regenta_core/regenta_core.dart';
 
 import '../busqueda/proveedores.dart';
 import '../datos/ficha_de_producto.dart';
+import '../datos/tablas_de_fracciones.dart';
 import 'formato.dart';
 
 /// HU-150 · la ficha de un producto: se edita nombre, SKU, código de barras, categoría,
@@ -29,6 +30,9 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
 
   /// HU-152: la ubicación en cada bodega, y lo que tenía al cargar (solo se guarda lo que cambió).
   List<UbicacionEnBodega> _ubicaciones = const [];
+
+  /// HU-157: las fracciones del producto con su origen (de la tabla o propio).
+  List<FraccionDeTabla> _fracciones = const [];
   final Map<String, TextEditingController> _ubicacionCtrl = {};
   List<OpcionDeFicha> _categorias = const [];
   List<OpcionDeFicha> _unidades = const [];
@@ -59,8 +63,10 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
       final categorias = await repo.categorias();
       final unidades = await repo.unidades();
       final ubicaciones = await repo.ubicacionesDe(widget.productoId);
+      final fracciones = await repo.fraccionesDe(widget.productoId);
       if (!mounted) return;
       setState(() {
+        _fracciones = fracciones;
         _categorias = categorias;
         _unidades = unidades;
         _ubicaciones = ubicaciones;
@@ -136,6 +142,81 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
     } finally {
       if (mounted) setState(() => _guardando = false);
     }
+  }
+
+  /// HU-157 C1 · precio propio de una fracción solo para este producto.
+  Future<void> _precioPropio(FraccionDeTabla f) async {
+    final ctrl = TextEditingController(text: _sinDecimalesInutiles(f.precio));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Precio propio de ${f.medida}'),
+        content: TextField(
+          key: const Key('precio-propio-valor'),
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: 'Precio (con IVA incluido)'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+          FilledButton(
+              key: const Key('precio-propio-guardar'),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Guardar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _cambiarFraccion(() => ref
+        .read(repositorioDeInventarioProvider)
+        .fijarPrecioPropio(widget.productoId, f.medida, _numero(ctrl.text)));
+  }
+
+  Future<void> _cambiarFraccion(Future<void> Function() accion) async {
+    try {
+      await accion();
+      final fracciones =
+          await ref.read(repositorioDeInventarioProvider).fraccionesDe(widget.productoId);
+      if (mounted) setState(() => _fracciones = fracciones);
+    } on ErrorDeApi catch (e) {
+      if (mounted) setState(() => _error = e.mensaje);
+    }
+  }
+
+  Widget _seccionFracciones(bool puedeGestionar) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      const SizedBox(height: 16),
+      Text('Fracciones', style: RegentaType.seccion.copyWith(color: RegentaColors.inkFuerte)),
+      for (final f in _fracciones)
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(f.medida, style: const TextStyle(color: RegentaColors.inkFuerte)),
+          subtitle: Text(f.origen == 'PROPIO' ? 'propio' : 'de la tabla',
+              style: TextStyle(color: f.origen == 'PROPIO' ? RegentaColors.accent : RegentaColors.ink2)),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(formatearPesos(f.precio),
+                style: RegentaType.dinero.copyWith(color: RegentaColors.inkFuerte)),
+            if (puedeGestionar) ...[
+              IconButton(
+                key: Key('precio-propio-${f.medida}'),
+                tooltip: 'Precio propio para este producto',
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                onPressed: () => _precioPropio(f),
+              ),
+              if (f.origen == 'PROPIO')
+                IconButton(
+                  key: Key('quitar-propio-${f.medida}'),
+                  tooltip: 'Volver al precio de la tabla',
+                  icon: const Icon(Icons.undo, size: 18),
+                  onPressed: () => _cambiarFraccion(() => ref
+                      .read(repositorioDeInventarioProvider)
+                      .quitarPrecioPropio(widget.productoId, f.medida)),
+                ),
+            ],
+          ]),
+        ),
+    ]);
   }
 
   /// HU-151 C1 · desactivar pide confirmación y avisa la existencia que queda.
@@ -243,6 +324,7 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
                     clave: const Key('ficha-precio'), numero: true),
                 _campo('Costo', _costo, puedeEditar, clave: const Key('ficha-costo'), numero: true),
                 _resumen(),
+                if (_fracciones.isNotEmpty) _seccionFracciones(ref.watch(puedeGestionarFraccionesProvider)),
                 if (_ubicaciones.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   Text('Ubicación en cada bodega',
