@@ -22,7 +22,10 @@ final repositorioDeInventarioProvider = Provider<RepositorioDeInventario>((ref) 
 /// La app lo cablea desde los permisos del token; el backend lo vuelve a validar (403).
 final puedeEditarProductosProvider = Provider<bool>((ref) => false);
 
-final escanerProvider =Provider<EscanerDeCodigos>((ref) => const EscanerMobileScanner());
+/// HU-156 · si quien usa la app gestiona tablas de fracciones (`INVENTARIO_FRACCION_GESTIONAR`).
+final puedeGestionarFraccionesProvider = Provider<bool>((ref) => false);
+
+final escanerProvider = Provider<EscanerDeCodigos>((ref) => const EscanerMobileScanner());
 
 final controladorDeBusquedaProvider =
     StateNotifierProvider<ControladorDeBusqueda, EstadoDeBusqueda>(
