@@ -157,6 +157,23 @@ public class GestionDeAjustes {
         return comoDto(aplicarAjuste(creado));
     }
 
+    /**
+     * HU-164 C6 · I20: la existencia inicial de productos importados entra como un ajuste de
+     * «carga inicial» aplicado, no como un número escrito directo. Lo llama la importación, que
+     * ya exigió su permiso.
+     */
+    @Transactional
+    void cargaInicial(UUID bodegaId, java.util.Map<UUID, BigDecimal> cantidades, String motivo) {
+        List<LineaDeAjuste> lineasDelAjuste = cantidades.entrySet().stream().map(e -> new LineaDeAjuste(
+                e.getKey(), null, cantidadDeSistema(e.getKey(), bodegaId, null).add(e.getValue()), null))
+                .toList();
+        String numero = "CI-" + java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyMMddHHmmss"))
+                + "-" + UUID.randomUUID().toString().substring(0, 4);
+        aplicarAjuste(crearAjuste(new SolicitudDeAjuste(numero, bodegaId,
+                com.regenta.inventario.domain.TipoAjuste.CARGA_INICIAL, motivo, lineasDelAjuste)));
+    }
+
     private static String texto(BigDecimal v) {
         return v.stripTrailingZeros().toPlainString();
     }

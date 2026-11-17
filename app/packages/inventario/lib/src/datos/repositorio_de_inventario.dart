@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart' show FormData, MultipartFile;
 import 'package:regenta_core/regenta_core.dart';
 
 import 'bodega_del_negocio.dart';
@@ -5,6 +6,7 @@ import 'codigo_resuelto.dart';
 import 'ficha_de_producto.dart';
 import 'detallado.dart';
 import 'historial_de_producto.dart';
+import 'importacion.dart';
 import 'inventario_general.dart';
 import 'tablas_de_fracciones.dart';
 import 'producto_encontrado.dart';
@@ -261,6 +263,33 @@ class RepositorioDeInventario {
 
     return 'Se abrieron ${n(r['sale'])} ${r['origen']} → ${n(r['entra'])} ${r['destino']}';
   }
+
+  /// HU-164 C1 · la plantilla .xlsx.
+  Future<List<int>> plantillaDeImportacion() =>
+      _http.bytes('GET', '/api/inventario/importacion/plantilla');
+
+  /// HU-164 C2 · cada fila con sus errores, sin grabar nada.
+  Future<VistaPreviaDeImportacion> vistaPreviaDeImportacion(ArchivoElegido archivo) async {
+    final cuerpo = await _http.post<Map<String, dynamic>>('/api/inventario/importacion/vista-previa',
+        datos: _formulario(archivo)) as Map<String, dynamic>;
+    return VistaPreviaDeImportacion.desdeJson(cuerpo);
+  }
+
+  /// HU-164 C3 · crea las filas válidas y omite las que tienen error.
+  Future<ResultadoDeImportacion> importarProductos(ArchivoElegido archivo) async {
+    final cuerpo = await _http.post<Map<String, dynamic>>('/api/inventario/importacion',
+        datos: _formulario(archivo)) as Map<String, dynamic>;
+    return ResultadoDeImportacion.desdeJson(cuerpo);
+  }
+
+  /// HU-164 C5 · las filas omitidas con su error, como .xlsx.
+  Future<List<int>> omitidasComoExcel(List<FilaDeImportacion> omitidas) =>
+      _http.bytes('POST', '/api/inventario/importacion/omitidas',
+          datos: [for (final f in omitidas) f.datos]);
+
+  static FormData _formulario(ArchivoElegido archivo) => FormData.fromMap({
+        'archivo': MultipartFile.fromBytes(archivo.bytes, filename: archivo.nombre),
+      });
 
   /// Las categorías del negocio, para elegir en la ficha.
   Future<List<OpcionDeFicha>> categorias() async {
