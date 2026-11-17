@@ -6,6 +6,7 @@ import '../busqueda/proveedores.dart';
 import '../datos/ficha_de_producto.dart';
 import '../datos/tablas_de_fracciones.dart';
 import 'formato.dart';
+import 'pantalla_historial_de_producto.dart';
 
 /// HU-150 · la ficha de un producto: se edita nombre, SKU, código de barras, categoría,
 /// unidad, tarifa de IVA, precio (con IVA incluido) y costo. Mientras se escribe se ven la base,
@@ -337,6 +338,19 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
                 _campo('Costo', _costo, puedeEditar, clave: const Key('ficha-costo'), numero: true),
                 _resumen(),
                 if (_fracciones.isNotEmpty) _seccionFracciones(ref.watch(puedeGestionarFraccionesProvider)),
+                // HU-160: por qué cambió la existencia.
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: OutlinedButton.icon(
+                    key: const Key('ficha-historial'),
+                    icon: const Icon(Icons.history, size: 18),
+                    label: const Text('Ver historial de movimientos'),
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) =>
+                          PantallaHistorialDeProducto(productoId: widget.productoId, nombre: f.nombre),
+                    )),
+                  ),
+                ),
                 if (ref.watch(puedeAjustarExistenciasProvider) && _ubicaciones.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
