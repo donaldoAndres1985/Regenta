@@ -62,6 +62,18 @@ public class ProductosControlador {
         return productos.ver(productoId);
     }
 
+    @PostMapping("/{productoId}/desactivacion")
+    @Operation(summary = "Desactiva un producto (HU-151): no se vende, conserva su historial; nunca se borra")
+    public ProductoDelNegocio desactivar(@PathVariable UUID productoId) {
+        return productos.desactivar(productoId);
+    }
+
+    @PostMapping("/{productoId}/reactivacion")
+    @Operation(summary = "Reactiva un producto desactivado (HU-151)")
+    public ProductoDelNegocio reactivar(@PathVariable UUID productoId) {
+        return productos.reactivar(productoId);
+    }
+
     @PutMapping("/{productoId}")
     @Operation(summary = "Guarda la ficha del producto (HU-150): precio con IVA incluido, tarifa, costo")
     @ApiResponse(responseCode = "403", description = "Falta INVENTARIO_PRODUCTO_EDITAR")

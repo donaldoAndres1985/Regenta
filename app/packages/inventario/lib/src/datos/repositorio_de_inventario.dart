@@ -69,6 +69,23 @@ class RepositorioDeInventario {
     return FichaDeProducto.desdeJson(cuerpo);
   }
 
+  /// HU-151 · desactiva o reactiva un producto. Nunca se borra (I8).
+  Future<FichaDeProducto> cambiarActivo(String id, {required bool activo}) async {
+    final ruta = '/api/inventario/productos/$id/${activo ? 'reactivacion' : 'desactivacion'}';
+    final cuerpo = await _http.post<Map<String, dynamic>>(ruta) as Map<String, dynamic>;
+    return FichaDeProducto.desdeJson(cuerpo);
+  }
+
+  /// HU-151 C1 · cuánto hay del producto en cada bodega (solo las que tienen algo).
+  Future<List<(String bodega, num cantidad)>> existenciasDe(String id) async {
+    final cuerpo = await _http.get<Map<String, dynamic>>('/api/inventario/productos/$id/stock');
+    return [
+      for (final e in ((cuerpo['porBodega'] ?? const []) as List).cast<Map<String, dynamic>>())
+        if (((e['cantidad'] ?? 0) as num) != 0)
+          ((e['bodegaNombre'] ?? '') as String, (e['cantidad'] ?? 0) as num),
+    ];
+  }
+
   /// Las categorías del negocio, para elegir en la ficha.
   Future<List<OpcionDeFicha>> categorias() async {
     final cuerpo = await _http.get<List<dynamic>>('/api/inventario/categorias');

@@ -114,7 +114,9 @@ public class BusquedaDeProductos {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         String c = codigo == null ? "" : codigo.trim();
 
-        Producto propio = productos.findByNegocioIdAndCodigoBarras(negocioId, c).orElse(null);
+        // HU-151 C2: un producto inactivo no se vende, tampoco escaneándolo.
+        Producto propio = productos.findByNegocioIdAndCodigoBarras(negocioId, c)
+                .filter(Producto::isActivo).orElse(null);
         if (propio != null) {
             return new CodigoResuelto(propio.getId(), propio.getSku(), propio.getNombre(),
                     BigDecimal.ONE, false);
@@ -124,6 +126,7 @@ public class BusquedaDeProductos {
                 .orElseThrow(() -> new NoEncontradoException(
                         "Ningun producto tiene el codigo " + c));
         Producto producto = productos.findById(alterno.getProductoId())
+                .filter(Producto::isActivo)
                 .orElseThrow(() -> new NoEncontradoException("Ese producto no existe"));
         return new CodigoResuelto(producto.getId(), producto.getSku(), producto.getNombre(),
                 alterno.getFactor(), true);
