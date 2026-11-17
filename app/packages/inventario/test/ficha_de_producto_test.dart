@@ -42,6 +42,33 @@ class _RepoFicha implements RepositorioDeInventario {
       const [OpcionDeFicha(id: 'u1', nombre: 'GLN · Galón')];
 
   List<(String, num)> existencias = const [];
+  List<FraccionDeTabla> fracciones = const [];
+  final Map<String, num?> preciosPropios = {};
+
+  @override
+  Future<List<FraccionDeTabla>> fraccionesDe(String id) async => fracciones;
+
+  @override
+  Future<void> fijarPrecioPropio(String id, String medida, num precio) async {
+    preciosPropios[medida] = precio;
+    fracciones = [
+      for (final f in fracciones)
+        f.medida == medida
+            ? FraccionDeTabla(medida: f.medida, factor: f.factor, precio: precio, origen: 'PROPIO')
+            : f,
+    ];
+  }
+
+  @override
+  Future<void> quitarPrecioPropio(String id, String medida) async {
+    preciosPropios[medida] = null;
+    fracciones = [
+      for (final f in fracciones)
+        f.medida == medida
+            ? FraccionDeTabla(medida: f.medida, factor: f.factor, precio: 18000)
+            : f,
+    ];
+  }
   final Map<String, String> ubicacionesGuardadas = {};
 
   @override
@@ -100,6 +127,7 @@ Future<void> _montar(WidgetTester tester, _RepoFicha repo, {bool puedeEditar = t
     overrides: [
       repositorioDeInventarioProvider.overrideWithValue(repo),
       puedeEditarProductosProvider.overrideWithValue(puedeEditar),
+      puedeGestionarFraccionesProvider.overrideWithValue(puedeEditar),
     ],
     child: const MaterialApp(home: PantallaFichaDeProducto(productoId: 'p1')),
   ));
@@ -207,6 +235,37 @@ void main() {
 
     expect(repo.ubicacionesGuardadas, {'b2': 'Estiba 5'},
         reason: 'solo se manda la que cambió');
+  });
+
+  testWidgets('HU-157 C1/C4 · la ficha muestra cada fracción con su origen y deja poner un precio propio', (tester) async {
+    final repo = _RepoFicha(_barniz)
+      ..fracciones = const [FraccionDeTabla(medida: '¼ galón', factor: 0.25, precio: 18000)];
+    await _montar(tester, repo);
+
+    expect(find.text('¼ galón'), findsOneWidget);
+    expect(find.text('de la tabla'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('precio-propio-¼ galón')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('precio-propio-valor')), '20000');
+    await tester.tap(find.byKey(const Key('precio-propio-guardar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.preciosPropios['¼ galón'], 20000);
+    expect(find.text('propio'), findsOneWidget);
+  });
+
+  testWidgets('HU-157 C3 · quitar el precio propio vuelve al de la tabla', (tester) async {
+    final repo = _RepoFicha(_barniz)
+      ..fracciones = const [FraccionDeTabla(medida: '¼ galón', factor: 0.25, precio: 20000, origen: 'PROPIO')];
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('quitar-propio-¼ galón')));
+    await tester.pumpAndSettle();
+
+    expect(repo.preciosPropios.containsKey('¼ galón'), isTrue);
+    expect(repo.preciosPropios['¼ galón'], isNull);
+    expect(find.text('de la tabla'), findsOneWidget);
   });
 
   testWidgets('HU-150 C4 · sin permiso de editar, la ficha se ve sin poder guardar', (tester) async {

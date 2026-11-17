@@ -7,7 +7,9 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.regenta.inventario.domain.PrecioPropioDeFraccion;
 import com.regenta.inventario.domain.Producto;
+import com.regenta.inventario.infrastructure.PrecioPropioDeFraccionRepositorio;
 import com.regenta.inventario.domain.TablaDeFracciones;
 import com.regenta.inventario.infrastructure.ProductoRepositorio;
 import com.regenta.inventario.infrastructure.TablaDeFraccionesRepositorio;
@@ -26,10 +28,44 @@ public class GestionDeFracciones {
 
     private final TablaDeFraccionesRepositorio tablas;
     private final ProductoRepositorio productos;
+    private final PrecioPropioDeFraccionRepositorio propios;
 
-    public GestionDeFracciones(TablaDeFraccionesRepositorio tablas, ProductoRepositorio productos) {
+    public GestionDeFracciones(TablaDeFraccionesRepositorio tablas, ProductoRepositorio productos,
+            PrecioPropioDeFraccionRepositorio propios) {
         this.tablas = tablas;
         this.productos = productos;
+        this.propios = propios;
+    }
+
+    /** HU-157 C1 · el precio de una fracción para este producto; le gana al de la tabla. */
+    @Transactional
+    @RequierePermiso("INVENTARIO_FRACCION_GESTIONAR")
+    public void fijarPrecioPropio(UUID productoId, String medida, java.math.BigDecimal precio) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        Producto p = productoDelNegocio(negocioId, productoId);
+        boolean enLaTabla = p.getTablaFraccionesId() != null && tablas.findById(p.getTablaFraccionesId())
+                .map(t -> t.precioDe(medida) != null).orElse(false);
+        if (!enLaTabla) {
+            throw new com.regenta.shared.web.ReglaDeNegocioException(
+                    "«" + medida + "» no está en la tabla de fracciones de este producto.");
+        }
+        PrecioPropioDeFraccion propio = propios.findByProductoIdAndMedida(productoId, medida)
+                .orElseGet(() -> PrecioPropioDeFraccion.de(negocioId, productoId, medida, precio));
+        propio.cambiarPrecio(precio);
+        propios.save(propio);
+    }
+
+    /** HU-157 C3 · vuelve al precio de la tabla. */
+    @Transactional
+    @RequierePermiso("INVENTARIO_FRACCION_GESTIONAR")
+    public void quitarPrecioPropio(UUID productoId, String medida) {
+        productoDelNegocio(ContextoDeNegocio.negocioActual(), productoId);
+        propios.findByProductoIdAndMedida(productoId, medida).ifPresent(propios::delete);
+    }
+
+    private Producto productoDelNegocio(UUID negocioId, UUID productoId) {
+        return productos.findById(productoId).filter(x -> x.getNegocioId().equals(negocioId))
+                .orElseThrow(() -> new NoEncontradoException("Ese producto no existe"));
     }
 
     @Transactional(readOnly = true)
@@ -97,13 +133,17 @@ public class GestionDeFracciones {
     /** Para Ventas (por {@code InventarioApi}): quien vende no necesita ver el catálogo. */
     @Transactional(readOnly = true)
     public List<FraccionDelNegocio> fraccionesSinPermiso(UUID negocioId, UUID productoId) {
-        Producto p = productos.findById(productoId).filter(x -> x.getNegocioId().equals(negocioId))
-                .orElseThrow(() -> new NoEncontradoException("Ese producto no existe"));
+        Producto p = productoDelNegocio(negocioId, productoId);
         if (p.getTablaFraccionesId() == null) {
             return List.of();
         }
+        // HU-157 · I14: el precio propio le gana al de la tabla.
+        java.util.Map<String, java.math.BigDecimal> propiosDe = new java.util.HashMap<>();
+        propios.findByProductoId(productoId).forEach(x -> propiosDe.put(x.getMedida(), x.getPrecio()));
         return tablas.findById(p.getTablaFraccionesId()).map(t -> t.getFracciones().stream()
-                .map(f -> new FraccionDelNegocio(f.getMedida(), f.getFactor(), f.getPrecio(), "TABLA"))
+                .map(f -> propiosDe.containsKey(f.getMedida())
+                        ? new FraccionDelNegocio(f.getMedida(), f.getFactor(), propiosDe.get(f.getMedida()), "PROPIO")
+                        : new FraccionDelNegocio(f.getMedida(), f.getFactor(), f.getPrecio(), "TABLA"))
                 .toList()).orElse(List.of());
     }
 
