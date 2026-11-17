@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 import '../busqueda/proveedores.dart';
+import '../datos/ficha_de_producto.dart';
 import '../datos/inventario_general.dart';
 import 'formato.dart';
 import 'pantalla_ficha_de_producto.dart';
@@ -24,10 +25,64 @@ class _PantallaInventarioGeneralState extends ConsumerState<PantallaInventarioGe
   String? _error;
   bool _cargando = false;
 
+  /// HU-154: filas marcadas para cambiarles la tarifa en bloque.
+  final Set<String> _seleccion = {};
+  List<OpcionDeFicha> _categorias = const [];
+
   @override
   void initState() {
     super.initState();
     _cargar();
+    ref.read(repositorioDeInventarioProvider).categorias().then((c) {
+      if (mounted) setState(() => _categorias = c);
+    }).catchError((_) {});
+  }
+
+  String get _nombreCategoria =>
+      _categorias.where((c) => c.id == _consulta.categoriaId).map((c) => c.nombre).firstOrNull ?? '';
+
+  /// HU-154 C1 · elegir la tarifa, confirmar con cuántos productos y aplicar.
+  Future<void> _cambiarTarifa() async {
+    final tarifa = await showDialog<(String, String, num)>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Nueva tarifa de IVA'),
+        children: [
+          for (final t in tarifasDeIva)
+            SimpleDialogOption(onPressed: () => Navigator.of(ctx).pop(t), child: Text(t.$2)),
+        ],
+      ),
+    );
+    if (tarifa == null || !mounted) return;
+    final aSeleccion = _seleccion.isNotEmpty;
+    final pregunta = aSeleccion
+        ? '¿Cambiar la tarifa de ${_seleccion.length} productos a ${tarifa.$2}? El precio no cambia.'
+        : '¿Cambiar la tarifa de toda la categoría $_nombreCategoria a ${tarifa.$2}? El precio no cambia.';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(pregunta),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Cambiar')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      final n = await ref.read(repositorioDeInventarioProvider).cambiarTarifaEnBloque(
+            productoIds: aSeleccion ? _seleccion.toList() : const [],
+            categoriaId: aSeleccion ? null : _consulta.categoriaId,
+            tarifaIva: tarifa.$1,
+          );
+      if (!mounted) return;
+      _seleccion.clear();
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Tarifa cambiada a $n productos')));
+      _cargar();
+    } on ErrorDeApi catch (e) {
+      if (mounted) setState(() => _error = e.mensaje);
+    }
   }
 
   @override
@@ -108,6 +163,28 @@ class _PantallaInventarioGeneralState extends ConsumerState<PantallaInventarioGe
                 onSelected: (v) =>
                     _cambiar(_consulta.copiar(estado: v ? 'INACTIVOS' : 'ACTIVOS', pagina: 0)),
               ),
+              DropdownButton<String?>(
+                key: const Key('filtro-categoria'),
+                value: _consulta.categoriaId,
+                hint: const Text('Todas las categorías'),
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('Todas las categorías')),
+                  for (final c in _categorias)
+                    DropdownMenuItem<String?>(value: c.id, child: Text(c.nombre)),
+                ],
+                onChanged: (v) => _cambiar(_consulta.copiar(categoriaId: v, pagina: 0)),
+              ),
+              // HU-154: a lo marcado o, sin marcar nada, a la categoría filtrada.
+              FilledButton.tonalIcon(
+                key: const Key('cambiar-tarifa'),
+                icon: const Icon(Icons.percent, size: 18),
+                label: Text(_seleccion.isEmpty
+                    ? 'Cambiar tarifa'
+                    : 'Cambiar tarifa (${_seleccion.length})'),
+                onPressed: _seleccion.isNotEmpty || _consulta.categoriaId != null
+                    ? _cambiarTarifa
+                    : null,
+              ),
             ]),
             const SizedBox(height: 12),
             if (r != null) _Totales(resultado: r),
@@ -125,7 +202,18 @@ class _PantallaInventarioGeneralState extends ConsumerState<PantallaInventarioGe
                       : ListView.separated(
                           itemCount: r.filas.length,
                           separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemBuilder: (_, i) => _Fila(fila: r.filas[i], onTap: () => _abrir(r.filas[i])),
+                          itemBuilder: (_, i) {
+                            final f = r.filas[i];
+                            return Row(children: [
+                              Checkbox(
+                                key: Key('seleccionar-${f.id}'),
+                                value: _seleccion.contains(f.id),
+                                onChanged: (v) => setState(() =>
+                                    v == true ? _seleccion.add(f.id) : _seleccion.remove(f.id)),
+                              ),
+                              Expanded(child: _Fila(fila: f, onTap: () => _abrir(f))),
+                            ]);
+                          },
                         ),
             ),
             if (paginas > 1)

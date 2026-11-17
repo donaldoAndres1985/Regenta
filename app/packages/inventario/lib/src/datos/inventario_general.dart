@@ -22,6 +22,7 @@ class ConsultaDeInventario {
 
   ConsultaDeInventario copiar({
     String? q,
+    Object? categoriaId = _sinCambio,
     String? estado,
     bool? tarifaPorRevisar,
     bool? existenciaNegativa,
@@ -29,7 +30,7 @@ class ConsultaDeInventario {
   }) =>
       ConsultaDeInventario(
         q: q ?? this.q,
-        categoriaId: categoriaId,
+        categoriaId: categoriaId == _sinCambio ? this.categoriaId : categoriaId as String?,
         estado: estado ?? this.estado,
         tarifaPorRevisar: tarifaPorRevisar ?? this.tarifaPorRevisar,
         existenciaNegativa: existenciaNegativa ?? this.existenciaNegativa,
@@ -37,6 +38,8 @@ class ConsultaDeInventario {
         pagina: pagina ?? this.pagina,
         tamano: tamano,
       );
+
+  static const _sinCambio = Object();
 
   Map<String, dynamic> comoQuery() => {
         if (q != null && q!.trim().isNotEmpty) 'q': q!.trim(),

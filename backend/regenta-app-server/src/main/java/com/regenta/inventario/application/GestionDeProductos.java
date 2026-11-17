@@ -170,6 +170,39 @@ public class GestionDeProductos {
 
     private static final BigDecimal CIEN = new BigDecimal("100");
 
+    /**
+     * HU-154 · fija la tarifa a varios productos de una vez; el precio no cambia (I2). Todo o
+     * nada (C3): se valida que todos sean del negocio antes de tocar alguno, y la transacción
+     * revierte si algo falla después.
+     */
+    @Transactional
+    @RequierePermiso("INVENTARIO_PRODUCTO_EDITAR")
+    public int cambiarTarifaEnBloque(SolicitudDeTarifaEnBloque solicitud) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        List<UUID> ids = solicitud.productoIds() == null ? List.of() : solicitud.productoIds();
+        List<Producto> elegidos;
+        if (!ids.isEmpty()) {
+            elegidos = productos.findAllById(ids).stream()
+                    .filter(p -> p.getNegocioId().equals(negocioId)).toList();
+            if (elegidos.size() != new java.util.HashSet<>(ids).size()) {
+                throw new NoEncontradoException(
+                        "Alguno de los productos no existe; no se cambió ninguno.");
+            }
+        } else if (solicitud.categoriaId() != null) {
+            elegidos = productos.findByNegocioIdAndCategoriaId(negocioId, solicitud.categoriaId());
+        } else {
+            throw new com.regenta.shared.web.ReglaDeNegocioException(
+                    "Elige los productos o la categoría a los que se les cambia la tarifa.");
+        }
+        UUID usuario = ContextoDeNegocio.actual().usuario();
+        for (Producto p : elegidos) {
+            p.cambiarTarifa(solicitud.tarifaIva());
+            p.tocar(usuario);
+        }
+        productos.saveAll(elegidos);
+        return elegidos.size();
+    }
+
     /** HU-151 · deja de venderse; conserva su historial (I8). La confirmación la pide la app. */
     @Transactional
     @RequierePermiso("INVENTARIO_PRODUCTO_EDITAR")
