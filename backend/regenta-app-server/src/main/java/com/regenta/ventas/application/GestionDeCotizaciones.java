@@ -93,7 +93,7 @@ public class GestionDeCotizaciones {
             ventas.agregarLineaCotizada(venta.id(), new SolicitudDeLinea(cl.getProductoId(),
                     cl.getSkuSnapshot(), cl.getNombreSnapshot(), cl.getUnidadSnapshot(),
                     cl.getCantidad(), cl.getPrecioUnitario(), cl.getDescuentoPct(),
-                    cl.getImpuestoCodigo(), cl.getImpuestoPct(), cl.getCostoUnitarioSnapshot()));
+                    cl.getImpuestoCodigo(), cl.getImpuestoPct(), cl.getCostoUnitarioSnapshot(), null));
         }
 
         boolean preciosDesactualizados = cotizacion.estaVencida(LocalDate.now());

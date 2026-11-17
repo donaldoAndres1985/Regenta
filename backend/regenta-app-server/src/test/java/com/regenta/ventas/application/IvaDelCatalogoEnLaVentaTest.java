@@ -77,7 +77,52 @@ class IvaDelCatalogoEnLaVentaTest {
     private SolicitudDeLinea delPos(String cantidad) {
         return new SolicitudDeLinea(productoId, "7707031403512", "Barniz galón", "GLN",
                 new BigDecimal(cantidad), new BigDecimal("1000"), BigDecimal.ZERO, null,
-                BigDecimal.ZERO, BigDecimal.ZERO);
+                BigDecimal.ZERO, BigDecimal.ZERO, null);
+    }
+
+    private SolicitudDeLinea fraccion(String cantidad, String medida) {
+        return new SolicitudDeLinea(productoId, "PIN-R", "Pintulux rojo galón", "GLN",
+                new BigDecimal(cantidad), new BigDecimal("1"), BigDecimal.ZERO, null,
+                BigDecimal.ZERO, BigDecimal.ZERO, medida);
+    }
+
+    private void conFracciones() {
+        when(inventario.fraccionesDe(negocioId, productoId)).thenReturn(List.of(
+                new com.regenta.inventario.api.FraccionDeCatalogo("¼ galón", new BigDecimal("0.25"),
+                        new BigDecimal("18000"))));
+    }
+
+    @Test
+    @DisplayName("HU-158 C3 · 3 de ¼ de galón cobra 3 × $ 18.000 = $ 54.000 con el IVA del producto y descuenta 0,75")
+    void venderFracciones() {
+        conFracciones();
+
+        LineaDeVenta l = gestion.agregarLinea(venta.getId(), fraccion("3", "¼ galón"));
+
+        assertThat(l.cantidad()).isEqualByComparingTo("0.75");
+        assertThat(l.total()).isEqualByComparingTo("54000");
+        assertThat(l.impuestoPct()).isEqualByComparingTo("19");
+        assertThat(l.impuestoValor()).isEqualByComparingTo("8621.85");
+        assertThat(l.nombre()).isEqualTo("Pintulux rojo galón (¼ galón)");
+    }
+
+    @Test
+    @DisplayName("HU-158 C4 · El precio de la fracción lo toma el backend del catálogo, no del POS")
+    void elPrecioDeLaFraccionEsDelCatalogo() {
+        conFracciones();
+
+        LineaDeVenta l = gestion.agregarLinea(venta.getId(), fraccion("1", "¼ galón"));
+
+        assertThat(l.total()).isEqualByComparingTo("18000");
+    }
+
+    @Test
+    @DisplayName("HU-158 · Una medida que el producto no tiene no entra a la venta")
+    void fraccionQueNoExiste() {
+        conFracciones();
+
+        assertThatThrownBy(() -> gestion.agregarLinea(venta.getId(), fraccion("1", "⅛ galón")))
+                .isInstanceOf(NoEncontradoException.class);
     }
 
     @Test
@@ -142,6 +187,7 @@ class IvaDelCatalogoEnLaVentaTest {
                 List.of(new LineaDeCotizacion(productoId, "7707031403512", "Barniz galón", "GLN",
                         BigDecimal.ONE, new BigDecimal("1000"), BigDecimal.ZERO, null,
                         BigDecimal.ZERO, BigDecimal.ZERO))));
+        // (LineaDeCotizacion no lleva fracción: se cotiza por unidad entera.)
 
         ArgumentCaptor<CotizacionLinea> guardada = ArgumentCaptor.forClass(CotizacionLinea.class);
         Mockito.verify(lineasCot).save(guardada.capture());

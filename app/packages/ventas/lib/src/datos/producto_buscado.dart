@@ -23,7 +23,11 @@ class ProductoBuscado {
     this.codigoBarras,
     this.tarifaIva,
     this.ubicaciones = const {},
+    this.unidad = 'UND',
   });
+
+  /// HU-158: el código de su unidad de medida (UND, GLN, KG, MTS), del catálogo.
+  final String unidad;
 
   /// HU-152: dónde está en cada bodega (id de bodega → ubicación), si se dijo.
   final Map<String, String> ubicaciones;
@@ -65,6 +69,7 @@ class ProductoBuscado {
         codigoBarras: json['codigoBarras'] as String?,
         impuestoPct: (json['impuestoPct'] ?? 0) as num,
         tarifaIva: json['tarifaIva'] as String?,
+        unidad: (json['unidad'] ?? 'UND') as String,
         ubicaciones: {
           for (final e in ((json['ubicaciones'] ?? const {}) as Map).entries)
             e.key.toString(): e.value.toString(),

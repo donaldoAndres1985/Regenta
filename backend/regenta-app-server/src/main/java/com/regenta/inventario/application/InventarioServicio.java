@@ -19,13 +19,25 @@ public class InventarioServicio implements InventarioApi {
     private final GestionDeLotes lotes;
     private final GestionDeProductos productos;
     private final GestionDeReservasStock reservas;
+    private final GestionDeFracciones fracciones;
 
     public InventarioServicio(GestionDeLotes lotes,
                              GestionDeProductos productos,
-                             GestionDeReservasStock reservas) {
+                             GestionDeReservasStock reservas,
+                             GestionDeFracciones fracciones) {
         this.lotes = lotes;
         this.productos = productos;
         this.reservas = reservas;
+        this.fracciones = fracciones;
+    }
+
+    @Override
+    public List<com.regenta.inventario.api.FraccionDeCatalogo> fraccionesDe(UUID negocioId,
+            UUID productoId) {
+        return fracciones.fraccionesSinPermiso(negocioId, productoId).stream()
+                .map(f -> new com.regenta.inventario.api.FraccionDeCatalogo(f.medida(), f.factor(),
+                        f.precio()))
+                .toList();
     }
 
     @Override

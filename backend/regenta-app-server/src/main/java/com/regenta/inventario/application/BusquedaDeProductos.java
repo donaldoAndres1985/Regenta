@@ -46,13 +46,22 @@ public class BusquedaDeProductos {
     private final ProductoCodigoRepositorio codigos;
     private final CategoriaRepositorio categorias;
     private final ExistenciaRepositorio existencias;
+    private final com.regenta.inventario.infrastructure.UnidadMedidaRepositorio unidades;
 
     public BusquedaDeProductos(ProductoRepositorio productos, ProductoCodigoRepositorio codigos,
             CategoriaRepositorio categorias, ExistenciaRepositorio existencias) {
+        this(productos, codigos, categorias, existencias, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public BusquedaDeProductos(ProductoRepositorio productos, ProductoCodigoRepositorio codigos,
+            CategoriaRepositorio categorias, ExistenciaRepositorio existencias,
+            com.regenta.inventario.infrastructure.UnidadMedidaRepositorio unidades) {
         this.productos = productos;
         this.codigos = codigos;
         this.categorias = categorias;
         this.existencias = existencias;
+        this.unidades = unidades;
     }
 
     @Transactional(readOnly = true)
@@ -82,6 +91,11 @@ public class BusquedaDeProductos {
                 .findByNegocioIdOrderByNivelAscOrdenAscNombreAsc(negocioId).stream()
                 .collect(Collectors.toMap(Categoria::getId, Categoria::getNombre));
 
+        // HU-158: la unidad real del producto (GLN, KG, MTS), no adivinada por el nombre.
+        Map<UUID, String> codigoDeUnidad = unidades == null ? Map.of()
+                : unidades.findByNegocioIdOrderByCodigo(negocioId).stream()
+                        .collect(Collectors.toMap(u -> u.getId(), u -> u.getCodigo()));
+
         List<ProductoEncontrado> filas = new ArrayList<>();
         for (Producto producto : encontrados) {
             if (filtro.categoriaId() != null
@@ -108,7 +122,8 @@ public class BusquedaDeProductos {
                     producto.getCodigoBarras(), producto.getNombre(), producto.getCategoriaId(),
                     nombreDeCategoria.getOrDefault(producto.getCategoriaId(), "?"),
                     producto.getPrecioVenta(), stock, nivel, producto.getTarifaIva(),
-                    producto.getTarifaIva().porcentaje(), ubicaciones));
+                    producto.getTarifaIva().porcentaje(), ubicaciones,
+                    codigoDeUnidad.getOrDefault(producto.getUnidadMedidaId(), "UND")));
         }
         return new ResultadoDeBusqueda(filas, filas.size());
     }

@@ -16,6 +16,7 @@ export 'src/cobro/controlador_de_cobro.dart';
 export 'src/cobro/estado_del_cobro.dart';
 export 'src/cobro/proveedores.dart';
 export 'src/datos/cliente_de_la_venta.dart';
+export 'src/datos/fraccion_de_venta.dart';
 export 'src/datos/producto_buscado.dart';
 export 'src/datos/repositorio_de_clientes_de_venta.dart';
 export 'src/datos/repositorio_de_ventas.dart';

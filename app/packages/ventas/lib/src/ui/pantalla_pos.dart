@@ -14,6 +14,7 @@ import 'formato.dart';
 import 'pantalla_buscar_venta.dart';
 import 'pantalla_cliente_de_venta.dart';
 import 'pantalla_cobro.dart';
+import 'selector_de_fracciones.dart';
 import 'ticket_pos.dart';
 
 void _mostrarNotificacionPos(
@@ -219,7 +220,9 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     if (esCtrl && tecla == LogicalKeyboardKey.keyD) {
       final estado = ref.read(controladorDelPosProvider);
       if (estado.lineas.isNotEmpty) {
-        _mostrarDetalleProducto(context, estado.lineas.last.producto);
+        // HU-158 C1: Ctrl+D muestra las fracciones reales del producto de la última línea.
+        // El detalle del producto se abre con doble clic en su nombre.
+        mostrarFraccionesDe(context, estado.lineas.last, ProviderScope.containerOf(context));
       }
       return true;
     }
@@ -258,7 +261,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Unidad: ${unidadParaProducto(linea.producto.nombre)}',
+              Text('Unidad: ${linea.fraccion?.medida ?? linea.producto.unidad}',
                   style: const TextStyle(fontWeight: FontWeight.w600, color: RegentaColors.muted)),
               const SizedBox(height: 12),
               TextField(
@@ -468,7 +471,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
       nivelTexto = 'Disponible';
     }
 
-    final unidad = unidadParaProducto(p.nombre);
+    final unidad = p.unidad;
 
     showDialog<void>(
       context: ctx,
@@ -2451,14 +2454,14 @@ class _FilaDeVenta extends StatelessWidget {
               children: [
                 _StepperEditable(
                   cantidad: linea.cantidad,
-                  nombreProducto: linea.producto.nombre,
+                  linea: linea,
                   onMas: onMas,
                   onMenos: onMenos,
                   onFijar: onFijarCantidad,
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  unidadParaProducto(linea.producto.nombre),
+                  linea.fraccion?.medida ?? linea.producto.unidad,
                   key: Key('unidad-producto-${linea.producto.id}'),
                   style: const TextStyle(
                     fontSize: 11,
@@ -2903,14 +2906,14 @@ class _TarjetaDeLineaMovil extends StatelessWidget {
                 children: [
                   _StepperEditable(
                     cantidad: linea.cantidad,
-                    nombreProducto: linea.producto.nombre,
+                    linea: linea,
                     onMas: onMas,
                     onMenos: onMenos,
                     onFijar: onFijarCantidad,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    unidadParaProducto(linea.producto.nombre),
+                    linea.fraccion?.medida ?? linea.producto.unidad,
                     style: const TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w800,
@@ -3107,14 +3110,15 @@ class _StepperEditable extends StatefulWidget {
     required this.onMas,
     required this.onMenos,
     required this.onFijar,
-    this.nombreProducto,
+    this.linea,
   });
 
   final num cantidad;
   final VoidCallback onMas;
   final VoidCallback onMenos;
   final ValueChanged<num> onFijar;
-  final String? nombreProducto;
+  /// HU-158: la línea, para ofrecer las fracciones de su producto y convertirla.
+  final LineaDeCarrito? linea;
 
   @override
   State<_StepperEditable> createState() => _StepperEditableState();
@@ -3166,190 +3170,14 @@ class _StepperEditableState extends State<_StepperEditable> {
     }
   }
 
+  /// HU-158 · las fracciones reales del producto (tabla o precio propio), no una lista fija ni
+  /// adivinada por el nombre. Elegir una convierte la línea a esa fracción con su precio.
   void _abrirSelectorFracciones() {
-    final unidad = unidadParaProducto(widget.nombreProducto);
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: RegentaColors.posModalFondo,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Seleccionar fracción / medida',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: RegentaColors.posModalTextoTenue),
-                    onPressed: () => Navigator.of(ctx).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              if (unidad == 'GL') ...[
-                const Text(
-                  'Fracciones de galón y cuñete (5 galones):',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: RegentaColors.posModalTextoSecundario,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _chipFraccion(ctx, '1 Cuñete · Balde (5.0 gal)', 5.0),
-                    _chipFraccion(ctx, '1/2 Cuñete (2.5 gal)', 2.5),
-                    _chipFraccion(ctx, '1 Galón (1.0)', 1.0),
-                    _chipFraccion(ctx, '1/2 Galón (0.5)', 0.5),
-                    _chipFraccion(ctx, '1/4 Galón (0.25)', 0.25),
-                    _chipFraccion(ctx, '1/8 Galón (0.125)', 0.125),
-                    _chipFraccion(ctx, '1/16 Galón (0.0625)', 0.0625),
-                    _chipFraccion(ctx, '1/32 Galón (0.03125)', 0.03125),
-                  ],
-                ),
-              ] else if (unidad == 'MTS') ...[
-                const Text(
-                  'Medidas de longitud / metros (manto, cable, tubo...):',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: RegentaColors.posModalTextoSecundario,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _chipFraccion(ctx, '1 metro (1.0 m)', 1.0),
-                    _chipFraccion(ctx, '1/2 m · 50 cm (0.5 m)', 0.5),
-                    _chipFraccion(ctx, '1/4 m · 25 cm (0.25 m)', 0.25),
-                    _chipFraccion(ctx, '3/4 m · 75 cm (0.75 m)', 0.75),
-                    _chipFraccion(ctx, '10 cm (0.1 m)', 0.1),
-                    _chipFraccion(ctx, '20 cm (0.2 m)', 0.2),
-                    _chipFraccion(ctx, '1.5 metros (1.5 m)', 1.5),
-                    _chipFraccion(ctx, '2 metros (2.0 m)', 2.0),
-                    _chipFraccion(ctx, '2.5 metros (2.5 m)', 2.5),
-                    _chipFraccion(ctx, '3 metros (3.0 m)', 3.0),
-                    _chipFraccion(ctx, '5 metros (5.0 m)', 5.0),
-                    _chipFraccion(ctx, '10 metros (10.0 m)', 10.0),
-                  ],
-                ),
-              ] else if (unidad == 'KG') ...[
-                const Text(
-                  'Fracciones de peso (kilos / gramos):',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: RegentaColors.posModalTextoSecundario,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _chipFraccion(ctx, '1 Kilo (1.0 kg)', 1.0),
-                    _chipFraccion(ctx, '1/2 Kilo · 500 g (0.5 kg)', 0.5),
-                    _chipFraccion(ctx, '1/4 Kilo · 250 g (0.25 kg)', 0.25),
-                    _chipFraccion(ctx, '100 gramos (0.1 kg)', 0.1),
-                    _chipFraccion(ctx, '2 Kilos (2.0 kg)', 2.0),
-                    _chipFraccion(ctx, '5 Kilos (5.0 kg)', 5.0),
-                    _chipFraccion(ctx, '25 Kilos · Bulto (25 kg)', 25.0),
-                    _chipFraccion(ctx, '50 Kilos · Bulto (50 kg)', 50.0),
-                  ],
-                ),
-              ] else ...[
-                const Text(
-                  'Cantidades y unidades:',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: RegentaColors.posModalTextoSecundario,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _chipFraccion(ctx, '1 unidad', 1.0),
-                    _chipFraccion(ctx, '2 unidades', 2.0),
-                    _chipFraccion(ctx, '3 unidades', 3.0),
-                    _chipFraccion(ctx, '5 unidades', 5.0),
-                    _chipFraccion(ctx, '6 unidades (1/2 docena)', 6.0),
-                    _chipFraccion(ctx, '10 unidades', 10.0),
-                    _chipFraccion(ctx, '12 unidades (docena)', 12.0),
-                    _chipFraccion(ctx, '24 unidades (2 docenas)', 24.0),
-                    _chipFraccion(ctx, '1/2 unidad (0.5)', 0.5),
-                    _chipFraccion(ctx, '1/4 unidad (0.25)', 0.25),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
+    final linea = widget.linea;
+    if (linea == null) return;
+    final contenedor = ProviderScope.containerOf(context);
+    mostrarFraccionesDe(context, linea, contenedor);
   }
-
-  Widget _chipFraccion(BuildContext ctx, String etiqueta, num valor) {
-    final seleccionada = (widget.cantidad - valor).abs() < 0.0001;
-    return InkWell(
-      onTap: () {
-        widget.onFijar(valor);
-        Navigator.of(ctx).pop();
-      },
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: seleccionada ? RegentaColors.posAcentoFuerte : RegentaColors.posChipFondo,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: seleccionada ? RegentaColors.posChipBordeSeleccionado : RegentaColors.posChipBorde,
-            width: seleccionada ? 1.8 : 1.2,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (seleccionada) ...[
-              const Icon(Icons.check, size: 15, color: Colors.white),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              etiqueta,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: seleccionada ? FontWeight.w800 : FontWeight.w600,
-                color: seleccionada ? Colors.white : RegentaColors.posModalTitulo,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final esOscuro = Theme.of(context).brightness == Brightness.dark;

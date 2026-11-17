@@ -1008,7 +1008,7 @@ void main() {
   });
 
   testWidgets(
-    'HU-152 C2: el detalle del producto (Ctrl+D) muestra su ubicación en la bodega de la venta',
+    'HU-152 C2: el detalle del producto (doble clic) muestra su ubicación en la bodega de la venta',
     (tester) async {
       final repo = _RepoFake();
       await _montar(tester, repo, size: const Size(1280, 900));
@@ -1025,9 +1025,10 @@ void main() {
         }),
       );
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      // HU-158 dejó Ctrl+D para las fracciones; el detalle se abre con doble clic.
+      await tester.tap(find.text('Cemento gris 50 kg').last);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('Cemento gris 50 kg').last);
       await tester.pumpAndSettle();
 
       expect(find.text('Pasillo 3 – E2'), findsOneWidget);
@@ -1377,24 +1378,19 @@ void main() {
 
       expect(find.text('Estado de stock'), findsNothing);
     });
-    testWidgets('selector de fracciones asigna valores fraccionados exactos', (tester) async {
+    testWidgets('HU-158: el selector no inventa fracciones para un producto que no las tiene', (tester) async {
       final repo = _RepoFake();
       await _montar(tester, repo, size: const Size(1280, 900));
       await _agregar(tester, repo, _prod(id: 'p1', nombre: 'Vinilo tipo 1 - galon azul'));
 
-      // Abrir selector de fracciones
-      final iconoFraccion = find.byIcon(Icons.pie_chart_outline);
-      expect(iconoFraccion, findsOneWidget);
-      await tester.tap(iconoFraccion);
+      // HU-158: ya no hay lista fija adivinada por el nombre: sin fracciones en el
+      // catálogo, el selector lo dice y la cantidad no cambia.
+      await tester.tap(find.byIcon(Icons.pie_chart_outline));
       await tester.pumpAndSettle();
 
-      expect(find.text('Seleccionar fracción / medida'), findsOneWidget);
-      expect(find.text('1/4 Galón (0.25)'), findsOneWidget);
-
-      await tester.tap(find.text('1/4 Galón (0.25)'));
-      await tester.pumpAndSettle();
-
-      expect(_estado(tester).lineas.single.cantidad, 0.25);
+      expect(find.text('Este producto no se vende fraccionado.'), findsOneWidget);
+      expect(find.text('1/4 Galón (0.25)'), findsNothing);
+      expect(_estado(tester).lineas.single.cantidad, 1);
     });
 
     testWidgets('botón Movi. Caja abre diálogo de movimiento de caja manual', (tester) async {
