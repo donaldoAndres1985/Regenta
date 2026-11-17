@@ -3,6 +3,7 @@ import 'package:regenta_core/regenta_core.dart';
 import 'bodega_del_negocio.dart';
 import 'codigo_resuelto.dart';
 import 'ficha_de_producto.dart';
+import 'detallado.dart';
 import 'historial_de_producto.dart';
 import 'inventario_general.dart';
 import 'tablas_de_fracciones.dart';
@@ -223,6 +224,29 @@ class RepositorioDeInventario {
       },
     );
     return [for (final m in cuerpo.cast<Map<String, dynamic>>()) MovimientoDeHistorial.desdeJson(m)];
+  }
+
+  /// HU-161 · las equivalencias de detallado del negocio.
+  Future<List<EquivalenciaDeDetallado>> equivalencias() async {
+    final cuerpo = await _http.get<List<dynamic>>('/api/inventario/detallado/equivalencias');
+    return [for (final e in cuerpo.cast<Map<String, dynamic>>()) EquivalenciaDeDetallado.desdeJson(e)];
+  }
+
+  /// HU-161 C1/C2/C4 · guarda «1 origen = factor destino»; el backend valida unidad, par y factor.
+  Future<EquivalenciaDeDetallado> crearEquivalencia(String origenId, String destinoId, num factor) async {
+    final cuerpo = await _http.post<Map<String, dynamic>>('/api/inventario/detallado/equivalencias',
+        datos: {'origenId': origenId, 'destinoId': destinoId, 'factor': factor}) as Map<String, dynamic>;
+    return EquivalenciaDeDetallado.desdeJson(cuerpo);
+  }
+
+  /// HU-161 C3 · replica la equivalencia a [origenIds], uniendo cada uno con su par por nombre.
+  Future<ResultadoDeReplica> replicarEquivalencia(
+      List<String> origenIds, String buscar, String reemplazar, num factor) async {
+    final cuerpo = await _http.post<Map<String, dynamic>>(
+      '/api/inventario/detallado/equivalencias/replica',
+      datos: {'origenIds': origenIds, 'buscar': buscar, 'reemplazar': reemplazar, 'factor': factor},
+    ) as Map<String, dynamic>;
+    return ResultadoDeReplica.desdeJson(cuerpo);
   }
 
   /// Las categorías del negocio, para elegir en la ficha.

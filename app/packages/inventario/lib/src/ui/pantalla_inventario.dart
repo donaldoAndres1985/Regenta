@@ -8,6 +8,7 @@ import '../datos/producto_encontrado.dart';
 import '../escaner/escaner_de_codigos.dart';
 import 'captura_manual_de_codigo.dart';
 import 'fila_de_producto.dart';
+import 'pantalla_equivalencias.dart';
 import 'pantalla_ficha_de_producto.dart';
 import 'pantalla_inventario_general.dart';
 import 'pantalla_tablas_de_fracciones.dart';
@@ -361,6 +362,15 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.pie_chart_outline, size: 22, color: RegentaColors.accent),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
             builder: (_) => const PantallaTablasDeFracciones(),
+          )),
+        ),
+        // HU-161: equivalencias de detallado (cuñete -> galones).
+        IconButton(
+          key: const Key('inventario-equivalencias'),
+          tooltip: 'Equivalencias de detallado',
+          icon: const Icon(Icons.call_split, size: 22, color: RegentaColors.accent),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const PantallaEquivalencias(),
           )),
         ),
         // HU-155: unidades de medida del negocio.
