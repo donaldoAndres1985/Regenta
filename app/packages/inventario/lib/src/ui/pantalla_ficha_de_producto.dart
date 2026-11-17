@@ -219,6 +219,18 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
     ]);
   }
 
+  /// HU-159 · sumar, restar o contar en una bodega, con tipo y motivo.
+  Future<void> _ajustar() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => _DialogoDeAjuste(productoId: widget.productoId, bodegas: _ubicaciones),
+    );
+    if (ok == true && mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Existencia ajustada')));
+    }
+  }
+
   /// HU-151 C1 · desactivar pide confirmación y avisa la existencia que queda.
   Future<void> _desactivar() async {
     final f = _ficha;
@@ -325,6 +337,16 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
                 _campo('Costo', _costo, puedeEditar, clave: const Key('ficha-costo'), numero: true),
                 _resumen(),
                 if (_fracciones.isNotEmpty) _seccionFracciones(ref.watch(puedeGestionarFraccionesProvider)),
+                if (ref.watch(puedeAjustarExistenciasProvider) && _ubicaciones.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: OutlinedButton.icon(
+                      key: const Key('ficha-ajustar'),
+                      icon: const Icon(Icons.tune, size: 18),
+                      label: const Text('Ajustar existencia'),
+                      onPressed: _ajustar,
+                    ),
+                  ),
                 if (_ubicaciones.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   Text('Ubicación en cada bodega',
@@ -439,6 +461,128 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
         ],
         onChanged: habilitado ? alCambiar : null,
       ),
+    );
+  }
+}
+
+/// HU-159 · el diálogo de ajuste: bodega, operación, cantidad, tipo y motivo. Si el backend
+/// rechaza (por ejemplo, restar más de lo que hay), muestra su mensaje y no se cierra.
+class _DialogoDeAjuste extends ConsumerStatefulWidget {
+  const _DialogoDeAjuste({required this.productoId, required this.bodegas});
+
+  final String productoId;
+  final List<UbicacionEnBodega> bodegas;
+
+  @override
+  ConsumerState<_DialogoDeAjuste> createState() => _DialogoDeAjusteState();
+}
+
+class _DialogoDeAjusteState extends ConsumerState<_DialogoDeAjuste> {
+  late String _bodegaId = widget.bodegas.first.bodegaId;
+  String _operacion = 'SUMAR';
+  String _tipo = 'CONTEO_FISICO';
+  final _cantidad = TextEditingController();
+  final _motivo = TextEditingController();
+  String? _error;
+  bool _enviando = false;
+
+  @override
+  void dispose() {
+    _cantidad.dispose();
+    _motivo.dispose();
+    super.dispose();
+  }
+
+  Future<void> _aplicar() async {
+    final cantidad = num.tryParse(_cantidad.text.trim().replaceAll(',', '.'));
+    if (cantidad == null || cantidad < 0 || _motivo.text.trim().isEmpty) {
+      setState(() => _error = 'Escribe la cantidad y el motivo.');
+      return;
+    }
+    setState(() {
+      _enviando = true;
+      _error = null;
+    });
+    try {
+      await ref.read(repositorioDeInventarioProvider).ajustarExistencia(AjusteDeExistencia(
+            productoId: widget.productoId,
+            bodegaId: _bodegaId,
+            operacion: _operacion,
+            cantidad: cantidad,
+            tipo: _tipo,
+            motivo: _motivo.text.trim(),
+          ));
+      if (mounted) Navigator.of(context).pop(true);
+    } on ErrorDeApi catch (e) {
+      if (mounted) setState(() => _error = e.mensaje);
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Ajustar existencia'),
+      content: SizedBox(
+        width: 420,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          DropdownButtonFormField<String>(
+            initialValue: _bodegaId,
+            decoration: const InputDecoration(labelText: 'Bodega'),
+            items: [
+              for (final b in widget.bodegas)
+                DropdownMenuItem(value: b.bodegaId, child: Text(b.bodegaNombre)),
+            ],
+            onChanged: (v) => setState(() => _bodegaId = v!),
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'SUMAR', label: Text('Sumar')),
+              ButtonSegment(value: 'RESTAR', label: Text('Restar')),
+              ButtonSegment(value: 'CONTEO', label: Text('Conteo físico')),
+            ],
+            selected: {_operacion},
+            onSelectionChanged: (s) => setState(() => _operacion = s.first),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('ajuste-cantidad'),
+            controller: _cantidad,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+                labelText: _operacion == 'CONTEO' ? 'Cantidad contada' : 'Cantidad'),
+          ),
+          DropdownButtonFormField<String>(
+            key: const Key('ajuste-tipo'),
+            initialValue: _tipo,
+            decoration: const InputDecoration(labelText: 'Tipo'),
+            items: [
+              for (final t in tiposDeAjuste) DropdownMenuItem(value: t.$1, child: Text(t.$2)),
+            ],
+            onChanged: (v) => setState(() => _tipo = v!),
+          ),
+          TextField(
+            key: const Key('ajuste-motivo'),
+            controller: _motivo,
+            decoration: const InputDecoration(labelText: 'Motivo'),
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(_error!, style: const TextStyle(color: RegentaColors.crit)),
+            ),
+        ]),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+        FilledButton(
+          key: const Key('ajuste-aplicar'),
+          onPressed: _enviando ? null : _aplicar,
+          child: const Text('Aplicar'),
+        ),
+      ],
     );
   }
 }

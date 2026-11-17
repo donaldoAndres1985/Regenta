@@ -202,6 +202,12 @@ class RepositorioDeInventario {
         '/api/inventario/productos/$id/fracciones/precio-propio?medida=${Uri.encodeQueryComponent(medida)}');
   }
 
+  /// HU-159 · suma, resta o fija por conteo la existencia. El backend rechaza restar más de lo
+  /// que hay (I10) con un mensaje que se muestra tal cual.
+  Future<void> ajustarExistencia(AjusteDeExistencia ajuste) async {
+    await _http.post<Map<String, dynamic>>('/api/inventario/ajustes/rapido', datos: ajuste.aJson());
+  }
+
   /// Las categorías del negocio, para elegir en la ficha.
   Future<List<OpcionDeFicha>> categorias() async {
     final cuerpo = await _http.get<List<dynamic>>('/api/inventario/categorias');

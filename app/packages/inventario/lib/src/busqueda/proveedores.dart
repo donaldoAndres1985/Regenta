@@ -25,7 +25,10 @@ final puedeEditarProductosProvider = Provider<bool>((ref) => false);
 /// HU-156 · si quien usa la app gestiona tablas de fracciones (`INVENTARIO_FRACCION_GESTIONAR`).
 final puedeGestionarFraccionesProvider = Provider<bool>((ref) => false);
 
-final escanerProvider = Provider<EscanerDeCodigos>((ref) => const EscanerMobileScanner());
+/// HU-159 · si quien usa la app ajusta existencias (`INVENTARIO_AJUSTE_APLICAR`).
+final puedeAjustarExistenciasProvider = Provider<bool>((ref) => false);
+
+final escanerProvider =Provider<EscanerDeCodigos>((ref) => const EscanerMobileScanner());
 
 final controladorDeBusquedaProvider =
     StateNotifierProvider<ControladorDeBusqueda, EstadoDeBusqueda>(

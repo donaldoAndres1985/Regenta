@@ -42,6 +42,15 @@ public class AjustesControlador {
         return ajustes.crear(solicitud);
     }
 
+    @PostMapping("/rapido")
+    @Operation(summary = "Suma, resta o fija por conteo la existencia de un producto (HU-159); "
+            + "restar mas de lo que hay se rechaza")
+    public com.regenta.inventario.application.AjusteDelNegocio rapido(
+            @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
+            com.regenta.inventario.application.SolicitudDeAjusteRapido solicitud) {
+        return ajustes.ajusteRapido(solicitud);
+    }
+
     @PostMapping("/{ajusteId}/aplicacion")
     @Operation(summary = "Aplica el ajuste: genera los movimientos y lo cierra")
     @ApiResponse(responseCode = "409", description = "El ajuste no estÃ¡ en BORRADOR")

@@ -169,6 +169,13 @@ class DependenciasDeLaApp {
     // HU-158: las fracciones reales del catálogo para el POS.
     consultaDeFraccionesProvider.overrideWithValue(ConsultaDeFraccionesHttp(http)),
     repositorioDeCajaProvider.overrideWithValue(RepositorioDeCaja(http)),
+    // HU-159: ajustar existencias solo con el permiso que trae el token.
+    puedeAjustarExistenciasProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('INVENTARIO_AJUSTE_APLICAR') ??
+          false,
+    ),
     // HU-156: tablas de fracciones solo con el permiso que trae el token.
     puedeGestionarFraccionesProvider.overrideWith(
       (ref) =>
