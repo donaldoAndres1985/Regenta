@@ -45,7 +45,7 @@ class VentaEntraACajaTest {
     private final RegistroDeEventos eventos = mock(RegistroDeEventos.class);
 
     private final GestionDeVentas gestion = new GestionDeVentas(ventas, mock(VentaLineaRepositorio.class),
-            mock(AsignadorDeConsecutivos.class), saga, mock(ConfiguracionDelNegocio.class), caja);
+            mock(AsignadorDeConsecutivos.class), saga, mock(ConfiguracionDelNegocio.class), caja, mock(PrecioDeLinea.class));
     private final GestionDePagos cobro = new GestionDePagos(ventas, pagos, eventos);
 
     private final UUID negocioId = UUID.randomUUID();

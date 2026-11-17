@@ -102,7 +102,8 @@ public class BusquedaDeProductos {
             filas.add(new ProductoEncontrado(producto.getId(), producto.getSku(),
                     producto.getCodigoBarras(), producto.getNombre(), producto.getCategoriaId(),
                     nombreDeCategoria.getOrDefault(producto.getCategoriaId(), "?"),
-                    producto.getPrecioVenta(), stock, nivel));
+                    producto.getPrecioVenta(), stock, nivel, producto.getTarifaIva(),
+                    producto.getTarifaIva().porcentaje()));
         }
         return new ResultadoDeBusqueda(filas, filas.size());
     }

@@ -24,5 +24,7 @@ public record VentaDelNegocio(
         String clienteSnapshot,
         String notaCliente,
         boolean facturada,
-        List<LineaDeVenta> lineas) {
+        List<LineaDeVenta> lineas,
+        // HU-148 C6: base e IVA por tarifa, para el ticket y la factura.
+        List<ImpuestoPorTarifa> impuestosPorTarifa) {
 }

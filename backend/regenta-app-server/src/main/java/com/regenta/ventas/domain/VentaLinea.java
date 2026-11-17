@@ -20,7 +20,6 @@ import jakarta.persistence.Table;
 @Table(name = "venta_lineas", schema = "ventas")
 public class VentaLinea {
 
-    private static final BigDecimal CIEN = new BigDecimal("100");
     private static final int ESCALA = 4;
 
     @Id
@@ -144,19 +143,27 @@ public class VentaLinea {
         return cantidadDevuelta;
     }
 
+    /** HU-148: el precio unitario es el de la etiqueta, con IVA incluido (I2, I5). */
     private void calcular() {
-        BigDecimal bruto = precioUnitario.multiply(cantidad);
-        this.subtotal = escala(bruto);
-        this.descuentoValor = escala(bruto.multiply(descuentoPct).divide(CIEN, ESCALA + 2,
-                RoundingMode.HALF_UP));
-        this.baseGravable = escala(bruto.subtract(descuentoValor));
-        this.impuestoValor = escala(baseGravable.multiply(impuestoPct).divide(CIEN, ESCALA + 2,
-                RoundingMode.HALF_UP));
-        this.total = escala(baseGravable.add(impuestoValor));
+        CalculoConIvaIncluido c = CalculoConIvaIncluido.de(precioUnitario, cantidad, descuentoPct,
+                impuestoPct);
+        this.subtotal = c.subtotal();
+        this.descuentoValor = c.descuento();
+        this.baseGravable = c.base();
+        this.impuestoValor = c.impuesto();
+        this.total = c.total();
     }
 
-    private static BigDecimal escala(BigDecimal v) {
-        return v.setScale(ESCALA, RoundingMode.HALF_UP);
+    public String getUnidadSnapshot() {
+        return unidadSnapshot;
+    }
+
+    public BigDecimal getDescuentoPct() {
+        return descuentoPct;
+    }
+
+    public String getImpuestoCodigo() {
+        return impuestoCodigo;
     }
 
     public short getLinea() {

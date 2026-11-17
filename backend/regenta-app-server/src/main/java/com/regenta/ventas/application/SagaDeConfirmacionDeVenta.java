@@ -203,17 +203,7 @@ public class SagaDeConfirmacionDeVenta {
         datos.put("total", venta.getTotal());
         List<Map<String, Object>> lineasPayload = new ArrayList<>();
         for (VentaLinea l : lineas) {
-            Map<String, Object> lp = new LinkedHashMap<>();
-            lp.put("producto_id", l.getProductoId().toString());
-            lp.put("sku", l.getSkuSnapshot());
-            lp.put("nombre", l.getNombreSnapshot());
-            lp.put("cantidad", l.getCantidad());
-            lp.put("precio_unitario", l.getPrecioUnitario());
-            lp.put("descuento_valor", l.getDescuentoValor());
-            lp.put("impuesto_valor", l.getImpuestoValor());
-            lp.put("total", l.getTotal());
-            lp.put("costo_unitario", l.getCostoUnitarioSnapshot());
-            lineasPayload.add(lp);
+            lineasPayload.add(LineaVendida.comoPayload(l));
         }
         datos.put("lineas", lineasPayload);
         return datos;

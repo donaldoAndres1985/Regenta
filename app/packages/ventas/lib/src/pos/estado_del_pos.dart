@@ -3,6 +3,7 @@ import 'package:regenta_core/regenta_core.dart';
 import '../datos/cliente_de_la_venta.dart';
 import '../datos/producto_buscado.dart';
 import '../datos/repositorio_de_ventas.dart';
+import 'iva.dart';
 import 'linea_de_carrito.dart';
 
 /// Ventas que el POS ofrece al abrir (R12).
@@ -96,9 +97,20 @@ class EstadoDelPos {
   num get subtotalBruto => lineas.fold<num>(0, (a, l) => a + l.bruto);
   num get descuentoLineas => lineas.fold<num>(0, (a, l) => a + l.descuento);
   num get descuentoTotal => descuentoLineas + descuentoGeneralValor;
-  num get subtotal => (subtotalBruto - descuentoTotal).clamp(0, double.infinity);
-  num get impuesto => lineas.fold<num>(0, (a, l) => a + l.impuesto);
-  num get total => subtotal + impuesto;
+  /// HU-149: los precios traen el IVA incluido. El total es lo que suman las etiquetas menos
+  /// los descuentos; el IVA sale de adentro de cada línea (con su parte del descuento general)
+  /// y el subtotal es la base: total − IVA.
+  num get total => (subtotalBruto - descuentoTotal).clamp(0, double.infinity);
+  num get impuesto {
+    final bruto = subtotalBruto;
+    return redondear2(lineas.fold<num>(0, (a, l) {
+      final prorrateo = bruto > 0 ? (l.bruto / bruto) * descuentoGeneralValor : 0;
+      final neto = l.total - prorrateo;
+      return a + (neto - baseSinIva(neto, l.producto.impuestoPct));
+    }));
+  }
+
+  num get subtotal => redondear2(total - impuesto);
 
   bool get hayLineasSinStock =>
       ConfiguradorDeStock.politicaStockNegativoHabilitada

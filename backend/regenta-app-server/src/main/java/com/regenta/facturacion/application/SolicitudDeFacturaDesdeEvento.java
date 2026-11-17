@@ -80,7 +80,10 @@ public record SolicitudDeFacturaDesdeEvento(
             }
             lista.add(new LineaFacturable(texto(l.get("codigo")), texto(l.get("descripcion")),
                     decimal(l.get("cantidad")), texto(l.get("unidad_codigo")),
-                    decimal(l.get("precio_unitario")), decimal(l.get("descuento_pct")),
+                    // HU-149: la venta manda el precio con IVA y aparte el precio sin IVA,
+                    // que es el que va en la factura. Otros orígenes mandan solo el segundo.
+                    decimal(primero(l, "precio_unitario_sin_iva", "precio_unitario")),
+                    decimal(l.get("descuento_pct")),
                     decimal(l.get("descuento_valor")), decimal(l.get("base_gravable")),
                     decimal(l.get("total")), impuestos));
         }

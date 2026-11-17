@@ -12,6 +12,8 @@ public record LineaDeVenta(
         BigDecimal precioUnitario,
         BigDecimal descuentoValor,
         BigDecimal impuestoPct,
+        /** HU-148: IVA_19, IVA_5, EXENTO, EXCLUIDO o NO_RESPONSABLE. */
+        String impuestoCodigo,
         BigDecimal impuestoValor,
         BigDecimal baseGravable,
         BigDecimal subtotal,

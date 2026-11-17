@@ -1,7 +1,6 @@
 package com.regenta.ventas.domain;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -14,8 +13,6 @@ import jakarta.persistence.Table;
 @Table(name = "cotizacion_lineas", schema = "ventas")
 public class CotizacionLinea {
 
-    private static final int ESCALA = 4;
-    private static final BigDecimal CIEN = new BigDecimal("100");
 
     @Id
     private UUID id;
@@ -84,12 +81,9 @@ public class CotizacionLinea {
         l.impuestoCodigo = impuestoCodigo;
         l.impuestoPct = impuestoPct == null ? BigDecimal.ZERO : impuestoPct;
         l.costoUnitarioSnapshot = costoUnitario == null ? BigDecimal.ZERO : costoUnitario;
-        BigDecimal bruto = l.precioUnitario.multiply(l.cantidad);
-        BigDecimal base = bruto.subtract(bruto.multiply(l.descuentoPct).divide(CIEN, ESCALA + 2,
-                RoundingMode.HALF_UP));
-        BigDecimal impuesto = base.multiply(l.impuestoPct).divide(CIEN, ESCALA + 2,
-                RoundingMode.HALF_UP);
-        l.total = base.add(impuesto).setScale(ESCALA, RoundingMode.HALF_UP);
+        // HU-148 C5: misma regla que la venta, precio con IVA incluido.
+        l.total = CalculoConIvaIncluido.de(l.precioUnitario, l.cantidad, l.descuentoPct,
+                l.impuestoPct).total();
         return l;
     }
 

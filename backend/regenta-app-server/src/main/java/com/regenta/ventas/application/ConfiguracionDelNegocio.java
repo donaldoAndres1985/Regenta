@@ -49,6 +49,11 @@ public class ConfiguracionDelNegocio {
     }
 
     /** Vacío si el negocio no lo configuró: entonces no se exige nada. */
+    /** HU-148 · I3: sin el módulo de usuarios cargado, se asume responsable de IVA. */
+    public boolean responsableDeIva(UUID negocioId) {
+        return configuracionNegocio == null || configuracionNegocio.responsableDeIva(negocioId);
+    }
+
     @Transactional(readOnly = true)
     public Optional<BigDecimal> montoParaIdentificarComprador(UUID negocioId) {
         List<BigDecimal> montos = jdbc.queryForList(

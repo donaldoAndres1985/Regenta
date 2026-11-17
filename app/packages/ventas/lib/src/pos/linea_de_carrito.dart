@@ -1,6 +1,7 @@
 import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/producto_buscado.dart';
+import 'iva.dart';
 
 /// Una línea del carrito del POS: un producto y la cantidad que se lleva. El
 /// precio y los datos del producto se congelan al agregarlo (snapshot).
@@ -18,11 +19,13 @@ class LineaDeCarrito {
   bool get sinStock =>
       !ConfiguradorDeStock.politicaStockNegativoHabilitada && producto.sinStock;
 
+  /// HU-149: el precio del producto es el de la etiqueta, con IVA incluido (I2). El total de
+  /// la línea es ese precio menos el descuento; la base y el IVA salen de adentro.
   num get bruto => producto.precioVenta * cantidad;
   num get descuento => bruto * (descuentoPct / 100);
-  num get subtotal => bruto - descuento;
-  num get impuesto => subtotal * producto.impuestoPct / 100;
-  num get total => subtotal + impuesto;
+  num get total => bruto - descuento;
+  num get subtotal => baseSinIva(total, producto.impuestoPct);
+  num get impuesto => redondear2(total - subtotal);
 
   LineaDeCarrito conCantidad(num nueva) => LineaDeCarrito(
         producto: producto,

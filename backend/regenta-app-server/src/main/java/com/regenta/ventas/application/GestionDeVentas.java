@@ -37,10 +37,12 @@ public class GestionDeVentas {
     private final SagaDeConfirmacionDeVenta saga;
     private final ConfiguracionDelNegocio configuracion;
     private final CajaApi caja;
+    private final PrecioDeLinea precios;
 
     public GestionDeVentas(VentaRepositorio ventas, VentaLineaRepositorio lineas,
             AsignadorDeConsecutivos consecutivos, SagaDeConfirmacionDeVenta saga,
-            ConfiguracionDelNegocio configuracion, CajaApi caja) {
+            ConfiguracionDelNegocio configuracion, CajaApi caja, PrecioDeLinea precios) {
+        this.precios = precios;
         this.ventas = ventas;
         this.lineas = lineas;
         this.consecutivos = consecutivos;
@@ -85,13 +87,33 @@ public class GestionDeVentas {
     @RequierePermiso("VENTAS_VENTA_CREAR")
     public LineaDeVenta agregarLinea(UUID ventaId, SolicitudDeLinea solicitud) {
         Venta venta = ventaDelNegocio(ventaId);
+        // HU-148 · I4: precio e IVA salen del catálogo; lo que mande el cliente se ignora.
+        PrecioDeLinea.Resuelto precio = precios.de(venta.getNegocioId(), solicitud.productoId());
+        return agregar(venta, solicitud, precio);
+    }
+
+    /**
+     * Convertir una cotización respeta lo que se le cotizó al cliente: la línea copia el precio y
+     * la tarifa que ya decidió el backend al cotizar, no el catálogo de hoy.
+     */
+    @Transactional
+    @RequierePermiso("VENTAS_VENTA_CREAR")
+    public LineaDeVenta agregarLineaCotizada(UUID ventaId, SolicitudDeLinea cotizada) {
+        Venta venta = ventaDelNegocio(ventaId);
+        return agregar(venta, cotizada, new PrecioDeLinea.Resuelto(cotizada.precioUnitario(),
+                cotizada.impuestoCodigo(), cotizada.impuestoPct()));
+    }
+
+    private LineaDeVenta agregar(Venta venta, SolicitudDeLinea solicitud,
+            PrecioDeLinea.Resuelto precio) {
+        UUID ventaId = venta.getId();
         venta.exigirBorrador("agregar lineas");
 
         short numeroLinea = (short) (lineas.countByVentaId(ventaId) + 1);
         VentaLinea linea = VentaLinea.de(venta.getNegocioId(), ventaId, numeroLinea,
                 solicitud.productoId(), solicitud.sku(), solicitud.nombre(), solicitud.unidad(),
-                solicitud.cantidad(), solicitud.precioUnitario(), solicitud.descuentoPct(),
-                solicitud.impuestoCodigo(), solicitud.impuestoPct(), solicitud.costoUnitario());
+                solicitud.cantidad(), precio.precio(), solicitud.descuentoPct(),
+                precio.impuestoCodigo(), precio.impuestoPct(), solicitud.costoUnitario());
         lineas.save(linea);
         recalcular(venta);
         return comoDtoLinea(linea);
@@ -210,19 +232,34 @@ public class GestionDeVentas {
     }
 
     private VentaDelNegocio comoDto(Venta v) {
-        List<LineaDeVenta> dto = lineas.findByVentaIdOrderByLinea(v.getId()).stream()
+        List<VentaLinea> deLaVenta = lineas.findByVentaIdOrderByLinea(v.getId());
+        List<LineaDeVenta> dto = deLaVenta.stream()
                 .map(GestionDeVentas::comoDtoLinea)
                 .toList();
         return new VentaDelNegocio(v.getId(), v.getNumero(), v.getEstado(), v.getSubtotal(),
                 v.getDescuentoTotal(), v.getBaseGravable(), v.getImpuestoTotal(), v.getTotal(),
                 v.getCostoTotal(), v.getClienteId(), v.getClienteSnapshot(), v.getNotaCliente(),
-                v.estaFacturada(), dto);
+                v.estaFacturada(), dto, porTarifa(deLaVenta));
+    }
+
+    /** HU-148 C6: base e IVA agrupados por tarifa, en el orden en que aparecen en la venta. */
+    private static List<ImpuestoPorTarifa> porTarifa(List<VentaLinea> deLaVenta) {
+        java.util.Map<String, ImpuestoPorTarifa> grupos = new java.util.LinkedHashMap<>();
+        for (VentaLinea l : deLaVenta) {
+            String codigo = l.getImpuestoCodigo() == null ? "SIN_TARIFA" : l.getImpuestoCodigo();
+            grupos.merge(codigo,
+                    new ImpuestoPorTarifa(codigo, l.getImpuestoPct(), l.getBaseGravable(),
+                            l.getImpuestoValor()),
+                    (a, b) -> new ImpuestoPorTarifa(codigo, a.porcentaje(), a.base().add(b.base()),
+                            a.iva().add(b.iva())));
+        }
+        return List.copyOf(grupos.values());
     }
 
     private static LineaDeVenta comoDtoLinea(VentaLinea l) {
         return new LineaDeVenta(l.getLinea(), l.getProductoId(), l.getSkuSnapshot(),
                 l.getNombreSnapshot(), l.getCantidad(), l.getPrecioUnitario(), l.getDescuentoValor(),
-                l.getImpuestoPct(), l.getImpuestoValor(), l.getBaseGravable(), l.getSubtotal(),
-                l.getTotal());
+                l.getImpuestoPct(), l.getImpuestoCodigo(), l.getImpuestoValor(), l.getBaseGravable(),
+                l.getSubtotal(), l.getTotal());
     }
 }

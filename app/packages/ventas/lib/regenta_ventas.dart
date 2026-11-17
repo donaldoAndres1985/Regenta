@@ -23,6 +23,7 @@ export 'src/escaner/escaner_de_codigos.dart';
 export 'src/escaner/escaner_mobile_scanner.dart';
 export 'src/pos/controlador_del_pos.dart';
 export 'src/pos/estado_del_pos.dart';
+export 'src/pos/iva.dart';
 export 'src/pos/linea_de_carrito.dart';
 export 'src/pos/proveedores.dart';
 export 'src/ui/dialogo_de_cierre_por_metodo.dart';

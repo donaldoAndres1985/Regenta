@@ -584,6 +584,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
               cantidad: l.cantidad,
               precioUnitario: l.producto.precioVenta,
               total: l.total,
+              impuestoPct: l.producto.impuestoPct,
             ))
         .toList();
     final clienteNombre = estado.cliente?.nombre;
@@ -704,6 +705,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                   cantidad: l.cantidad,
                   precioUnitario: l.producto.precioVenta,
                   total: l.total,
+                  impuestoPct: l.producto.impuestoPct,
                   descuento: l.descuentoPct > 0
                       ? (l.producto.precioVenta * l.cantidad * (l.descuentoPct / 100))
                       : 0,
@@ -1049,6 +1051,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
                   cantidad: l.cantidad,
                   precioUnitario: l.producto.precioVenta,
                   total: l.total,
+                  impuestoPct: l.producto.impuestoPct,
                   descuento: l.descuentoPct > 0
                       ? (l.producto.precioVenta * l.cantidad * (l.descuentoPct / 100))
                       : 0,
@@ -3827,6 +3830,7 @@ class _DialogoCargarCotizacionState extends State<_DialogoCargarCotizacion> {
                                                         nombre: l.nombre,
                                                         cantidad: l.cantidad,
                                                         precioUnitario: l.precioUnitario,
+                                                        impuestoPct: l.impuestoPct,
                                                         total: l.cantidad *
                                                             l.precioUnitario *
                                                             (1 - (l.descuentoPct / 100)),
