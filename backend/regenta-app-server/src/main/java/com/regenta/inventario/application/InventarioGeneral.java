@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.regenta.inventario.domain.Categoria;
 import com.regenta.inventario.domain.Existencia;
+import com.regenta.inventario.domain.NivelStock;
 import com.regenta.inventario.domain.Producto;
 import com.regenta.inventario.infrastructure.CategoriaRepositorio;
 import com.regenta.inventario.infrastructure.ExistenciaRepositorio;
@@ -31,6 +32,8 @@ import com.regenta.shared.tenancy.ContextoDeNegocio;
  * <li>Los totales son de todo lo filtrado, no solo de la página.</li>
  * </ul>
  * Lee productos y existencias del negocio de una vez: dos consultas, no una por producto.
+ * Es la fuente de la pantalla de Inventario, así que basta INVENTARIO_PRODUCTO_VER; el costo
+ * solo lo ve quien tiene INVENTARIO_EXISTENCIA_VER.
  */
 @Service
 public class InventarioGeneral {
@@ -47,9 +50,10 @@ public class InventarioGeneral {
     }
 
     @Transactional(readOnly = true)
-    @RequierePermiso("INVENTARIO_EXISTENCIA_VER")
+    @RequierePermiso("INVENTARIO_PRODUCTO_VER")
     public InventarioDelNegocio consultar(FiltroDeInventario filtro) {
         UUID negocioId = ContextoDeNegocio.negocioActual();
+        boolean veCosto = ContextoDeNegocio.actual().puede("INVENTARIO_EXISTENCIA_VER");
         Map<UUID, String> nombreDeCategoria = categorias
                 .findByNegocioIdOrderByNivelAscOrdenAscNombreAsc(negocioId).stream()
                 .collect(Collectors.toMap(Categoria::getId, Categoria::getNombre));
@@ -62,6 +66,7 @@ public class InventarioGeneral {
         List<String> palabras = palabras(filtro.q());
 
         List<FilaDeInventario> filas = new ArrayList<>();
+        int bajoMinimo = 0;
         for (Producto p : productos.findByNegocioIdOrderByNombreAsc(negocioId)) {
             if (!pasaEstado(p, filtro.estado())
                     || (filtro.categoriaId() != null && !filtro.categoriaId().equals(p.getCategoriaId()))
@@ -75,14 +80,22 @@ public class InventarioGeneral {
             if (filtro.existenciaNegativa() && existencia.signum() >= 0) {
                 continue;
             }
+            NivelStock nivel = nivelDe(existencia, p.getStockMinimo());
+            if (nivel == NivelStock.BAJO) {
+                bajoMinimo++;
+            }
+            if (filtro.soloBajoMinimo() && nivel != NivelStock.BAJO) {
+                continue;
+            }
             BigDecimal costo = costoDe(p, deEste, existencia);
             filas.add(new FilaDeInventario(p.getId(), p.getSku(), p.getNombre(),
                     nombreDeCategoria.getOrDefault(p.getCategoriaId(), ""), p.getTarifaIva(),
-                    p.isTarifaPorRevisar(), existencia, costo, p.getPrecioVenta(),
-                    existencia.multiply(costo), existencia.multiply(p.getPrecioVenta()), p.isActivo()));
+                    p.isTarifaPorRevisar(), existencia, veCosto ? costo : null, p.getPrecioVenta(),
+                    veCosto ? existencia.multiply(costo) : null,
+                    existencia.multiply(p.getPrecioVenta()), p.isActivo(), p.getStockMinimo(), nivel));
         }
 
-        BigDecimal valorCosto = filas.stream().map(FilaDeInventario::valorCosto)
+        BigDecimal valorCosto = !veCosto ? null : filas.stream().map(FilaDeInventario::valorCosto)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal valorPrecio = filas.stream().map(FilaDeInventario::valorPrecio)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -90,7 +103,18 @@ public class InventarioGeneral {
         int desde = Math.min(Math.max(filtro.pagina(), 0) * tamano, filas.size());
         int hasta = Math.min(desde + tamano, filas.size());
         return new InventarioDelNegocio(filas.subList(desde, hasta), filas.size(), valorCosto,
-                valorPrecio);
+                valorPrecio, bajoMinimo);
+    }
+
+    /** Agotado sin existencia; bajo mínimo si hay pero no pasa del mínimo (cuando lo tiene). */
+    private static NivelStock nivelDe(BigDecimal existencia, BigDecimal minimo) {
+        if (existencia.signum() <= 0) {
+            return NivelStock.CERO;
+        }
+        if (minimo != null && minimo.signum() > 0 && existencia.compareTo(minimo) <= 0) {
+            return NivelStock.BAJO;
+        }
+        return NivelStock.NORMAL;
     }
 
     /** Promedio ponderado del costo de sus bodegas; sin costo promedio, el último costo. */

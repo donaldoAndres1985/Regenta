@@ -64,19 +64,27 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
   Future<void> _cargar() async {
     final repo = ref.read(repositorioDeInventarioProvider);
     try {
-      final ficha = await repo.verProducto(widget.productoId);
-      final categorias = await repo.categorias();
-      final unidades = await repo.unidades();
-      final ubicaciones = await repo.ubicacionesDe(widget.productoId);
-      final fracciones = await repo.fraccionesDe(widget.productoId);
-      EquivalenciaDeDetallado? equivalencia;
-      try {
-        equivalencia = (await repo.equivalencias())
-            .where((e) => e.origenId == widget.productoId)
-            .firstOrNull;
-      } catch (_) {
-        // Sin permiso de detallar (403) la ficha se ve igual, sin la opción.
-      }
+      // Todo a la vez: en serie eran seis viajes al servidor antes de pintar nada.
+      final pFicha = repo.verProducto(widget.productoId);
+      final pCategorias = repo.categorias();
+      final pUnidades = repo.unidades();
+      final pUbicaciones = repo.ubicacionesDe(widget.productoId);
+      final pFracciones = repo.fraccionesDe(widget.productoId);
+      final pEquivalencia = repo
+          .equivalencias()
+          .then<EquivalenciaDeDetallado?>(
+              (todas) => todas.where((e) => e.origenId == widget.productoId).firstOrNull)
+          // Sin permiso de detallar (403) la ficha se ve igual, sin la opción.
+          .catchError((Object _) => null);
+      // Future.wait lanza el primer error y se queda con los demás (ninguno queda sin atender).
+      await Future.wait<Object?>(
+          [pFicha, pCategorias, pUnidades, pUbicaciones, pFracciones, pEquivalencia]);
+      final ficha = await pFicha;
+      final categorias = await pCategorias;
+      final unidades = await pUnidades;
+      final ubicaciones = await pUbicaciones;
+      final fracciones = await pFracciones;
+      final equivalencia = await pEquivalencia;
       if (!mounted) return;
       setState(() {
         _equivalencia = equivalencia;

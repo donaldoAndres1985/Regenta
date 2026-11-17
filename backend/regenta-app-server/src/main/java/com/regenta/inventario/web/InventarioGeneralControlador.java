@@ -36,8 +36,9 @@ public class InventarioGeneralControlador {
             @RequestParam(defaultValue = "false") boolean existenciaNegativa,
             @RequestParam(required = false) UUID bodegaId,
             @RequestParam(defaultValue = "0") int pagina,
-            @RequestParam(defaultValue = "50") int tamano) {
+            @RequestParam(defaultValue = "50") int tamano,
+            @RequestParam(defaultValue = "false") boolean soloBajoMinimo) {
         return inventario.consultar(new FiltroDeInventario(q, categoriaId, estado, tarifaPorRevisar,
-                existenciaNegativa, bodegaId, pagina, tamano));
+                existenciaNegativa, bodegaId, pagina, tamano, soloBajoMinimo));
     }
 }

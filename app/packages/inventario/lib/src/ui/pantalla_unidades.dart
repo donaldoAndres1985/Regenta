@@ -5,7 +5,8 @@ import 'package:regenta_core/regenta_core.dart';
 import '../busqueda/proveedores.dart';
 import '../datos/ficha_de_producto.dart';
 
-/// HU-155 · las unidades de medida del negocio: listar, crear y desactivar las que no se usan.
+/// HU-155 · las unidades de medida del negocio: listar, crear, corregir (tocándola) y desactivar
+/// las que no se usan.
 class PantallaUnidades extends ConsumerStatefulWidget {
   const PantallaUnidades({super.key});
 
@@ -32,15 +33,16 @@ class _PantallaUnidadesState extends ConsumerState<PantallaUnidades> {
     }
   }
 
-  Future<void> _nueva() async {
-    final codigo = TextEditingController();
-    final nombre = TextEditingController();
-    var decimales = false;
+  /// Crear una unidad nueva o, con [unidad], corregir una existente (código incluido).
+  Future<void> _editar([UnidadDeMedida? unidad]) async {
+    final codigo = TextEditingController(text: unidad?.codigo ?? '');
+    final nombre = TextEditingController(text: unidad?.nombre ?? '');
+    var decimales = unidad?.permiteDecimales ?? false;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
-          title: const Text('Nueva unidad'),
+          title: Text(unidad == null ? 'Nueva unidad' : 'Editar unidad'),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             TextField(
               key: const Key('unidad-codigo'),
@@ -68,10 +70,14 @@ class _PantallaUnidadesState extends ConsumerState<PantallaUnidades> {
       ),
     );
     if (ok != true) return;
+    final repo = ref.read(repositorioDeInventarioProvider);
     try {
-      await ref
-          .read(repositorioDeInventarioProvider)
-          .crearUnidad(codigo.text.trim(), nombre.text.trim(), decimales);
+      if (unidad == null) {
+        await repo.crearUnidad(codigo.text.trim(), nombre.text.trim(), decimales);
+      } else {
+        await repo.editarUnidad(unidad.id, codigo.text.trim(), nombre.text.trim(), decimales);
+      }
+      if (mounted) setState(() => _error = null);
       await _cargar();
     } on ErrorDeApi catch (e) {
       if (mounted) setState(() => _error = e.mensaje);
@@ -96,7 +102,7 @@ class _PantallaUnidadesState extends ConsumerState<PantallaUnidades> {
       floatingActionButton: puedeEditar
           ? FloatingActionButton.extended(
               key: const Key('unidad-nueva'),
-              onPressed: _nueva,
+              onPressed: _editar,
               icon: const Icon(Icons.add),
               label: const Text('Nueva unidad'),
             )
@@ -111,6 +117,8 @@ class _PantallaUnidadesState extends ConsumerState<PantallaUnidades> {
           child: ListView(children: [
             for (final u in _unidades)
               ListTile(
+                key: Key('unidad-${u.id}'),
+                onTap: puedeEditar ? () => _editar(u) : null,
                 title: Text('${u.codigo} · ${u.nombre}',
                     style: const TextStyle(color: RegentaColors.inkFuerte)),
                 subtitle: Text(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -126,6 +128,36 @@ class _RepoFicha implements RepositorioDeInventario {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Retiene cada respuesta hasta que el test la suelta, y anota qué se pidió.
+class _RepoLento extends _RepoFicha {
+  _RepoLento(super.ficha);
+
+  final List<String> pedidos = [];
+  final Completer<void> soltar = Completer<void>();
+
+  Future<T> _espera<T>(String que, Future<T> Function() valor) async {
+    pedidos.add(que);
+    await soltar.future;
+    return valor();
+  }
+
+  @override
+  Future<FichaDeProducto> verProducto(String id) => _espera('ficha', () => super.verProducto(id));
+  @override
+  Future<List<OpcionDeFicha>> categorias() => _espera('categorias', super.categorias);
+  @override
+  Future<List<OpcionDeFicha>> unidades() => _espera('unidades', super.unidades);
+  @override
+  Future<List<UbicacionEnBodega>> ubicacionesDe(String id) =>
+      _espera('ubicaciones', () => super.ubicacionesDe(id));
+  @override
+  Future<List<FraccionDeTabla>> fraccionesDe(String id) =>
+      _espera('fracciones', () => super.fraccionesDe(id));
+  @override
+  Future<List<EquivalenciaDeDetallado>> equivalencias() =>
+      _espera('equivalencias', super.equivalencias);
 }
 
 const _barniz = FichaDeProducto(
@@ -380,5 +412,28 @@ void main() {
     final precio = tester.widget<TextField>(
         find.descendant(of: find.byKey(const Key('ficha-precio')), matching: find.byType(TextField)));
     expect(precio.enabled, isFalse);
+  });
+
+  testWidgets('Ficha · los datos se piden todos a la vez, no uno detrás del otro', (tester) async {
+    final repo = _RepoLento(_barniz);
+    tester.view.physicalSize = const Size(1280, 2000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        repositorioDeInventarioProvider.overrideWithValue(repo),
+        puedeEditarProductosProvider.overrideWithValue(true),
+        puedeDetallarProvider.overrideWithValue(true),
+      ],
+      child: const MaterialApp(home: PantallaFichaDeProducto(productoId: 'p1')),
+    ));
+    await tester.pump();
+
+    expect(repo.pedidos,
+        containsAll(['ficha', 'categorias', 'unidades', 'ubicaciones', 'fracciones', 'equivalencias']));
+
+    repo.soltar.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Barniz galón'), findsWidgets);
   });
 }

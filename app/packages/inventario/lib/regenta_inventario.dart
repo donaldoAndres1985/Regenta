@@ -4,8 +4,7 @@ library;
 
 import 'package:regenta_core/regenta_core.dart';
 
-export 'src/busqueda/controlador_de_busqueda.dart';
-export 'src/busqueda/estado_de_busqueda.dart';
+export 'src/busqueda/controlador_de_inventario.dart';
 export 'src/busqueda/proveedores.dart';
 export 'src/datos/bodega_del_negocio.dart';
 export 'src/datos/codigo_resuelto.dart';
@@ -27,7 +26,6 @@ export 'src/ui/pantalla_equivalencias.dart';
 export 'src/ui/pantalla_historial_de_producto.dart';
 export 'src/ui/pantalla_importacion.dart';
 export 'src/ui/pantalla_inventario.dart';
-export 'src/ui/pantalla_inventario_general.dart';
 export 'src/ui/pantalla_tablas_de_fracciones.dart';
 export 'src/ui/pantalla_unidades.dart';
 

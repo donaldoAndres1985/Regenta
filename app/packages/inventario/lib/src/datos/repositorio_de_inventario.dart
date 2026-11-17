@@ -152,6 +152,17 @@ class RepositorioDeInventario {
     return UnidadDeMedida.desdeJson(cuerpo);
   }
 
+  /// Corrige una unidad: código (el backend no deja repetir el de otra), nombre y decimales.
+  Future<UnidadDeMedida> editarUnidad(
+      String id, String codigo, String nombre, bool permiteDecimales) async {
+    final cuerpo = await _http.put<Map<String, dynamic>>('/api/inventario/unidades/$id', datos: {
+      'codigo': codigo,
+      'nombre': nombre,
+      'permiteDecimales': permiteDecimales,
+    }) as Map<String, dynamic>;
+    return UnidadDeMedida.desdeJson(cuerpo);
+  }
+
   /// HU-155 C3 · desactiva una unidad; el backend la rechaza si algún producto la usa.
   Future<UnidadDeMedida> desactivarUnidad(String id) async {
     final cuerpo = await _http.post<Map<String, dynamic>>(
@@ -309,41 +320,11 @@ class RepositorioDeInventario {
     ];
   }
 
-  /// Registra un nuevo producto en el catálogo.
-  Future<ProductoEncontrado> crearProducto({
-    required String nombre,
-    required String sku,
-    String? codigoBarras,
-    required num precioVenta,
-    num stock = 0,
-    String? categoriaNombre,
-  }) async {
-    try {
-      final res = await _http.post<Map<String, dynamic>>(
-        '/api/inventario/productos',
-        datos: {
-          'nombre': nombre,
-          'sku': sku,
-          if (codigoBarras != null && codigoBarras.isNotEmpty) 'codigoBarras': codigoBarras,
-          'precioVenta': precioVenta,
-          'stockMinimo': 5,
-          'stockMaximo': 100,
-          'controlaStock': true,
-        },
-      );
-      if (res is Map<String, dynamic> && res.containsKey('id')) {
-        return ProductoEncontrado.desdeJson(res);
-      }
-    } catch (_) {}
-    return ProductoEncontrado(
-      id: 'prod-${DateTime.now().millisecondsSinceEpoch}',
-      sku: sku,
-      codigoBarras: codigoBarras,
-      nombre: nombre,
-      categoriaNombre: categoriaNombre ?? 'General',
-      precioVenta: precioVenta,
-      stockTotal: stock,
-      nivelStock: stock > 0 ? NivelStock.normal : NivelStock.cero,
-    );
+  /// R12 · registra un producto de verdad. Si el backend lo rechaza, el [ErrorDeApi] sube con su
+  /// mensaje (antes se tragaba el error y se inventaba un producto que no existía).
+  Future<String> crearProducto(NuevoProducto nuevo) async {
+    final cuerpo = await _http.post<Map<String, dynamic>>('/api/inventario/productos',
+        datos: nuevo.aJson()) as Map<String, dynamic>;
+    return cuerpo['id'] as String;
   }
 }

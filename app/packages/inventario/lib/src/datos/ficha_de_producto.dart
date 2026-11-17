@@ -192,3 +192,38 @@ class CalculoDeFicha {
 
   static num _r2(num v) => (v * 100).round() / 100;
 }
+
+/// R12 · lo que pide «Nuevo producto»: `POST /api/inventario/productos`. `precioVenta` incluye IVA.
+class NuevoProducto {
+  const NuevoProducto({
+    required this.sku,
+    this.codigoBarras,
+    required this.nombre,
+    required this.categoriaId,
+    required this.unidadMedidaId,
+    required this.tarifaIva,
+    required this.precioVenta,
+    this.stockMinimo = 0,
+  });
+
+  final String sku;
+  final String? codigoBarras;
+  final String nombre;
+  final String categoriaId;
+  final String unidadMedidaId;
+  final String tarifaIva;
+  final num precioVenta;
+  final num stockMinimo;
+
+  Map<String, dynamic> aJson() => {
+        'sku': sku,
+        if (codigoBarras != null && codigoBarras!.isNotEmpty) 'codigoBarras': codigoBarras,
+        'nombre': nombre,
+        'categoriaId': categoriaId,
+        'unidadMedidaId': unidadMedidaId,
+        'tarifaIva': tarifaIva,
+        'precioVenta': precioVenta,
+        'controlaStock': true,
+        'stockMinimo': stockMinimo,
+      };
+}

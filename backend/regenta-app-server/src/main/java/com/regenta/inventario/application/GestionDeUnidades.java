@@ -54,7 +54,14 @@ public class GestionDeUnidades {
     @RequierePermiso("INVENTARIO_PRODUCTO_EDITAR")
     public UnidadDelNegocio editar(UUID unidadId, SolicitudDeUnidad solicitud) {
         UnidadMedida unidad = delNegocio(unidadId);
-        unidad.editar(solicitud.nombre().trim(), solicitud.permiteDecimales());
+        // Un código mal escrito se corrige aquí, sin chocar con el de otra unidad del negocio.
+        String codigo = solicitud.codigo().trim().toUpperCase(Locale.ROOT);
+        unidades.findByNegocioIdAndCodigoIgnoreCase(unidad.getNegocioId(), codigo)
+                .filter(otra -> !otra.getId().equals(unidadId))
+                .ifPresent(otra -> {
+                    throw new RecursoDuplicadoException("Ya existe la unidad " + codigo + ".");
+                });
+        unidad.editar(codigo, solicitud.nombre().trim(), solicitud.permiteDecimales());
         return UnidadDelNegocio.de(unidades.save(unidad));
     }
 

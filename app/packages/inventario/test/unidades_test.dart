@@ -23,6 +23,18 @@ class _Repo implements RepositorioDeInventario {
     return u;
   }
 
+  (String, String, String, bool)? editada;
+
+  @override
+  Future<UnidadDeMedida> editarUnidad(
+      String id, String codigo, String nombre, bool permiteDecimales) async {
+    editada = (id, codigo, nombre, permiteDecimales);
+    final u = UnidadDeMedida(
+        id: id, codigo: codigo.toUpperCase(), nombre: nombre, permiteDecimales: permiteDecimales);
+    lista[lista.indexWhere((x) => x.id == id)] = u;
+    return u;
+  }
+
   @override
   Future<UnidadDeMedida> desactivarUnidad(String id) async =>
       throw const ErroresDeValidacion({}, 'No se puede desactivar GLN: la usan 37 productos.');
@@ -68,5 +80,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No se puede desactivar GLN: la usan 37 productos.'), findsOneWidget);
+  });
+
+  testWidgets('Unidades · tocar una unidad abre su edición con los datos y guarda la corrección', (tester) async {
+    final repo = await _montar(tester);
+
+    await tester.tap(find.text('GLN · Galón'));
+    await tester.pumpAndSettle();
+    expect(find.text('Editar unidad'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'GLN'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('unidad-codigo')), 'gal');
+    await tester.enterText(find.byKey(const Key('unidad-nombre')), 'Galón US');
+    await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+    await tester.pumpAndSettle();
+
+    expect(repo.editada, ('u1', 'gal', 'Galón US', true));
+    expect(find.text('GAL · Galón US'), findsOneWidget);
   });
 }
