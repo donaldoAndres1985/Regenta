@@ -29,9 +29,23 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class MovimientosControlador {
 
     private final LibroMayorDeInventario libro;
+    private final com.regenta.inventario.application.HistorialDeProducto historial;
 
-    public MovimientosControlador(LibroMayorDeInventario libro) {
+    public MovimientosControlador(LibroMayorDeInventario libro,
+            com.regenta.inventario.application.HistorialDeProducto historial) {
         this.libro = libro;
+        this.historial = historial;
+    }
+
+    @GetMapping("/producto/{productoId}/historial")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Historial del producto (HU-160): del mas nuevo "
+            + "al mas viejo, con motivo y usuario; filtra por fechas y bodega")
+    public List<com.regenta.inventario.application.MovimientoDelHistorial> historial(
+            @PathVariable UUID productoId,
+            @RequestParam(required = false) java.time.LocalDate desde,
+            @RequestParam(required = false) java.time.LocalDate hasta,
+            @RequestParam(required = false) UUID bodegaId) {
+        return historial.de(productoId, desde, hasta, bodegaId);
     }
 
     @GetMapping("/producto/{productoId}")

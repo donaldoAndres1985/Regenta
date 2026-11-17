@@ -18,6 +18,19 @@ final repositorioDeInventarioProvider = Provider<RepositorioDeInventario>((ref) 
 
 /// El escáner de códigos. Por defecto el real (Android); en la web `disponible`
 /// es false y el módulo cae al ingreso manual. Los tests lo sobrescriben.
+/// HU-150 C4 · si quien usa la app puede editar productos (`INVENTARIO_PRODUCTO_EDITAR`).
+/// La app lo cablea desde los permisos del token; el backend lo vuelve a validar (403).
+final puedeEditarProductosProvider = Provider<bool>((ref) => false);
+
+/// HU-156 · si quien usa la app gestiona tablas de fracciones (`INVENTARIO_FRACCION_GESTIONAR`).
+final puedeGestionarFraccionesProvider = Provider<bool>((ref) => false);
+
+/// HU-159 · si quien usa la app ajusta existencias (`INVENTARIO_AJUSTE_APLICAR`).
+final puedeAjustarExistenciasProvider = Provider<bool>((ref) => false);
+
+/// HU-161/162 · si quien usa la app detalla y configura equivalencias (`INVENTARIO_DETALLAR`).
+final puedeDetallarProvider = Provider<bool>((ref) => false);
+
 final escanerProvider = Provider<EscanerDeCodigos>((ref) => const EscanerMobileScanner());
 
 final controladorDeBusquedaProvider =

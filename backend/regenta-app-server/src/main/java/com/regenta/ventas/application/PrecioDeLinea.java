@@ -35,6 +35,35 @@ public class PrecioDeLinea {
         return new Resuelto(catalogo.precio(), catalogo.tarifa(), catalogo.porcentaje());
     }
 
+    /**
+     * HU-158 · {@code n} fracciones de una medida: la línea descuenta {@code n × factor} del
+     * producto (lo que reserva la saga) y cobra {@code n × precio de la fracción}. El precio
+     * unitario de la línea queda por unidad entera ({@code precio / factor}) para que
+     * {@code cantidad × precio} dé exactamente el total; la tarifa es la del producto.
+     */
+    public Fraccionada deFraccion(UUID negocioId, UUID productoId, String medida, BigDecimal n) {
+        Resuelto base = de(negocioId, productoId);
+        var fraccion = inventario.fraccionesDe(negocioId, productoId).stream()
+                .filter(f -> f.medida().equals(medida)).findFirst()
+                .orElseThrow(() -> new NoEncontradoException(
+                        "Este producto no se vende en «" + medida + "»"));
+        BigDecimal porUnidad = fraccion.precio().divide(fraccion.factor(), 4,
+                java.math.RoundingMode.HALF_UP);
+        return new Fraccionada(new Resuelto(porUnidad, base.impuestoCodigo(), base.impuestoPct()),
+                n.multiply(fraccion.factor()));
+    }
+
+    /** HU-158 C1 · para el POS: con el permiso de vender, no el de ver el catálogo. */
+    @com.regenta.shared.security.RequierePermiso("VENTAS_VENTA_CREAR")
+    public java.util.List<com.regenta.inventario.api.FraccionDeCatalogo> fraccionesDe(UUID productoId) {
+        return inventario.fraccionesDe(com.regenta.shared.tenancy.ContextoDeNegocio.negocioActual(),
+                productoId);
+    }
+
+    /** Lo que se copia en la línea de una venta fraccionada. */
+    public record Fraccionada(Resuelto precio, BigDecimal cantidad) {
+    }
+
     /** Precio con IVA incluido, código de la tarifa y porcentaje que se copian en la línea. */
     public record Resuelto(BigDecimal precio, String impuestoCodigo, BigDecimal impuestoPct) {
     }

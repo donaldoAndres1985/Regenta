@@ -6,11 +6,15 @@ public enum TipoMovimiento {
     ENTRADA_AJUSTE(1),
     ENTRADA_DEVOLUCION(1),
     ENTRADA_TRASLADO(1),
+    /** HU-162: unidades que entran a un producto al detallar otro. */
+    ENTRADA_DETALLE(1),
     SALIDA_VENTA(-1),
     SALIDA_AJUSTE(-1),
     SALIDA_TRASLADO(-1),
     SALIDA_MERMA(-1),
     SALIDA_CONSUMO(-1),
+    /** HU-162: unidades que salen del producto que se abre al detallar. */
+    SALIDA_DETALLE(-1),
     RESERVA(0),
     LIBERACION_RESERVA(0);
 

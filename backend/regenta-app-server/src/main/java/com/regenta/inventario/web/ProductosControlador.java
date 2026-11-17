@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.regenta.inventario.api.CostoDeProducto;
 import com.regenta.inventario.application.GestionDeProductos;
 import com.regenta.inventario.application.ProductoDelNegocio;
+import com.regenta.inventario.application.SolicitudDeEdicion;
 import com.regenta.inventario.application.SolicitudDeProducto;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,5 +60,33 @@ public class ProductosControlador {
     @Operation(summary = "Un producto")
     public ProductoDelNegocio ver(@PathVariable UUID productoId) {
         return productos.ver(productoId);
+    }
+
+    @PostMapping("/tarifa-en-bloque")
+    @Operation(summary = "Fija la tarifa de IVA a varios productos o a una categoria (HU-154); el precio no cambia")
+    public java.util.Map<String, Integer> tarifaEnBloque(
+            @Valid @RequestBody com.regenta.inventario.application.SolicitudDeTarifaEnBloque solicitud) {
+        return java.util.Map.of("cambiados", productos.cambiarTarifaEnBloque(solicitud));
+    }
+
+    @PostMapping("/{productoId}/desactivacion")
+    @Operation(summary = "Desactiva un producto (HU-151): no se vende, conserva su historial; nunca se borra")
+    public ProductoDelNegocio desactivar(@PathVariable UUID productoId) {
+        return productos.desactivar(productoId);
+    }
+
+    @PostMapping("/{productoId}/reactivacion")
+    @Operation(summary = "Reactiva un producto desactivado (HU-151)")
+    public ProductoDelNegocio reactivar(@PathVariable UUID productoId) {
+        return productos.reactivar(productoId);
+    }
+
+    @PutMapping("/{productoId}")
+    @Operation(summary = "Guarda la ficha del producto (HU-150): precio con IVA incluido, tarifa, costo")
+    @ApiResponse(responseCode = "403", description = "Falta INVENTARIO_PRODUCTO_EDITAR")
+    @ApiResponse(responseCode = "409", description = "SKU o codigo repetido, o alguien guardo antes")
+    public ProductoDelNegocio editar(@PathVariable UUID productoId,
+            @Valid @RequestBody SolicitudDeEdicion solicitud) {
+        return productos.editar(productoId, solicitud);
     }
 }

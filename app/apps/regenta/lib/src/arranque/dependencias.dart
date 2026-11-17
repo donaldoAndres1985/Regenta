@@ -166,7 +166,52 @@ class DependenciasDeLaApp {
 
     // Ventas
     repositorioDeVentasProvider.overrideWithValue(RepositorioDeVentas(http)),
+    // HU-158: las fracciones reales del catálogo para el POS.
+    consultaDeFraccionesProvider.overrideWithValue(ConsultaDeFraccionesHttp(http)),
+    // HU-163: detallar desde el POS cuando falta existencia.
+    consultaDeDetalladoProvider.overrideWithValue(ConsultaDeDetalladoHttp(http)),
     repositorioDeCajaProvider.overrideWithValue(RepositorioDeCaja(http)),
+    puedeDetallarEnPosProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('INVENTARIO_DETALLAR') ??
+          false,
+    ),
+    // HU-164: importar productos solo con el permiso que trae el token.
+    puedeImportarProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('INVENTARIO_IMPORTAR') ??
+          false,
+    ),
+    // HU-161: detallar solo con el permiso que trae el token.
+    puedeDetallarProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('INVENTARIO_DETALLAR') ??
+          false,
+    ),
+    // HU-159: ajustar existencias solo con el permiso que trae el token.
+    puedeAjustarExistenciasProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('INVENTARIO_AJUSTE_APLICAR') ??
+          false,
+    ),
+    // HU-156: tablas de fracciones solo con el permiso que trae el token.
+    puedeGestionarFraccionesProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('INVENTARIO_FRACCION_GESTIONAR') ??
+          false,
+    ),
+    // HU-150: editar productos solo con el permiso que trae el token.
+    puedeEditarProductosProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('INVENTARIO_PRODUCTO_EDITAR') ??
+          false,
+    ),
     // HU-141: anular movimientos de caja solo con el permiso que trae el token.
     puedeAnularMovimientosDeCajaProvider.overrideWith(
       (ref) =>

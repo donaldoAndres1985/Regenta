@@ -12,6 +12,8 @@ import com.regenta.inventario.domain.TipoProducto;
 /**
  * Un producto tal como lo ve la app. {@code precioVenta} es el de la etiqueta, con IVA
  * incluido; {@code base} e {@code iva} se calculan de él con la tarifa (HU-147, I2).
+ * {@code margenPct} = (base − costo) / costo y {@code beneficioPct} = (base − costo) / base,
+ * en porcentaje; nulos sin costo conocido (HU-150).
  */
 public record ProductoDelNegocio(
         UUID id,
@@ -26,8 +28,12 @@ public record ProductoDelNegocio(
         boolean tarifaPorRevisar,
         BigDecimal base,
         BigDecimal iva,
+        BigDecimal costo,
+        BigDecimal margenPct,
+        BigDecimal beneficioPct,
         boolean manejaLotes,
         boolean perecedero,
         Map<String, Object> atributos,
-        boolean activo) {
+        boolean activo,
+        long version) {
 }

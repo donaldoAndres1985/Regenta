@@ -42,6 +42,7 @@ class LineaParaEnviar {
     this.impuestoPct = 0,
     this.costoUnitario = 0,
     this.descuentoPct = 0,
+    this.fraccion,
   });
 
   final String productoId;
@@ -53,6 +54,9 @@ class LineaParaEnviar {
   final num costoUnitario;
   final num descuentoPct;
 
+  /// HU-158: la medida si se vende fraccionado; entonces [cantidad] es cuántas fracciones.
+  final String? fraccion;
+
   Map<String, dynamic> aJson() => {
         'productoId': productoId,
         'sku': sku,
@@ -62,6 +66,7 @@ class LineaParaEnviar {
         'impuestoPct': impuestoPct,
         'costoUnitario': costoUnitario,
         'descuentoPct': descuentoPct,
+        'fraccion': ?fraccion,
       };
 }
 

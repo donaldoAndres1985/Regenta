@@ -11,6 +11,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.regenta.shared.web.ConflictoDeEstadoException;
 import com.regenta.shared.web.NoEncontradoException;
 import com.regenta.shared.web.RecursoDuplicadoException;
 import com.regenta.shared.events.RegistroDeEventos;
@@ -149,11 +150,113 @@ public class GestionDeProductos {
         return payload;
     }
 
-    private static ProductoDelNegocio comoDto(Producto p) {
+    static ProductoDelNegocio comoDto(Producto p) {
+        BigDecimal base = p.precio().base();
+        BigDecimal costo = p.getCostoUltimo();
+        BigDecimal margen = null;
+        BigDecimal beneficio = null;
+        if (costo != null && costo.signum() > 0) {
+            BigDecimal ganancia = base.subtract(costo);
+            margen = ganancia.multiply(CIEN).divide(costo, 2, java.math.RoundingMode.HALF_UP);
+            beneficio = base.signum() == 0 ? null
+                    : ganancia.multiply(CIEN).divide(base, 2, java.math.RoundingMode.HALF_UP);
+        }
         return new ProductoDelNegocio(p.getId(), p.getSku(), p.getCodigoBarras(), p.getNombre(),
                 p.getCategoriaId(), p.getUnidadMedidaId(), p.getTipo(), p.getPrecioVenta(),
-                p.getTarifaIva(), p.isTarifaPorRevisar(), p.precio().base(), p.precio().iva(),
-                p.isManejaLotes(), p.isPerecedero(), p.getAtributos(), p.isActivo());
+                p.getTarifaIva(), p.isTarifaPorRevisar(), base, p.precio().iva(), costo, margen,
+                beneficio, p.isManejaLotes(), p.isPerecedero(), p.getAtributos(), p.isActivo(),
+                p.getVersion());
+    }
+
+    private static final BigDecimal CIEN = new BigDecimal("100");
+
+    /**
+     * HU-154 · fija la tarifa a varios productos de una vez; el precio no cambia (I2). Todo o
+     * nada (C3): se valida que todos sean del negocio antes de tocar alguno, y la transacción
+     * revierte si algo falla después.
+     */
+    @Transactional
+    @RequierePermiso("INVENTARIO_PRODUCTO_EDITAR")
+    public int cambiarTarifaEnBloque(SolicitudDeTarifaEnBloque solicitud) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        List<UUID> ids = solicitud.productoIds() == null ? List.of() : solicitud.productoIds();
+        List<Producto> elegidos;
+        if (!ids.isEmpty()) {
+            elegidos = productos.findAllById(ids).stream()
+                    .filter(p -> p.getNegocioId().equals(negocioId)).toList();
+            if (elegidos.size() != new java.util.HashSet<>(ids).size()) {
+                throw new NoEncontradoException(
+                        "Alguno de los productos no existe; no se cambió ninguno.");
+            }
+        } else if (solicitud.categoriaId() != null) {
+            elegidos = productos.findByNegocioIdAndCategoriaId(negocioId, solicitud.categoriaId());
+        } else {
+            throw new com.regenta.shared.web.ReglaDeNegocioException(
+                    "Elige los productos o la categoría a los que se les cambia la tarifa.");
+        }
+        UUID usuario = ContextoDeNegocio.actual().usuario();
+        for (Producto p : elegidos) {
+            p.cambiarTarifa(solicitud.tarifaIva());
+            p.tocar(usuario);
+        }
+        productos.saveAll(elegidos);
+        return elegidos.size();
+    }
+
+    /** HU-151 · deja de venderse; conserva su historial (I8). La confirmación la pide la app. */
+    @Transactional
+    @RequierePermiso("INVENTARIO_PRODUCTO_EDITAR")
+    public ProductoDelNegocio desactivar(UUID productoId) {
+        Producto producto = delNegocio(productoId);
+        producto.desactivar();
+        producto.tocar(ContextoDeNegocio.actual().usuario());
+        return comoDto(productos.saveAndFlush(producto));
+    }
+
+    /** HU-151 C4. */
+    @Transactional
+    @RequierePermiso("INVENTARIO_PRODUCTO_EDITAR")
+    public ProductoDelNegocio reactivar(UUID productoId) {
+        Producto producto = delNegocio(productoId);
+        producto.reactivar();
+        producto.tocar(ContextoDeNegocio.actual().usuario());
+        return comoDto(productos.saveAndFlush(producto));
+    }
+
+    private Producto delNegocio(UUID productoId) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        return productos.findById(productoId)
+                .filter(p -> p.getNegocioId().equals(negocioId))
+                .orElseThrow(() -> new NoEncontradoException("Ese producto no existe"));
+    }
+
+    /** HU-150 · guarda la ficha (C1-C5 de la historia). */
+    @Transactional
+    @RequierePermiso("INVENTARIO_PRODUCTO_EDITAR")
+    public ProductoDelNegocio editar(UUID productoId, SolicitudDeEdicion solicitud) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        Producto producto = productos.findById(productoId)
+                .filter(p -> p.getNegocioId().equals(negocioId))
+                .orElseThrow(() -> new NoEncontradoException("Ese producto no existe"));
+        if (producto.getVersion() != solicitud.version()) {
+            throw new ConflictoDeEstadoException(
+                    "Alguien cambió este producto; recarga antes de guardar.");
+        }
+        categoriaDelNegocio(solicitud.categoriaId());
+        unidadDelNegocio(solicitud.unidadMedidaId());
+        if (productos.existsByNegocioIdAndSkuAndIdNot(negocioId, solicitud.sku(), productoId)) {
+            throw new RecursoDuplicadoException("Ese SKU ya lo usa otro producto.");
+        }
+        String codigoBarras = normalizar(solicitud.codigoBarras());
+        if (codigoBarras != null && productos.existsByNegocioIdAndCodigoBarrasAndIdNot(negocioId,
+                codigoBarras, productoId)) {
+            throw new RecursoDuplicadoException("Ese código de barras ya lo usa otro producto.");
+        }
+        producto.editar(solicitud.sku(), codigoBarras, solicitud.nombre(), solicitud.categoriaId(),
+                solicitud.unidadMedidaId(), solicitud.tarifaIva(), solicitud.precioVenta(),
+                solicitud.costo());
+        producto.tocar(ContextoDeNegocio.actual().usuario());
+        return comoDto(productos.saveAndFlush(producto));
     }
 
     /** Solo para tests y para el alta inicial del negocio: crea una unidad. */

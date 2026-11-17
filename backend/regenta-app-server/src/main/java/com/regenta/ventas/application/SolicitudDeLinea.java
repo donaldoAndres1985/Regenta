@@ -23,5 +23,10 @@ public record SolicitudDeLinea(
         @PositiveOrZero BigDecimal descuentoPct,
         @Size(max = 20) String impuestoCodigo,
         @PositiveOrZero BigDecimal impuestoPct,
-        @PositiveOrZero BigDecimal costoUnitario) {
+        @PositiveOrZero BigDecimal costoUnitario,
+        /**
+         * HU-158: la medida de la fracción (ej. «¼ galón») si se vende fraccionado; entonces
+         * {@code cantidad} es cuántas de esa fracción. Null = unidades enteras.
+         */
+        @Size(max = 30) String fraccion) {
 }

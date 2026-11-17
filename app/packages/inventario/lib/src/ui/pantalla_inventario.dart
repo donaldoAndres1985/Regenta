@@ -8,6 +8,13 @@ import '../datos/producto_encontrado.dart';
 import '../escaner/escaner_de_codigos.dart';
 import 'captura_manual_de_codigo.dart';
 import 'fila_de_producto.dart';
+import '../datos/importacion.dart';
+import 'pantalla_equivalencias.dart';
+import 'pantalla_importacion.dart';
+import 'pantalla_ficha_de_producto.dart';
+import 'pantalla_inventario_general.dart';
+import 'pantalla_tablas_de_fracciones.dart';
+import 'pantalla_unidades.dart';
 
 /// La pantalla de inventario del vendedor. HU-035.
 ///
@@ -88,7 +95,10 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
 
     return Scaffold(
       backgroundColor: RegentaColors.paper,
-      appBar: _AppBar(titulo: widget.titulo, onNuevo: () => _abrirDialogoCrearProducto(context)),
+      appBar: _AppBar(
+          titulo: widget.titulo,
+          onNuevo: () => _abrirDialogoCrearProducto(context),
+          puedeImportar: ref.watch(puedeImportarProvider)),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _abrirDialogoCrearProducto(context),
         backgroundColor: RegentaColors.accent,
@@ -170,6 +180,19 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
             const SizedBox(height: 16),
             Text('Precio: \$ ${p.precioVenta}', style: RegentaType.dinero.copyWith(fontSize: 22, color: RegentaColors.accent)),
             const SizedBox(height: 20),
+            // HU-150: la ficha completa, para corregir precio, tarifa, costo o SKU.
+            OutlinedButton.icon(
+              key: const Key('inventario-editar-ficha'),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Ver o editar ficha'),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => PantallaFichaDeProducto(productoId: p.id),
+                ));
+              },
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -292,9 +315,10 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
 }
 
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _AppBar({required this.titulo, this.onNuevo});
+  const _AppBar({required this.titulo, this.onNuevo, this.puedeImportar = false});
   final String titulo;
   final VoidCallback? onNuevo;
+  final bool puedeImportar;
 
   @override
   Size get preferredSize => const Size.fromHeight(56);
@@ -328,6 +352,52 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
       ),
       actions: [
+        // HU-153: el listado completo con valor y filtros.
+        IconButton(
+          key: const Key('inventario-general'),
+          tooltip: 'Inventario general',
+          icon: const Icon(Icons.table_chart_outlined, size: 22, color: RegentaColors.accent),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const PantallaInventarioGeneral(),
+          )),
+        ),
+        // HU-156: tablas de fracciones compartidas.
+        IconButton(
+          key: const Key('inventario-fracciones'),
+          tooltip: 'Tablas de fracciones',
+          icon: const Icon(Icons.pie_chart_outline, size: 22, color: RegentaColors.accent),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const PantallaTablasDeFracciones(),
+          )),
+        ),
+        // HU-164: importar productos desde Excel.
+        if (puedeImportar)
+          IconButton(
+            key: const Key('inventario-importar'),
+            tooltip: 'Importar desde Excel',
+            icon: const Icon(Icons.upload_file, size: 22, color: RegentaColors.accent),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => const PantallaImportacion(),
+            )),
+          ),
+        // HU-161: equivalencias de detallado (cuñete -> galones).
+        IconButton(
+          key: const Key('inventario-equivalencias'),
+          tooltip: 'Equivalencias de detallado',
+          icon: const Icon(Icons.call_split, size: 22, color: RegentaColors.accent),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const PantallaEquivalencias(),
+          )),
+        ),
+        // HU-155: unidades de medida del negocio.
+        IconButton(
+          key: const Key('inventario-unidades'),
+          tooltip: 'Unidades de medida',
+          icon: const Icon(Icons.straighten, size: 22, color: RegentaColors.accent),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const PantallaUnidades(),
+          )),
+        ),
         IconButton(
           tooltip: 'Nuevo producto',
           icon: const Icon(Icons.add, size: 22, color: RegentaColors.accent),

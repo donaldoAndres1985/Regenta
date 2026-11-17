@@ -20,5 +20,9 @@ public record ProductoEncontrado(
         NivelStock nivelStock,
         /** HU-149 C1: la tarifa real, para que el POS no muestre un 0 fijo. */
         com.regenta.inventario.domain.TarifaIva tarifaIva,
-        java.math.BigDecimal impuestoPct) {
+        java.math.BigDecimal impuestoPct,
+        /** HU-152 C2: ubicación por bodega (solo las bodegas donde se dijo). */
+        java.util.Map<UUID, String> ubicaciones,
+        /** HU-158: el código de su unidad de medida (UND, GLN, KG, MTS). */
+        String unidad) {
 }

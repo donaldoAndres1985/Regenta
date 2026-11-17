@@ -70,6 +70,10 @@ public class GestionDeAjustes {
     @Transactional
     @RequierePermiso("INVENTARIO_AJUSTE_CREAR")
     public AjusteDelNegocio crear(SolicitudDeAjuste solicitud) {
+        return comoDto(crearAjuste(solicitud));
+    }
+
+    private Ajuste crearAjuste(SolicitudDeAjuste solicitud) {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         bodegaDelNegocio(solicitud.bodegaId());
         if (ajustes.existsByNegocioIdAndNumero(negocioId, solicitud.numero())) {
@@ -88,14 +92,18 @@ public class GestionDeAjustes {
             lineas.save(AjusteLinea.de(negocioId, ajuste.getId(), producto.getId(), loteId, sistema,
                     linea.cantidadFisica(), linea.costoUnitario()));
         }
-        return comoDto(ajuste);
+        return ajuste;
     }
 
     /** Criterios 2, 3 y 4: aplica el ajuste, exige motivo y registra al aprobador. */
     @Transactional
     @RequierePermiso("INVENTARIO_AJUSTE_APLICAR")
     public AjusteDelNegocio aplicar(UUID ajusteId) {
-        Ajuste ajuste = ajusteDelNegocio(ajusteId);
+        return comoDto(aplicarAjuste(ajusteDelNegocio(ajusteId)));
+    }
+
+    private Ajuste aplicarAjuste(Ajuste ajuste) {
+        UUID ajusteId = ajuste.getId();
         ajuste.aplicar(ContextoDeNegocio.actual().usuario());
 
         for (AjusteLinea linea : lineas.findByAjusteIdOrderById(ajusteId)) {
@@ -113,7 +121,61 @@ public class GestionDeAjustes {
                     linea.getCostoUnitario()));
         }
         ajustes.save(ajuste);
-        return comoDto(ajuste);
+        return ajuste;
+    }
+
+    /**
+     * HU-159 · sumar, restar o contar un producto en una bodega, de una vez: arma el ajuste por
+     * conteo (la cantidad física que queda) y lo aplica, así queda igual que cualquier ajuste en
+     * el historial. I10: restar más de lo que hay se rechaza entero; una existencia ya negativa
+     * se corrige con un conteo físico. No toca el mínimo ni el máximo del producto.
+     */
+    @Transactional
+    @RequierePermiso("INVENTARIO_AJUSTE_APLICAR")
+    public AjusteDelNegocio ajusteRapido(SolicitudDeAjusteRapido solicitud) {
+        Bodega bodega = bodegaDelNegocio(solicitud.bodegaId());
+        Producto producto = productoDelNegocio(solicitud.productoId());
+        BigDecimal hay = existencias.findByProductoIdAndBodegaId(producto.getId(), bodega.getId())
+                .map(Existencia::getCantidad).orElse(BigDecimal.ZERO);
+        BigDecimal fisica = switch (solicitud.operacion()) {
+            case SUMAR -> hay.add(solicitud.cantidad());
+            case CONTEO -> solicitud.cantidad();
+            case RESTAR -> {
+                if (solicitud.cantidad().compareTo(hay) > 0) {
+                    throw new ReglaDeNegocioException("Solo hay " + texto(hay) + " unidades de "
+                            + producto.getNombre() + " en " + bodega.getNombre() + ". No puedes sacar "
+                            + texto(solicitud.cantidad()) + ".");
+                }
+                yield hay.subtract(solicitud.cantidad());
+            }
+        };
+        String numero = "R-" + java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyMMddHHmmss"))
+                + "-" + UUID.randomUUID().toString().substring(0, 4);
+        Ajuste creado = crearAjuste(new SolicitudDeAjuste(numero, bodega.getId(), solicitud.tipo(),
+                solicitud.motivo(), List.of(new LineaDeAjuste(producto.getId(), null, fisica, null))));
+        return comoDto(aplicarAjuste(creado));
+    }
+
+    /**
+     * HU-164 C6 · I20: la existencia inicial de productos importados entra como un ajuste de
+     * «carga inicial» aplicado, no como un número escrito directo. Lo llama la importación, que
+     * ya exigió su permiso.
+     */
+    @Transactional
+    void cargaInicial(UUID bodegaId, java.util.Map<UUID, BigDecimal> cantidades, String motivo) {
+        List<LineaDeAjuste> lineasDelAjuste = cantidades.entrySet().stream().map(e -> new LineaDeAjuste(
+                e.getKey(), null, cantidadDeSistema(e.getKey(), bodegaId, null).add(e.getValue()), null))
+                .toList();
+        String numero = "CI-" + java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyMMddHHmmss"))
+                + "-" + UUID.randomUUID().toString().substring(0, 4);
+        aplicarAjuste(crearAjuste(new SolicitudDeAjuste(numero, bodegaId,
+                com.regenta.inventario.domain.TipoAjuste.CARGA_INICIAL, motivo, lineasDelAjuste)));
+    }
+
+    private static String texto(BigDecimal v) {
+        return v.stripTrailingZeros().toPlainString();
     }
 
     @Transactional(readOnly = true)

@@ -54,7 +54,30 @@ public class Existencia {
     @Column(nullable = false)
     private long version;
 
+    /** HU-152 · I9: dónde está el producto dentro de esta bodega. Opcional. */
+    @Column(length = 60)
+    private String ubicacion;
+
     protected Existencia() {
+    }
+
+    /** HU-162 · I18: el costo promedio que queda tras recibir unidades por detallado. */
+    public void fijarCostoPromedio(BigDecimal costo) {
+        this.costoPromedio = costo == null ? BigDecimal.ZERO : costo;
+    }
+
+    /** HU-152 · I9: hasta 60 caracteres; en blanco la quita. */
+    public void fijarUbicacion(String texto) {
+        String limpio = texto == null ? "" : texto.trim();
+        if (limpio.length() > 60) {
+            throw new com.regenta.shared.web.ReglaDeNegocioException(
+                    "La ubicación admite hasta 60 caracteres.");
+        }
+        this.ubicacion = limpio.isEmpty() ? null : limpio;
+    }
+
+    public String getUbicacion() {
+        return ubicacion;
     }
 
     public static Existencia enCero(UUID negocioId, UUID productoId, UUID bodegaId) {

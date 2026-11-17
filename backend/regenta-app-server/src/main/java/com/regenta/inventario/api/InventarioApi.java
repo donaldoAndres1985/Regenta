@@ -23,6 +23,9 @@ public interface InventarioApi {
      */
     java.util.Optional<PrecioDeCatalogo> precioDeCatalogo(UUID negocioId, UUID productoId);
 
+    /** HU-158 · las fracciones con que se vende un producto del negocio (vacío si no tiene). */
+    List<FraccionDeCatalogo> fraccionesDe(UUID negocioId, UUID productoId);
+
     /** Confirma una reserva de stock previa, convirtiéndola en salida definitiva. */
     void confirmarReserva(String origenTipo, UUID origenId);
 }

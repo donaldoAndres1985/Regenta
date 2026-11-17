@@ -22,7 +22,15 @@ class ProductoBuscado {
     this.existencia,
     this.codigoBarras,
     this.tarifaIva,
+    this.ubicaciones = const {},
+    this.unidad = 'UND',
   });
+
+  /// HU-158: el código de su unidad de medida (UND, GLN, KG, MTS), del catálogo.
+  final String unidad;
+
+  /// HU-152: dónde está en cada bodega (id de bodega → ubicación), si se dijo.
+  final Map<String, String> ubicaciones;
 
   /// HU-149: IVA_19, IVA_5, EXENTO o EXCLUIDO, como la devuelve el catálogo.
   final String? tarifaIva;
@@ -43,6 +51,25 @@ class ProductoBuscado {
 
   bool get sinStock => nivelStock == NivelStock.cero;
 
+  /// HU-163 · el mismo producto después de que le entraron [entra] unidades (por detallar).
+  ProductoBuscado conExistencia(num entra) {
+    final nueva = (existencia ?? 0) + entra;
+    return ProductoBuscado(
+      id: id,
+      sku: sku,
+      nombre: nombre,
+      precioVenta: precioVenta,
+      nivelStock: nueva > 0 ? NivelStock.normal : NivelStock.cero,
+      impuestoPct: impuestoPct,
+      costoUnitario: costoUnitario,
+      existencia: nueva,
+      codigoBarras: codigoBarras,
+      tarifaIva: tarifaIva,
+      ubicaciones: ubicaciones,
+      unidad: unidad,
+    );
+  }
+
   /// Coincidencia difusa multi-palabra (tokens en cualquier orden y con texto intermedio).
   bool coincideCon(String termino) => coincideConTokens(
         nombre,
@@ -61,6 +88,11 @@ class ProductoBuscado {
         codigoBarras: json['codigoBarras'] as String?,
         impuestoPct: (json['impuestoPct'] ?? 0) as num,
         tarifaIva: json['tarifaIva'] as String?,
+        unidad: (json['unidad'] ?? 'UND') as String,
+        ubicaciones: {
+          for (final e in ((json['ubicaciones'] ?? const {}) as Map).entries)
+            e.key.toString(): e.value.toString(),
+        },
       );
 }
 

@@ -34,10 +34,13 @@ public class BodegasControlador {
 
     private final GestionDeBodegas bodegas;
     private final ConsultaDeExistencias existencias;
+    private final com.regenta.inventario.application.GestionDeUbicaciones ubicaciones;
 
-    public BodegasControlador(GestionDeBodegas bodegas, ConsultaDeExistencias existencias) {
+    public BodegasControlador(GestionDeBodegas bodegas, ConsultaDeExistencias existencias,
+            com.regenta.inventario.application.GestionDeUbicaciones ubicaciones) {
         this.bodegas = bodegas;
         this.existencias = existencias;
+        this.ubicaciones = ubicaciones;
     }
 
     @GetMapping("/bodegas")
@@ -60,6 +63,16 @@ public class BodegasControlador {
     @ApiResponse(responseCode = "409", description = "La bodega tiene existencias")
     public void eliminar(@PathVariable UUID bodegaId) {
         bodegas.eliminar(bodegaId);
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/productos/{productoId}/ubicaciones/{bodegaId}")
+    @Operation(summary = "Fija la ubicacion del producto en una bodega (HU-152); en blanco la quita")
+    public void ubicacion(@PathVariable UUID productoId, @PathVariable UUID bodegaId,
+            @org.springframework.web.bind.annotation.RequestBody Ubicacion cuerpo) {
+        ubicaciones.fijar(productoId, bodegaId, cuerpo.ubicacion());
+    }
+
+    public record Ubicacion(String ubicacion) {
     }
 
     @GetMapping("/productos/{productoId}/stock")

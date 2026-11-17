@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/cliente_de_la_venta.dart';
+import '../datos/fraccion_de_venta.dart';
 import '../datos/producto_buscado.dart';
 import '../datos/repositorio_de_ventas.dart';
 import 'estado_del_pos.dart';
@@ -317,6 +318,41 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     } else {
       lineas[indice] = lineas[indice].conCantidad(nueva);
     }
+    state = state.copiar(lineas: lineas, mensaje: null);
+  }
+
+  /// HU-158 · la línea pasa a venderse en esa fracción (1 de ella); el precio es el del
+  /// catálogo, no la parte proporcional del producto. Si ya hay una línea del mismo producto
+  /// en esa fracción, se le suma 1.
+  void venderFraccion(LineaDeCarrito linea, FraccionDeVenta fraccion) {
+    final indice = state.lineas.indexWhere((l) => identical(l, linea));
+    if (indice < 0) return;
+    final lineas = [...state.lineas];
+    final existente = lineas.indexWhere((l) =>
+        l.producto.id == linea.producto.id && l.fraccion?.medida == fraccion.medida);
+    if (existente >= 0 && existente != indice) {
+      lineas[existente] = lineas[existente].conCantidad(lineas[existente].cantidad + 1);
+      lineas.removeAt(indice);
+    } else {
+      lineas[indice] = LineaDeCarrito(
+          producto: linea.producto, cantidad: 1, descuentoPct: linea.descuentoPct, fraccion: fraccion);
+    }
+    state = state.copiar(lineas: lineas, mensaje: null);
+  }
+
+  /// HU-163 C2 · al producto le entraron [entra] unidades (se detalló): sus líneas quedan
+  /// vendibles.
+  void recibirExistencia(String productoId, num entra) {
+    final lineas = [
+      for (final l in state.lineas)
+        l.producto.id == productoId
+            ? LineaDeCarrito(
+                producto: l.producto.conExistencia(entra),
+                cantidad: l.cantidad,
+                descuentoPct: l.descuentoPct,
+                fraccion: l.fraccion)
+            : l,
+    ];
     state = state.copiar(lineas: lineas, mensaje: null);
   }
 
