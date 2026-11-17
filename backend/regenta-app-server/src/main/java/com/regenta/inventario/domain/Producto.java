@@ -196,6 +196,24 @@ public class Producto {
         this.tarifaPorRevisar = false;
     }
 
+    /**
+     * HU-150 · lo que se corrige desde la ficha. Fijar la tarifa la confirma (I6). El costo
+     * escrito a mano reemplaza el último costo conocido.
+     */
+    public void editar(String sku, String codigoBarras, String nombre, UUID categoriaId,
+            UUID unidadMedidaId, TarifaIva tarifa, BigDecimal precioVenta, BigDecimal costo) {
+        cambiarTarifa(tarifa);
+        this.sku = sku;
+        this.codigoBarras = (codigoBarras == null || codigoBarras.isBlank()) ? null : codigoBarras.trim();
+        this.nombre = nombre;
+        this.categoriaId = categoriaId;
+        this.unidadMedidaId = unidadMedidaId;
+        this.precioVenta = precioVenta;
+        if (costo != null) {
+            this.costoUltimo = costo;
+        }
+    }
+
     /** El precio de venta con su base y su IVA (I2). */
     public PrecioConIva precio() {
         return new PrecioConIva(precioVenta, tarifaIva);

@@ -8,6 +8,10 @@ import 'package:regenta_inventario/regenta_inventario.dart';
 /// Doble del repositorio: registra los términos con que se buscó y devuelve lo
 /// que se le programe.
 class _RepoFake implements RepositorioDeInventario {
+  // HU-150 suma métodos de ficha que esta pantalla no usa.
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   _RepoFake({this.resultado, this.codigo});
 
   ResultadoDeBusqueda? resultado;

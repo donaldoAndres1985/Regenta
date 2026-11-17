@@ -8,6 +8,7 @@ import '../datos/producto_encontrado.dart';
 import '../escaner/escaner_de_codigos.dart';
 import 'captura_manual_de_codigo.dart';
 import 'fila_de_producto.dart';
+import 'pantalla_ficha_de_producto.dart';
 
 /// La pantalla de inventario del vendedor. HU-035.
 ///
@@ -170,6 +171,19 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
             const SizedBox(height: 16),
             Text('Precio: \$ ${p.precioVenta}', style: RegentaType.dinero.copyWith(fontSize: 22, color: RegentaColors.accent)),
             const SizedBox(height: 20),
+            // HU-150: la ficha completa, para corregir precio, tarifa, costo o SKU.
+            OutlinedButton.icon(
+              key: const Key('inventario-editar-ficha'),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Ver o editar ficha'),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => PantallaFichaDeProducto(productoId: p.id),
+                ));
+              },
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(

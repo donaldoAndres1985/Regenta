@@ -167,6 +167,13 @@ class DependenciasDeLaApp {
     // Ventas
     repositorioDeVentasProvider.overrideWithValue(RepositorioDeVentas(http)),
     repositorioDeCajaProvider.overrideWithValue(RepositorioDeCaja(http)),
+    // HU-150: editar productos solo con el permiso que trae el token.
+    puedeEditarProductosProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('INVENTARIO_PRODUCTO_EDITAR') ??
+          false,
+    ),
     // HU-141: anular movimientos de caja solo con el permiso que trae el token.
     puedeAnularMovimientosDeCajaProvider.overrideWith(
       (ref) =>

@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.regenta.inventario.api.CostoDeProducto;
 import com.regenta.inventario.application.GestionDeProductos;
 import com.regenta.inventario.application.ProductoDelNegocio;
+import com.regenta.inventario.application.SolicitudDeEdicion;
 import com.regenta.inventario.application.SolicitudDeProducto;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,5 +60,14 @@ public class ProductosControlador {
     @Operation(summary = "Un producto")
     public ProductoDelNegocio ver(@PathVariable UUID productoId) {
         return productos.ver(productoId);
+    }
+
+    @PutMapping("/{productoId}")
+    @Operation(summary = "Guarda la ficha del producto (HU-150): precio con IVA incluido, tarifa, costo")
+    @ApiResponse(responseCode = "403", description = "Falta INVENTARIO_PRODUCTO_EDITAR")
+    @ApiResponse(responseCode = "409", description = "SKU o codigo repetido, o alguien guardo antes")
+    public ProductoDelNegocio editar(@PathVariable UUID productoId,
+            @Valid @RequestBody SolicitudDeEdicion solicitud) {
+        return productos.editar(productoId, solicitud);
     }
 }
