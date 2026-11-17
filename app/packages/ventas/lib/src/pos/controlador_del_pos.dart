@@ -340,6 +340,22 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     state = state.copiar(lineas: lineas, mensaje: null);
   }
 
+  /// HU-163 C2 · al producto le entraron [entra] unidades (se detalló): sus líneas quedan
+  /// vendibles.
+  void recibirExistencia(String productoId, num entra) {
+    final lineas = [
+      for (final l in state.lineas)
+        l.producto.id == productoId
+            ? LineaDeCarrito(
+                producto: l.producto.conExistencia(entra),
+                cantidad: l.cantidad,
+                descuentoPct: l.descuentoPct,
+                fraccion: l.fraccion)
+            : l,
+    ];
+    state = state.copiar(lineas: lineas, mensaje: null);
+  }
+
   void fijarCantidad(int indice, num cantidad) {
     if (indice < 0 || indice >= state.lineas.length) return;
     final lineas = [...state.lineas];

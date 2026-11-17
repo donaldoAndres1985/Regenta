@@ -143,6 +143,32 @@ class DetallarTest {
     }
 
     @Test
+    @DisplayName("HU-163 C1 · Para el galón sin existencia se ofrece abrir 1 cuñete → 5 galones, si hay cuñetes")
+    void ofertaParaElDestino() {
+        when(equivalencias.findByDestinoId(galon.getId())).thenReturn(List.of(
+                EquivalenciaDeDetallado.entre(cunete, galon, new BigDecimal("5"))));
+
+        OfertaDeDetallado oferta = gestion.ofertaPara(galon.getId(), bodegaId).orElseThrow();
+
+        assertThat(oferta.origenId()).isEqualTo(cunete.getId());
+        assertThat(oferta.origen()).isEqualTo("Pintulux blanco cuñete");
+        assertThat(oferta.destino()).isEqualTo("Pintulux blanco galón");
+        assertThat(oferta.factor()).isEqualByComparingTo("5");
+        assertThat(oferta.disponibles()).isEqualByComparingTo("2");
+    }
+
+    @Test
+    @DisplayName("HU-163 C4 · Sin equivalencia hacia el producto, o sin unidades del origen, no hay oferta")
+    void sinOferta() {
+        assertThat(gestion.ofertaPara(cunete.getId(), bodegaId)).isEmpty();
+
+        when(equivalencias.findByDestinoId(galon.getId())).thenReturn(List.of(
+                EquivalenciaDeDetallado.entre(cunete, galon, new BigDecimal("5"))));
+        when(existencias.findByProductoIdAndBodegaId(cunete.getId(), bodegaId)).thenReturn(Optional.empty());
+        assertThat(gestion.ofertaPara(galon.getId(), bodegaId)).isEmpty();
+    }
+
+    @Test
     @DisplayName("HU-162 C5 · Un producto sin equivalencia avisa «Este producto no tiene equivalencia de detallado.»")
     void sinEquivalencia() {
         assertThatThrownBy(() -> gestion.detallar(galon.getId(), bodegaId, BigDecimal.ONE))

@@ -60,6 +60,15 @@ public class DetalladoControlador {
         return detallado.detallar(cuerpo.origenId(), cuerpo.bodegaId(), cuerpo.cantidad());
     }
 
+    @GetMapping("/oferta")
+    @Operation(summary = "Que se puede abrir para conseguir un producto que falta (HU-163); 204 si nada")
+    public org.springframework.http.ResponseEntity<com.regenta.inventario.application.OfertaDeDetallado> oferta(
+            @org.springframework.web.bind.annotation.RequestParam UUID destinoId,
+            @org.springframework.web.bind.annotation.RequestParam UUID bodegaId) {
+        return detallado.ofertaPara(destinoId, bodegaId).map(org.springframework.http.ResponseEntity::ok)
+                .orElse(org.springframework.http.ResponseEntity.noContent().build());
+    }
+
     public record Detallar(@NotNull UUID origenId, @NotNull UUID bodegaId, @NotNull BigDecimal cantidad) {
     }
 

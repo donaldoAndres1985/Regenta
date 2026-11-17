@@ -51,6 +51,25 @@ class ProductoBuscado {
 
   bool get sinStock => nivelStock == NivelStock.cero;
 
+  /// HU-163 · el mismo producto después de que le entraron [entra] unidades (por detallar).
+  ProductoBuscado conExistencia(num entra) {
+    final nueva = (existencia ?? 0) + entra;
+    return ProductoBuscado(
+      id: id,
+      sku: sku,
+      nombre: nombre,
+      precioVenta: precioVenta,
+      nivelStock: nueva > 0 ? NivelStock.normal : NivelStock.cero,
+      impuestoPct: impuestoPct,
+      costoUnitario: costoUnitario,
+      existencia: nueva,
+      codigoBarras: codigoBarras,
+      tarifaIva: tarifaIva,
+      ubicaciones: ubicaciones,
+      unidad: unidad,
+    );
+  }
+
   /// Coincidencia difusa multi-palabra (tokens en cualquier orden y con texto intermedio).
   bool coincideCon(String termino) => coincideConTokens(
         nombre,
