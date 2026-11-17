@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 import '../busqueda/proveedores.dart';
+import '../datos/detallado.dart';
 import '../datos/ficha_de_producto.dart';
 import '../datos/tablas_de_fracciones.dart';
 import 'formato.dart';
@@ -34,6 +35,9 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
 
   /// HU-157: las fracciones del producto con su origen (de la tabla o propio).
   List<FraccionDeTabla> _fracciones = const [];
+
+  /// HU-162: la equivalencia si este producto se puede abrir en otro (cuñete → galones).
+  EquivalenciaDeDetallado? _equivalencia;
   final Map<String, TextEditingController> _ubicacionCtrl = {};
   List<OpcionDeFicha> _categorias = const [];
   List<OpcionDeFicha> _unidades = const [];
@@ -65,8 +69,17 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
       final unidades = await repo.unidades();
       final ubicaciones = await repo.ubicacionesDe(widget.productoId);
       final fracciones = await repo.fraccionesDe(widget.productoId);
+      EquivalenciaDeDetallado? equivalencia;
+      try {
+        equivalencia = (await repo.equivalencias())
+            .where((e) => e.origenId == widget.productoId)
+            .firstOrNull;
+      } catch (_) {
+        // Sin permiso de detallar (403) la ficha se ve igual, sin la opción.
+      }
       if (!mounted) return;
       setState(() {
+        _equivalencia = equivalencia;
         _fracciones = fracciones;
         _categorias = categorias;
         _unidades = unidades;
@@ -220,6 +233,17 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
     ]);
   }
 
+  /// HU-162 · abrir unidades de este producto en su destino.
+  Future<void> _detallar() async {
+    final mensaje = await showDialog<String>(
+      context: context,
+      builder: (_) => _DialogoDeDetallar(productoId: widget.productoId, bodegas: _ubicaciones),
+    );
+    if (mensaje != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje)));
+    }
+  }
+
   /// HU-159 · sumar, restar o contar en una bodega, con tipo y motivo.
   Future<void> _ajustar() async {
     final ok = await showDialog<bool>(
@@ -338,6 +362,24 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
                 _campo('Costo', _costo, puedeEditar, clave: const Key('ficha-costo'), numero: true),
                 _resumen(),
                 if (_fracciones.isNotEmpty) _seccionFracciones(ref.watch(puedeGestionarFraccionesProvider)),
+                // HU-162: abrir este producto en su destino (cuñete → galones).
+                if (_equivalencia != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    '1 ${_equivalencia!.origen} = ${_sinDecimalesInutiles(_equivalencia!.factor)} ${_equivalencia!.destino}',
+                    style: RegentaType.cuerpo.copyWith(color: RegentaColors.inkFuerte),
+                  ),
+                  if (ref.watch(puedeDetallarProvider) && _ubicaciones.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: OutlinedButton.icon(
+                        key: const Key('ficha-detallar'),
+                        icon: const Icon(Icons.call_split, size: 18),
+                        label: const Text('Detallar'),
+                        onPressed: _detallar,
+                      ),
+                    ),
+                ],
                 // HU-160: por qué cambió la existencia.
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
@@ -596,6 +638,79 @@ class _DialogoDeAjusteState extends ConsumerState<_DialogoDeAjuste> {
           onPressed: _enviando ? null : _aplicar,
           child: const Text('Aplicar'),
         ),
+      ],
+    );
+  }
+}
+
+/// HU-162 · el diálogo de detallar: bodega y cuántos se abren. Si el backend rechaza (no
+/// alcanza la existencia), muestra su mensaje y no se cierra; si sale bien, devuelve qué pasó.
+class _DialogoDeDetallar extends ConsumerStatefulWidget {
+  const _DialogoDeDetallar({required this.productoId, required this.bodegas});
+
+  final String productoId;
+  final List<UbicacionEnBodega> bodegas;
+
+  @override
+  ConsumerState<_DialogoDeDetallar> createState() => _DialogoDeDetallarState();
+}
+
+class _DialogoDeDetallarState extends ConsumerState<_DialogoDeDetallar> {
+  late String _bodegaId = widget.bodegas.first.bodegaId;
+  final _cantidad = TextEditingController(text: '1');
+  String? _error;
+
+  @override
+  void dispose() {
+    _cantidad.dispose();
+    super.dispose();
+  }
+
+  Future<void> _aplicar() async {
+    final cantidad = num.tryParse(_cantidad.text.trim().replaceAll(',', '.'));
+    if (cantidad == null || cantidad <= 0) {
+      setState(() => _error = 'Escribe cuántos vas a abrir.');
+      return;
+    }
+    try {
+      final mensaje = await ref
+          .read(repositorioDeInventarioProvider)
+          .detallar(widget.productoId, _bodegaId, cantidad);
+      if (mounted) Navigator.of(context).pop(mensaje);
+    } on ErrorDeApi catch (e) {
+      if (mounted) setState(() => _error = e.mensaje);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Detallar'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        DropdownButtonFormField<String>(
+          initialValue: _bodegaId,
+          decoration: const InputDecoration(labelText: 'Bodega'),
+          items: [
+            for (final b in widget.bodegas)
+              DropdownMenuItem(value: b.bodegaId, child: Text(b.bodegaNombre)),
+          ],
+          onChanged: (v) => setState(() => _bodegaId = v!),
+        ),
+        TextField(
+          key: const Key('detallar-cantidad'),
+          controller: _cantidad,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: '¿Cuántos abres?'),
+        ),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(_error!, style: const TextStyle(color: RegentaColors.crit)),
+          ),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
+        FilledButton(key: const Key('detallar-aplicar'), onPressed: _aplicar, child: const Text('Detallar')),
       ],
     );
   }

@@ -53,6 +53,16 @@ public class DetalladoControlador {
         return detallado.replicar(solicitud);
     }
 
+    @PostMapping
+    @Operation(summary = "Abre un producto en su destino (HU-162): sale del origen y entra al destino, "
+            + "con el costo repartido; todo o nada")
+    public com.regenta.inventario.application.DetalladoHecho detallar(@Valid @RequestBody Detallar cuerpo) {
+        return detallado.detallar(cuerpo.origenId(), cuerpo.bodegaId(), cuerpo.cantidad());
+    }
+
+    public record Detallar(@NotNull UUID origenId, @NotNull UUID bodegaId, @NotNull BigDecimal cantidad) {
+    }
+
     public record NuevaEquivalencia(@NotNull UUID origenId, @NotNull UUID destinoId, @NotNull BigDecimal factor) {
     }
 }

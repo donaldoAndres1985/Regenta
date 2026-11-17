@@ -61,6 +61,11 @@ public class Existencia {
     protected Existencia() {
     }
 
+    /** HU-162 · I18: el costo promedio que queda tras recibir unidades por detallado. */
+    public void fijarCostoPromedio(BigDecimal costo) {
+        this.costoPromedio = costo == null ? BigDecimal.ZERO : costo;
+    }
+
     /** HU-152 · I9: hasta 60 caracteres; en blanco la quita. */
     public void fijarUbicacion(String texto) {
         String limpio = texto == null ? "" : texto.trim();

@@ -56,6 +56,20 @@ class EquivalenciasEnLaBaseTest extends PostgresDePrueba {
     }
 
     @Test
+    @DisplayName("HU-162 · El libro mayor acepta los movimientos y el origen de detallado")
+    void elLibroAceptaElDetallado() {
+        String tipos = jdbc.queryForObject("select pg_get_constraintdef(oid) from pg_constraint "
+                + "where conname = 'movimientos_inventario_tipo_check' and conrelid = 'inventario.movimientos_inventario'::regclass",
+                String.class);
+        String origenes = jdbc.queryForObject("select pg_get_constraintdef(oid) from pg_constraint "
+                + "where conname = 'movimientos_inventario_origen_tipo_check' and conrelid = 'inventario.movimientos_inventario'::regclass",
+                String.class);
+
+        assertThat(tipos).contains("ENTRADA_DETALLE").contains("SALIDA_DETALLE").contains("SALIDA_VENTA");
+        assertThat(origenes).contains("'DETALLE'").contains("'SAGA'");
+    }
+
+    @Test
     @DisplayName("HU-161 · Dados dos negocios, B no ve las equivalencias de A")
     void cadaNegocioLasSuyas() {
         UUID negocioA = UUID.randomUUID();

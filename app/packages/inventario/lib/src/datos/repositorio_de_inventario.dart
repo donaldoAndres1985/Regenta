@@ -249,6 +249,19 @@ class RepositorioDeInventario {
     return ResultadoDeReplica.desdeJson(cuerpo);
   }
 
+  /// HU-162 · abre [cantidad] del producto en su destino; devuelve qué pasó, en palabras. El
+  /// backend rechaza abrir más de lo que hay o un producto sin equivalencia.
+  Future<String> detallar(String origenId, String bodegaId, num cantidad) async {
+    final r = await _http.post<Map<String, dynamic>>('/api/inventario/detallado',
+        datos: {'origenId': origenId, 'bodegaId': bodegaId, 'cantidad': cantidad}) as Map<String, dynamic>;
+    String n(Object? v) {
+      final x = (v ?? 0) as num;
+      return x == x.roundToDouble() ? '${x.round()}' : '$x';
+    }
+
+    return 'Se abrieron ${n(r['sale'])} ${r['origen']} → ${n(r['entra'])} ${r['destino']}';
+  }
+
   /// Las categorías del negocio, para elegir en la ficha.
   Future<List<OpcionDeFicha>> categorias() async {
     final cuerpo = await _http.get<List<dynamic>>('/api/inventario/categorias');
