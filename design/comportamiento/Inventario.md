@@ -19,6 +19,11 @@ El stock es (producto, bodega), no una columna de productos. Es la corrección m
 
 ## Reglas
 
+> **2026-11-17 · una sola ventana.** La pantalla de Inventario absorbe el «inventario general»
+> (HU-153/154): ya no hay una pantalla aparte. La lista sale de `GET /api/inventario/general`
+> (paginado, dos consultas), no de `/productos/buscar` sin término, que traía los ~2.700
+> productos de una vez y hacía una consulta por producto. Reglas R5 a R11.
+
 > Lo de HU-035 se decidió al implementarla (no estaba escrito). El resto sigue `_Sin definir._`.
 
 ### R1 · La búsqueda filtra desde el tercer carácter
@@ -51,6 +56,62 @@ no una opción escondida—. **Dado** Android con cámara, **cuando** la cámara
 **Dado** un código alterno (la caja de 12), **cuando** se resuelve, **entonces**
 `onProductoSeleccionado` recibe `factor = 12`; el código propio del producto resuelve con
 `factor = 1`.
+
+### R5 · La lista se carga por partes
+
+**Dado** un negocio con miles de productos, **cuando** abro Inventario, **entonces** se pide la
+página 0 de 50 de `GET /api/inventario/general` y se pinta en cuanto llega. **Cuando** el
+scroll se acerca al final, **entonces** se pide la página siguiente y se agrega debajo, con un
+«Cargando más…» al pie, hasta llegar a `totalFilas`. Cambiar la búsqueda o un filtro vuelve a
+la página 0.
+
+### R6 · Web: tabla del mockup y panel lateral
+
+**Dado** un ancho ≥ 900 px, **entonces** se ve la composición de `InventarioWeb.html`: buscador,
+**Filtros** y **Nuevo producto** arriba; chips de categoría (con nombre) y **Bajo mínimo · n**;
+tabla con casilla, SKU, Producto, Categoría, Stock, Mínimo, Precio, Estado y menú ⋮; y a la
+derecha **Inventario valorizado** (al costo promedio), **Existencias por bodega** del producto
+elegido y la tarjeta **n bajo mínimo** cuando hay alguno. Bajo 900 px, la misma lista como
+filas apiladas.
+
+### R7 · Estado de cada producto
+
+Sin existencia (≤ 0) → **AGOTADO** (stock en rojo); con existencia en su mínimo o por debajo
+(si tiene mínimo) → **BAJO MÍNIMO** (ámbar); si no → **EN STOCK** (verde). Lo calcula el backend
+(`nivel`).
+
+### R8 · Filtros
+
+**Filtros** abre: tarifa por revisar, existencia negativa, inactivos. Los chips: todas las
+categorías / una categoría / bajo mínimo. Todo se manda al backend; los totales y el conteo de
+bajo mínimo son de lo filtrado.
+
+### R9 · Una fila: elegir, abrir, cambiar tarifa
+
+Tocar una fila la elige (web: su existencia por bodega aparece en el panel; móvil: se abre el
+detalle con «Ver o editar ficha» y «Agregar a venta»). En web, **⋮ → Ver o editar ficha** o el
+botón del panel abren la ficha (sin doble toque: retrasaría cada toque simple); al volver se
+recarga la lista. La casilla marca filas para **Cambiar tarifa**
+(HU-154); sin marcadas y con una categoría elegida, cambia la categoría completa.
+
+### R10 · Las demás opciones, en el mismo menú
+
+Unidades de medida, Tablas de fracciones, Equivalencias de detallado e Importar desde Excel
+(este último solo con su permiso) van en el menú **Más opciones** de la barra, no como una fila
+de íconos sueltos.
+
+### R11 · Costo según permiso
+
+Basta `INVENTARIO_PRODUCTO_VER` para ver la lista. El costo y el valor a costo solo llegan con
+`INVENTARIO_EXISTENCIA_VER`; sin él, el panel muestra el valor a precio de venta.
+
+### R12 · Nuevo producto de verdad
+
+**Nuevo producto** pide SKU, código de barras, nombre, categoría, unidad, tarifa de IVA, precio
+(con IVA) y stock mínimo, y llama a `POST /api/inventario/productos`. Si el backend lo rechaza,
+el mensaje se ve en el diálogo y no se cierra (antes la app inventaba un producto que no se
+había guardado). Al crearlo se recarga la lista y un aviso ofrece **Abrir ficha**; la existencia
+inicial se carga allí con «Ajustar existencia».
 
 ## Al abrir
 

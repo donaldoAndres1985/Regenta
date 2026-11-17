@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../datos/repositorio_de_inventario.dart';
 import '../escaner/escaner_de_codigos.dart';
 import '../escaner/escaner_mobile_scanner.dart';
-import 'controlador_de_busqueda.dart';
-import 'estado_de_busqueda.dart';
 
 /// El repositorio contra `servicio-inventario`. La app lo sobrescribe al armar
 /// el `ProviderScope` con un [RepositorioDeInventario] real (que envuelve el
@@ -32,8 +30,3 @@ final puedeAjustarExistenciasProvider = Provider<bool>((ref) => false);
 final puedeDetallarProvider = Provider<bool>((ref) => false);
 
 final escanerProvider = Provider<EscanerDeCodigos>((ref) => const EscanerMobileScanner());
-
-final controladorDeBusquedaProvider =
-    StateNotifierProvider<ControladorDeBusqueda, EstadoDeBusqueda>(
-  (ref) => ControladorDeBusqueda(ref.watch(repositorioDeInventarioProvider)),
-);

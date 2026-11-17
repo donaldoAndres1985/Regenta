@@ -9,6 +9,7 @@ class ConsultaDeInventario {
     this.bodegaId,
     this.pagina = 0,
     this.tamano = 50,
+    this.soloBajoMinimo = false,
   });
 
   final String? q;
@@ -20,16 +21,20 @@ class ConsultaDeInventario {
   final int pagina;
   final int tamano;
 
+  /// Solo los que están en su mínimo o por debajo (R8).
+  final bool soloBajoMinimo;
+
   ConsultaDeInventario copiar({
-    String? q,
+    Object? q = _sinCambio,
     Object? categoriaId = _sinCambio,
     String? estado,
     bool? tarifaPorRevisar,
     bool? existenciaNegativa,
     int? pagina,
+    bool? soloBajoMinimo,
   }) =>
       ConsultaDeInventario(
-        q: q ?? this.q,
+        q: q == _sinCambio ? this.q : q as String?,
         categoriaId: categoriaId == _sinCambio ? this.categoriaId : categoriaId as String?,
         estado: estado ?? this.estado,
         tarifaPorRevisar: tarifaPorRevisar ?? this.tarifaPorRevisar,
@@ -37,7 +42,11 @@ class ConsultaDeInventario {
         bodegaId: bodegaId,
         pagina: pagina ?? this.pagina,
         tamano: tamano,
+        soloBajoMinimo: soloBajoMinimo ?? this.soloBajoMinimo,
       );
+
+  /// La misma consulta con otro texto de búsqueda (nulo = sin texto), desde la página 0.
+  ConsultaDeInventario conTexto(String? texto) => copiar(q: texto, pagina: 0);
 
   static const _sinCambio = Object();
 
@@ -50,10 +59,12 @@ class ConsultaDeInventario {
         if (bodegaId != null) 'bodegaId': bodegaId,
         'pagina': pagina,
         'tamano': tamano,
+        if (soloBajoMinimo) 'soloBajoMinimo': true,
       };
 }
 
-/// HU-153 C1 · un producto del inventario general. `precio` incluye IVA.
+/// HU-153 C1 · un producto del inventario general. `precio` incluye IVA. `costo` y `valorCosto`
+/// llegan nulos sin INVENTARIO_EXISTENCIA_VER (R11). `nivel`: NORMAL, BAJO o CERO (R7).
 class FilaDeInventario {
   const FilaDeInventario({
     required this.id,
@@ -68,6 +79,8 @@ class FilaDeInventario {
     required this.valorCosto,
     required this.valorPrecio,
     required this.activo,
+    this.stockMinimo = 0,
+    this.nivel = 'NORMAL',
   });
 
   final String id;
@@ -77,11 +90,13 @@ class FilaDeInventario {
   final String tarifaIva;
   final bool tarifaPorRevisar;
   final num existencia;
-  final num costo;
+  final num? costo;
   final num precio;
-  final num valorCosto;
+  final num? valorCosto;
   final num valorPrecio;
   final bool activo;
+  final num stockMinimo;
+  final String nivel;
 
   factory FilaDeInventario.desdeJson(Map<String, dynamic> j) => FilaDeInventario(
         id: j['id'] as String,
@@ -91,11 +106,13 @@ class FilaDeInventario {
         tarifaIva: (j['tarifaIva'] ?? '') as String,
         tarifaPorRevisar: (j['tarifaPorRevisar'] ?? false) as bool,
         existencia: (j['existencia'] ?? 0) as num,
-        costo: (j['costo'] ?? 0) as num,
+        costo: j['costo'] as num?,
         precio: (j['precio'] ?? 0) as num,
-        valorCosto: (j['valorCosto'] ?? 0) as num,
+        valorCosto: j['valorCosto'] as num?,
         valorPrecio: (j['valorPrecio'] ?? 0) as num,
         activo: (j['activo'] ?? true) as bool,
+        stockMinimo: (j['stockMinimo'] ?? 0) as num,
+        nivel: (j['nivel'] ?? 'NORMAL') as String,
       );
 }
 
@@ -106,12 +123,16 @@ class ResultadoDeInventario {
     required this.totalFilas,
     required this.valorCosto,
     required this.valorPrecio,
+    this.bajoMinimo = 0,
   });
 
   final List<FilaDeInventario> filas;
   final int totalFilas;
-  final num valorCosto;
+  final num? valorCosto;
   final num valorPrecio;
+
+  /// Cuántos de lo filtrado están en su mínimo o por debajo (chip «Bajo mínimo · n»).
+  final int bajoMinimo;
 
   factory ResultadoDeInventario.desdeJson(Map<String, dynamic> j) => ResultadoDeInventario(
         filas: [
@@ -119,7 +140,8 @@ class ResultadoDeInventario {
             FilaDeInventario.desdeJson(f),
         ],
         totalFilas: ((j['totalFilas'] ?? 0) as num).toInt(),
-        valorCosto: (j['valorCosto'] ?? 0) as num,
+        valorCosto: j['valorCosto'] as num?,
         valorPrecio: (j['valorPrecio'] ?? 0) as num,
+        bajoMinimo: ((j['bajoMinimo'] ?? 0) as num).toInt(),
       );
 }
