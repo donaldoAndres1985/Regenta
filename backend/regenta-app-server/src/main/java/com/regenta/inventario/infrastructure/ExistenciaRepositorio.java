@@ -20,6 +20,9 @@ public interface ExistenciaRepositorio extends JpaRepository<Existencia, Existen
 
     List<Existencia> findByBodegaId(UUID bodegaId);
 
+    /** HU-153: todas las existencias del negocio de una vez. */
+    List<Existencia> findByNegocioId(UUID negocioId);
+
     Optional<Existencia> findByProductoIdAndBodegaId(UUID productoId, UUID bodegaId);
 
     boolean existsByBodegaId(UUID bodegaId);
