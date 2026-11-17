@@ -162,4 +162,49 @@ class InventarioGeneralTest {
         assertThat(r.filas()).extracting(FilaDeInventario::sku).containsExactly("MAR-1");
         assertThat(r.totalFilas()).isEqualTo(2);
     }
+
+    @Test
+    @DisplayName("Inventario · Cada fila trae su stock mínimo y su estado: en stock, bajo mínimo o agotado")
+    void cadaFilaTraeSuMinimoYSuEstado() {
+        barniz.configuracionDeStock(true, new BigDecimal("5"), null, false, false, false, false);
+
+        InventarioDelNegocio r = inventario.consultar(filtro());
+
+        FilaDeInventario fBarniz = r.filas().stream().filter(f -> f.sku().equals("BAR-1")).findFirst().orElseThrow();
+        FilaDeInventario fMartillo = r.filas().stream().filter(f -> f.sku().equals("MAR-1")).findFirst().orElseThrow();
+        assertThat(fBarniz.stockMinimo()).isEqualByComparingTo("5");
+        assertThat(fBarniz.nivel()).isEqualTo(com.regenta.inventario.domain.NivelStock.BAJO);
+        assertThat(fMartillo.nivel()).isEqualTo(com.regenta.inventario.domain.NivelStock.CERO);
+    }
+
+    @Test
+    @DisplayName("Inventario · Con «bajo mínimo» solo quedan los que están en el mínimo o por debajo, y se cuentan sobre lo filtrado")
+    void filtroBajoMinimo() {
+        barniz.configuracionDeStock(true, new BigDecimal("5"), null, false, false, false, false);
+        martillo.configuracionDeStock(true, new BigDecimal("1"), null, false, false, false, false);
+
+        InventarioDelNegocio todos = inventario.consultar(filtro());
+        assertThat(todos.bajoMinimo()).isEqualTo(1);
+
+        InventarioDelNegocio bajos = inventario.consultar(
+                new FiltroDeInventario(null, null, null, false, false, null, 0, 50, true));
+        assertThat(bajos.filas()).extracting(FilaDeInventario::sku).containsExactly("BAR-1");
+        assertThat(bajos.totalFilas()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Inventario · Sin INVENTARIO_EXISTENCIA_VER se ven existencia y precio, pero no el costo ni el valor a costo")
+    void sinPermisoDeExistenciasNoSeVeElCosto() {
+        ContextoDeNegocio.establecer(new DatosDelNegocio(negocioId, UUID.randomUUID(), "BASICO",
+                "VENTA_DIRECTA", Set.of(), Set.of(), Set.of("INVENTARIO_PRODUCTO_VER"), Set.of()));
+
+        InventarioDelNegocio r = inventario.consultar(filtro());
+
+        FilaDeInventario fila = r.filas().stream().filter(f -> f.sku().equals("BAR-1")).findFirst().orElseThrow();
+        assertThat(fila.existencia()).isEqualByComparingTo("3");
+        assertThat(fila.precio()).isEqualByComparingTo("35500");
+        assertThat(fila.costo()).isNull();
+        assertThat(fila.valorCosto()).isNull();
+        assertThat(r.valorCosto()).isNull();
+    }
 }
