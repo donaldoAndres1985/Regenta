@@ -114,6 +114,21 @@ class RepositorioDeInventario {
     return ResultadoDeInventario.desdeJson(cuerpo);
   }
 
+  /// HU-154 · fija la tarifa a los productos elegidos o, sin elegidos, a toda la categoría.
+  /// Devuelve cuántos cambiaron. Todo o nada.
+  Future<int> cambiarTarifaEnBloque(
+      {List<String> productoIds = const [], String? categoriaId, required String tarifaIva}) async {
+    final cuerpo = await _http.post<Map<String, dynamic>>(
+      '/api/inventario/productos/tarifa-en-bloque',
+      datos: {
+        'productoIds': productoIds,
+        'categoriaId': ?categoriaId,
+        'tarifaIva': tarifaIva,
+      },
+    ) as Map<String, dynamic>;
+    return ((cuerpo['cambiados'] ?? 0) as num).toInt();
+  }
+
   /// Las categorías del negocio, para elegir en la ficha.
   Future<List<OpcionDeFicha>> categorias() async {
     final cuerpo = await _http.get<List<dynamic>>('/api/inventario/categorias');

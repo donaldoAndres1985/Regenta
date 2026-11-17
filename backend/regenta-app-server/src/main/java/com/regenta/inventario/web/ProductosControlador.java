@@ -62,6 +62,13 @@ public class ProductosControlador {
         return productos.ver(productoId);
     }
 
+    @PostMapping("/tarifa-en-bloque")
+    @Operation(summary = "Fija la tarifa de IVA a varios productos o a una categoria (HU-154); el precio no cambia")
+    public java.util.Map<String, Integer> tarifaEnBloque(
+            @Valid @RequestBody com.regenta.inventario.application.SolicitudDeTarifaEnBloque solicitud) {
+        return java.util.Map.of("cambiados", productos.cambiarTarifaEnBloque(solicitud));
+    }
+
     @PostMapping("/{productoId}/desactivacion")
     @Operation(summary = "Desactiva un producto (HU-151): no se vende, conserva su historial; nunca se borra")
     public ProductoDelNegocio desactivar(@PathVariable UUID productoId) {

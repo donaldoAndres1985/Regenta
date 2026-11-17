@@ -33,6 +33,19 @@ class _Repo implements RepositorioDeInventario {
     );
   }
 
+  (List<String>, String?, String)? tarifaEnBloque;
+
+  @override
+  Future<int> cambiarTarifaEnBloque(
+      {List<String> productoIds = const [], String? categoriaId, required String tarifaIva}) async {
+    tarifaEnBloque = (productoIds, categoriaId, tarifaIva);
+    return productoIds.length;
+  }
+
+  @override
+  Future<List<OpcionDeFicha>> categorias() async =>
+      const [OpcionDeFicha(id: 'c1', nombre: 'Pinturas')];
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -75,6 +88,47 @@ void main() {
     await tester.tap(find.byKey(const Key('filtro-inactivos')));
     await tester.pumpAndSettle();
     expect(repo.consultas.last.estado, 'INACTIVOS');
+  });
+
+  testWidgets('HU-154 C1 · cambiar la tarifa de los seleccionados pide confirmar y no cambia el precio', (tester) async {
+    final repo = await _montar(tester);
+
+    await tester.tap(find.byKey(const Key('seleccionar-p1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('cambiar-tarifa')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('IVA 5 %').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('¿Cambiar la tarifa de 1 productos a IVA 5 %? El precio no cambia.'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Cambiar'));
+    await tester.pumpAndSettle();
+
+    expect(repo.tarifaEnBloque!.$1, ['p1']);
+    expect(repo.tarifaEnBloque!.$2, isNull);
+    expect(repo.tarifaEnBloque!.$3, 'IVA_5');
+  });
+
+  testWidgets('HU-154 C1 · sin selección, con una categoría filtrada, cambia la categoría completa', (tester) async {
+    final repo = await _montar(tester);
+
+    await tester.tap(find.byKey(const Key('filtro-categoria')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pinturas').last);
+    await tester.pumpAndSettle();
+    expect(repo.consultas.last.categoriaId, 'c1');
+
+    await tester.tap(find.byKey(const Key('cambiar-tarifa')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Exento (0 %)').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('toda la categoría Pinturas'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Cambiar'));
+    await tester.pumpAndSettle();
+
+    expect(repo.tarifaEnBloque!.$1, isEmpty);
+    expect(repo.tarifaEnBloque!.$2, 'c1');
+    expect(repo.tarifaEnBloque!.$3, 'EXENTO');
   });
 
   testWidgets('HU-153 C3 · el texto escrito se manda como búsqueda', (tester) async {
