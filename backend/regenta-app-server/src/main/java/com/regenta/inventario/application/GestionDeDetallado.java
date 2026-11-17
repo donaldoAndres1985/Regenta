@@ -97,6 +97,64 @@ public class GestionDeDetallado {
         return new ResultadoDeReplica(creadas, sinPar);
     }
 
+    /**
+     * HU-162 · abre {@code cantidad} del origen en su destino (I17): sale {@code cantidad} del
+     * origen y entra {@code cantidad × factor} al destino, en la misma bodega y transacción. I10:
+     * no se abre más de lo que hay. I18: el costo que entra es el del origen dividido por el
+     * factor, promediado con el que ya tenía el destino.
+     */
+    @Transactional
+    @RequierePermiso("INVENTARIO_DETALLAR")
+    public DetalladoHecho detallar(UUID origenId, UUID bodegaId, BigDecimal cantidad) {
+        Producto origen = delNegocio(origenId);
+        if (cantidad == null || cantidad.signum() <= 0) {
+            throw new ReglaDeNegocioException("Escribe cuántos vas a abrir.");
+        }
+        EquivalenciaDeDetallado eq = equivalencias.findByOrigenId(origenId).stream().findFirst()
+                .orElseThrow(() -> new ReglaDeNegocioException("Este producto no tiene equivalencia de detallado."));
+        Producto destino = delNegocio(eq.getDestinoId());
+        var exOrigen = existencias.findByProductoIdAndBodegaId(origenId, bodegaId);
+        BigDecimal hayOrigen = exOrigen.map(e -> e.getCantidad()).orElse(BigDecimal.ZERO);
+        if (cantidad.compareTo(hayOrigen) > 0) {
+            throw new ReglaDeNegocioException("Solo hay " + texto(hayOrigen) + " de " + origen.getNombre()
+                    + ". No puedes abrir " + texto(cantidad) + ".");
+        }
+        BigDecimal costoOrigen = exOrigen.map(e -> e.getCostoPromedio()).filter(c -> c.signum() > 0)
+                .orElse(origen.getCostoUltimo());
+        var exDestinoAntes = existencias.findByProductoIdAndBodegaId(destino.getId(), bodegaId);
+        BigDecimal hayDestino = exDestinoAntes.map(e -> e.getCantidad()).orElse(BigDecimal.ZERO);
+        BigDecimal costoDestino = exDestinoAntes.map(e -> e.getCostoPromedio()).filter(c -> c.signum() > 0)
+                .orElse(destino.getCostoUltimo());
+
+        BigDecimal entra = cantidad.multiply(eq.getFactor());
+        BigDecimal costoEntrante = costoOrigen.divide(eq.getFactor(), 4, java.math.RoundingMode.HALF_UP);
+        BigDecimal base = hayDestino.max(BigDecimal.ZERO);
+        BigDecimal nuevoCosto = base.multiply(costoDestino).add(entra.multiply(costoEntrante))
+                .divide(base.add(entra), 4, java.math.RoundingMode.HALF_UP);
+
+        UUID detalladoId = UUID.randomUUID();
+        String motivo = "Detallado: " + texto(cantidad) + " " + origen.getNombre() + " → " + texto(entra)
+                + " " + destino.getNombre();
+        libro.registrar(new SolicitudDeMovimiento(origenId, bodegaId,
+                com.regenta.inventario.domain.TipoMovimiento.SALIDA_DETALLE, cantidad,
+                com.regenta.inventario.domain.OrigenMovimiento.DETALLE, detalladoId, motivo,
+                "detallado:" + detalladoId + ":salida", null, null, null));
+        libro.registrar(new SolicitudDeMovimiento(destino.getId(), bodegaId,
+                com.regenta.inventario.domain.TipoMovimiento.ENTRADA_DETALLE, entra,
+                com.regenta.inventario.domain.OrigenMovimiento.DETALLE, detalladoId, motivo,
+                "detallado:" + detalladoId + ":entrada", null, null, null));
+        existencias.findByProductoIdAndBodegaId(destino.getId(), bodegaId).ifPresent(e -> {
+            e.fijarCostoPromedio(nuevoCosto);
+            existencias.save(e);
+        });
+        return new DetalladoHecho(detalladoId, origenId, origen.getNombre(), cantidad, destino.getId(),
+                destino.getNombre(), entra, nuevoCosto);
+    }
+
+    private static String texto(BigDecimal v) {
+        return v.stripTrailingZeros().toPlainString();
+    }
+
     Producto delNegocio(UUID productoId) {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         return productos.findById(productoId).filter(p -> p.getNegocioId().equals(negocioId))

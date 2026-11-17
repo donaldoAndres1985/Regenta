@@ -42,6 +42,20 @@ class _RepoFicha implements RepositorioDeInventario {
       const [OpcionDeFicha(id: 'u1', nombre: 'GLN · Galón')];
 
   List<(String, num)> existencias = const [];
+  List<EquivalenciaDeDetallado> equivalenciasDelNegocio = const [];
+  (String, String, num)? detallado;
+  ErrorDeApi? errorAlDetallar;
+
+  @override
+  Future<List<EquivalenciaDeDetallado>> equivalencias() async => equivalenciasDelNegocio;
+
+  @override
+  Future<String> detallar(String origenId, String bodegaId, num cantidad) async {
+    if (errorAlDetallar != null) throw errorAlDetallar!;
+    detallado = (origenId, bodegaId, cantidad);
+    return 'Se abrieron 1 Barniz cuñete → 5 Barniz galón';
+  }
+
   AjusteDeExistencia? ajuste;
   ErrorDeApi? errorAlAjustar;
 
@@ -137,6 +151,7 @@ Future<void> _montar(WidgetTester tester, _RepoFicha repo, {bool puedeEditar = t
       puedeEditarProductosProvider.overrideWithValue(puedeEditar),
       puedeGestionarFraccionesProvider.overrideWithValue(puedeEditar),
       puedeAjustarExistenciasProvider.overrideWithValue(puedeEditar),
+      puedeDetallarProvider.overrideWithValue(puedeEditar),
     ],
     child: const MaterialApp(home: PantallaFichaDeProducto(productoId: 'p1')),
   ));
@@ -318,6 +333,44 @@ void main() {
 
     expect(find.text('Solo hay 3 unidades de Barniz galón en Principal. No puedes sacar 5.'), findsOneWidget);
     expect(find.byKey(const Key('ajuste-aplicar')), findsOneWidget);
+  });
+
+  testWidgets('HU-162 · un producto con equivalencia se detalla desde su ficha', (tester) async {
+    final repo = _RepoFicha(_barniz)
+      ..equivalenciasDelNegocio = const [
+        EquivalenciaDeDetallado(
+            id: 'e1', origenId: 'p1', origen: 'Barniz cuñete', destinoId: 'p2', destino: 'Barniz galón', factor: 5),
+      ];
+    await _montar(tester, repo);
+
+    expect(find.text('1 Barniz cuñete = 5 Barniz galón'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('ficha-detallar')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('detallar-cantidad')), '1');
+    await tester.tap(find.byKey(const Key('detallar-aplicar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.detallado, ('p1', 'b1', 1));
+    expect(find.text('Se abrieron 1 Barniz cuñete → 5 Barniz galón'), findsOneWidget);
+  });
+
+  testWidgets('HU-162 C3 · si no alcanza, se ve el mensaje del backend y no se cierra', (tester) async {
+    final repo = _RepoFicha(_barniz)
+      ..equivalenciasDelNegocio = const [
+        EquivalenciaDeDetallado(
+            id: 'e1', origenId: 'p1', origen: 'Barniz cuñete', destinoId: 'p2', destino: 'Barniz galón', factor: 5),
+      ]
+      ..errorAlDetallar = const ErroresDeValidacion({}, 'Solo hay 1 de Barniz cuñete. No puedes abrir 2.');
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('ficha-detallar')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('detallar-cantidad')), '2');
+    await tester.tap(find.byKey(const Key('detallar-aplicar')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Solo hay 1 de Barniz cuñete. No puedes abrir 2.'), findsOneWidget);
+    expect(find.byKey(const Key('detallar-aplicar')), findsOneWidget);
   });
 
   testWidgets('HU-150 C4 · sin permiso de editar, la ficha se ve sin poder guardar', (tester) async {
