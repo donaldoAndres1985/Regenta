@@ -115,6 +115,49 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
     }
   }
 
+  /// HU-151 C1 · desactivar pide confirmación y avisa la existencia que queda.
+  Future<void> _desactivar() async {
+    final f = _ficha;
+    if (f == null) return;
+    final repo = ref.read(repositorioDeInventarioProvider);
+    final existencias = await repo.existenciasDe(f.id);
+    if (!mounted) return;
+    final aviso = existencias
+        .map((e) => 'Tiene ${_sinDecimalesInutiles(e.$2)} unidades en ${e.$1}.')
+        .join(' ');
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('¿Desactivar ${f.nombre}?'),
+        content: Text(
+          'No aparecerá en el POS ni en las búsquedas. Su historial de ventas, compras y '
+          'movimientos se conserva.${aviso.isEmpty ? '' : '\n\n$aviso'}',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: RegentaColors.crit),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Desactivar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmado == true) await _cambiarActivo(false);
+  }
+
+  Future<void> _cambiarActivo(bool activo) async {
+    final f = _ficha;
+    if (f == null) return;
+    try {
+      final nueva =
+          await ref.read(repositorioDeInventarioProvider).cambiarActivo(f.id, activo: activo);
+      if (mounted) setState(() => _mostrar(nueva));
+    } on ErrorDeApi catch (e) {
+      if (mounted) setState(() => _error = e.mensaje);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final puedeEditar = ref.watch(puedeEditarProductosProvider);
@@ -131,6 +174,14 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                if (!f.activo)
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Chip(
+                      avatar: Icon(Icons.block, size: 18, color: RegentaColors.crit),
+                      label: Text('Inactivo'),
+                    ),
+                  ),
                 if (f.tarifaPorRevisar)
                   const Align(
                     alignment: Alignment.centerLeft,
@@ -180,6 +231,22 @@ class _PantallaFichaDeProductoState extends ConsumerState<PantallaFichaDeProduct
                     onPressed: _guardando ? null : _guardar,
                     child: Text(_guardando ? 'Guardando…' : 'Guardar'),
                   ),
+                  const SizedBox(height: 8),
+                  // HU-151: nunca se borra; se desactiva y se puede reactivar.
+                  if (f.activo)
+                    OutlinedButton.icon(
+                      key: const Key('ficha-desactivar'),
+                      icon: const Icon(Icons.block, size: 18, color: RegentaColors.crit),
+                      label: const Text('Desactivar producto'),
+                      onPressed: _desactivar,
+                    )
+                  else
+                    OutlinedButton.icon(
+                      key: const Key('ficha-reactivar'),
+                      icon: const Icon(Icons.check_circle_outline, size: 18),
+                      label: const Text('Reactivar producto'),
+                      onPressed: () => _cambiarActivo(true),
+                    ),
                 ],
               ],
             ),

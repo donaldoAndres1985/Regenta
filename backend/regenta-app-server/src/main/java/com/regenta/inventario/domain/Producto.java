@@ -214,6 +214,16 @@ public class Producto {
         }
     }
 
+    /** HU-151 · I8: un producto nunca se borra; se desactiva y conserva su historial. */
+    public void desactivar() {
+        this.activo = false;
+    }
+
+    /** HU-151 C4. */
+    public void reactivar() {
+        this.activo = true;
+    }
+
     /** El precio de venta con su base y su IVA (I2). */
     public PrecioConIva precio() {
         return new PrecioConIva(precioVenta, tarifaIva);

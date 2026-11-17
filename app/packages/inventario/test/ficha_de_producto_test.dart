@@ -41,6 +41,28 @@ class _RepoFicha implements RepositorioDeInventario {
   Future<List<OpcionDeFicha>> unidades() async =>
       const [OpcionDeFicha(id: 'u1', nombre: 'GLN · Galón')];
 
+  List<(String, num)> existencias = const [];
+
+  @override
+  Future<List<(String bodega, num cantidad)>> existenciasDe(String id) async => existencias;
+
+  @override
+  Future<FichaDeProducto> cambiarActivo(String id, {required bool activo}) async {
+    ficha = FichaDeProducto(
+      id: id,
+      sku: ficha.sku,
+      nombre: ficha.nombre,
+      categoriaId: ficha.categoriaId,
+      unidadMedidaId: ficha.unidadMedidaId,
+      tarifaIva: ficha.tarifaIva,
+      precioVenta: ficha.precioVenta,
+      costo: ficha.costo,
+      version: ficha.version + 1,
+      activo: activo,
+    );
+    return ficha;
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -121,6 +143,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Alguien cambió este producto; recarga antes de guardar.'), findsOneWidget);
+  });
+
+  testWidgets('HU-151 C1 · desactivar pide confirmación y avisa cuántas unidades hay y dónde', (tester) async {
+    final repo = _RepoFicha(_barniz)..existencias = const [('Principal', 8)];
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('ficha-desactivar')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('No aparecerá en el POS ni en las búsquedas'), findsOneWidget);
+    expect(find.textContaining('Tiene 8 unidades en Principal'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Desactivar'));
+    await tester.pumpAndSettle();
+
+    expect(repo.ficha.activo, isFalse);
+    expect(find.text('Inactivo'), findsOneWidget);
+    expect(find.byKey(const Key('ficha-reactivar')), findsOneWidget);
+  });
+
+  testWidgets('HU-151 C4 · un producto inactivo se reactiva', (tester) async {
+    final repo = _RepoFicha(FichaDeProducto(
+      id: 'p1',
+      sku: 'X',
+      nombre: 'Barniz galón',
+      categoriaId: 'c1',
+      unidadMedidaId: 'u1',
+      tarifaIva: 'IVA_19',
+      precioVenta: 35500,
+      version: 1,
+      activo: false,
+    ));
+    await _montar(tester, repo);
+
+    await tester.tap(find.byKey(const Key('ficha-reactivar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.ficha.activo, isTrue);
+    expect(find.byKey(const Key('ficha-desactivar')), findsOneWidget);
   });
 
   testWidgets('HU-150 C4 · sin permiso de editar, la ficha se ve sin poder guardar', (tester) async {

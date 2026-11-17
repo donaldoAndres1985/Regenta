@@ -170,6 +170,33 @@ public class GestionDeProductos {
 
     private static final BigDecimal CIEN = new BigDecimal("100");
 
+    /** HU-151 · deja de venderse; conserva su historial (I8). La confirmación la pide la app. */
+    @Transactional
+    @RequierePermiso("INVENTARIO_PRODUCTO_EDITAR")
+    public ProductoDelNegocio desactivar(UUID productoId) {
+        Producto producto = delNegocio(productoId);
+        producto.desactivar();
+        producto.tocar(ContextoDeNegocio.actual().usuario());
+        return comoDto(productos.saveAndFlush(producto));
+    }
+
+    /** HU-151 C4. */
+    @Transactional
+    @RequierePermiso("INVENTARIO_PRODUCTO_EDITAR")
+    public ProductoDelNegocio reactivar(UUID productoId) {
+        Producto producto = delNegocio(productoId);
+        producto.reactivar();
+        producto.tocar(ContextoDeNegocio.actual().usuario());
+        return comoDto(productos.saveAndFlush(producto));
+    }
+
+    private Producto delNegocio(UUID productoId) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        return productos.findById(productoId)
+                .filter(p -> p.getNegocioId().equals(negocioId))
+                .orElseThrow(() -> new NoEncontradoException("Ese producto no existe"));
+    }
+
     /** HU-150 · guarda la ficha (C1-C5 de la historia). */
     @Transactional
     @RequierePermiso("INVENTARIO_PRODUCTO_EDITAR")
