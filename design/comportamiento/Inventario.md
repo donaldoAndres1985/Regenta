@@ -35,21 +35,21 @@ tercero, **entonces** tras un rebote de 300 ms se pide al backend
 `GET /api/inventario/productos/buscar?q=…` y la lista pasa a los que coinciden por **nombre,
 SKU, código de barras propio o un código alterno**. Al borrar el campo vuelve a todos.
 
-### R2 · El botón de escanear resuelve un código y devuelve el producto
+### R2 · El escáner escribe en el mismo campo de búsqueda
 
-**Dado** un dispositivo con cámara y permiso (Android/iOS), **cuando** toco el botón de
-escanear, **entonces** se abre la cámara; al leer un código se cierra y se llama a
-`GET /api/inventario/productos/codigo/{codigo}`. **Si resuelve**, se invoca
-`onProductoSeleccionado(productoId, factor)` — quien monta la pantalla decide si abre la ficha
-o lo agrega a la venta. **Si no resuelve** (404), un aviso "Ningún producto tiene el código
-«…»" y no se hace nada más.
+No hay botón de escanear aparte. **Dado** un lector de código de barras (pistola USB o
+Bluetooth, que teclea el código y un Enter), **cuando** el código llega al campo de búsqueda y
+se pulsa Enter, **entonces** se llama a `GET /api/inventario/productos/codigo/{codigo}`. **Si
+resuelve**, la lista se filtra al SKU de ese producto (aunque el código fuera uno alterno) y se
+invoca `onProductoSeleccionado(productoId, factor)`. **Si no resuelve** (404), el texto queda
+como búsqueda normal (nombre, SKU o código), sin esperar el rebote.
 
-### R3 · La captura manual del código no es opcional en web
+### R3 · En móvil, la cámara va dentro del campo
 
-**Dado** un navegador (o cámara denegada, o sin cámara), **cuando** toco el botón de escanear,
-**entonces** se abre directamente un diálogo para teclear el código —es el camino principal,
-no una opción escondida—. **Dado** Android con cámara, **cuando** la cámara falla al abrir,
-**entonces** también se cae a ese diálogo. El código tecleado se resuelve igual que R2.
+**Dado** un ancho < 900 px, el campo de búsqueda lleva al final un ícono de cámara. **Cuando**
+lo toco, **entonces** se abre la cámara (Android/iOS); el código leído se escribe en el campo y
+se resuelve igual que R2. Sin cámara, con la cámara denegada o si falla al abrir, se abre el
+diálogo para teclear el código. En web (≥ 900 px) no hay ícono: el lector escribe en el campo.
 
 ### R4 · El código alterno arrastra su factor de conversión
 
@@ -65,14 +65,19 @@ scroll se acerca al final, **entonces** se pide la página siguiente y se agrega
 «Cargando más…» al pie, hasta llegar a `totalFilas`. Cambiar la búsqueda o un filtro vuelve a
 la página 0.
 
-### R6 · Web: tabla del mockup y panel lateral
+### R6 · Web: encabezado, tarjetas y una sola tarjeta con la tabla
 
-**Dado** un ancho ≥ 900 px, **entonces** se ve la composición de `InventarioWeb.html`: buscador,
-**Filtros** y **Nuevo producto** arriba; chips de categoría (con nombre) y **Bajo mínimo · n**;
-tabla con casilla, SKU, Producto, Categoría, Stock, Mínimo, Precio, Estado y menú ⋮; y a la
-derecha **Inventario valorizado** (al costo promedio), **Existencias por bodega** del producto
-elegido y la tarjeta **n bajo mínimo** cuando hay alguno. Bajo 900 px, la misma lista como
-filas apiladas.
+**Dado** un ancho ≥ 900 px, de arriba abajo:
+
+1. **Encabezado**: miga «Regenta / Inventario» y el título **Inventario**; a la derecha
+   **Herramientas ▾** (R10), **Cambiar tarifa de la categoría** (R9) y **Nuevo producto**.
+2. **Cuatro tarjetas** (R13): Inventario valorizado, Productos, Bodegas, Tarifas por revisar.
+3. **Una tarjeta** con el buscador y **Filtros**; debajo los chips **Todas** y una por categoría
+   (los que no caben pasan a **Más categorías**); y la tabla: casilla, Producto (ícono, nombre,
+   SKU y la marca «Tarifa por revisar»), Categoría, Stock (cantidad con unidad y barra), Mínimo,
+   Precio, Estado y menú ⋮.
+
+No hay panel lateral. Bajo 900 px, la misma lista como filas apiladas.
 
 ### R7 · Estado de cada producto
 
@@ -82,23 +87,24 @@ Sin existencia (≤ 0) → **AGOTADO** (stock en rojo); con existencia en su mí
 
 ### R8 · Filtros
 
-**Filtros** abre: tarifa por revisar, existencia negativa, inactivos. Los chips: todas las
-categorías / una categoría / bajo mínimo. Todo se manda al backend; los totales y el conteo de
+**Filtros** abre: bajo mínimo, tarifa por revisar, existencia negativa, inactivos. Los chips:
+todas / una categoría. Todo se manda al backend; los totales y el conteo de
 bajo mínimo son de lo filtrado.
 
-### R9 · Una fila: elegir, abrir, cambiar tarifa
+### R9 · Una fila: abrir, cambiar tarifa
 
-Tocar una fila la elige (web: su existencia por bodega aparece en el panel; móvil: se abre el
-detalle con «Ver o editar ficha» y «Agregar a venta»). En web, **⋮ → Ver o editar ficha** o el
-botón del panel abren la ficha (sin doble toque: retrasaría cada toque simple); al volver se
-recarga la lista. La casilla marca filas para **Cambiar tarifa**
-(HU-154); sin marcadas y con una categoría elegida, cambia la categoría completa.
+En web, tocar una fila abre su ficha (sin doble toque); **⋮** ofrece «Ver o editar ficha» y
+«Agregar a venta». Al volver de la ficha se recarga la lista. En móvil, tocar abre el detalle
+con «Ver o editar ficha» y «Agregar a venta»; mantener pulsado marca la fila. La casilla marca
+filas para **Cambiar tarifa** (HU-154): con marcadas, el botón dice «Cambiar tarifa (n)»; sin
+marcadas y con una categoría elegida, cambia la categoría completa; sin ninguna de las dos,
+el botón está deshabilitado.
 
-### R10 · Las demás opciones, en el mismo menú
+### R10 · Las demás opciones, en el menú Herramientas
 
-Unidades de medida, Tablas de fracciones, Equivalencias de detallado e Importar desde Excel
-(este último solo con su permiso) van en el menú **Más opciones** de la barra, no como una fila
-de íconos sueltos.
+**Herramientas ▾** agrupa **Configuración** (Unidades de medida, Tablas de fracciones,
+Equivalencias de detallado) y **Datos** (Importar desde Excel, solo con su permiso). En móvil es
+el menú ⋮ de la barra.
 
 ### R11 · Costo según permiso
 
@@ -113,6 +119,17 @@ el mensaje se ve en el diálogo y no se cierra (antes la app inventaba un produc
 había guardado). Al crearlo se recarga la lista y un aviso ofrece **Abrir ficha**; la existencia
 inicial se carga allí con «Ajustar existencia».
 
+### R13 · Las cuatro tarjetas
+
+- **Inventario valorizado**: el valor al costo promedio de lo filtrado; sin permiso de costo
+  (R11), a precio de venta, y el subtítulo lo dice.
+- **Productos**: `totalFilas` de lo filtrado.
+- **Bodegas**: cuántas bodegas activas tiene el negocio y sus nombres.
+- **Tarifas por revisar**: `porRevisar` del backend, los de lo filtrado con la tarifa de IVA sin
+  confirmar. Tocarla activa o quita el filtro «tarifa por revisar».
+
+Ninguna muestra un número inventado: mientras cargan, «—».
+
 ## Al abrir
 
 Se listan todos los productos activos (sin término), ordenados por nombre. El foco va al campo
@@ -120,10 +137,8 @@ de búsqueda. Mientras carga, un indicador centrado. El filtro de categoría / �
 elegido se mantiene en memoria mientras la pantalla vive (no se persiste entre sesiones —
 `_Sin definir._` si debería).
 
-La **bodega** y los **chips de categoría con nombre** del mockup quedan pendientes: el chip
-"Bodega Centro" necesita el selector de bodega (HU-029) y los chips "Herramientas /
-Tornillería / …" necesitan traer el árbol de categorías (HU-026). Por ahora la barra de chips
-tiene solo **Todas** y **Bajo mínimo** (este último activa `soloBajoMinimo`).
+Los chips de categoría salen de `GET /api/inventario/categorias`. El filtro por bodega sigue
+pendiente (HU-029).
 
 ## Validaciones
 
@@ -148,8 +163,9 @@ caché local de inventario en esta historia (`_Sin definir._` si debería haberl
 
 ## Móvil y web
 
-El único punto donde se separan hoy: en Android el botón de escanear abre la cámara; en web
-abre siempre el diálogo de código a mano (R3). El resto es la misma pantalla.
+En móvil la cámara es un ícono dentro del campo de búsqueda; en web el lector escribe en el
+campo (R2, R3). En móvil no se ven las tarjetas ni la tabla: filas apiladas, botón flotante
+**Nuevo producto** y las herramientas en el ⋮ de la barra.
 
 ## Permisos
 

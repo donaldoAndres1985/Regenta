@@ -28,8 +28,15 @@ class _Repo implements RepositorioDeInventario {
       valorCosto: valorCosto,
       valorPrecio: 106500,
       bajoMinimo: 1,
+      porRevisar: 1,
     );
   }
+
+  @override
+  Future<List<BodegaDelNegocio>> bodegas() async => const [
+        BodegaDelNegocio(id: 'b1', codigo: 'PRI', nombre: 'Bodega Principal', esDefault: true, activa: true),
+        BodegaDelNegocio(id: 'b2', codigo: 'VIE', nombre: 'Bodega vieja', esDefault: false, activa: false),
+      ];
 
   @override
   Future<List<OpcionDeFicha>> categorias() async =>
@@ -90,6 +97,7 @@ FilaDeInventario _fila(int i) => FilaDeInventario.desdeJson({
       'activo': true,
       'stockMinimo': 5,
       'nivel': i == 1 ? 'CERO' : (i == 0 ? 'BAJO' : 'NORMAL'),
+      'unidad': 'UND',
     });
 
 class _Escaner implements EscanerDeCodigos {
@@ -152,34 +160,70 @@ void main() {
       expect(repo.consultas.last.pagina, 0);
     });
 
-    testWidgets('Criterio 2 y 4: al escanear se abre el producto con su factor', (tester) async {
+    testWidgets('R2 · no hay botón de escanear: en web el lector escribe en el buscador', (tester) async {
+      await _montar(tester);
+      expect(find.bySemanticsLabel('Escanear código'), findsNothing);
+      expect(find.byKey(const Key('inventario-camara')), findsNothing);
+    });
+
+    testWidgets('R2 y R4 · Enter en el buscador resuelve el código: filtra a su SKU y entrega el factor', (tester) async {
       String? id;
       num? factor;
+      final repo = _Repo()
+        ..codigo = const CodigoResuelto(
+            productoId: 'p9', sku: 'CEM-050', nombre: 'Cemento', factor: 12, esAlterno: true);
+      await _montar(tester, repo: repo, onSel: (i, f) {
+        id = i;
+        factor = f;
+      });
+
+      await tester.enterText(find.byKey(const Key('inventario-buscar')), 'CAJACEM12');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+
+      expect(repo.codigosResueltos, ['CAJACEM12']);
+      expect((id, factor), ('p9', 12));
+      expect(repo.consultas.last.q, 'CEM-050');
+    });
+
+    testWidgets('R2 · si el código no resuelve, el texto busca de una vez, sin esperar el rebote', (tester) async {
+      final repo = await _montar(tester);
+
+      await tester.enterText(find.byKey(const Key('inventario-buscar')), 'barniz');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pump();
+      await tester.pump();
+
+      expect(repo.consultas.last.q, 'barniz');
+      expect(find.textContaining('Ningún producto'), findsNothing);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('R3 · en móvil la cámara va dentro del campo y el código leído queda escrito', (tester) async {
+      String? id;
       final repo = _Repo()
         ..codigo = const CodigoResuelto(
             productoId: 'p9', sku: 'CEM-050', nombre: 'Cemento', factor: 12, esAlterno: true);
       await _montar(tester,
           repo: repo,
           escaner: _Escaner(codigo: 'CAJACEM12'),
-          onSel: (i, f) {
-            id = i;
-            factor = f;
-          });
+          tamano: const Size(390, 844),
+          onSel: (i, _) => id = i);
 
-      await tester.tap(find.bySemanticsLabel('Escanear código'));
+      await tester.tap(find.byKey(const Key('inventario-camara')));
       await tester.pumpAndSettle();
 
       expect(repo.codigosResueltos, ['CAJACEM12']);
-      expect((id, factor), ('p9', 12));
+      expect(id, 'p9');
+      expect(repo.consultas.last.q, 'CEM-050');
     });
 
-    testWidgets('Criterio 3: sin cámara (web) el botón lleva a la captura manual', (tester) async {
-      String? id;
+    testWidgets('R3 · en móvil sin cámara, el ícono lleva a la captura manual', (tester) async {
       final repo = _Repo()
-        ..codigo = const CodigoResuelto(productoId: 'p3', sku: 'X', nombre: 'X', factor: 1, esAlterno: false);
-      await _montar(tester, repo: repo, onSel: (i, _) => id = i);
+        ..codigo = const CodigoResuelto(productoId: 'p3', sku: 'X-1', nombre: 'X', factor: 1, esAlterno: false);
+      await _montar(tester, repo: repo, tamano: const Size(390, 844));
 
-      await tester.tap(find.bySemanticsLabel('Escanear código'));
+      await tester.tap(find.byKey(const Key('inventario-camara')));
       await tester.pumpAndSettle();
       expect(find.text('Ingresar código'), findsOneWidget);
       await tester.enterText(find.byType(TextField).last, 'MANUAL-1');
@@ -187,7 +231,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.codigosResueltos, ['MANUAL-1']);
-      expect(id, 'p3');
     });
 
     testWidgets('Estado vacío y estado de error se ven distintos', (tester) async {
@@ -219,38 +262,54 @@ void main() {
     });
   });
 
-  group('R6/R7 · web: tabla y panel', () {
-    testWidgets('HU-153 C1 · cada fila con SKU, nombre, stock, mínimo, precio y estado; el valorizado al costo', (tester) async {
+  group('R6/R7/R13 · web: encabezado, tarjetas y tabla', () {
+    testWidgets('HU-153 C1 · cada fila con nombre, SKU, stock con unidad, mínimo, precio y estado', (tester) async {
       await _montar(tester);
 
-      expect(find.text('SKU-0'), findsOneWidget);
       expect(find.text('Barniz galón'), findsOneWidget);
-      expect(find.text('BAJO MÍNIMO'), findsOneWidget);
-      expect(find.text('AGOTADO'), findsOneWidget);
-      expect(find.text('EN STOCK'), findsOneWidget);
+      expect(find.text('SKU-0'), findsOneWidget);
+      expect(find.text('3 und'), findsWidgets);
+      expect(find.text('5 und'), findsWidgets);
+      expect(find.text('Tarifa por revisar'), findsOneWidget);
+      expect(find.text('Bajo mínimo'), findsOneWidget);
+      expect(find.text('Agotado'), findsOneWidget);
+      expect(find.text('En stock'), findsOneWidget);
       expect(find.text(formatearPesos(35500)), findsWidgets);
-      expect(find.descendant(of: find.byKey(const Key('panel-valorizado')), matching: find.text(formatearPesos(79500))),
-          findsOneWidget);
-      expect(find.text('al costo promedio'), findsOneWidget);
+    });
+
+    testWidgets('R6 · no hay panel lateral', (tester) async {
+      await _montar(tester);
+      expect(find.byKey(const Key('panel-bodegas')), findsNothing);
+      expect(find.byKey(const Key('panel-valorizado')), findsNothing);
+    });
+
+    testWidgets('R13 · las cuatro tarjetas: valorizado al costo, productos, bodegas activas y tarifas por revisar', (tester) async {
+      await _montar(tester);
+
+      Finder en(String tarjeta, String texto) =>
+          find.descendant(of: find.byKey(Key(tarjeta)), matching: find.text(texto));
+      expect(en('tarjeta-valorizado', formatearPesos(79500)), findsOneWidget);
+      expect(en('tarjeta-valorizado', 'Al costo promedio'), findsOneWidget);
+      expect(en('tarjeta-productos', '3'), findsOneWidget);
+      expect(en('tarjeta-bodegas', '1'), findsOneWidget);
+      expect(en('tarjeta-bodegas', 'Bodega Principal'), findsOneWidget);
+      expect(en('tarjeta-por-revisar', '1'), findsOneWidget);
     });
 
     testWidgets('R11 · sin permiso de costo, el valorizado es a precio de venta', (tester) async {
       await _montar(tester, repo: _Repo()..valorCosto = null);
 
-      expect(find.descendant(of: find.byKey(const Key('panel-valorizado')), matching: find.text(formatearPesos(106500))),
-          findsOneWidget);
-      expect(find.text('a precio de venta'), findsOneWidget);
+      Finder en(String texto) =>
+          find.descendant(of: find.byKey(const Key('tarjeta-valorizado')), matching: find.text(texto));
+      expect(en(formatearPesos(106500)), findsOneWidget);
+      expect(en('A precio de venta'), findsOneWidget);
     });
 
-    testWidgets('R9 · elegir una fila muestra su existencia por bodega en el panel', (tester) async {
-      await _montar(tester);
-
-      await tester.tap(find.text('Barniz galón'));
+    testWidgets('R13 · tocar «Tarifas por revisar» filtra por ellas', (tester) async {
+      final repo = await _montar(tester);
+      await tester.tap(find.byKey(const Key('tarjeta-por-revisar')));
       await tester.pumpAndSettle();
-
-      final panel = find.byKey(const Key('panel-bodegas'));
-      expect(find.descendant(of: panel, matching: find.text('Principal')), findsOneWidget);
-      expect(find.descendant(of: panel, matching: find.text('Bodega 2')), findsOneWidget);
+      expect(repo.consultas.last.tarifaPorRevisar, isTrue);
     });
   });
 
@@ -265,6 +324,8 @@ void main() {
         await tester.pumpAndSettle();
       }
 
+      await elegir('filtro-bajo-minimo');
+      expect(repo.consultas.last.soloBajoMinimo, isTrue);
       await elegir('filtro-por-revisar');
       expect(repo.consultas.last.tarifaPorRevisar, isTrue);
       await elegir('filtro-negativa');
@@ -273,17 +334,17 @@ void main() {
       expect(repo.consultas.last.estado, 'INACTIVOS');
     });
 
-    testWidgets('los chips filtran por categoría y por bajo mínimo, con su conteo', (tester) async {
+    testWidgets('los chips filtran por categoría y «Todas» la quita', (tester) async {
       final repo = await _montar(tester);
 
-      await tester.tap(find.text('PINTURAS'));
+      await tester.tap(find.byKey(const Key('chip-c1')));
       await tester.pumpAndSettle();
       expect(repo.consultas.last.categoriaId, 'c1');
 
-      expect(find.text('BAJO MÍNIMO · 1'), findsOneWidget);
-      await tester.tap(find.text('BAJO MÍNIMO · 1'));
+      await tester.tap(find.byKey(const Key('chip-todas')));
       await tester.pumpAndSettle();
-      expect(repo.consultas.last.soloBajoMinimo, isTrue);
+      expect(repo.consultas.last.categoriaId, isNull);
+      expect(find.text('Más categorías'), findsNothing, reason: 'con dos categorías caben todas');
     });
 
     testWidgets('HU-153 C3 · varias palabras se mandan como búsqueda', (tester) async {
@@ -294,6 +355,12 @@ void main() {
   });
 
   group('HU-154 · tarifa en bloque desde la misma ventana', () {
+    testWidgets('R9 · sin selección ni categoría el botón está deshabilitado', (tester) async {
+      await _montar(tester);
+      final boton = tester.widget<OutlinedButton>(find.byKey(const Key('cambiar-tarifa')));
+      expect(boton.onPressed, isNull);
+    });
+
     testWidgets('HU-154 C1 · cambiar la tarifa de los seleccionados pide confirmar y no cambia el precio', (tester) async {
       final repo = await _montar(tester);
 
@@ -315,7 +382,7 @@ void main() {
     testWidgets('HU-154 C1 · sin selección, con una categoría elegida, cambia la categoría completa', (tester) async {
       final repo = await _montar(tester);
 
-      await tester.tap(find.text('PINTURAS'));
+      await tester.tap(find.byKey(const Key('chip-c1')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('cambiar-tarifa')));
       await tester.pumpAndSettle();
@@ -331,24 +398,34 @@ void main() {
     });
   });
 
-  group('R10 · las demás opciones en un solo menú', () {
-    testWidgets('Más opciones trae unidades, fracciones, equivalencias e importar', (tester) async {
+  group('R10 · Herramientas', () {
+    testWidgets('trae Configuración (unidades, fracciones, equivalencias) y Datos (importar)', (tester) async {
       await _montar(tester);
 
-      await tester.tap(find.byKey(const Key('inventario-mas')));
+      await tester.tap(find.byKey(const Key('inventario-herramientas')));
       await tester.pumpAndSettle();
 
+      expect(find.text('CONFIGURACIÓN'), findsOneWidget);
       expect(find.text('Unidades de medida'), findsOneWidget);
       expect(find.text('Tablas de fracciones'), findsOneWidget);
       expect(find.text('Equivalencias de detallado'), findsOneWidget);
+      expect(find.text('DATOS'), findsOneWidget);
       expect(find.text('Importar desde Excel'), findsOneWidget);
     });
 
-    testWidgets('sin permiso de importar, Importar no aparece', (tester) async {
+    testWidgets('sin permiso de importar, ni Importar ni Datos aparecen', (tester) async {
       await _montar(tester, puedeImportar: false);
-      await tester.tap(find.byKey(const Key('inventario-mas')));
+      await tester.tap(find.byKey(const Key('inventario-herramientas')));
       await tester.pumpAndSettle();
       expect(find.text('Importar desde Excel'), findsNothing);
+      expect(find.text('DATOS'), findsNothing);
+    });
+
+    testWidgets('en móvil las herramientas van en el menú de la barra', (tester) async {
+      await _montar(tester, tamano: const Size(390, 844));
+      await tester.tap(find.byKey(const Key('inventario-herramientas')));
+      await tester.pumpAndSettle();
+      expect(find.text('Unidades de medida'), findsOneWidget);
     });
   });
 
@@ -394,7 +471,7 @@ void main() {
       String? agregado;
       await _montar(tester, tamano: const Size(390, 844), onSel: (i, _) => agregado = i);
 
-      expect(find.byKey(const Key('panel-valorizado')), findsNothing);
+      expect(find.byKey(const Key('tarjeta-valorizado')), findsNothing);
       await tester.tap(find.text('Barniz galón'));
       await tester.pumpAndSettle();
       expect(find.text('Ver o editar ficha'), findsOneWidget);

@@ -17,9 +17,11 @@ import com.regenta.inventario.domain.Categoria;
 import com.regenta.inventario.domain.Existencia;
 import com.regenta.inventario.domain.NivelStock;
 import com.regenta.inventario.domain.Producto;
+import com.regenta.inventario.domain.UnidadMedida;
 import com.regenta.inventario.infrastructure.CategoriaRepositorio;
 import com.regenta.inventario.infrastructure.ExistenciaRepositorio;
 import com.regenta.inventario.infrastructure.ProductoRepositorio;
+import com.regenta.inventario.infrastructure.UnidadMedidaRepositorio;
 import com.regenta.shared.security.RequierePermiso;
 import com.regenta.shared.tenancy.ContextoDeNegocio;
 
@@ -31,7 +33,8 @@ import com.regenta.shared.tenancy.ContextoDeNegocio;
  * <li>Valor a precio = existencia × precio de la etiqueta, con IVA incluido (I2).</li>
  * <li>Los totales son de todo lo filtrado, no solo de la página.</li>
  * </ul>
- * Lee productos y existencias del negocio de una vez: dos consultas, no una por producto.
+ * Lee productos, existencias, categorías y unidades del negocio de una vez, no una consulta por
+ * producto.
  * Es la fuente de la pantalla de Inventario, así que basta INVENTARIO_PRODUCTO_VER; el costo
  * solo lo ve quien tiene INVENTARIO_EXISTENCIA_VER.
  */
@@ -41,12 +44,14 @@ public class InventarioGeneral {
     private final ProductoRepositorio productos;
     private final ExistenciaRepositorio existencias;
     private final CategoriaRepositorio categorias;
+    private final UnidadMedidaRepositorio unidades;
 
     public InventarioGeneral(ProductoRepositorio productos, ExistenciaRepositorio existencias,
-            CategoriaRepositorio categorias) {
+            CategoriaRepositorio categorias, UnidadMedidaRepositorio unidades) {
         this.productos = productos;
         this.existencias = existencias;
         this.categorias = categorias;
+        this.unidades = unidades;
     }
 
     @Transactional(readOnly = true)
@@ -57,6 +62,8 @@ public class InventarioGeneral {
         Map<UUID, String> nombreDeCategoria = categorias
                 .findByNegocioIdOrderByNivelAscOrdenAscNombreAsc(negocioId).stream()
                 .collect(Collectors.toMap(Categoria::getId, Categoria::getNombre));
+        Map<UUID, String> codigoDeUnidad = unidades.findByNegocioIdOrderByCodigo(negocioId).stream()
+                .collect(Collectors.toMap(UnidadMedida::getId, UnidadMedida::getCodigo));
         Map<UUID, List<Existencia>> porProducto = new HashMap<>();
         for (Existencia e : existencias.findByNegocioId(negocioId)) {
             if (filtro.bodegaId() == null || filtro.bodegaId().equals(e.getBodegaId())) {
@@ -92,7 +99,8 @@ public class InventarioGeneral {
                     nombreDeCategoria.getOrDefault(p.getCategoriaId(), ""), p.getTarifaIva(),
                     p.isTarifaPorRevisar(), existencia, veCosto ? costo : null, p.getPrecioVenta(),
                     veCosto ? existencia.multiply(costo) : null,
-                    existencia.multiply(p.getPrecioVenta()), p.isActivo(), p.getStockMinimo(), nivel));
+                    existencia.multiply(p.getPrecioVenta()), p.isActivo(), p.getStockMinimo(), nivel,
+                    codigoDeUnidad.getOrDefault(p.getUnidadMedidaId(), "")));
         }
 
         BigDecimal valorCosto = !veCosto ? null : filas.stream().map(FilaDeInventario::valorCosto)
@@ -103,7 +111,8 @@ public class InventarioGeneral {
         int desde = Math.min(Math.max(filtro.pagina(), 0) * tamano, filas.size());
         int hasta = Math.min(desde + tamano, filas.size());
         return new InventarioDelNegocio(filas.subList(desde, hasta), filas.size(), valorCosto,
-                valorPrecio, bajoMinimo);
+                valorPrecio, bajoMinimo,
+                (int) filas.stream().filter(FilaDeInventario::tarifaPorRevisar).count());
     }
 
     /** Agotado sin existencia; bajo mínimo si hay pero no pasa del mínimo (cuando lo tiene). */

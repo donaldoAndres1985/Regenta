@@ -19,9 +19,11 @@ import com.regenta.inventario.domain.Categoria;
 import com.regenta.inventario.domain.Existencia;
 import com.regenta.inventario.domain.Producto;
 import com.regenta.inventario.domain.TarifaIva;
+import com.regenta.inventario.domain.UnidadMedida;
 import com.regenta.inventario.infrastructure.CategoriaRepositorio;
 import com.regenta.inventario.infrastructure.ExistenciaRepositorio;
 import com.regenta.inventario.infrastructure.ProductoRepositorio;
+import com.regenta.inventario.infrastructure.UnidadMedidaRepositorio;
 import com.regenta.shared.tenancy.ContextoDeNegocio;
 import com.regenta.shared.tenancy.DatosDelNegocio;
 
@@ -31,8 +33,9 @@ class InventarioGeneralTest {
     private final ProductoRepositorio productos = mock(ProductoRepositorio.class);
     private final ExistenciaRepositorio existencias = mock(ExistenciaRepositorio.class);
     private final CategoriaRepositorio categorias = mock(CategoriaRepositorio.class);
+    private final UnidadMedidaRepositorio unidades = mock(UnidadMedidaRepositorio.class);
     private final InventarioGeneral inventario =
-            new InventarioGeneral(productos, existencias, categorias);
+            new InventarioGeneral(productos, existencias, categorias, unidades);
 
     private final UUID negocioId = UUID.randomUUID();
     private final UUID principal = UUID.randomUUID();
@@ -190,6 +193,33 @@ class InventarioGeneralTest {
                 new FiltroDeInventario(null, null, null, false, false, null, 0, 50, true));
         assertThat(bajos.filas()).extracting(FilaDeInventario::sku).containsExactly("BAR-1");
         assertThat(bajos.totalFilas()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Inventario · Cada fila trae el código de su unidad de medida, para leer «116 und»")
+    void cadaFilaTraeSuUnidad() {
+        UnidadMedida gln = mock(UnidadMedida.class);
+        when(gln.getId()).thenReturn(barniz.getUnidadMedidaId());
+        when(gln.getCodigo()).thenReturn("GLN");
+        when(unidades.findByNegocioIdOrderByCodigo(negocioId)).thenReturn(List.of(gln));
+
+        InventarioDelNegocio r = inventario.consultar(filtro());
+
+        assertThat(r.filas()).filteredOn(f -> f.sku().equals("BAR-1")).extracting(FilaDeInventario::unidad)
+                .containsExactly("GLN");
+        assertThat(r.filas()).filteredOn(f -> f.sku().equals("MAR-1")).extracting(FilaDeInventario::unidad)
+                .containsExactly("");
+    }
+
+    @Test
+    @DisplayName("Inventario · Cuenta cuántos de lo filtrado tienen la tarifa por revisar (tarjeta «Tarifas por revisar»)")
+    void cuentaLasTarifasPorRevisar() {
+        org.springframework.test.util.ReflectionTestUtils.setField(barniz, "tarifaPorRevisar", true);
+        org.springframework.test.util.ReflectionTestUtils.setField(viejo, "tarifaPorRevisar", true);
+
+        assertThat(inventario.consultar(filtro()).porRevisar()).isEqualTo(1);
+        assertThat(inventario.consultar(new FiltroDeInventario(null, herramientas, null, false, false,
+                null, 0, 50)).porRevisar()).isZero();
     }
 
     @Test
