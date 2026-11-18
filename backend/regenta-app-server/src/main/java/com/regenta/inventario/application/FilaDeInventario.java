@@ -8,7 +8,8 @@ import com.regenta.inventario.domain.TarifaIva;
 
 /**
  * HU-153 C1 · un producto del inventario general. {@code precio} incluye IVA. {@code costo} y
- * {@code valorCosto} van nulos para quien no tiene INVENTARIO_EXISTENCIA_VER.
+ * {@code valorCosto} van nulos para quien no tiene INVENTARIO_EXISTENCIA_VER. {@code unidad} es el
+ * código de su unidad de medida («UND», «GLN»), vacío si no se encuentra.
  */
 public record FilaDeInventario(
         UUID id,
@@ -24,5 +25,6 @@ public record FilaDeInventario(
         BigDecimal valorPrecio,
         boolean activo,
         BigDecimal stockMinimo,
-        NivelStock nivel) {
+        NivelStock nivel,
+        String unidad) {
 }

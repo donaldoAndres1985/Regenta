@@ -22,6 +22,7 @@ class EstadoDeInventario {
     this.valorCosto,
     this.valorPrecio = 0,
     this.bajoMinimo = 0,
+    this.porRevisar = 0,
     this.cargandoMas = false,
     this.mensajeError,
   });
@@ -33,6 +34,7 @@ class EstadoDeInventario {
   final num? valorCosto;
   final num valorPrecio;
   final int bajoMinimo;
+  final int porRevisar;
   final bool cargandoMas;
   final String? mensajeError;
 
@@ -54,6 +56,7 @@ class EstadoDeInventario {
         valorCosto: totales != null ? totales.valorCosto : valorCosto,
         valorPrecio: totales?.valorPrecio ?? valorPrecio,
         bajoMinimo: totales?.bajoMinimo ?? bajoMinimo,
+        porRevisar: totales?.porRevisar ?? porRevisar,
         cargandoMas: cargandoMas ?? this.cargandoMas,
         mensajeError: mensajeError == _sinCambio ? this.mensajeError : mensajeError as String?,
       );
@@ -86,6 +89,13 @@ class ControladorDeInventario extends StateNotifier<EstadoDeInventario> {
       if (q == state.consulta.q && state.fase != FaseDeInventario.error) return;
       _cargar(state.consulta.conTexto(q));
     });
+  }
+
+  /// R2 · buscar ya, sin esperar el rebote (Enter o un código leído).
+  void buscarYa(String termino) {
+    _temporizador?.cancel();
+    final t = termino.trim();
+    _cargar(state.consulta.conTexto(t.isEmpty ? null : t));
   }
 
   /// Otro filtro: vuelve a la página 0.

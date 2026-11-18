@@ -81,6 +81,7 @@ class FilaDeInventario {
     required this.activo,
     this.stockMinimo = 0,
     this.nivel = 'NORMAL',
+    this.unidad = '',
   });
 
   final String id;
@@ -98,6 +99,9 @@ class FilaDeInventario {
   final num stockMinimo;
   final String nivel;
 
+  /// Código de su unidad de medida («UND», «GLN»); vacío si no se conoce.
+  final String unidad;
+
   factory FilaDeInventario.desdeJson(Map<String, dynamic> j) => FilaDeInventario(
         id: j['id'] as String,
         sku: (j['sku'] ?? '') as String,
@@ -113,6 +117,7 @@ class FilaDeInventario {
         activo: (j['activo'] ?? true) as bool,
         stockMinimo: (j['stockMinimo'] ?? 0) as num,
         nivel: (j['nivel'] ?? 'NORMAL') as String,
+        unidad: (j['unidad'] ?? '') as String,
       );
 }
 
@@ -124,6 +129,7 @@ class ResultadoDeInventario {
     required this.valorCosto,
     required this.valorPrecio,
     this.bajoMinimo = 0,
+    this.porRevisar = 0,
   });
 
   final List<FilaDeInventario> filas;
@@ -134,6 +140,9 @@ class ResultadoDeInventario {
   /// Cuántos de lo filtrado están en su mínimo o por debajo (chip «Bajo mínimo · n»).
   final int bajoMinimo;
 
+  /// Cuántos de lo filtrado tienen la tarifa de IVA sin confirmar (tarjeta, R13).
+  final int porRevisar;
+
   factory ResultadoDeInventario.desdeJson(Map<String, dynamic> j) => ResultadoDeInventario(
         filas: [
           for (final f in ((j['filas'] ?? const []) as List).cast<Map<String, dynamic>>())
@@ -143,5 +152,6 @@ class ResultadoDeInventario {
         valorCosto: j['valorCosto'] as num?,
         valorPrecio: (j['valorPrecio'] ?? 0) as num,
         bajoMinimo: ((j['bajoMinimo'] ?? 0) as num).toInt(),
+        porRevisar: ((j['porRevisar'] ?? 0) as num).toInt(),
       );
 }

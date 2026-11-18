@@ -4,6 +4,7 @@ import 'package:regenta_core/regenta_core.dart';
 
 import '../busqueda/controlador_de_inventario.dart';
 import '../busqueda/proveedores.dart';
+import '../datos/bodega_del_negocio.dart';
 import '../datos/ficha_de_producto.dart';
 import '../datos/importacion.dart';
 import '../datos/inventario_general.dart';
@@ -18,14 +19,13 @@ import 'pantalla_unidades.dart';
 
 /// La pantalla de Inventario, en una sola ventana (`design/comportamiento/Inventario.md`).
 ///
-/// La lista sale del inventario general, de a 50 (R5). En web es la tabla del mockup con el
-/// panel de valorizado, existencias por bodega y bajo mínimo (R6); en móvil, filas apiladas.
-/// Filtros, categorías y bajo mínimo (R8), tarifa en bloque (HU-154), y unidades, fracciones,
-/// equivalencias e importar en el menú «Más opciones» (R10).
+/// En web (R6): encabezado con **Herramientas**, **Cambiar tarifa** y **Nuevo producto**; cuatro
+/// tarjetas de resumen (R13); y una tarjeta con buscador, filtros, chips de categoría y la tabla,
+/// que se carga de a 50 (R5). En móvil, filas apiladas.
 ///
-/// Buscar por nombre, SKU o código; escanear (en Android) o teclear el código (siempre
-/// disponible, y en la web el único camino). Al resolver un código llama a
-/// [onProductoSeleccionado] con el id y el factor de conversión.
+/// No hay botón de escanear: el lector de códigos escribe en el mismo buscador y Enter resuelve
+/// el código (R2); en móvil la cámara es un ícono dentro del campo (R3). Al resolver un código
+/// llama a [onProductoSeleccionado] con el id y el factor de conversión.
 class PantallaInventario extends ConsumerStatefulWidget {
   const PantallaInventario({
     super.key,
@@ -51,18 +51,23 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
   final Set<String> _seleccion = {};
   List<OpcionDeFicha> _categorias = const [];
 
-  /// R9 · el producto elegido y su existencia en cada bodega (panel web).
-  FilaDeInventario? _elegida;
-  List<(String, num)>? _existencias;
+  /// R13 · las bodegas activas; nulo mientras cargan.
+  List<BodegaDelNegocio>? _bodegas;
 
   @override
   void initState() {
     super.initState();
     _scroll.addListener(_alHacerScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _foco.requestFocus());
-    ref.read(repositorioDeInventarioProvider).categorias().then((c) {
+    final repo = ref.read(repositorioDeInventarioProvider);
+    repo.categorias().then((c) {
       if (mounted) setState(() => _categorias = c);
     }).catchError((Object _) {});
+    repo.bodegas().then((b) {
+      if (mounted) setState(() => _bodegas = b.where((x) => x.activa).toList());
+    }).catchError((Object _) {
+      if (mounted) setState(() => _bodegas = const []);
+    });
   }
 
   @override
@@ -82,50 +87,46 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
     }
   }
 
+  /// R3 · la cámara (o el código a mano) escribe en el buscador y se resuelve como R2.
   Future<void> _escanear() async {
     final escaner = ref.read(escanerProvider);
-    if (await escaner.disponible) {
+    String? codigo;
+    var tieneCamara = await escaner.disponible;
+    if (tieneCamara) {
       try {
         if (!mounted) return;
-        final codigo = await escaner.escanearUnCodigo(context);
-        if (codigo != null && codigo.isNotEmpty) await _resolver(codigo);
-        return; // escaneó, o canceló la cámara a propósito
+        codigo = await escaner.escanearUnCodigo(context);
       } on EscaneoNoDisponible {
-        // la cámara falló: cae al ingreso manual
+        tieneCamara = false; // la cámara falló: cae al ingreso manual
       }
     }
-    if (!mounted) return;
-    final codigo = await pedirCodigoAMano(context);
-    if (codigo != null && codigo.isNotEmpty) await _resolver(codigo);
+    if (!tieneCamara) {
+      if (!mounted) return;
+      codigo = await pedirCodigoAMano(context);
+    }
+    if (codigo == null || codigo.isEmpty || !mounted) return;
+    _buscador.text = codigo;
+    await _alEnviar(codigo);
   }
 
-  Future<void> _resolver(String codigo) async {
+  /// R2 · Enter (o el lector) en el buscador: si es un código, filtra a su SKU y entrega el
+  /// producto con su factor; si no, busca el texto de una vez.
+  Future<void> _alEnviar(String texto) async {
+    final t = texto.trim();
+    _controlador.buscarYa(t);
+    if (t.isEmpty) return;
     try {
-      final resuelto = await ref.read(repositorioDeInventarioProvider).resolverCodigo(codigo);
-      widget.onProductoSeleccionado(resuelto.productoId, resuelto.factor);
-    } on ErrorDeApi catch (e) {
+      final resuelto = await ref.read(repositorioDeInventarioProvider).resolverCodigo(t);
       if (!mounted) return;
-      final sinCodigo = e is ErrorDesconocido && e.codigo == 404;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(sinCodigo ? 'Ningún producto tiene el código «$codigo».' : e.mensaje),
-      ));
+      _buscador.text = resuelto.sku;
+      _controlador.buscarYa(resuelto.sku);
+      widget.onProductoSeleccionado(resuelto.productoId, resuelto.factor);
+    } on ErrorDeApi {
+      // No es un código: queda como búsqueda por texto.
     }
   }
 
   // ---- acciones sobre productos ----
-
-  Future<void> _elegir(FilaDeInventario f) async {
-    setState(() {
-      _elegida = f;
-      _existencias = null;
-    });
-    try {
-      final e = await ref.read(repositorioDeInventarioProvider).existenciasDe(f.id);
-      if (mounted && _elegida?.id == f.id) setState(() => _existencias = e);
-    } on ErrorDeApi {
-      if (mounted && _elegida?.id == f.id) setState(() => _existencias = const []);
-    }
-  }
 
   Future<void> _abrirFicha(String productoId) async {
     await Navigator.of(context).push(MaterialPageRoute<void>(
@@ -143,8 +144,23 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
   void _alternarSeleccion(String id) =>
       setState(() => _seleccion.contains(id) ? _seleccion.remove(id) : _seleccion.add(id));
 
+  void _alternarTodas(List<FilaDeInventario> filas) => setState(() {
+        final todas = filas.isNotEmpty && filas.every((f) => _seleccion.contains(f.id));
+        todas ? _seleccion.clear() : _seleccion.addAll(filas.map((f) => f.id));
+      });
+
+  void _herramienta(String opcion) => switch (opcion) {
+        'unidades' => _abrir(const PantallaUnidades()),
+        'fracciones' => _abrir(const PantallaTablasDeFracciones()),
+        'equivalencias' => _abrir(const PantallaEquivalencias()),
+        'importar' => _abrir(const PantallaImportacion()),
+        _ => null,
+      };
+
   void _abrir(Widget pantalla) =>
       Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => pantalla));
+
+  bool _puedeCambiarTarifa(ConsultaDeInventario c) => _seleccion.isNotEmpty || c.categoriaId != null;
 
   /// HU-154 C1 · elegir la tarifa, confirmar con cuántos productos y aplicar.
   Future<void> _cambiarTarifa() async {
@@ -221,17 +237,21 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
       final web = c.maxWidth >= kBreakpointEscritorio;
       return Scaffold(
         backgroundColor: RegentaColors.paper,
-        appBar: _Barra(
-          titulo: widget.titulo,
-          puedeImportar: puedeImportar,
-          onOpcion: (o) => switch (o) {
-            'unidades' => _abrir(const PantallaUnidades()),
-            'fracciones' => _abrir(const PantallaTablasDeFracciones()),
-            'equivalencias' => _abrir(const PantallaEquivalencias()),
-            'importar' => _abrir(const PantallaImportacion()),
-            _ => null,
-          },
-        ),
+        appBar: web
+            ? null
+            : AppBar(
+                backgroundColor: RegentaColors.surface,
+                surfaceTintColor: RegentaColors.surface,
+                elevation: 0,
+                shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
+                title: Text(widget.titulo,
+                    style: RegentaType.seccion.copyWith(
+                        fontSize: 17, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
+                actions: [
+                  _MenuHerramientas(puedeImportar: puedeImportar, compacto: true, onOpcion: _herramienta),
+                  const SizedBox(width: 6),
+                ],
+              ),
         floatingActionButton: web
             ? null
             : FloatingActionButton.extended(
@@ -243,198 +263,279 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
                 label: const Text('Nuevo producto'),
               ),
         bottomNavigationBar: web ? null : _BottomNav(onNavegar: widget.onNavegar),
-        body: web ? _web(estado) : _movil(estado),
+        body: web ? _web(estado, puedeImportar) : _movil(estado),
       );
     });
   }
 
-  Widget _barraDeHerramientas(EstadoDeInventario estado, {required bool web}) => Row(children: [
-        Expanded(
-          child: SizedBox(
-            height: 36,
-            child: TextField(
-              key: const Key('inventario-buscar'),
-              controller: _buscador,
-              focusNode: _foco,
-              onChanged: _controlador.cambiarTermino,
-              style: RegentaType.cuerpo.copyWith(fontSize: 13.5, color: RegentaColors.ink),
-              decoration: InputDecoration(
-                isDense: true,
-                filled: true,
-                fillColor: RegentaColors.surface,
-                prefixIcon: const Icon(Icons.search, size: 16, color: RegentaColors.faint),
-                hintText: 'Nombre, SKU o código de barras…',
-                hintStyle: RegentaType.cuerpo.copyWith(fontSize: 13.5, color: RegentaColors.faint),
-                contentPadding: const EdgeInsets.symmetric(vertical: 9),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(5),
-                  borderSide: const BorderSide(color: RegentaColors.line2),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(5),
-                  borderSide: const BorderSide(color: RegentaColors.line2),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Semantics(
-          button: true,
-          label: 'Escanear código',
-          child: InkWell(
-            key: const Key('inventario-escanear'),
-            onTap: _escanear,
-            borderRadius: BorderRadius.circular(4),
+  // ---- web ----
+
+  Widget _web(EstadoDeInventario estado, bool puedeImportar) => Padding(
+        padding: const EdgeInsets.fromLTRB(28, 22, 28, 22),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          _encabezado(estado, puedeImportar),
+          const SizedBox(height: 18),
+          _tarjetas(estado),
+          const SizedBox(height: 18),
+          Expanded(
             child: Container(
-              width: 36,
-              height: 36,
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: RegentaColors.surface,
-                border: Border.all(color: RegentaColors.line2),
-                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: RegentaColors.line),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.qr_code_scanner, size: 18, color: RegentaColors.ink),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        _BotonFiltros(
-          consulta: estado.consulta,
-          soloIcono: !web,
-          onCambio: _controlador.filtrar,
-        ),
-        if (web) ...[
-          const SizedBox(width: 10),
-          SizedBox(
-            height: 36,
-            child: FilledButton.icon(
-              key: const Key('inventario-nuevo'),
-              onPressed: _nuevoProducto,
-              style: FilledButton.styleFrom(
-                backgroundColor: RegentaColors.accent,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                textStyle: RegentaType.cuerpo.copyWith(fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Nuevo producto'),
-            ),
-          ),
-        ],
-      ]);
-
-  Widget _chips(EstadoDeInventario estado) {
-    final consulta = estado.consulta;
-    final puedeCambiarTarifa = _seleccion.isNotEmpty || consulta.categoriaId != null;
-    return Row(children: [
-      Expanded(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(children: [
-            _Chip(
-              texto: 'Todas las categorías',
-              activo: consulta.categoriaId == null && !consulta.soloBajoMinimo,
-              onTap: () => _controlador
-                  .filtrar(consulta.copiar(categoriaId: null, soloBajoMinimo: false)),
-            ),
-            for (final c in _categorias) ...[
-              const SizedBox(width: 7),
-              _Chip(
-                texto: c.nombre,
-                activo: consulta.categoriaId == c.id,
-                onTap: () => _controlador.filtrar(consulta.copiar(
-                    categoriaId: consulta.categoriaId == c.id ? null : c.id)),
-              ),
-            ],
-            const SizedBox(width: 7),
-            _Chip(
-              texto: 'Bajo mínimo · ${estado.bajoMinimo}',
-              activo: consulta.soloBajoMinimo,
-              tono: _TonoChip.critico,
-              onTap: () => _controlador
-                  .filtrar(consulta.copiar(soloBajoMinimo: !consulta.soloBajoMinimo)),
-            ),
-          ]),
-        ),
-      ),
-      if (puedeCambiarTarifa) ...[
-        const SizedBox(width: 10),
-        TextButton.icon(
-          key: const Key('cambiar-tarifa'),
-          onPressed: _cambiarTarifa,
-          icon: const Icon(Icons.percent, size: 16),
-          label: Text(_seleccion.isEmpty
-              ? 'Cambiar tarifa de la categoría'
-              : 'Cambiar tarifa (${_seleccion.length})'),
-        ),
-      ],
-    ]);
-  }
-
-  Widget _web(EstadoDeInventario estado) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              _barraDeHerramientas(estado, web: true),
-              const SizedBox(height: 12),
-              _chips(estado),
-              const SizedBox(height: 14),
-              Expanded(
-                child: Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: RegentaColors.surface,
-                    border: Border.all(color: RegentaColors.line),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Column(children: [
-                    const _EncabezadoDeTabla(),
-                    Expanded(child: _cuerpo(estado, web: true)),
-                  ]),
-                ),
-              ),
-            ]),
-          ),
-          const SizedBox(width: 16),
-          SizedBox(
-            width: 308,
-            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                _PanelValorizado(estado: estado),
-                const SizedBox(height: 14),
-                _PanelBodegas(
-                  elegida: _elegida,
-                  existencias: _existencias,
-                  onFicha: _elegida == null ? null : () => _abrirFicha(_elegida!.id),
-                ),
-                if (estado.bajoMinimo > 0) ...[
-                  const SizedBox(height: 14),
-                  _PanelBajoMinimo(
-                    cuantos: estado.bajoMinimo,
-                    onVer: () => _controlador
-                        .filtrar(estado.consulta.copiar(soloBajoMinimo: true)),
+                Row(children: [
+                  Expanded(child: _campoDeBusqueda(web: true)),
+                  const SizedBox(width: 10),
+                  _BotonFiltros(
+                    consulta: estado.consulta,
+                    bajoMinimo: estado.bajoMinimo,
+                    soloIcono: false,
+                    onCambio: _controlador.filtrar,
                   ),
-                ],
+                ]),
+                const SizedBox(height: 12),
+                _chips(estado.consulta),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: Container(
+                    clipBehavior: Clip.antiAlias,
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: RegentaColors.line),
+                        left: BorderSide(color: RegentaColors.line),
+                        right: BorderSide(color: RegentaColors.line),
+                      ),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+                    ),
+                    child: Column(children: [
+                      _EncabezadoDeTabla(
+                        todas: estado.filas.isNotEmpty &&
+                            estado.filas.every((f) => _seleccion.contains(f.id)),
+                        onTodas: () => _alternarTodas(estado.filas),
+                      ),
+                      Expanded(child: _cuerpo(estado, web: true)),
+                    ]),
+                  ),
+                ),
               ]),
             ),
           ),
         ]),
       );
 
+  Widget _encabezado(EstadoDeInventario estado, bool puedeImportar) {
+    final consulta = estado.consulta;
+    return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Regenta / ${widget.titulo}',
+              style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.muted)),
+          const SizedBox(height: 4),
+          Text(widget.titulo,
+              style: RegentaType.tituloPantalla.copyWith(
+                  fontSize: 26, fontWeight: FontWeight.w700, color: RegentaColors.ink)),
+        ]),
+      ),
+      _MenuHerramientas(puedeImportar: puedeImportar, compacto: false, onOpcion: _herramienta),
+      const SizedBox(width: 10),
+      SizedBox(
+        height: 38,
+        child: OutlinedButton.icon(
+          key: const Key('cambiar-tarifa'),
+          onPressed: _puedeCambiarTarifa(consulta) ? _cambiarTarifa : null,
+          style: _estiloSecundario,
+          icon: const Icon(Icons.percent, size: 16),
+          label: Text(_seleccion.isEmpty
+              ? 'Cambiar tarifa de la categoría'
+              : 'Cambiar tarifa (${_seleccion.length})'),
+        ),
+      ),
+      const SizedBox(width: 10),
+      SizedBox(
+        height: 38,
+        child: FilledButton.icon(
+          key: const Key('inventario-nuevo'),
+          onPressed: _nuevoProducto,
+          style: FilledButton.styleFrom(
+            backgroundColor: RegentaColors.accent,
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            textStyle: RegentaType.cuerpo.copyWith(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text('Nuevo producto'),
+        ),
+      ),
+    ]);
+  }
+
+  /// R13 · valorizado, productos, bodegas y tarifas por revisar.
+  Widget _tarjetas(EstadoDeInventario estado) {
+    final cargando = estado.fase == FaseDeInventario.cargando && estado.filas.isEmpty;
+    String o(String v) => cargando ? '—' : v;
+    final alCosto = estado.valorCosto != null;
+    final bodegas = _bodegas;
+    final porRevisar = estado.consulta.tarifaPorRevisar;
+    return IntrinsicHeight(
+      child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Expanded(
+          child: _Tarjeta(
+            clave: 'tarjeta-valorizado',
+            titulo: 'Inventario valorizado',
+            valor: o(formatearPesos(alCosto ? estado.valorCosto! : estado.valorPrecio)),
+            pie: alCosto ? 'Al costo promedio' : 'A precio de venta',
+            tono: _TonoTarjeta.acento,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: _Tarjeta(
+            clave: 'tarjeta-productos',
+            titulo: 'Productos',
+            valor: o('${estado.totalFilas}'),
+            pie: 'En el inventario valorizado',
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: _Tarjeta(
+            clave: 'tarjeta-bodegas',
+            titulo: 'Bodegas',
+            valor: bodegas == null ? '—' : '${bodegas.length}',
+            pie: bodegas == null || bodegas.isEmpty ? ' ' : bodegas.map((b) => b.nombre).join(', '),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: _Tarjeta(
+            clave: 'tarjeta-por-revisar',
+            titulo: 'Tarifas por revisar',
+            valor: o('${estado.porRevisar}'),
+            pie: porRevisar ? 'Filtrando: toca para quitar' : 'Productos sin tarifa confirmada',
+            tono: _TonoTarjeta.aviso,
+            activa: porRevisar,
+            onTap: () => _controlador.filtrar(estado.consulta.copiar(tarifaPorRevisar: !porRevisar)),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // ---- buscador y chips (web y móvil) ----
+
+  Widget _campoDeBusqueda({required bool web}) {
+    final borde = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: RegentaColors.line),
+    );
+    return SizedBox(
+      height: 40,
+      child: TextField(
+        key: const Key('inventario-buscar'),
+        controller: _buscador,
+        focusNode: _foco,
+        textInputAction: TextInputAction.search,
+        onChanged: _controlador.cambiarTermino,
+        onSubmitted: _alEnviar,
+        style: RegentaType.cuerpo.copyWith(fontSize: 13.5, color: RegentaColors.ink),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: RegentaColors.sunken,
+          prefixIcon: const Icon(Icons.search, size: 18, color: RegentaColors.faint),
+          suffixIcon: web
+              ? null
+              : IconButton(
+                  key: const Key('inventario-camara'),
+                  tooltip: 'Escanear con la cámara',
+                  icon: const Icon(Icons.photo_camera_outlined, size: 20, color: RegentaColors.ink2),
+                  onPressed: _escanear,
+                ),
+          hintText: 'Buscar por nombre, SKU o código de barras',
+          hintStyle: RegentaType.cuerpo.copyWith(fontSize: 13.5, color: RegentaColors.faint),
+          contentPadding: const EdgeInsets.symmetric(vertical: 11),
+          border: borde,
+          enabledBorder: borde,
+        ),
+      ),
+    );
+  }
+
+  static const _chipsVisibles = 8;
+
+  Widget _chips(ConsultaDeInventario consulta) {
+    final elegida = consulta.categoriaId;
+    final visibles = _categorias.take(_chipsVisibles).toList();
+    final resto = _categorias.skip(_chipsVisibles).toList();
+    final elegidaEnResto = resto.where((c) => c.id == elegida).firstOrNull;
+    if (elegidaEnResto != null) visibles.add(elegidaEnResto);
+    void elegir(String? id) => _controlador.filtrar(consulta.copiar(categoriaId: id));
+    return Wrap(spacing: 8, runSpacing: 8, children: [
+      _Chip(
+        clave: 'chip-todas',
+        texto: 'Todas',
+        activo: elegida == null,
+        onTap: () => elegir(null),
+      ),
+      for (final c in visibles)
+        _Chip(
+          clave: 'chip-${c.id}',
+          texto: c.nombre,
+          activo: elegida == c.id,
+          onTap: () => elegir(elegida == c.id ? null : c.id),
+        ),
+      if (resto.isNotEmpty)
+        PopupMenuButton<String>(
+          key: const Key('chip-mas'),
+          tooltip: 'Más categorías',
+          onSelected: elegir,
+          itemBuilder: (_) => [
+            for (final c in resto) PopupMenuItem(value: c.id, child: Text(c.nombre)),
+          ],
+          child: const _Chip(texto: 'Más categorías', activo: false),
+        ),
+    ]);
+  }
+
+  // ---- móvil ----
+
   Widget _movil(EstadoDeInventario estado) => Column(children: [
         Container(
           color: RegentaColors.surface,
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-          child: Column(children: [
-            _barraDeHerramientas(estado, web: false),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(children: [
+              Expanded(child: _campoDeBusqueda(web: false)),
+              const SizedBox(width: 8),
+              _BotonFiltros(
+                consulta: estado.consulta,
+                bajoMinimo: estado.bajoMinimo,
+                soloIcono: true,
+                onCambio: _controlador.filtrar,
+              ),
+            ]),
             const SizedBox(height: 10),
-            _chips(estado),
+            SingleChildScrollView(scrollDirection: Axis.horizontal, child: _chips(estado.consulta)),
+            if (_seleccion.isNotEmpty)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: const Key('cambiar-tarifa'),
+                  onPressed: _cambiarTarifa,
+                  icon: const Icon(Icons.percent, size: 16),
+                  label: Text('Cambiar tarifa (${_seleccion.length})'),
+                ),
+              ),
           ]),
         ),
         Expanded(child: _cuerpo(estado, web: false)),
       ]);
+
+  // ---- lista ----
 
   Widget _cuerpo(EstadoDeInventario estado, {required bool web}) {
     switch (estado.fase) {
@@ -457,6 +558,7 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
         );
       case FaseDeInventario.conDatos:
         final n = estado.filas.length + (estado.hayMas ? 1 : 0);
+        final maximo = estado.filas.fold<num>(0, (m, f) => f.existencia > m ? f.existencia : m);
         return ListView.builder(
           key: const Key('inventario-lista'),
           controller: _scroll,
@@ -469,9 +571,9 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
             return web
                 ? _FilaWeb(
                     fila: f,
-                    elegida: _elegida?.id == f.id,
+                    maximo: maximo,
                     seleccionada: seleccionada,
-                    onTap: () => _elegir(f),
+                    onTap: () => _abrirFicha(f.id),
                     onSeleccion: () => _alternarSeleccion(f.id),
                     onFicha: () => _abrirFicha(f.id),
                     onVender: () => _agregarAVenta(f),
@@ -519,7 +621,7 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
             Text('Categoría: ${f.categoria.isEmpty ? 'General' : f.categoria}',
                 style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2)),
             const SizedBox(height: 4),
-            Text('Existencia: ${formatearCantidad(f.existencia)} · mínimo ${formatearCantidad(f.stockMinimo)}',
+            Text('Existencia: ${_cantidad(f.existencia, f.unidad)} · mínimo ${_cantidad(f.stockMinimo, f.unidad)}',
                 style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2)),
             const SizedBox(height: 16),
             Text(formatearPesos(f.precio),
@@ -560,77 +662,199 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
   }
 }
 
+/// «3 und», «2,5 gln»: la cantidad con el código de su unidad.
+String _cantidad(num n, String unidad) {
+  final v = n == n.roundToDouble() ? n.round() : n;
+  return '$v ${unidad.isEmpty ? 'und' : unidad.toLowerCase()}';
+}
+
+ButtonStyle get _estiloSecundario => OutlinedButton.styleFrom(
+      foregroundColor: RegentaColors.ink,
+      backgroundColor: RegentaColors.surface,
+      side: const BorderSide(color: RegentaColors.line2),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      textStyle: RegentaType.cuerpo.copyWith(fontSize: 13, fontWeight: FontWeight.w600),
+    );
+
 // ---------------------------------------------------------------------------
-// Barra superior y menús
+// Encabezado: Herramientas y tarjetas
 // ---------------------------------------------------------------------------
 
-class _Barra extends StatelessWidget implements PreferredSizeWidget {
-  const _Barra({required this.titulo, required this.puedeImportar, required this.onOpcion});
+/// R10 · Configuración (unidades, fracciones, equivalencias) y Datos (importar).
+class _MenuHerramientas extends StatelessWidget {
+  const _MenuHerramientas({required this.puedeImportar, required this.compacto, required this.onOpcion});
 
-  final String titulo;
   final bool puedeImportar;
+  final bool compacto;
   final void Function(String opcion) onOpcion;
 
   @override
-  Size get preferredSize => const Size.fromHeight(56);
-
-  @override
   Widget build(BuildContext context) {
-    return AppBar(
-      backgroundColor: RegentaColors.surface,
-      surfaceTintColor: RegentaColors.surface,
-      elevation: 0,
-      shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
-      titleSpacing: 22,
-      title: Row(children: [
-        Text('Regenta', style: RegentaType.codigo.copyWith(fontSize: 11, color: RegentaColors.muted)),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10),
-          child: Icon(Icons.chevron_right, size: 14, color: RegentaColors.faint),
-        ),
-        Text(titulo,
-            style: RegentaType.seccion.copyWith(
-                fontSize: 17, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
-      ]),
-      actions: [
-        // R10 · las demás opciones del inventario, en un solo menú.
-        PopupMenuButton<String>(
-          key: const Key('inventario-mas'),
-          tooltip: 'Más opciones',
-          icon: const Icon(Icons.more_vert, color: RegentaColors.ink2),
-          onSelected: onOpcion,
-          itemBuilder: (_) => [
-            _opcion('unidades', Icons.straighten, 'Unidades de medida'),
-            _opcion('fracciones', Icons.pie_chart_outline, 'Tablas de fracciones'),
-            _opcion('equivalencias', Icons.call_split, 'Equivalencias de detallado'),
-            if (puedeImportar) _opcion('importar', Icons.upload_file, 'Importar desde Excel'),
-          ],
-        ),
-        const SizedBox(width: 14),
+    return PopupMenuButton<String>(
+      key: const Key('inventario-herramientas'),
+      tooltip: 'Herramientas',
+      position: PopupMenuPosition.under,
+      onSelected: onOpcion,
+      itemBuilder: (_) => [
+        _seccion('Configuración'),
+        _opcion('unidades', Icons.straighten, 'Unidades de medida'),
+        _opcion('fracciones', Icons.pie_chart_outline, 'Tablas de fracciones'),
+        _opcion('equivalencias', Icons.call_split, 'Equivalencias de detallado'),
+        if (puedeImportar) ...[
+          const PopupMenuDivider(),
+          _seccion('Datos'),
+          _opcion('importar', Icons.upload_file, 'Importar desde Excel'),
+        ],
       ],
+      icon: compacto ? const Icon(Icons.more_vert, color: RegentaColors.ink2) : null,
+      child: compacto
+          ? null
+          : Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: RegentaColors.surface,
+                border: Border.all(color: RegentaColors.line2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.settings_outlined, size: 16, color: RegentaColors.ink),
+                const SizedBox(width: 8),
+                Text('Herramientas',
+                    style: RegentaType.cuerpo.copyWith(
+                        fontSize: 13, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
+                const SizedBox(width: 6),
+                const Icon(Icons.expand_more, size: 18, color: RegentaColors.ink2),
+              ]),
+            ),
     );
   }
+
+  static PopupMenuItem<String> _seccion(String texto) => PopupMenuItem<String>(
+        enabled: false,
+        height: 28,
+        child: Text(texto.toUpperCase(),
+            style: RegentaType.etiqueta.copyWith(
+                fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: .8, color: RegentaColors.muted)),
+      );
 
   static PopupMenuItem<String> _opcion(String valor, IconData icono, String texto) =>
       PopupMenuItem<String>(
         value: valor,
         child: Row(children: [
-          Icon(icono, size: 18, color: RegentaColors.ink2),
-          const SizedBox(width: 10),
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(color: RegentaColors.sunken, borderRadius: BorderRadius.circular(6)),
+            child: Icon(icono, size: 16, color: RegentaColors.accent),
+          ),
+          const SizedBox(width: 12),
           Flexible(child: Text(texto, overflow: TextOverflow.ellipsis)),
         ]),
       );
 }
 
-/// R8 · tarifa por revisar, existencia negativa e inactivos.
+enum _TonoTarjeta { normal, acento, aviso }
+
+class _Tarjeta extends StatelessWidget {
+  const _Tarjeta({
+    required this.clave,
+    required this.titulo,
+    required this.valor,
+    required this.pie,
+    this.tono = _TonoTarjeta.normal,
+    this.activa = false,
+    this.onTap,
+  });
+
+  final String clave;
+  final String titulo;
+  final String valor;
+  final String pie;
+  final _TonoTarjeta tono;
+  final bool activa;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final (fondo, borde, colorTitulo, colorValor, colorPie) = switch (tono) {
+      _TonoTarjeta.acento => (
+          RegentaColors.accent,
+          RegentaColors.accent,
+          RegentaColors.surface,
+          RegentaColors.surface,
+          RegentaColors.surface,
+        ),
+      _TonoTarjeta.aviso => (
+          RegentaColors.warnSoft,
+          activa ? RegentaColors.warn : RegentaColors.warnSoft,
+          RegentaColors.warn,
+          RegentaColors.warn,
+          RegentaColors.ink2,
+        ),
+      _TonoTarjeta.normal => (
+          RegentaColors.surface,
+          RegentaColors.line,
+          RegentaColors.muted,
+          RegentaColors.ink,
+          RegentaColors.muted,
+        ),
+    };
+    return Material(
+      color: fondo,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: borde, width: activa ? 1.5 : 1),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: Key(clave),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(titulo.toUpperCase(),
+                style: RegentaType.etiqueta.copyWith(
+                    fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: .8, color: colorTitulo)),
+            const SizedBox(height: 8),
+            Text(valor,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: RegentaType.dinero.copyWith(
+                    fontSize: 24, fontWeight: FontWeight.w700, color: colorValor)),
+            const SizedBox(height: 6),
+            Text(pie,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: RegentaType.cuerpo.copyWith(fontSize: 11.5, color: colorPie)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Filtros y chips
+// ---------------------------------------------------------------------------
+
+/// R8 · bajo mínimo, tarifa por revisar, existencia negativa e inactivos.
 class _BotonFiltros extends StatelessWidget {
-  const _BotonFiltros({required this.consulta, required this.soloIcono, required this.onCambio});
+  const _BotonFiltros({
+    required this.consulta,
+    required this.bajoMinimo,
+    required this.soloIcono,
+    required this.onCambio,
+  });
 
   final ConsultaDeInventario consulta;
+  final int bajoMinimo;
   final bool soloIcono;
   final ValueChanged<ConsultaDeInventario> onCambio;
 
   int get _activos => [
+        consulta.soloBajoMinimo,
         consulta.tarifaPorRevisar,
         consulta.existenciaNegativa,
         consulta.estado == 'INACTIVOS',
@@ -642,12 +866,20 @@ class _BotonFiltros extends StatelessWidget {
     return PopupMenuButton<String>(
       key: const Key('inventario-filtros'),
       tooltip: 'Filtros',
+      position: PopupMenuPosition.under,
       onSelected: (f) => onCambio(switch (f) {
+        'bajo' => consulta.copiar(soloBajoMinimo: !consulta.soloBajoMinimo),
         'revisar' => consulta.copiar(tarifaPorRevisar: !consulta.tarifaPorRevisar),
         'negativa' => consulta.copiar(existenciaNegativa: !consulta.existenciaNegativa),
         _ => consulta.copiar(estado: consulta.estado == 'INACTIVOS' ? 'ACTIVOS' : 'INACTIVOS'),
       }),
       itemBuilder: (_) => [
+        CheckedPopupMenuItem<String>(
+          key: const Key('filtro-bajo-minimo'),
+          value: 'bajo',
+          checked: consulta.soloBajoMinimo,
+          child: Text('Bajo mínimo · $bajoMinimo'),
+        ),
         CheckedPopupMenuItem<String>(
           key: const Key('filtro-por-revisar'),
           value: 'revisar',
@@ -668,12 +900,12 @@ class _BotonFiltros extends StatelessWidget {
         ),
       ],
       child: Container(
-        height: 36,
-        padding: EdgeInsets.symmetric(horizontal: soloIcono ? 9 : 16),
+        height: 40,
+        padding: EdgeInsets.symmetric(horizontal: soloIcono ? 10 : 16),
         decoration: BoxDecoration(
           color: _activos > 0 ? RegentaColors.accentSoft : RegentaColors.surface,
           border: Border.all(color: RegentaColors.line2),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.filter_alt_outlined, size: 16, color: RegentaColors.ink),
@@ -689,42 +921,35 @@ class _BotonFiltros extends StatelessWidget {
   }
 }
 
-enum _TonoChip { normal, critico }
-
 class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.texto,
-    required this.activo,
-    required this.onTap,
-    this.tono = _TonoChip.normal,
-  });
+  const _Chip({this.clave, required this.texto, required this.activo, this.onTap});
 
+  final String? clave;
   final String texto;
   final bool activo;
-  final VoidCallback onTap;
-  final _TonoChip tono;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final critico = tono == _TonoChip.critico;
-    final fondo = activo
-        ? (critico ? RegentaColors.crit : RegentaColors.accent)
-        : (critico ? RegentaColors.critSoft : RegentaColors.sunken);
-    final color = activo
-        ? RegentaColors.surface
-        : (critico ? RegentaColors.crit : RegentaColors.ink2);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(3),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(color: fondo, borderRadius: BorderRadius.circular(3)),
-        child: Text(
-          texto.toUpperCase(),
-          style: RegentaType.etiqueta.copyWith(
-              fontSize: 9.5, fontWeight: FontWeight.w600, letterSpacing: .5, color: color),
-        ),
+    final cuerpo = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: activo ? RegentaColors.accent : RegentaColors.surface,
+        border: Border.all(color: activo ? RegentaColors.accent : RegentaColors.line2),
+        borderRadius: BorderRadius.circular(999),
       ),
+      child: Text(texto,
+          style: RegentaType.cuerpo.copyWith(
+              fontSize: 12.5,
+              fontWeight: activo ? FontWeight.w600 : FontWeight.w500,
+              color: activo ? RegentaColors.surface : RegentaColors.ink2)),
+    );
+    if (onTap == null) return cuerpo;
+    return InkWell(
+      key: clave == null ? null : Key(clave!),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: cuerpo,
     );
   }
 }
@@ -733,56 +958,64 @@ class _Chip extends StatelessWidget {
 // Tabla (web) y filas (móvil)
 // ---------------------------------------------------------------------------
 
-/// Anchos de columna del mockup (`InventarioWeb.html`).
 abstract final class _Col {
-  static const casilla = 30.0;
-  static const sku = 110.0;
-  static const categoria = 120.0;
-  static const stock = 64.0;
-  static const minimo = 52.0;
+  static const casilla = 36.0;
+  static const categoria = 150.0;
+  static const stock = 120.0;
+  static const minimo = 80.0;
   static const precio = 100.0;
-  static const estado = 96.0;
-  static const menu = 24.0;
+  static const estado = 110.0;
+  static const menu = 36.0;
   static const espacio = 12.0;
 }
 
 TextStyle get _estiloEncabezado => RegentaType.etiqueta.copyWith(
-    fontSize: 9.5, fontWeight: FontWeight.w600, letterSpacing: .76, color: RegentaColors.muted);
+    fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: .76, color: RegentaColors.muted);
 
 class _EncabezadoDeTabla extends StatelessWidget {
-  const _EncabezadoDeTabla();
+  const _EncabezadoDeTabla({required this.todas, required this.onTodas});
+
+  final bool todas;
+  final VoidCallback onTodas;
 
   @override
   Widget build(BuildContext context) {
     Widget celda(String t, double? ancho, {bool derecha = false}) {
       final texto = Text(t.toUpperCase(),
           textAlign: derecha ? TextAlign.right : TextAlign.left, style: _estiloEncabezado);
-      return ancho == null ? Expanded(flex: 3, child: texto) : SizedBox(width: ancho, child: texto);
+      return ancho == null ? Expanded(child: texto) : SizedBox(width: ancho, child: texto);
     }
 
+    const sep = SizedBox(width: _Col.espacio);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: const BoxDecoration(
         color: RegentaColors.sunken,
         border: Border(bottom: BorderSide(color: RegentaColors.line)),
       ),
       child: Row(children: [
-        const SizedBox(width: _Col.casilla),
-        const SizedBox(width: _Col.espacio),
-        celda('SKU', _Col.sku),
-        const SizedBox(width: _Col.espacio),
+        SizedBox(
+          width: _Col.casilla,
+          child: Checkbox(
+            key: const Key('seleccionar-todas'),
+            value: todas,
+            visualDensity: VisualDensity.compact,
+            onChanged: (_) => onTodas(),
+          ),
+        ),
+        sep,
         celda('Producto', null),
-        const SizedBox(width: _Col.espacio),
+        sep,
         celda('Categoría', _Col.categoria),
-        const SizedBox(width: _Col.espacio),
-        celda('Stock', _Col.stock, derecha: true),
-        const SizedBox(width: _Col.espacio),
+        sep,
+        celda('Stock', _Col.stock),
+        sep,
         celda('Mínimo', _Col.minimo, derecha: true),
-        const SizedBox(width: _Col.espacio),
+        sep,
         celda('Precio', _Col.precio, derecha: true),
-        const SizedBox(width: _Col.espacio),
-        celda('Estado', _Col.estado, derecha: true),
-        const SizedBox(width: _Col.espacio),
+        sep,
+        celda('Estado', _Col.estado),
+        sep,
         const SizedBox(width: _Col.menu),
       ]),
     );
@@ -795,10 +1028,28 @@ Color _colorDeStock(String nivel) => switch (nivel) {
       _ => RegentaColors.ok,
     };
 
+class _Etiqueta extends StatelessWidget {
+  const _Etiqueta(this.texto, {required this.color, required this.fondo});
+
+  final String texto;
+  final Color color;
+  final Color fondo;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(color: fondo, borderRadius: BorderRadius.circular(999)),
+        child: Text(texto,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: RegentaType.cuerpo.copyWith(fontSize: 10.5, fontWeight: FontWeight.w600, color: color)),
+      );
+}
+
 class _FilaWeb extends StatelessWidget {
   const _FilaWeb({
     required this.fila,
-    required this.elegida,
+    required this.maximo,
     required this.seleccionada,
     required this.onTap,
     required this.onSeleccion,
@@ -807,7 +1058,7 @@ class _FilaWeb extends StatelessWidget {
   });
 
   final FilaDeInventario fila;
-  final bool elegida;
+  final num maximo;
   final bool seleccionada;
   final VoidCallback onTap;
   final VoidCallback onSeleccion;
@@ -817,13 +1068,15 @@ class _FilaWeb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const sep = SizedBox(width: _Col.espacio);
+    final color = _colorDeStock(fila.nivel);
+    final proporcion = maximo <= 0 ? 0.0 : (fila.existencia / maximo).clamp(0, 1).toDouble();
     return Material(
-      color: elegida ? RegentaColors.accentSoft : RegentaColors.surface,
+      color: seleccionada ? RegentaColors.accentSoft : RegentaColors.surface,
       child: InkWell(
         key: Key('fila-${fila.id}'),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: RegentaColors.line))),
           child: Row(children: [
@@ -837,53 +1090,81 @@ class _FilaWeb extends StatelessWidget {
               ),
             ),
             sep,
-            SizedBox(
-              width: _Col.sku,
-              child: Text(fila.sku,
-                  overflow: TextOverflow.ellipsis,
-                  style: RegentaType.codigo.copyWith(fontSize: 11.5, color: RegentaColors.ink)),
-            ),
-            sep,
             Expanded(
-              flex: 3,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(fila.nombre,
-                    overflow: TextOverflow.ellipsis,
-                    style: RegentaType.cuerpo.copyWith(
-                        fontSize: 13.5, fontWeight: FontWeight.w500, color: RegentaColors.ink)),
-                if (fila.tarifaPorRevisar || !fila.activo)
-                  Text(
-                    [
-                      if (fila.tarifaPorRevisar) 'Tarifa por revisar',
-                      if (!fila.activo) 'Inactivo',
-                    ].join(' · '),
-                    style: RegentaType.etiqueta.copyWith(
-                        fontSize: 9.5,
-                        color: fila.activo ? RegentaColors.warn : RegentaColors.crit),
-                  ),
+              child: Row(children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                      color: RegentaColors.accentSoft, borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.inventory_2_outlined, size: 17, color: RegentaColors.accent),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(fila.nombre,
+                        overflow: TextOverflow.ellipsis,
+                        style: RegentaType.cuerpo.copyWith(
+                            fontSize: 13.5, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
+                    const SizedBox(height: 2),
+                    Row(children: [
+                      Flexible(
+                        child: Text(fila.sku,
+                            overflow: TextOverflow.ellipsis,
+                            style: RegentaType.codigo.copyWith(fontSize: 11, color: RegentaColors.muted)),
+                      ),
+                      if (fila.tarifaPorRevisar) ...[
+                        const SizedBox(width: 6),
+                        const _Etiqueta('Tarifa por revisar',
+                            color: RegentaColors.warn, fondo: RegentaColors.warnSoft),
+                      ],
+                      if (!fila.activo) ...[
+                        const SizedBox(width: 6),
+                        const _Etiqueta('Inactivo', color: RegentaColors.crit, fondo: RegentaColors.critSoft),
+                      ],
+                    ]),
+                  ]),
+                ),
               ]),
             ),
             sep,
             SizedBox(
               width: _Col.categoria,
-              child: Text(fila.categoria,
-                  overflow: TextOverflow.ellipsis,
-                  style: RegentaType.cuerpo.copyWith(fontSize: 12.5, color: RegentaColors.ink2)),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: fila.categoria.isEmpty
+                    ? const SizedBox.shrink()
+                    : _Etiqueta(fila.categoria, color: RegentaColors.ink2, fondo: RegentaColors.sunken),
+              ),
             ),
             sep,
             SizedBox(
               width: _Col.stock,
-              child: Text(formatearCantidad(fila.existencia),
-                  textAlign: TextAlign.right,
-                  style: RegentaType.codigo.copyWith(
-                      fontSize: 12.5, fontWeight: FontWeight.w600, color: _colorDeStock(fila.nivel))),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(_cantidad(fila.existencia, fila.unidad),
+                    style: RegentaType.cuerpo.copyWith(
+                        fontSize: 12.5, fontWeight: FontWeight.w600, color: color)),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: SizedBox(
+                    width: 80,
+                    height: 4,
+                    child: LinearProgressIndicator(
+                      value: proporcion < .03 && fila.existencia > 0 ? .03 : proporcion,
+                      backgroundColor: RegentaColors.line,
+                      valueColor: AlwaysStoppedAnimation(color),
+                    ),
+                  ),
+                ),
+              ]),
             ),
             sep,
             SizedBox(
               width: _Col.minimo,
-              child: Text(formatearCantidad(fila.stockMinimo),
+              child: Text(_cantidad(fila.stockMinimo, fila.unidad),
                   textAlign: TextAlign.right,
-                  style: RegentaType.codigo.copyWith(fontSize: 12, color: RegentaColors.faint)),
+                  style: RegentaType.cuerpo.copyWith(fontSize: 12.5, color: RegentaColors.ink2)),
             ),
             sep,
             SizedBox(
@@ -891,12 +1172,12 @@ class _FilaWeb extends StatelessWidget {
               child: Text(formatearPesos(fila.precio),
                   textAlign: TextAlign.right,
                   style: RegentaType.dinero.copyWith(
-                      fontSize: 13, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
+                      fontSize: 13, fontWeight: FontWeight.w700, color: RegentaColors.ink)),
             ),
             sep,
             SizedBox(
               width: _Col.estado,
-              child: Align(alignment: Alignment.centerRight, child: _Estado(nivel: fila.nivel)),
+              child: Align(alignment: Alignment.centerLeft, child: _Estado(nivel: fila.nivel)),
             ),
             sep,
             SizedBox(
@@ -906,7 +1187,7 @@ class _FilaWeb extends StatelessWidget {
                 tooltip: 'Opciones',
                 padding: EdgeInsets.zero,
                 iconSize: 18,
-                icon: const Icon(Icons.more_vert, color: RegentaColors.faint),
+                icon: const Icon(Icons.more_vert, color: RegentaColors.ink2),
                 onSelected: (o) => o == 'ficha' ? onFicha() : onVender(),
                 itemBuilder: (_) => const [
                   PopupMenuItem(value: 'ficha', child: Text('Ver o editar ficha')),
@@ -965,7 +1246,7 @@ class _FilaMovil extends StatelessWidget {
                 style: RegentaType.dinero.copyWith(
                     fontSize: 13, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
             const SizedBox(height: 3),
-            Text(formatearCantidad(fila.existencia),
+            Text(_cantidad(fila.existencia, fila.unidad),
                 style: RegentaType.codigo.copyWith(
                     fontSize: 12.5, fontWeight: FontWeight.w600, color: _colorDeStock(fila.nivel))),
           ]),
@@ -975,7 +1256,7 @@ class _FilaMovil extends StatelessWidget {
   }
 }
 
-/// R7 · EN STOCK, BAJO MÍNIMO o AGOTADO.
+/// R7 · En stock, Bajo mínimo o Agotado.
 class _Estado extends StatelessWidget {
   const _Estado({required this.nivel});
 
@@ -989,11 +1270,18 @@ class _Estado extends StatelessWidget {
       _ => ('En stock', RegentaColors.ok, RegentaColors.okSoft),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: fondo, borderRadius: BorderRadius.circular(3)),
-      child: Text(texto.toUpperCase(),
-          style: RegentaType.etiqueta.copyWith(
-              fontSize: 9.5, fontWeight: FontWeight.w600, letterSpacing: .5, color: color)),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: fondo, borderRadius: BorderRadius.circular(999)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 5, height: 5, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(texto,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: RegentaType.cuerpo.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+        ),
+      ]),
     );
   }
 }
@@ -1012,156 +1300,6 @@ class _PieCargando extends StatelessWidget {
               style: RegentaType.cuerpo.copyWith(fontSize: 12.5, color: RegentaColors.muted)),
         ]),
       );
-}
-
-// ---------------------------------------------------------------------------
-// Panel lateral (web)
-// ---------------------------------------------------------------------------
-
-BoxDecoration get _tarjeta => BoxDecoration(
-      color: RegentaColors.surface,
-      border: Border.all(color: RegentaColors.line),
-      borderRadius: BorderRadius.circular(6),
-    );
-
-class _PanelValorizado extends StatelessWidget {
-  const _PanelValorizado({required this.estado});
-
-  final EstadoDeInventario estado;
-
-  @override
-  Widget build(BuildContext context) {
-    // R11 · sin permiso de costo, el valor a precio de venta.
-    final alCosto = estado.valorCosto != null;
-    return Container(
-      key: const Key('panel-valorizado'),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      decoration: _tarjeta,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('INVENTARIO VALORIZADO',
-            style: RegentaType.etiqueta.copyWith(
-                fontSize: 9.5, fontWeight: FontWeight.w600, letterSpacing: .86, color: RegentaColors.muted)),
-        const SizedBox(height: 6),
-        Text(formatearPesos(alCosto ? estado.valorCosto! : estado.valorPrecio),
-            style: RegentaType.dinero.copyWith(
-                fontSize: 23, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
-        const SizedBox(height: 3),
-        Text(alCosto ? 'al costo promedio' : 'a precio de venta',
-            style: RegentaType.cuerpo.copyWith(fontSize: 11, color: RegentaColors.muted)),
-        const SizedBox(height: 8),
-        Text('${estado.totalFilas} productos',
-            style: RegentaType.codigo.copyWith(fontSize: 10.5, color: RegentaColors.muted)),
-      ]),
-    );
-  }
-}
-
-class _PanelBodegas extends StatelessWidget {
-  const _PanelBodegas({required this.elegida, required this.existencias, required this.onFicha});
-
-  final FilaDeInventario? elegida;
-  final List<(String, num)>? existencias;
-  final VoidCallback? onFicha;
-
-  @override
-  Widget build(BuildContext context) {
-    final e = elegida;
-    return Container(
-      key: const Key('panel-bodegas'),
-      padding: const EdgeInsets.all(16),
-      decoration: _tarjeta,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text('Existencias por bodega',
-            style: RegentaType.cuerpo.copyWith(
-                fontSize: 14.5, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
-        const SizedBox(height: 4),
-        if (e == null)
-          Text('Elige un producto para ver su existencia en cada bodega.',
-              style: RegentaType.cuerpo.copyWith(fontSize: 12.5, color: RegentaColors.muted))
-        else ...[
-          Text(e.nombre,
-              overflow: TextOverflow.ellipsis,
-              style: RegentaType.codigo.copyWith(fontSize: 11, color: RegentaColors.muted)),
-          const SizedBox(height: 8),
-          if (existencias == null)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(
-                  child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
-            )
-          else if (existencias!.isEmpty)
-            Text('Sin existencias registradas.',
-                style: RegentaType.cuerpo.copyWith(fontSize: 12.5, color: RegentaColors.muted))
-          else
-            for (final (bodega, cantidad) in existencias!)
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 9),
-                decoration: const BoxDecoration(
-                    border: Border(bottom: BorderSide(color: RegentaColors.line))),
-                child: Row(children: [
-                  Expanded(
-                    child: Text(bodega,
-                        style: RegentaType.cuerpo.copyWith(
-                            fontSize: 13, fontWeight: FontWeight.w500, color: RegentaColors.ink)),
-                  ),
-                  Text(formatearCantidad(cantidad),
-                      style: RegentaType.codigo.copyWith(
-                          fontSize: 12.5, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
-                ]),
-              ),
-          const SizedBox(height: 11),
-          OutlinedButton.icon(
-            key: const Key('panel-ficha'),
-            onPressed: onFicha,
-            icon: const Icon(Icons.edit_outlined, size: 16),
-            label: const Text('Ver o editar ficha'),
-          ),
-        ],
-      ]),
-    );
-  }
-}
-
-class _PanelBajoMinimo extends StatelessWidget {
-  const _PanelBajoMinimo({required this.cuantos, required this.onVer});
-
-  final int cuantos;
-  final VoidCallback onVer;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: RegentaColors.critSoft, borderRadius: BorderRadius.circular(6)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Icon(Icons.warning_amber_rounded, size: 18, color: RegentaColors.crit),
-          const SizedBox(width: 9),
-          Text('$cuantos bajo mínimo',
-              style: RegentaType.cuerpo.copyWith(
-                  fontSize: 14, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
-        ]),
-        const SizedBox(height: 8),
-        Text('Productos en su stock mínimo o por debajo.',
-            style: RegentaType.cuerpo.copyWith(fontSize: 12.5, height: 1.5, color: RegentaColors.ink2)),
-        const SizedBox(height: 11),
-        SizedBox(
-          height: 34,
-          child: OutlinedButton(
-            onPressed: onVer,
-            style: OutlinedButton.styleFrom(
-              backgroundColor: RegentaColors.surface,
-              side: const BorderSide(color: RegentaColors.line2),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-            ),
-            child: Text('Ver los de bajo mínimo',
-                style: RegentaType.cuerpo.copyWith(
-                    fontSize: 12.5, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
-          ),
-        ),
-      ]),
-    );
-  }
 }
 
 // ---------------------------------------------------------------------------
