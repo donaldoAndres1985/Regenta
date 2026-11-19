@@ -121,14 +121,20 @@ inicial se carga allí con «Ajustar existencia».
 
 ### R13 · Las cuatro tarjetas
 
-- **Inventario valorizado**: el valor al costo promedio de lo filtrado; sin permiso de costo
-  (R11), a precio de venta, y el subtítulo lo dice.
-- **Productos**: `totalFilas` de lo filtrado.
-- **Bodegas**: cuántas bodegas activas tiene el negocio y sus nombres.
-- **Tarifas por revisar**: `porRevisar` del backend, los de lo filtrado con la tarifa de IVA sin
-  confirmar. Tocarla activa o quita el filtro «tarifa por revisar».
+Son de **todo el inventario activo del negocio** (`resumen` del backend), no de lo filtrado:
+filtrar, buscar o confirmar tarifas no cambia el valorizado ni el conteo de productos. (Antes
+seguían a los filtros, y al confirmar la tarifa de 50 productos con «tarifa por revisar» activo
+el valorizado bajaba, como si el inventario hubiera cambiado.)
 
-Ninguna muestra un número inventado: mientras cargan, «—».
+- **Inventario valorizado**: al costo promedio; sin permiso de costo (R11), a precio de venta, y
+  el subtítulo lo dice.
+- **Productos**: los activos.
+- **Bodegas**: cuántas bodegas activas tiene el negocio y sus nombres.
+- **Tarifas por revisar**: los activos con la tarifa de IVA sin confirmar. Tocarla activa o quita
+  el filtro «tarifa por revisar».
+
+Con búsqueda o filtros, sobre la tabla se lee «n de N productos». Ninguna tarjeta muestra un
+número inventado: mientras cargan, «—».
 
 ## Al abrir
 

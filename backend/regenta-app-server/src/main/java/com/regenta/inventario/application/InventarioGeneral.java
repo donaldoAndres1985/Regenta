@@ -74,7 +74,20 @@ public class InventarioGeneral {
 
         List<FilaDeInventario> filas = new ArrayList<>();
         int bajoMinimo = 0;
+        int productosActivos = 0;
+        int porRevisarActivos = 0;
+        BigDecimal costoActivos = BigDecimal.ZERO;
+        BigDecimal precioActivos = BigDecimal.ZERO;
         for (Producto p : productos.findByNegocioIdOrderByNombreAsc(negocioId)) {
+            if (p.isActivo()) {
+                List<Existencia> todas = porProducto.getOrDefault(p.getId(), List.of());
+                BigDecimal cantidad = todas.stream().map(Existencia::getCantidad)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                productosActivos++;
+                porRevisarActivos += p.isTarifaPorRevisar() ? 1 : 0;
+                costoActivos = costoActivos.add(cantidad.multiply(costoDe(p, todas, cantidad)));
+                precioActivos = precioActivos.add(cantidad.multiply(p.getPrecioVenta()));
+            }
             if (!pasaEstado(p, filtro.estado())
                     || (filtro.categoriaId() != null && !filtro.categoriaId().equals(p.getCategoriaId()))
                     || (filtro.tarifaPorRevisar() && !p.isTarifaPorRevisar())
@@ -112,7 +125,9 @@ public class InventarioGeneral {
         int hasta = Math.min(desde + tamano, filas.size());
         return new InventarioDelNegocio(filas.subList(desde, hasta), filas.size(), valorCosto,
                 valorPrecio, bajoMinimo,
-                (int) filas.stream().filter(FilaDeInventario::tarifaPorRevisar).count());
+                (int) filas.stream().filter(FilaDeInventario::tarifaPorRevisar).count(),
+                new ResumenDelInventario(productosActivos, veCosto ? costoActivos : null,
+                        precioActivos, porRevisarActivos));
     }
 
     /** Agotado sin existencia; bajo mínimo si hay pero no pasa del mínimo (cuando lo tiene). */

@@ -29,6 +29,12 @@ class _Repo implements RepositorioDeInventario {
       valorPrecio: 106500,
       bajoMinimo: 1,
       porRevisar: 1,
+      resumen: ResumenDelInventario(
+        productos: 2165,
+        valorCosto: valorCosto == null ? null : 69816176,
+        valorPrecio: 90000000,
+        porRevisar: 2165,
+      ),
     );
   }
 
@@ -288,12 +294,22 @@ void main() {
 
       Finder en(String tarjeta, String texto) =>
           find.descendant(of: find.byKey(Key(tarjeta)), matching: find.text(texto));
-      expect(en('tarjeta-valorizado', formatearPesos(79500)), findsOneWidget);
+      expect(en('tarjeta-valorizado', formatearPesos(69816176)), findsOneWidget);
       expect(en('tarjeta-valorizado', 'Al costo promedio'), findsOneWidget);
-      expect(en('tarjeta-productos', '3'), findsOneWidget);
+      expect(en('tarjeta-productos', '2165'), findsOneWidget);
       expect(en('tarjeta-bodegas', '1'), findsOneWidget);
       expect(en('tarjeta-bodegas', 'Bodega Principal'), findsOneWidget);
-      expect(en('tarjeta-por-revisar', '1'), findsOneWidget);
+      expect(en('tarjeta-por-revisar', '2165'), findsOneWidget);
+    });
+
+    testWidgets('R13 · las tarjetas son de todo el inventario: un filtro no las cambia, la lista dice cuántos hay', (tester) async {
+      await _montar(tester);
+      await tester.tap(find.byKey(const Key('tarjeta-por-revisar')));
+      await tester.pumpAndSettle();
+
+      expect(find.descendant(of: find.byKey(const Key('tarjeta-productos')), matching: find.text('2165')),
+          findsOneWidget);
+      expect(find.text('3 de 2165 productos'), findsOneWidget);
     });
 
     testWidgets('R11 · sin permiso de costo, el valorizado es a precio de venta', (tester) async {
@@ -301,7 +317,7 @@ void main() {
 
       Finder en(String texto) =>
           find.descendant(of: find.byKey(const Key('tarjeta-valorizado')), matching: find.text(texto));
-      expect(en(formatearPesos(106500)), findsOneWidget);
+      expect(en(formatearPesos(90000000)), findsOneWidget);
       expect(en('A precio de venta'), findsOneWidget);
     });
 

@@ -299,6 +299,11 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
                 ]),
                 const SizedBox(height: 12),
                 _chips(estado.consulta),
+                if (_filtrando(estado)) ...[
+                  const SizedBox(height: 10),
+                  Text('${estado.totalFilas} de ${estado.resumen.productos} productos',
+                      style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.muted)),
+                ],
                 const SizedBox(height: 14),
                 Expanded(
                   child: Container(
@@ -373,11 +378,13 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
     ]);
   }
 
-  /// R13 · valorizado, productos, bodegas y tarifas por revisar.
+  /// R13 · valorizado, productos, bodegas y tarifas por revisar, de todo el inventario activo
+  /// (el resumen del backend): los filtros de la lista no los cambian.
   Widget _tarjetas(EstadoDeInventario estado) {
     final cargando = estado.fase == FaseDeInventario.cargando && estado.filas.isEmpty;
     String o(String v) => cargando ? '—' : v;
-    final alCosto = estado.valorCosto != null;
+    final resumen = estado.resumen;
+    final alCosto = resumen.valorCosto != null;
     final bodegas = _bodegas;
     final porRevisar = estado.consulta.tarifaPorRevisar;
     return IntrinsicHeight(
@@ -386,7 +393,7 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
           child: _Tarjeta(
             clave: 'tarjeta-valorizado',
             titulo: 'Inventario valorizado',
-            valor: o(formatearPesos(alCosto ? estado.valorCosto! : estado.valorPrecio)),
+            valor: o(formatearPesos(alCosto ? resumen.valorCosto! : resumen.valorPrecio)),
             pie: alCosto ? 'Al costo promedio' : 'A precio de venta',
             tono: _TonoTarjeta.acento,
           ),
@@ -396,8 +403,8 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
           child: _Tarjeta(
             clave: 'tarjeta-productos',
             titulo: 'Productos',
-            valor: o('${estado.totalFilas}'),
-            pie: 'En el inventario valorizado',
+            valor: o('${resumen.productos}'),
+            pie: 'Activos en el inventario',
           ),
         ),
         const SizedBox(width: 14),
@@ -414,7 +421,7 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
           child: _Tarjeta(
             clave: 'tarjeta-por-revisar',
             titulo: 'Tarifas por revisar',
-            valor: o('${estado.porRevisar}'),
+            valor: o('${resumen.porRevisar}'),
             pie: porRevisar ? 'Filtrando: toca para quitar' : 'Productos sin tarifa confirmada',
             tono: _TonoTarjeta.aviso,
             activa: porRevisar,
@@ -588,6 +595,11 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
         );
     }
   }
+
+  /// Con búsqueda o filtros la lista no es todo el inventario: se dice cuántos de cuántos.
+  bool _filtrando(EstadoDeInventario e) =>
+      e.fase == FaseDeInventario.conDatos &&
+      ((e.consulta.q ?? '').isNotEmpty || _hayFiltros(e.consulta));
 
   bool _hayFiltros(ConsultaDeInventario c) =>
       c.categoriaId != null ||
