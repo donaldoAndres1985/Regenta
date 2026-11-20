@@ -70,8 +70,7 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
       _avisar(motivo ?? 'No se pudo abrir la ficha del cliente.');
       return;
     }
-    final guardado =
-        await abrirFormularioDeCliente(context, ficha: ficha, onGuardar: ctrl.guardar);
+    final guardado = await abrirFormularioDeCliente(context, ficha: ficha, onGuardar: ctrl.guardar);
     if (guardado) _avisar('Cliente modificado correctamente.');
   }
 
@@ -93,89 +92,105 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
 
     // F5 lleva al buscador, como en el escritorio de siempre.
     return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.f5): _focoBuscador.requestFocus,
-      },
-      child: Scaffold(
-      backgroundColor: RegentaColors.paper,
-      appBar: AppBar(
-        backgroundColor: RegentaColors.surface,
-        surfaceTintColor: RegentaColors.surface,
-        elevation: 0,
-        shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
-        title: Text('Clientes',
-            style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
-        actions: [
-          IconButton(
-            tooltip: 'Actualizar',
-            onPressed: estado.cargando ? null : ctrl.cargar,
-            icon: const Icon(Icons.refresh, size: 20, color: RegentaColors.ink2),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12, left: 4),
-            child: FilledButton.icon(
+      bindings: {const SingleActivator(LogicalKeyboardKey.f5): _focoBuscador.requestFocus},
+      child: LayoutBuilder(
+        builder: (context, afuera) {
+          final acciones = <Widget>[
+            IconButton(
+              tooltip: 'Actualizar',
+              onPressed: estado.cargando ? null : ctrl.cargar,
+              icon: const Icon(Icons.refresh, size: 20, color: RegentaColors.ink2),
+            ),
+            FilledButton.icon(
               key: const Key('clientes-nuevo'),
               onPressed: _crear,
               style: FilledButton.styleFrom(
                 backgroundColor: RegentaColors.accent,
                 foregroundColor: RegentaColors.surface,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(RegentaSpacing.radius)),
+                  borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+                ),
               ),
               icon: const Icon(Icons.person_add_alt_1, size: 18),
               label: const Text('Nuevo cliente'),
             ),
-          ),
-        ],
-      ),
-      body: LayoutBuilder(
-        builder: (context, restricciones) {
-          final controles = _Controles(
-            controlador: _buscador,
-            foco: _focoBuscador,
-            filtro: estado.filtro,
-            onTermino: ctrl.cambiarTermino,
-            onFiltro: ctrl.cambiarFiltro,
-            onEnter: _enterEnBuscador,
-          );
-          final encabezado = _Encabezado(estado: estado);
-          final lista = _Lista(
-            estado: estado,
-            onAbrir: (id) => unawaited(_abrir(id)),
-            onCrear: _crear,
-          );
-          final aviso = estado.desdeCache || (estado.mensaje != null && estado.todos.isNotEmpty)
-              ? _Aviso(texto: estado.mensaje)
-              : null;
-
-          if (restricciones.maxWidth >= kBreakpointEscritorio) {
-            return Column(
-              key: const Key('clientes-escritorio'),
-              children: [
-                controles,
-                ?aviso,
-                Expanded(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 760),
-                      child: Column(children: [encabezado, Expanded(child: lista)]),
+          ];
+          return Scaffold(
+            backgroundColor: RegentaColors.paper,
+            // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
+            appBar: afuera.maxWidth >= kBreakpointEscritorio
+                ? EncabezadoDeSeccion(
+                    icono: Icons.people_outline,
+                    titulo: 'Clientes',
+                    acciones: acciones,
+                  )
+                : AppBar(
+                    backgroundColor: RegentaColors.surface,
+                    surfaceTintColor: RegentaColors.surface,
+                    elevation: 0,
+                    shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
+                    title: Text(
+                      'Clientes',
+                      style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink),
                     ),
+                    actions: [...acciones, const SizedBox(width: 12)],
                   ),
-                ),
-              ],
-            );
-          }
-          return Column(
-            key: const Key('clientes-movil'),
-            children: [
-              controles,
-              ?aviso,
-              encabezado,
-              Expanded(child: lista),
-            ],
+            body: LayoutBuilder(
+              builder: (context, restricciones) {
+                final controles = _Controles(
+                  controlador: _buscador,
+                  foco: _focoBuscador,
+                  filtro: estado.filtro,
+                  onTermino: ctrl.cambiarTermino,
+                  onFiltro: ctrl.cambiarFiltro,
+                  onEnter: _enterEnBuscador,
+                );
+                final encabezado = _Encabezado(estado: estado);
+                final lista = _Lista(
+                  estado: estado,
+                  onAbrir: (id) => unawaited(_abrir(id)),
+                  onCrear: _crear,
+                );
+                final aviso =
+                    estado.desdeCache || (estado.mensaje != null && estado.todos.isNotEmpty)
+                    ? _Aviso(texto: estado.mensaje)
+                    : null;
+
+                if (restricciones.maxWidth >= kBreakpointEscritorio) {
+                  return Column(
+                    key: const Key('clientes-escritorio'),
+                    children: [
+                      controles,
+                      ?aviso,
+                      Expanded(
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 760),
+                            child: Column(
+                              children: [
+                                encabezado,
+                                Expanded(child: lista),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return Column(
+                  key: const Key('clientes-movil'),
+                  children: [
+                    controles,
+                    ?aviso,
+                    encabezado,
+                    Expanded(child: lista),
+                  ],
+                );
+              },
+            ),
           );
         },
-      ),
       ),
     );
   }
@@ -226,11 +241,9 @@ class _Controles extends StatelessWidget {
                 isDense: true,
                 filled: true,
                 fillColor: RegentaColors.surface,
-                prefixIcon:
-                    const Icon(Icons.search, size: 18, color: RegentaColors.faint),
+                prefixIcon: const Icon(Icons.search, size: 18, color: RegentaColors.faint),
                 hintText: 'Nombre, NIT o cédula…  (F5)',
-                hintStyle:
-                    const TextStyle(fontSize: 14, color: RegentaColors.faint),
+                hintStyle: const TextStyle(fontSize: 14, color: RegentaColors.faint),
                 contentPadding: const EdgeInsets.symmetric(vertical: 11),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(RegentaSpacing.radius),
@@ -253,11 +266,7 @@ class _Controles extends StatelessWidget {
             child: Row(
               children: [
                 for (final f in FiltroDeClientes.values) ...[
-                  _ChipFiltro(
-                    filtro: f,
-                    seleccionado: f == filtro,
-                    onTap: () => onFiltro(f),
-                  ),
+                  _ChipFiltro(filtro: f, seleccionado: f == filtro, onTap: () => onFiltro(f)),
                   if (f != FiltroDeClientes.values.last) const SizedBox(width: 7),
                 ],
               ],
@@ -270,11 +279,7 @@ class _Controles extends StatelessWidget {
 }
 
 class _ChipFiltro extends StatelessWidget {
-  const _ChipFiltro({
-    required this.filtro,
-    required this.seleccionado,
-    required this.onTap,
-  });
+  const _ChipFiltro({required this.filtro, required this.seleccionado, required this.onTap});
 
   final FiltroDeClientes filtro;
   final bool seleccionado;
@@ -329,8 +334,10 @@ class _Aviso extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       color: RegentaColors.warnSoft,
-      child: Text(texto ?? 'Mostrando la copia guardada — sin conexión',
-          style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.warn)),
+      child: Text(
+        texto ?? 'Mostrando la copia guardada — sin conexión',
+        style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.warn),
+      ),
     );
   }
 }
@@ -351,15 +358,21 @@ class _Encabezado extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-                estado.totalVisible == 1 ? '1 cliente' : '${estado.totalVisible} clientes',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: RegentaType.cuerpo.copyWith(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
+              estado.totalVisible == 1 ? '1 cliente' : '${estado.totalVisible} clientes',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: RegentaType.cuerpo.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: RegentaColors.ink,
+              ),
+            ),
           ),
           const SizedBox(width: 8),
-          Text('cartera ${formatearPesos(cartera)}',
-              style: RegentaType.codigo.copyWith(fontSize: 11, color: RegentaColors.ink2)),
+          Text(
+            'cartera ${formatearPesos(cartera)}',
+            style: RegentaType.codigo.copyWith(fontSize: 11, color: RegentaColors.ink2),
+          ),
         ],
       ),
     );
@@ -442,20 +455,26 @@ class _FilaCliente extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(cliente.nombre.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: RegentaType.item.copyWith(
-                          color: RegentaColors.inkFuerte,
-                          fontWeight: FontWeight.w700)),
+                  Text(
+                    cliente.nombre.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: RegentaType.item.copyWith(
+                      color: RegentaColors.inkFuerte,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 3),
-                  Text(cliente.documentoLabel.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: RegentaType.codigo.copyWith(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w600,
-                          color: RegentaColors.muted)),
+                  Text(
+                    cliente.documentoLabel.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: RegentaType.codigo.copyWith(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: RegentaColors.muted,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -464,11 +483,14 @@ class _FilaCliente extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(formatearPesos(cliente.saldo),
-                    style: RegentaType.codigo.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: RegentaColors.ink)),
+                Text(
+                  formatearPesos(cliente.saldo),
+                  style: RegentaType.codigo.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: RegentaColors.ink,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 _ChipEstado(estado: cliente.estadoDeCartera),
               ],
@@ -495,13 +517,15 @@ class _Avatar extends StatelessWidget {
       width: 38,
       height: 38,
       alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        color: RegentaColors.sunken,
-        shape: BoxShape.circle,
+      decoration: const BoxDecoration(color: RegentaColors.sunken, shape: BoxShape.circle),
+      child: Text(
+        iniciales(nombre),
+        style: RegentaType.codigo.copyWith(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: RegentaColors.ink2,
+        ),
       ),
-      child: Text(iniciales(nombre),
-          style: RegentaType.codigo.copyWith(
-              fontSize: 13, fontWeight: FontWeight.w600, color: RegentaColors.ink2)),
     );
   }
 }
@@ -521,8 +545,10 @@ class _ChipEstado extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(color: fondo, borderRadius: BorderRadius.circular(3)),
-      child: Text(texto.toUpperCase(),
-          style: RegentaType.etiqueta.copyWith(fontSize: 9.5, color: tinta)),
+      child: Text(
+        texto.toUpperCase(),
+        style: RegentaType.etiqueta.copyWith(fontSize: 9.5, color: tinta),
+      ),
     );
   }
 }
