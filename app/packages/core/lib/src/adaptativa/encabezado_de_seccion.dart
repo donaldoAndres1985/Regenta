@@ -12,10 +12,11 @@ import '../tema/regenta_colors.dart';
 class EncabezadoDeSeccion extends StatelessWidget implements PreferredSizeWidget {
   const EncabezadoDeSeccion({
     super.key,
-    required this.icono,
+    this.icono,
     required this.titulo,
     this.subtitulo,
     this.acciones = const [],
+    this.arriba = 24,
   });
 
   /// 24 arriba + 56 de fila + 20 abajo (E3).
@@ -24,23 +25,29 @@ class EncabezadoDeSeccion extends StatelessWidget implements PreferredSizeWidget
   /// Márgenes de todas las secciones (E3).
   static const EdgeInsets margen = EdgeInsets.fromLTRB(24, 24, 24, 20);
 
-  final IconData icono;
+  /// Sin ícono solo en Inicio, que saluda en vez de nombrar la sección.
+  final IconData? icono;
+
+  /// Margen superior; Inicio usa la mitad (12).
+  final double arriba;
   final String titulo;
   final String? subtitulo;
   final List<Widget> acciones;
 
   @override
-  Size get preferredSize => const Size.fromHeight(alto);
+  Size get preferredSize => Size.fromHeight(alto - margen.top + arriba);
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: alto,
+      height: alto - margen.top + arriba,
       child: Padding(
-        padding: margen,
+        padding: margen.copyWith(top: arriba),
         child: Row(children: [
-          Icon(icono, size: 26, color: RegentaColors.ink),
-          const SizedBox(width: 12),
+          if (icono != null) ...[
+            Icon(icono, size: 26, color: RegentaColors.ink),
+            const SizedBox(width: 12),
+          ],
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
