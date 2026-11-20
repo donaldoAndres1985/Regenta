@@ -198,8 +198,8 @@ también a Vendedor/Cajero, para poder detallar desde el POS.
 - **P1** · Precios por lista (mayorista/VIP): la lista asignada al cliente se aplica en el POS;
   precios de lista con IVA incluido; las fracciones no dependen de la lista. El backend de
   HU-036 se conserva sin pantalla.
-- **P2** · Compras (E05): costo sin IVA; si el negocio es responsable, el IVA de la compra es
-  descontable, si no, suma al costo.
+- ~~**P2**~~ · Resuelto 2026-11-20 en `docs/dominio/compras.md` (I14, decisión 3): costo sin IVA;
+  si el negocio es responsable, el IVA de la compra es descontable, si no, suma al costo.
 - ~~**P3**~~ · Resuelto 2026-11-16: las filas con error se omiten y las válidas se importan (I19).
 - **P4** · Impuesto al consumo (INC 8 %) del patrón Comanda: el modelo de tarifas lo admite, fuera
   de alcance.
