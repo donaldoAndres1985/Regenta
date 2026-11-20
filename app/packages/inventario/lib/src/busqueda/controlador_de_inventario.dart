@@ -23,6 +23,7 @@ class EstadoDeInventario {
     this.valorPrecio = 0,
     this.bajoMinimo = 0,
     this.porRevisar = 0,
+    this.resumen = const ResumenDelInventario(),
     this.cargandoMas = false,
     this.mensajeError,
   });
@@ -35,6 +36,7 @@ class EstadoDeInventario {
   final num valorPrecio;
   final int bajoMinimo;
   final int porRevisar;
+  final ResumenDelInventario resumen;
   final bool cargandoMas;
   final String? mensajeError;
 
@@ -57,6 +59,7 @@ class EstadoDeInventario {
         valorPrecio: totales?.valorPrecio ?? valorPrecio,
         bajoMinimo: totales?.bajoMinimo ?? bajoMinimo,
         porRevisar: totales?.porRevisar ?? porRevisar,
+        resumen: totales?.resumen ?? resumen,
         cargandoMas: cargandoMas ?? this.cargandoMas,
         mensajeError: mensajeError == _sinCambio ? this.mensajeError : mensajeError as String?,
       );

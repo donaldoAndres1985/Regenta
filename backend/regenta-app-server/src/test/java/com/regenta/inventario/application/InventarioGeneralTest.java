@@ -212,6 +212,23 @@ class InventarioGeneralTest {
     }
 
     @Test
+    @DisplayName("Inventario · El resumen es de todo el inventario activo, no cambia con los filtros")
+    void elResumenNoDependeDeLosFiltros() {
+        org.springframework.test.util.ReflectionTestUtils.setField(barniz, "tarifaPorRevisar", true);
+
+        ResumenDelInventario todo = inventario.consultar(filtro()).resumen();
+        ResumenDelInventario conFiltro = inventario.consultar(
+                new FiltroDeInventario(null, null, null, true, false, null, 0, 50)).resumen();
+
+        assertThat(conFiltro).isEqualTo(todo);
+        assertThat(todo.productos()).isEqualTo(2);
+        assertThat(todo.porRevisar()).isEqualTo(1);
+        // barniz 3 × 26500 + martillo (-2) × 12000; el viejo está inactivo y no cuenta.
+        assertThat(todo.valorCosto()).isEqualByComparingTo("55500");
+        assertThat(todo.valorPrecio()).isEqualByComparingTo("66500");
+    }
+
+    @Test
     @DisplayName("Inventario · Cuenta cuántos de lo filtrado tienen la tarifa por revisar (tarjeta «Tarifas por revisar»)")
     void cuentaLasTarifasPorRevisar() {
         org.springframework.test.util.ReflectionTestUtils.setField(barniz, "tarifaPorRevisar", true);

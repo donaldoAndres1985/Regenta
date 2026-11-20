@@ -121,6 +121,28 @@ class FilaDeInventario {
       );
 }
 
+/// R13 · todo el inventario activo del negocio, sin filtros: lo que muestran las tarjetas.
+class ResumenDelInventario {
+  const ResumenDelInventario({
+    this.productos = 0,
+    this.valorCosto,
+    this.valorPrecio = 0,
+    this.porRevisar = 0,
+  });
+
+  final int productos;
+  final num? valorCosto;
+  final num valorPrecio;
+  final int porRevisar;
+
+  factory ResumenDelInventario.desdeJson(Map<String, dynamic> j) => ResumenDelInventario(
+        productos: ((j['productos'] ?? 0) as num).toInt(),
+        valorCosto: j['valorCosto'] as num?,
+        valorPrecio: (j['valorPrecio'] ?? 0) as num,
+        porRevisar: ((j['porRevisar'] ?? 0) as num).toInt(),
+      );
+}
+
 /// Una página del inventario general y los totales de todo lo filtrado.
 class ResultadoDeInventario {
   const ResultadoDeInventario({
@@ -130,6 +152,7 @@ class ResultadoDeInventario {
     required this.valorPrecio,
     this.bajoMinimo = 0,
     this.porRevisar = 0,
+    this.resumen = const ResumenDelInventario(),
   });
 
   final List<FilaDeInventario> filas;
@@ -143,6 +166,9 @@ class ResultadoDeInventario {
   /// Cuántos de lo filtrado tienen la tarifa de IVA sin confirmar (tarjeta, R13).
   final int porRevisar;
 
+  /// Todo el inventario activo, sin filtros (las tarjetas).
+  final ResumenDelInventario resumen;
+
   factory ResultadoDeInventario.desdeJson(Map<String, dynamic> j) => ResultadoDeInventario(
         filas: [
           for (final f in ((j['filas'] ?? const []) as List).cast<Map<String, dynamic>>())
@@ -153,5 +179,8 @@ class ResultadoDeInventario {
         valorPrecio: (j['valorPrecio'] ?? 0) as num,
         bajoMinimo: ((j['bajoMinimo'] ?? 0) as num).toInt(),
         porRevisar: ((j['porRevisar'] ?? 0) as num).toInt(),
+        resumen: j['resumen'] is Map<String, dynamic>
+            ? ResumenDelInventario.desdeJson(j['resumen'] as Map<String, dynamic>)
+            : const ResumenDelInventario(),
       );
 }
