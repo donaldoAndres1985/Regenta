@@ -16,13 +16,20 @@ class EncabezadoDeSeccion extends StatelessWidget implements PreferredSizeWidget
     required this.titulo,
     required this.subtitulo,
     this.acciones = const [],
+    this.margen = EncabezadoDeSeccion.margenEstandar,
   });
 
   /// 10 arriba + 56 de fila + 20 abajo (E3).
   static const double alto = 86;
 
   /// Márgenes de todas las secciones (E3).
-  static const EdgeInsets margen = EdgeInsets.fromLTRB(24, 10, 24, 20);
+  static const EdgeInsets margenEstandar = EdgeInsets.fromLTRB(24, 10, 24, 20);
+
+  /// Inicio va más arriba: 8 arriba y 17 abajo (E7).
+  static const EdgeInsets margenInicio = EdgeInsets.fromLTRB(24, 8, 24, 17);
+
+  /// Alto de la fila del título y las acciones.
+  static const double altoFila = 56;
 
   /// Sin ícono solo en Inicio, que saluda en vez de nombrar la sección.
   final IconData? icono;
@@ -31,14 +38,15 @@ class EncabezadoDeSeccion extends StatelessWidget implements PreferredSizeWidget
   /// Qué se hace en la sección, debajo del título (E1).
   final String subtitulo;
   final List<Widget> acciones;
+  final EdgeInsets margen;
 
   @override
-  Size get preferredSize => const Size.fromHeight(alto);
+  Size get preferredSize => Size.fromHeight(margen.top + altoFila + margen.bottom);
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: alto,
+      height: preferredSize.height,
       child: Padding(
         padding: margen,
         child: Row(children: [
