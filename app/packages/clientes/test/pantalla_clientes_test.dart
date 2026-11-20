@@ -86,11 +86,11 @@ Future<void> _montar(WidgetTester tester, _RepoFake repo,
 }
 
 void main() {
-  testWidgets('Encabezado E1-E5 · en web, el encabezado común con ícono; en móvil, la barra', (tester) async {
+  testWidgets('Encabezado E1-E5 · en web, el encabezado común sin ícono; en móvil, la barra', (tester) async {
     await _montar(tester, _RepoFake(red: [_c(id: '1')]), size: const Size(1280, 900));
     final encabezado = find.byType(EncabezadoDeSeccion);
     expect(encabezado, findsOneWidget);
-    expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.people_outline)), findsOneWidget);
+    expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.people_outline)), findsNothing);
     expect(find.descendant(of: encabezado, matching: find.text('Clientes')), findsOneWidget);
     expect(find.descendant(of: encabezado, matching: find.byKey(const Key('clientes-nuevo'))), findsOneWidget);
 

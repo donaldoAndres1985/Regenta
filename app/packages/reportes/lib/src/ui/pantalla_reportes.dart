@@ -49,7 +49,6 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
         // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
         appBar: afuera.maxWidth >= kBreakpointEscritorio
             ? EncabezadoDeSeccion(
-                icono: Icons.bar_chart_rounded,
                 subtitulo: 'Ventas y cierres de caja por periodo',
                 titulo: 'Reportes Operativos',
                 acciones: acciones,
@@ -75,7 +74,7 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
                 actions: [...acciones, const SizedBox(width: 8)],
               ),
         body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.fromLTRB(16, afuera.maxWidth >= kBreakpointEscritorio ? 0 : 16, 16, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

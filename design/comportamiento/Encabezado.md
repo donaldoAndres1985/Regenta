@@ -6,6 +6,10 @@ todas usan `EncabezadoDeSeccion` de `core`.
 
 ## Reglas
 
+> **2026-11-20 · todas como Inicio.** Todas las secciones usan los márgenes de Inicio (8 arriba,
+> 17 abajo, 81 px de alto) y ninguna lleva ícono; en web el contenido empieza justo debajo.
+> Esto reemplaza lo que dicen E2 y E3 más abajo.
+
 - **E1 · El estándar es el de Inicio.** **Dado** cualquier sección en web (≥ 900 px), **entonces**
   arriba, sin barra blanca ni borde, va el título en 25 px negrita, y debajo, **en todas las
   secciones**, un subtítulo de 13 px en `ink2` que dice qué se hace ahí. Las acciones van a la derecha, en la misma fila.

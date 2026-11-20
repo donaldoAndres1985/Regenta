@@ -102,7 +102,6 @@ class _PantallaCajaState extends ConsumerState<PantallaCaja> {
         // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
         appBar: afuera.maxWidth >= kBreakpointEscritorio
             ? EncabezadoDeSeccion(
-                icono: Icons.payments_outlined,
                 subtitulo: 'Abre el turno, registra movimientos y cierra con arqueo',
                 titulo: 'Gestión de Caja y Turnos',
                 acciones: acciones,
@@ -130,7 +129,7 @@ class _PantallaCajaState extends ConsumerState<PantallaCaja> {
         body: estado.cargando && estado.sesionActiva == null
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(16, afuera.maxWidth >= kBreakpointEscritorio ? 0 : 16, 16, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

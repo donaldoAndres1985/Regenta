@@ -47,7 +47,6 @@ class PantallaCompras extends ConsumerWidget {
       // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
       appBar: afuera.maxWidth >= kBreakpointEscritorio
           ? EncabezadoDeSeccion(
-              icono: Icons.local_shipping_outlined,
               subtitulo: 'Pedidos a proveedores y recepción de mercancía',
               titulo: 'Órdenes de Compra',
               acciones: acciones,
@@ -162,7 +161,7 @@ class PantallaCompras extends ConsumerWidget {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(16, afuera.maxWidth >= kBreakpointEscritorio ? 0 : 16, 16, 16),
             itemCount: ordenes.length,
             separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, i) {

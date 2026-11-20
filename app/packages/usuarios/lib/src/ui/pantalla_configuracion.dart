@@ -194,7 +194,6 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
           // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
           appBar: afuera.maxWidth >= kBreakpointEscritorio
               ? EncabezadoDeSeccion(
-                  icono: Icons.settings_outlined,
                   subtitulo: 'Datos del negocio, impuestos y caja',
                   titulo: 'Configuración del Negocio',
                   acciones: [_refrescar()],
@@ -253,7 +252,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
               _poblar(config);
 
               return SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.fromLTRB(20, afuera.maxWidth >= kBreakpointEscritorio ? 0 : 20, 20, 20),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 800),

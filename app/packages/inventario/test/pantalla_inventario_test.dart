@@ -283,11 +283,11 @@ void main() {
       expect(find.text(formatearPesos(35500)), findsWidgets);
     });
 
-    testWidgets('Encabezado E1-E4 · encabezado común con ícono, sin «Regenta / Inventario»', (tester) async {
+    testWidgets('Encabezado E1-E4 · encabezado común sin ícono, sin «Regenta / Inventario»', (tester) async {
       await _montar(tester);
       final encabezado = find.byType(EncabezadoDeSeccion);
       expect(encabezado, findsOneWidget);
-      expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.inventory_2_outlined)), findsOneWidget);
+      expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.inventory_2_outlined)), findsNothing);
       expect(find.descendant(of: encabezado, matching: find.text('Inventario')), findsOneWidget);
       expect(find.descendant(of: encabezado, matching: find.byKey(const Key('inventario-herramientas'))),
           findsOneWidget);

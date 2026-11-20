@@ -60,8 +60,8 @@ void main() {
       final completo = tester.getSize(find.byKey(const Key('b')));
       final tituloCompleto = tester.getTopLeft(find.byIcon(Icons.payments_outlined));
 
-      expect(solo.height, 86);
-      expect(const EncabezadoDeSeccion(icono: Icons.payments_outlined, titulo: 'Caja', subtitulo: 'x').preferredSize.height, 86);
+      expect(solo.height, 81);
+      expect(const EncabezadoDeSeccion(icono: Icons.payments_outlined, titulo: 'Caja', subtitulo: 'x').preferredSize.height, 81);
       expect(completo.height, solo.height);
       expect(tituloCompleto, tituloSolo);
       expect(tituloSolo.dx, 24);
