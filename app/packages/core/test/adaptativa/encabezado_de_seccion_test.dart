@@ -8,7 +8,7 @@ Future<void> _montar(WidgetTester tester, Widget hijo) => tester.pumpWidget(
 
 void main() {
   group('Encabezado de sección (design/comportamiento/Encabezado.md)', () {
-    testWidgets('E1 y E2 · ícono, título de 26 px negrita y subtítulo', (tester) async {
+    testWidgets('E1 y E2 · ícono, título de 25 px negrita y subtítulo', (tester) async {
       await _montar(
         tester,
         const EncabezadoDeSeccion(
@@ -20,7 +20,7 @@ void main() {
 
       expect(find.byIcon(Icons.inventory_2_outlined), findsOneWidget);
       final titulo = tester.widget<Text>(find.text('Inventario'));
-      expect(titulo.style?.fontSize, 26);
+      expect(titulo.style?.fontSize, 25);
       expect(titulo.style?.fontWeight, FontWeight.bold);
       expect(find.text('2721 productos'), findsOneWidget);
     });
@@ -30,7 +30,7 @@ void main() {
         tester,
         EncabezadoDeSeccion(
           icono: Icons.people_outline,
-          titulo: 'Clientes',
+          titulo: 'Clientes', subtitulo: 'x',
           acciones: [FilledButton(key: const Key('accion'), onPressed: () {}, child: const Text('Nuevo'))],
         ),
       );
@@ -43,7 +43,7 @@ void main() {
 
     testWidgets('E3 · mismo alto y márgenes con o sin subtítulo y acciones', (tester) async {
       await _montar(tester,
-          const EncabezadoDeSeccion(key: Key('a'), icono: Icons.payments_outlined, titulo: 'Caja'));
+          const EncabezadoDeSeccion(key: Key('a'), icono: Icons.payments_outlined, titulo: 'Caja', subtitulo: 'x'));
       final solo = tester.getSize(find.byKey(const Key('a')));
       final tituloSolo = tester.getTopLeft(find.byIcon(Icons.payments_outlined));
 
@@ -60,15 +60,15 @@ void main() {
       final completo = tester.getSize(find.byKey(const Key('b')));
       final tituloCompleto = tester.getTopLeft(find.byIcon(Icons.payments_outlined));
 
-      expect(solo.height, 100);
-      expect(const EncabezadoDeSeccion(icono: Icons.payments_outlined, titulo: 'Caja').preferredSize.height, 100);
+      expect(solo.height, 86);
+      expect(const EncabezadoDeSeccion(icono: Icons.payments_outlined, titulo: 'Caja', subtitulo: 'x').preferredSize.height, 86);
       expect(completo.height, solo.height);
       expect(tituloCompleto, tituloSolo);
       expect(tituloSolo.dx, 24);
     });
 
     testWidgets('E4 · no muestra ruta de migas', (tester) async {
-      await _montar(tester, const EncabezadoDeSeccion(icono: Icons.inventory_2_outlined, titulo: 'Inventario'));
+      await _montar(tester, const EncabezadoDeSeccion(icono: Icons.inventory_2_outlined, titulo: 'Inventario', subtitulo: 'x'));
       expect(find.textContaining('Regenta /'), findsNothing);
     });
   });

@@ -1280,6 +1280,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
           appBar: escritorio
               ? EncabezadoDeSeccion(
                   icono: Icons.shopping_cart_outlined,
+                  subtitulo: 'Busca o escanea productos para armar la venta',
                   titulo: 'Nueva venta',
                   acciones: acciones,
                 )

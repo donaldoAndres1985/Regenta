@@ -450,13 +450,8 @@ class _EncabezadoSuperior extends StatelessWidget implements PreferredSizeWidget
   final String nombreNegocio;
   final VoidCallback onNuevaVenta;
 
-  /// Inicio va con la mitad del margen de arriba de las demás secciones.
-  static const double _arriba = 12;
-
   @override
-  Size get preferredSize => const Size.fromHeight(
-    EncabezadoDeSeccion.alto - 24 + _arriba,
-  );
+  Size get preferredSize => const Size.fromHeight(EncabezadoDeSeccion.alto);
 
   @override
   Widget build(BuildContext context) {
@@ -464,7 +459,6 @@ class _EncabezadoSuperior extends StatelessWidget implements PreferredSizeWidget
     final saludo = ahora.hour < 12 ? 'Buenos días' : 'Buenas tardes';
     final primerNombre = nombreUsuario.split(RegExp(r'\s+')).first;
     return EncabezadoDeSeccion(
-      arriba: _arriba,
       titulo: '$saludo, $primerNombre',
       subtitulo: '${_fecha(ahora)} · así va tu $nombreNegocio hoy',
       acciones: [

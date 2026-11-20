@@ -7,11 +7,11 @@ todas usan `EncabezadoDeSeccion` de `core`.
 ## Reglas
 
 - **E1 · El estándar es el de Inicio.** **Dado** cualquier sección en web (≥ 900 px), **entonces**
-  arriba, sin barra blanca ni borde, va el título en 26 px negrita, y debajo, si la pantalla lo
-  tiene, un subtítulo de 13 px en `ink2`. Las acciones van a la derecha, en la misma fila.
+  arriba, sin barra blanca ni borde, va el título en 25 px negrita, y debajo, **en todas las
+  secciones**, un subtítulo de 13 px en `ink2` que dice qué se hace ahí. Las acciones van a la derecha, en la misma fila.
 - **E2 · Ícono en todas.** A la izquierda del título va el ícono de la sección, el mismo del menú
   lateral (`iconoDeRuta`), de 26 px en `ink`. Ninguna sección se queda sin ícono.
-- **E3 · Mismo tamaño en todas.** El encabezado mide siempre 100 px de alto: 24 de margen arriba,
+- **E3 · Mismo tamaño en todas.** El encabezado mide siempre 86 px de alto: 10 de margen arriba,
   una fila de 56 y 20 abajo, con 24 a cada lado; haya o no subtítulo o acciones. Ocupa el lugar
   de la barra de la aplicación (`appBar` del `Scaffold`), así que el contenido de cada pantalla
   empieza a la misma altura. Al pasar de una sección a otra el título no salta.
@@ -22,7 +22,12 @@ todas usan `EncabezadoDeSeccion` de `core`.
 - **E6 · Lo que no cambia.** Las acciones de cada pantalla (Nueva venta, pestañas del POS,
   Herramientas, Nuevo cliente, Caja Principal, recargar…) siguen haciendo lo mismo; solo cambian
   de lugar al encabezado.
-- **E7 · Inicio saluda.** En Inicio el encabezado no lleva ícono y su margen de arriba es la mitad
-  (12 px). El título es «Buenos días, <primer nombre>» antes de las 12:00 y «Buenas tardes,
+- **E7 · Inicio saluda.** En Inicio el encabezado no lleva ícono. El título es «Buenos días, <primer nombre>» antes de las 12:00 y «Buenas tardes,
   <primer nombre>» desde las 12:00, con el nombre del usuario que inició sesión (claim
   `nombre_usuario` del token). El subtítulo es «<fecha> · así va tu <nombre del negocio> hoy».
+- **E8 · Subtítulos.** Nueva venta: «Busca o escanea productos para armar la venta». Caja: «Abre el
+  turno, registra movimientos y cierra con arqueo». Inventario: «Productos, existencias y valor de
+  tu inventario». Órdenes de compra: «Pedidos a proveedores y recepción de mercancía». Clientes:
+  «Datos, cartera y crédito de tus clientes». Facturas: «Facturas electrónicas emitidas y su
+  estado». Reportes: «Ventas y cierres de caja por periodo». Configuración: «Datos del negocio,
+  impuestos y caja». Mesas: «Plano del salón y estado de cada mesa».

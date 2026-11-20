@@ -50,6 +50,7 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
         appBar: afuera.maxWidth >= kBreakpointEscritorio
             ? EncabezadoDeSeccion(
                 icono: Icons.bar_chart_rounded,
+                subtitulo: 'Ventas y cierres de caja por periodo',
                 titulo: 'Reportes Operativos',
                 acciones: acciones,
               )

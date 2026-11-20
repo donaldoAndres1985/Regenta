@@ -195,6 +195,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
           appBar: afuera.maxWidth >= kBreakpointEscritorio
               ? EncabezadoDeSeccion(
                   icono: Icons.settings_outlined,
+                  subtitulo: 'Datos del negocio, impuestos y caja',
                   titulo: 'Configuración del Negocio',
                   acciones: [_refrescar()],
                 )

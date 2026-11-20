@@ -14,35 +14,33 @@ class EncabezadoDeSeccion extends StatelessWidget implements PreferredSizeWidget
     super.key,
     this.icono,
     required this.titulo,
-    this.subtitulo,
+    required this.subtitulo,
     this.acciones = const [],
-    this.arriba = 24,
   });
 
-  /// 24 arriba + 56 de fila + 20 abajo (E3).
-  static const double alto = 100;
+  /// 10 arriba + 56 de fila + 20 abajo (E3).
+  static const double alto = 86;
 
   /// Márgenes de todas las secciones (E3).
-  static const EdgeInsets margen = EdgeInsets.fromLTRB(24, 24, 24, 20);
+  static const EdgeInsets margen = EdgeInsets.fromLTRB(24, 10, 24, 20);
 
   /// Sin ícono solo en Inicio, que saluda en vez de nombrar la sección.
   final IconData? icono;
-
-  /// Margen superior; Inicio usa la mitad (12).
-  final double arriba;
   final String titulo;
-  final String? subtitulo;
+
+  /// Qué se hace en la sección, debajo del título (E1).
+  final String subtitulo;
   final List<Widget> acciones;
 
   @override
-  Size get preferredSize => Size.fromHeight(alto - margen.top + arriba);
+  Size get preferredSize => const Size.fromHeight(alto);
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: alto - margen.top + arriba,
+      height: alto,
       child: Padding(
-        padding: margen.copyWith(top: arriba),
+        padding: margen,
         child: Row(children: [
           if (icono != null) ...[
             Icon(icono, size: 26, color: RegentaColors.ink),
@@ -58,16 +56,16 @@ class EncabezadoDeSeccion extends StatelessWidget implements PreferredSizeWidget
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: PastelTheme.titulo(
-                    fontSize: 26,
+                    fontSize: 25,
                     fontWeight: FontWeight.bold,
                     color: RegentaColors.ink,
                     height: 1.2,
                   ),
                 ),
-                if (subtitulo != null) ...[
+                ...[
                   const SizedBox(height: 2),
                   Text(
-                    subtitulo!,
+                    subtitulo,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: PastelTheme.cuerpo(fontSize: 13, color: RegentaColors.ink2),
