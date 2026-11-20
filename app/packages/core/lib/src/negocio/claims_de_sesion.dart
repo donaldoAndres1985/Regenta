@@ -17,6 +17,7 @@ class ClaimsDeSesion {
     required this.roles,
     required this.permisos,
     this.nombreNegocio,
+    this.nombreUsuario,
   });
 
   final String negocioId;
@@ -27,6 +28,9 @@ class ClaimsDeSesion {
   final List<String> roles;
   final List<String> permisos;
   final String? nombreNegocio;
+
+  /// El nombre del usuario que inició sesión (claim `nombre_usuario`).
+  final String? nombreUsuario;
 
   factory ClaimsDeSesion.deJwt(String jwt) {
     final partes = jwt.split('.');
@@ -48,6 +52,7 @@ class ClaimsDeSesion {
       roles: lista('roles'),
       permisos: lista('permisos'),
       nombreNegocio: payload['nombre_negocio'] as String?,
+      nombreUsuario: payload['nombre_usuario'] as String?,
     );
   }
 }

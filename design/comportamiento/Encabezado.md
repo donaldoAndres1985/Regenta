@@ -22,3 +22,7 @@ todas usan `EncabezadoDeSeccion` de `core`.
 - **E6 · Lo que no cambia.** Las acciones de cada pantalla (Nueva venta, pestañas del POS,
   Herramientas, Nuevo cliente, Caja Principal, recargar…) siguen haciendo lo mismo; solo cambian
   de lugar al encabezado.
+- **E7 · Inicio saluda.** En Inicio el encabezado no lleva ícono y su margen de arriba es la mitad
+  (12 px). El título es «Buenos días, <primer nombre>» antes de las 12:00 y «Buenas tardes,
+  <primer nombre>» desde las 12:00, con el nombre del usuario que inició sesión (claim
+  `nombre_usuario` del token). El subtítulo es «<fecha> · así va tu <nombre del negocio> hoy».

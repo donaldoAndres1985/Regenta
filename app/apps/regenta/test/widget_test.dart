@@ -88,12 +88,13 @@ Future<DependenciasDeLaApp> _arrancar(
 }
 
 void main() {
-  testWidgets('Encabezado E1-E4 · Inicio en web usa el encabezado común con su ícono', (tester) async {
+  testWidgets('Encabezado E7 · Inicio en web saluda por el primer nombre, sin ícono', (tester) async {
     await _arrancar(tester, guardada: _sesionCon(modulos: ['VENTAS']), tamano: const Size(1440, 900));
     final encabezado = find.byType(EncabezadoDeSeccion);
     expect(encabezado, findsOneWidget);
-    expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.home_outlined)), findsOneWidget);
-    expect(find.descendant(of: encabezado, matching: find.text('Inicio')), findsOneWidget);
+    expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.home_outlined)), findsNothing);
+    expect(find.descendant(of: encabezado, matching: find.textContaining(RegExp(r'^Buen(os días|as tardes), '))),
+        findsOneWidget);
     expect(find.descendant(of: encabezado, matching: find.text('Nueva venta')), findsOneWidget);
   });
 
