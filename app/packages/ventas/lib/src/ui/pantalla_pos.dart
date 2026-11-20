@@ -1280,7 +1280,6 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
           appBar: escritorio
               ? EncabezadoDeSeccion(
                   margen: EncabezadoDeSeccion.margenInicio,
-                  icono: Icons.shopping_cart_outlined,
                   subtitulo: 'Busca o escanea productos para armar la venta',
                   titulo: 'Nueva venta',
                   acciones: acciones,
@@ -1909,7 +1908,8 @@ class _FranjaCliente extends StatelessWidget {
 
     return Container(
       key: const Key('pos-cliente'),
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      // En web el encabezado ya deja su espacio abajo, igual que en Inicio.
+      margin: EdgeInsets.fromLTRB(16, compacta ? 12 : 0, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: RegentaColors.surface,
