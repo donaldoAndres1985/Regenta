@@ -1279,6 +1279,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
           // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
           appBar: escritorio
               ? EncabezadoDeSeccion(
+                  margen: EncabezadoDeSeccion.margenInicio,
                   icono: Icons.shopping_cart_outlined,
                   subtitulo: 'Busca o escanea productos para armar la venta',
                   titulo: 'Nueva venta',
