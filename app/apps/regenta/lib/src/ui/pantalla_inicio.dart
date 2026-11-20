@@ -39,7 +39,10 @@ class _PantallaInicioState extends ConsumerState<PantallaInicio> {
         ? claims.nombreNegocio!
         : 'Ferretería El Tornillo';
 
-    const nombreUsuario = 'Donaldo G.';
+    final nombreUsuario =
+        (claims?.nombreUsuario != null && claims!.nombreUsuario!.trim().isNotEmpty)
+        ? claims.nombreUsuario!.trim()
+        : 'Usuario';
 
     final plan = (claims != null && claims.plan.isNotEmpty)
         ? 'Plan ${claims.plan}'
@@ -118,7 +121,11 @@ class _EscritorioLayout extends StatelessWidget {
     return Scaffold(
       backgroundColor: RegentaColors.paper,
       // Encabezado común (design/comportamiento/Encabezado.md) con búsqueda, sede y nueva venta.
-      appBar: _EncabezadoSuperior(onNuevaVenta: () => onNavegar('/ventas')),
+      appBar: _EncabezadoSuperior(
+        nombreUsuario: nombreUsuario,
+        nombreNegocio: nombreNegocio,
+        onNuevaVenta: () => onNavegar('/ventas'),
+      ),
       body: Stack(
         children: [
           Row(
@@ -433,19 +440,33 @@ class _AccesosRapidosModulos extends StatelessWidget {
 // =========================================================================
 
 class _EncabezadoSuperior extends StatelessWidget implements PreferredSizeWidget {
-  const _EncabezadoSuperior({required this.onNuevaVenta});
+  const _EncabezadoSuperior({
+    required this.nombreUsuario,
+    required this.nombreNegocio,
+    required this.onNuevaVenta,
+  });
 
+  final String nombreUsuario;
+  final String nombreNegocio;
   final VoidCallback onNuevaVenta;
 
+  /// Inicio va con la mitad del margen de arriba de las demás secciones.
+  static const double _arriba = 12;
+
   @override
-  Size get preferredSize => const Size.fromHeight(EncabezadoDeSeccion.alto);
+  Size get preferredSize => const Size.fromHeight(
+    EncabezadoDeSeccion.alto - 24 + _arriba,
+  );
 
   @override
   Widget build(BuildContext context) {
+    final ahora = DateTime.now();
+    final saludo = ahora.hour < 12 ? 'Buenos días' : 'Buenas tardes';
+    final primerNombre = nombreUsuario.split(RegExp(r'\s+')).first;
     return EncabezadoDeSeccion(
-      icono: Icons.home_outlined,
-      titulo: 'Inicio',
-      subtitulo: 'Lunes 2 de noviembre · Sede Centro',
+      arriba: _arriba,
+      titulo: '$saludo, $primerNombre',
+      subtitulo: '${_fecha(ahora)} · así va tu $nombreNegocio hoy',
       acciones: [
         Row(
       mainAxisSize: MainAxisSize.min,
@@ -589,6 +610,16 @@ class _EncabezadoSuperior extends StatelessWidget implements PreferredSizeWidget
       ],
     );
   }
+}
+
+/// «Lunes 2 de noviembre».
+String _fecha(DateTime d) {
+  const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  const meses = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+  ];
+  return '${dias[d.weekday - 1]} ${d.day} de ${meses[d.month - 1]}';
 }
 
 // =========================================================================
