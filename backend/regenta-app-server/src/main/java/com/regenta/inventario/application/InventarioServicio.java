@@ -67,4 +67,10 @@ public class InventarioServicio implements InventarioApi {
             Collection<UUID> productoIds) {
         return productos.reglasDeLote(negocioId, productoIds);
     }
+
+    @Override
+    public Map<UUID, com.regenta.inventario.api.ProductoResumido> resumenDe(UUID negocioId,
+            Collection<UUID> productoIds) {
+        return productos.resumenDe(negocioId, productoIds);
+    }
 }
