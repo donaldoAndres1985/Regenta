@@ -116,4 +116,20 @@ void main() {
 
     expect(find.text('No hay órdenes de compra registradas.'), findsOneWidget);
   });
+
+  testWidgets('HU-166 · El botón Proveedores abre el listado de proveedores', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var abiertos = 0;
+    await tester.pumpWidget(ProviderScope(
+      overrides: [repositorioDeRecepcionesProvider.overrideWithValue(_RepoComprasFake(const []))],
+      child: MaterialApp(
+        home: PantallaCompras(onOrdenSeleccionada: (_) {}, onProveedores: () => abiertos++),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('compras-proveedores')));
+    expect(abiertos, 1);
+  });
 }

@@ -111,8 +111,13 @@ final List<RutaProtegida> rutasDeLaApp = [
           onOrdenSeleccionada: (ordenId) {
             unawaited(Navigator.of(context).pushNamed('/compras/$ordenId'));
           },
+          onProveedores: () {
+            unawaited(Navigator.of(context).pushNamed('/compras/proveedores'));
+          },
         );
       }
+      // HU-166 · `/compras/proveedores` cae en el mismo `:id` que una orden.
+      if (id == 'proveedores') return const PantallaProveedores();
       return PantallaRecepcion(ordenId: id);
     },
   ),

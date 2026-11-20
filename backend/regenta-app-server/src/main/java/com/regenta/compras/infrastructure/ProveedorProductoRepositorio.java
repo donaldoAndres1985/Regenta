@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -34,4 +35,18 @@ public interface ProveedorProductoRepositorio
             order by pp.preferido desc, p.razonSocial asc
             """)
     List<ProveedorDeProducto> proveedoresDelProducto(@Param("productoId") java.util.UUID productoId);
+
+    /**
+     * HU-166 · I3: cada producto tiene a lo sumo un proveedor preferido en el negocio. Antes de
+     * marcar uno, se desmarcan los demás.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            update ProveedorProducto pp set pp.preferido = false
+            where pp.negocioId = :negocioId and pp.productoId = :productoId
+              and pp.proveedorId <> :proveedorId and pp.preferido = true
+            """)
+    int quitarPreferidoDeLosDemas(@Param("negocioId") java.util.UUID negocioId,
+            @Param("productoId") java.util.UUID productoId,
+            @Param("proveedorId") java.util.UUID proveedorId);
 }

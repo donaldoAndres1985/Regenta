@@ -17,4 +17,7 @@ public interface ProveedorRepositorio extends JpaRepository<Proveedor, UUID> {
     List<Proveedor> findByNegocioIdAndEliminadoEnIsNullOrderByRazonSocialAsc(UUID negocioId);
 
     Optional<Proveedor> findByIdAndNegocioId(UUID id, UUID negocioId);
+
+    /** HU-166 · Todos los proveedores del negocio, activos e inactivos. */
+    List<Proveedor> findByNegocioIdOrderByRazonSocialAsc(UUID negocioId);
 }

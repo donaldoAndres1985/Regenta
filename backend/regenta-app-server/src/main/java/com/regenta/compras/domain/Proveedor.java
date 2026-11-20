@@ -149,6 +149,12 @@ public class Proveedor {
         this.eliminadoEn = OffsetDateTime.now();
     }
 
+    /** HU-166 · Un proveedor desactivado vuelve a estar disponible, con todo su historial (I2). */
+    public void reactivar() {
+        this.activo = true;
+        this.eliminadoEn = null;
+    }
+
     public boolean estaEliminado() {
         return eliminadoEn != null;
     }

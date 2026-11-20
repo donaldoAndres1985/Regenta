@@ -309,4 +309,17 @@ public class GestionDeProductos {
         }
         return reglas;
     }
+
+    /** HU-166 · SKU y nombre para mostrar productos en otros módulos (catálogo del proveedor). */
+    public Map<UUID, ProductoResumido> resumenDe(UUID negocioId,
+            java.util.Collection<UUID> productoIds) {
+        Map<UUID, ProductoResumido> resumen = new LinkedHashMap<>();
+        for (Producto p : productos.findAllById(productoIds)) {
+            if (negocioId.equals(p.getNegocioId())) {
+                resumen.put(p.getId(),
+                        new ProductoResumido(p.getId(), p.getSku(), p.getNombre(), p.isActivo()));
+            }
+        }
+        return resumen;
+    }
 }
