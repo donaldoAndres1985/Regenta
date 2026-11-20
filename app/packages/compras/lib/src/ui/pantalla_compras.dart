@@ -28,42 +28,52 @@ class PantallaCompras extends ConsumerWidget {
     final ordenesAsync = ref.watch(listaOrdenesComprasProvider);
     final locales = ref.watch(ordenesCreadasLocalProvider);
 
-    return Scaffold(
-      backgroundColor: RegentaColors.paper,
-      appBar: AppBar(
-        backgroundColor: RegentaColors.surface,
-        surfaceTintColor: RegentaColors.surface,
-        elevation: 0,
-        shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
-        title: Row(
-          children: [
-            const Icon(Icons.local_shipping, color: RegentaColors.ink, size: 22),
-            const SizedBox(width: 8),
-            Text(
-              'Órdenes de Compra',
-              style: RegentaType.seccion.copyWith(
-                fontSize: 18,
-                color: RegentaColors.ink,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Nueva Orden',
-            icon: const Icon(Icons.add, color: RegentaColors.accent),
-            onPressed: () => _abrirDialogoNuevaOrden(context, ref),
-          ),
-          IconButton(
-            tooltip: 'Refrescar',
-            icon: const Icon(Icons.refresh, color: RegentaColors.ink),
-            onPressed: () {
-              ref.invalidate(listaOrdenesComprasProvider);
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
+    final acciones = <Widget>[
+      IconButton(
+        tooltip: 'Nueva Orden',
+        icon: const Icon(Icons.add, color: RegentaColors.accent),
+        onPressed: () => _abrirDialogoNuevaOrden(context, ref),
       ),
+      IconButton(
+        tooltip: 'Refrescar',
+        icon: const Icon(Icons.refresh, color: RegentaColors.ink),
+        onPressed: () {
+          ref.invalidate(listaOrdenesComprasProvider);
+        },
+      ),
+    ];
+    return LayoutBuilder(builder: (context, afuera) => Scaffold(
+      backgroundColor: RegentaColors.paper,
+      // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
+      appBar: afuera.maxWidth >= kBreakpointEscritorio
+          ? EncabezadoDeSeccion(
+              icono: Icons.local_shipping_outlined,
+              titulo: 'Órdenes de Compra',
+              acciones: acciones,
+            )
+          : AppBar(
+              backgroundColor: RegentaColors.surface,
+              surfaceTintColor: RegentaColors.surface,
+              elevation: 0,
+              shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
+              title: Row(
+                children: [
+                  const Icon(Icons.local_shipping, color: RegentaColors.ink, size: 22),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Órdenes de Compra',
+                      overflow: TextOverflow.ellipsis,
+                      style: RegentaType.seccion.copyWith(
+                        fontSize: 18,
+                        color: RegentaColors.ink,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [...acciones, const SizedBox(width: 8)],
+            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _abrirDialogoNuevaOrden(context, ref),
         backgroundColor: RegentaColors.accent,
@@ -239,7 +249,7 @@ class PantallaCompras extends ConsumerWidget {
           );
         },
       ),
-    );
+    ));
   }
 
   Color _colorEstado(String estado) {
