@@ -293,4 +293,20 @@ public class GestionDeProductos {
         }
         return costos;
     }
+
+    /**
+     * HU-165 · Qué exige cada producto al recibirlo. Solo responde por los productos del negocio
+     * indicado: uno de otro negocio no aparece, igual que uno que no existe.
+     */
+    public Map<UUID, ReglaDeLote> reglasDeLote(UUID negocioId,
+            java.util.Collection<UUID> productoIds) {
+        Map<UUID, ReglaDeLote> reglas = new LinkedHashMap<>();
+        for (Producto p : productos.findAllById(productoIds)) {
+            if (negocioId.equals(p.getNegocioId())) {
+                reglas.put(p.getId(),
+                        new ReglaDeLote(p.getId(), p.isManejaLotes(), p.isPerecedero()));
+            }
+        }
+        return reglas;
+    }
 }

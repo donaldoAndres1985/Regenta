@@ -61,4 +61,10 @@ public class InventarioServicio implements InventarioApi {
     public void confirmarReserva(String origenTipo, UUID origenId) {
         reservas.confirmar(origenTipo, origenId);
     }
+
+    @Override
+    public Map<UUID, com.regenta.inventario.api.ReglaDeLote> reglasDeLote(UUID negocioId,
+            Collection<UUID> productoIds) {
+        return productos.reglasDeLote(negocioId, productoIds);
+    }
 }

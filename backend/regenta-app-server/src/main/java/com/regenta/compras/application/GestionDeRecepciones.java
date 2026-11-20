@@ -28,6 +28,8 @@ import com.regenta.compras.infrastructure.OrdenDeCompraRepositorio;
 import com.regenta.compras.infrastructure.ProveedorRepositorio;
 import com.regenta.compras.infrastructure.RecepcionLineaRepositorio;
 import com.regenta.compras.infrastructure.RecepcionRepositorio;
+import com.regenta.inventario.api.InventarioApi;
+import com.regenta.inventario.api.ReglaDeLote;
 import com.regenta.shared.web.ConflictoDeEstadoException;
 import com.regenta.shared.web.NoEncontradoException;
 import com.regenta.shared.events.RegistroDeEventos;
@@ -58,12 +60,14 @@ public class GestionDeRecepciones {
     private final ProveedorRepositorio proveedores;
     private final AsignadorDeConsecutivos consecutivos;
     private final RegistroDeEventos eventos;
+    private final InventarioApi inventario;
 
     public GestionDeRecepciones(RecepcionRepositorio recepciones,
             RecepcionLineaRepositorio recepcionLineas, OrdenDeCompraRepositorio ordenes,
             OrdenCompraLineaRepositorio ordenLineas, CuentaPorPagarRepositorio cuentas,
             ProveedorRepositorio proveedores, AsignadorDeConsecutivos consecutivos,
-            RegistroDeEventos eventos) {
+            RegistroDeEventos eventos, InventarioApi inventario) {
+        this.inventario = inventario;
         this.recepciones = recepciones;
         this.recepcionLineas = recepcionLineas;
         this.ordenes = ordenes;
@@ -113,6 +117,11 @@ public class GestionDeRecepciones {
                 orden.getProveedorId(), bodega, solicitud.facturaProveedor(),
                 ContextoDeNegocio.actual().usuario(), solicitud.observaciones());
 
+        // HU-165 · lo que exige cada producto lo dice el catálogo, no el cliente (I16).
+        Map<UUID, ReglaDeLote> reglas = inventario.reglasDeLote(negocioId,
+                lineasOrden.values().stream().map(OrdenCompraLinea::getProductoId).toList());
+        LocalDate hoy = LocalDate.now();
+
         List<RecepcionLinea> lineas = new ArrayList<>();
         for (SolicitudDeRecepcion.LineaDeRecepcion l : solicitud.lineas()) {
             OrdenCompraLinea ol = lineasOrden.get(l.ordenLineaId());
@@ -120,10 +129,16 @@ public class GestionDeRecepciones {
                 throw new NoEncontradoException("La lÃ­nea " + l.ordenLineaId()
                         + " no pertenece a la orden");
             }
+            ReglaDeLote regla = reglas.get(ol.getProductoId());
+            if (regla == null) {
+                throw new NoEncontradoException("El producto de la línea " + ol.getLinea()
+                        + " no existe en el catálogo");
+            }
             BigDecimal costo = l.costoUnitario() != null ? l.costoUnitario() : ol.getCostoUnitario();
             lineas.add(RecepcionLinea.nueva(recepcion.getId(), negocioId, ol.getId(),
-                    ol.getProductoId(), l.cantidad(), costo, l.exigeLote(), l.codigoLote(),
-                    l.fechaVencimiento(), l.registroSanitario()));
+                    ol.getProductoId(), l.cantidad(), costo, regla.manejaLotes(),
+                    regla.perecedero(), hoy, l.codigoLote(), l.fechaVencimiento(),
+                    l.registroSanitario()));
         }
         recepcion.totalizar(lineas);
 
@@ -211,6 +226,9 @@ public class GestionDeRecepciones {
         datos.put("bodega_id", r.getBodegaId().toString());
         datos.put("numero", r.getNumero());
         datos.put("factura_proveedor", r.getFacturaProveedor());
+        // HU-165 · el libro mayor de Inventario anota quién recibió.
+        UUID usuario = ContextoDeNegocio.actual().usuario();
+        datos.put("usuario_id", usuario == null ? null : usuario.toString());
         List<Map<String, Object>> renglones = new ArrayList<>();
         for (RecepcionLinea l : lineas) {
             Map<String, Object> renglon = new LinkedHashMap<>();

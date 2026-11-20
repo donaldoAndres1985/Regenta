@@ -57,9 +57,16 @@ public class RecepcionLinea {
     protected RecepcionLinea() {
     }
 
+    /**
+     * Una línea de lo recibido. {@code manejaLotes} y {@code perecedero} vienen del catálogo de
+     * Inventario, nunca del cliente (HU-165, I16 de Compras): si el producto maneja lotes, el código
+     * es obligatorio; si es perecedero, también el vencimiento; y un vencimiento anterior a la fecha
+     * de recepción se rechaza.
+     */
     public static RecepcionLinea nueva(UUID recepcionId, UUID negocioId, UUID ordenLineaId,
-            UUID productoId, BigDecimal cantidad, BigDecimal costoUnitario, boolean exigeLote,
-            String codigoLote, LocalDate fechaVencimiento, String registroSanitario) {
+            UUID productoId, BigDecimal cantidad, BigDecimal costoUnitario, boolean manejaLotes,
+            boolean perecedero, LocalDate fechaRecepcion, String codigoLote,
+            LocalDate fechaVencimiento, String registroSanitario) {
         if (cantidad == null || cantidad.signum() <= 0) {
             throw new ReglaDeNegocioException("La cantidad recibida debe ser mayor que cero");
         }
@@ -67,9 +74,18 @@ public class RecepcionLinea {
             throw new ReglaDeNegocioException("El costo unitario no puede ser negativo");
         }
         String lote = limpiar(codigoLote);
-        if (exigeLote && (lote == null || fechaVencimiento == null)) {
+        boolean exigeLote = manejaLotes || perecedero;
+        if (exigeLote && lote == null) {
             throw new ReglaDeNegocioException(
-                    "El producto exige lote y fecha de vencimiento al recibirlo");
+                    "Este producto maneja lotes: indica el código de lote que llegó");
+        }
+        if (perecedero && fechaVencimiento == null) {
+            throw new ReglaDeNegocioException(
+                    "Este producto es perecedero: indica la fecha de vencimiento del lote");
+        }
+        if (exigeLote && fechaVencimiento != null && fechaVencimiento.isBefore(fechaRecepcion)) {
+            throw new ReglaDeNegocioException("El lote " + lote + " venció el " + fechaVencimiento
+                    + ": no se recibe mercancía vencida");
         }
         RecepcionLinea l = new RecepcionLinea();
         l.id = UUID.randomUUID();
