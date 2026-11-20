@@ -55,12 +55,20 @@ public class EmisorDeTokens {
     /** Datos que el token lleva encima. */
     public record Contexto(UUID negocio, UUID usuario, String plan, String patron,
             String estadoNegocio, Collection<String> roles, Collection<String> modulos,
-            Collection<String> permisos, Collection<UUID> sucursales, String nombreNegocio) {
+            Collection<String> permisos, Collection<UUID> sucursales, String nombreNegocio,
+            String nombreUsuario) {
+
+        public Contexto(UUID negocio, UUID usuario, String plan, String patron,
+                String estadoNegocio, Collection<String> roles, Collection<String> modulos,
+                Collection<String> permisos, Collection<UUID> sucursales, String nombreNegocio) {
+            this(negocio, usuario, plan, patron, estadoNegocio, roles, modulos, permisos, sucursales,
+                    nombreNegocio, null);
+        }
 
         public Contexto(UUID negocio, UUID usuario, String plan, String patron,
                 String estadoNegocio, Collection<String> roles, Collection<String> modulos,
                 Collection<String> permisos, Collection<UUID> sucursales) {
-            this(negocio, usuario, plan, patron, estadoNegocio, roles, modulos, permisos, sucursales, null);
+            this(negocio, usuario, plan, patron, estadoNegocio, roles, modulos, permisos, sucursales, null, null);
         }
     }
 
@@ -86,6 +94,9 @@ public class EmisorDeTokens {
                 .claim("sucursales", contexto.sucursales().stream().map(UUID::toString).toList());
         if (contexto.nombreNegocio() != null && !contexto.nombreNegocio().isBlank()) {
             builder.claim("nombre_negocio", contexto.nombreNegocio());
+        }
+        if (contexto.nombreUsuario() != null && !contexto.nombreUsuario().isBlank()) {
+            builder.claim("nombre_usuario", contexto.nombreUsuario());
         }
         JWTClaimsSet claims = builder.build();
         SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
