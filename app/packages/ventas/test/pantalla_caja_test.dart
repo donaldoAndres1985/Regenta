@@ -121,7 +121,7 @@ class _RepoCajaFake implements RepositorioDeCaja {
 }
 
 void main() {
-  testWidgets('Encabezado E1-E5 · en web, el encabezado común con ícono; en móvil, la barra', (tester) async {
+  testWidgets('Encabezado E1-E5 · en web, el encabezado común sin ícono; en móvil, la barra', (tester) async {
     Future<void> montar(Size tamano) async {
       await tester.binding.setSurfaceSize(tamano);
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -135,7 +135,7 @@ void main() {
     await montar(const Size(1440, 900));
     final encabezado = find.byType(EncabezadoDeSeccion);
     expect(encabezado, findsOneWidget);
-    expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.payments_outlined)), findsOneWidget);
+    expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.payments_outlined)), findsNothing);
     expect(find.descendant(of: encabezado, matching: find.text('Gestión de Caja y Turnos')), findsOneWidget);
 
     await montar(const Size(390, 844));

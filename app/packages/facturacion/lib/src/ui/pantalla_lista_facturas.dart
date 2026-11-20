@@ -43,7 +43,6 @@ class PantallaListaFacturas extends ConsumerWidget {
         // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
         appBar: afuera.maxWidth >= kBreakpointEscritorio
             ? EncabezadoDeSeccion(
-                icono: Icons.receipt_long_outlined,
                 subtitulo: 'Facturas electrónicas emitidas y su estado',
                 titulo: 'Facturas Electrónicas',
                 acciones: acciones,
@@ -154,7 +153,7 @@ class PantallaListaFacturas extends ConsumerWidget {
             }
 
             return ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(16, afuera.maxWidth >= kBreakpointEscritorio ? 0 : 16, 16, 16),
               itemCount: facturas.length,
               separatorBuilder: (context, index) => const SizedBox(height: 8),
               itemBuilder: (context, i) {

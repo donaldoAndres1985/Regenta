@@ -19,14 +19,14 @@ class EncabezadoDeSeccion extends StatelessWidget implements PreferredSizeWidget
     this.margen = EncabezadoDeSeccion.margenEstandar,
   });
 
-  /// 10 arriba + 56 de fila + 20 abajo (E3).
-  static const double alto = 86;
+  /// 8 arriba + 56 de fila + 17 abajo (E3).
+  static const double alto = 81;
 
   /// Márgenes de todas las secciones (E3).
-  static const EdgeInsets margenEstandar = EdgeInsets.fromLTRB(24, 10, 24, 20);
+  static const EdgeInsets margenEstandar = EdgeInsets.fromLTRB(24, 8, 24, 17);
 
-  /// Inicio va más arriba: 8 arriba y 17 abajo (E7).
-  static const EdgeInsets margenInicio = EdgeInsets.fromLTRB(24, 8, 24, 17);
+  /// Igual al estándar: todas las secciones usan los márgenes de Inicio (E3).
+  static const EdgeInsets margenInicio = margenEstandar;
 
   /// Alto de la fila del título y las acciones.
   static const double altoFila = 56;

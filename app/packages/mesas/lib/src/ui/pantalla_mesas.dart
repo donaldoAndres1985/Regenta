@@ -56,7 +56,6 @@ class _PantallaMesasState extends ConsumerState<PantallaMesas> {
         // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
         appBar: afuera.maxWidth >= kBreakpointEscritorio
             ? EncabezadoDeSeccion(
-                icono: Icons.table_restaurant_outlined,
                 subtitulo: 'Plano del salón y estado de cada mesa',
                 titulo: 'Mesas',
                 acciones: acciones,

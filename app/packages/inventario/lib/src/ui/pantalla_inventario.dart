@@ -333,7 +333,7 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
   /// Encabezado común de las secciones (design/comportamiento/Encabezado.md), sin ruta de migas.
   PreferredSizeWidget _encabezado(EstadoDeInventario estado, bool puedeImportar) {
     final consulta = estado.consulta;
-    return EncabezadoDeSeccion(icono: Icons.inventory_2_outlined, subtitulo: 'Productos, existencias y valor de tu inventario', titulo: widget.titulo, acciones: [
+    return EncabezadoDeSeccion(subtitulo: 'Productos, existencias y valor de tu inventario', titulo: widget.titulo, acciones: [
       _MenuHerramientas(puedeImportar: puedeImportar, compacto: false, onOpcion: _herramienta),
       SizedBox(
         height: 38,

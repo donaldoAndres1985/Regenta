@@ -120,7 +120,6 @@ class _PantallaClientesState extends ConsumerState<PantallaClientes> {
             // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
             appBar: afuera.maxWidth >= kBreakpointEscritorio
                 ? EncabezadoDeSeccion(
-                    icono: Icons.people_outline,
                     subtitulo: 'Datos, cartera y crédito de tus clientes',
                     titulo: 'Clientes',
                     acciones: acciones,
