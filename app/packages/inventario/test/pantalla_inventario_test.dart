@@ -295,7 +295,8 @@ void main() {
       Finder en(String tarjeta, String texto) =>
           find.descendant(of: find.byKey(Key(tarjeta)), matching: find.text(texto));
       expect(en('tarjeta-valorizado', formatearPesos(69816176)), findsOneWidget);
-      expect(en('tarjeta-valorizado', 'Al costo promedio'), findsOneWidget);
+      expect(en('tarjeta-valorizado', 'Al costo promedio, sin IVA'), findsOneWidget);
+      expect(en('tarjeta-valorizado', 'A precio de venta con IVA: ${formatearPesos(90000000)}'), findsOneWidget);
       expect(en('tarjeta-productos', '2165'), findsOneWidget);
       expect(en('tarjeta-bodegas', '1'), findsOneWidget);
       expect(en('tarjeta-bodegas', 'Bodega Principal'), findsOneWidget);
@@ -318,7 +319,9 @@ void main() {
       Finder en(String texto) =>
           find.descendant(of: find.byKey(const Key('tarjeta-valorizado')), matching: find.text(texto));
       expect(en(formatearPesos(90000000)), findsOneWidget);
-      expect(en('A precio de venta'), findsOneWidget);
+      expect(en('A precio de venta, con IVA'), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('tarjeta-valorizado')), matching: find.textContaining('sin IVA')),
+          findsNothing);
     });
 
     testWidgets('R13 · tocar «Tarifas por revisar» filtra por ellas', (tester) async {

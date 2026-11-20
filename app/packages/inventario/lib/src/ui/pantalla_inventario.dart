@@ -394,7 +394,10 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
             clave: 'tarjeta-valorizado',
             titulo: 'Inventario valorizado',
             valor: o(formatearPesos(alCosto ? resumen.valorCosto! : resumen.valorPrecio)),
-            pie: alCosto ? 'Al costo promedio' : 'A precio de venta',
+            pie: alCosto ? 'Al costo promedio, sin IVA' : 'A precio de venta, con IVA',
+            detalle: alCosto && !cargando
+                ? 'A precio de venta con IVA: ${formatearPesos(resumen.valorPrecio)}'
+                : null,
             tono: _TonoTarjeta.acento,
           ),
         ),
@@ -775,6 +778,7 @@ class _Tarjeta extends StatelessWidget {
     required this.titulo,
     required this.valor,
     required this.pie,
+    this.detalle,
     this.tono = _TonoTarjeta.normal,
     this.activa = false,
     this.onTap,
@@ -784,6 +788,9 @@ class _Tarjeta extends StatelessWidget {
   final String titulo;
   final String valor;
   final String pie;
+
+  /// Una segunda línea bajo el pie (el valorizado a precio de venta junto al de costo).
+  final String? detalle;
   final _TonoTarjeta tono;
   final bool activa;
   final VoidCallback? onTap;
@@ -840,6 +847,13 @@ class _Tarjeta extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: RegentaType.cuerpo.copyWith(fontSize: 11.5, color: colorPie)),
+            if (detalle != null) ...[
+              const SizedBox(height: 2),
+              Text(detalle!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: RegentaType.cuerpo.copyWith(fontSize: 11.5, color: colorPie)),
+            ],
           ]),
         ),
       ),

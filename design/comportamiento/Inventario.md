@@ -126,8 +126,10 @@ filtrar, buscar o confirmar tarifas no cambia el valorizado ni el conteo de prod
 seguían a los filtros, y al confirmar la tarifa de 50 productos con «tarifa por revisar» activo
 el valorizado bajaba, como si el inventario hubiera cambiado.)
 
-- **Inventario valorizado**: al costo promedio; sin permiso de costo (R11), a precio de venta, y
-  el subtítulo lo dice.
+- **Inventario valorizado**: existencia × costo promedio, **sin IVA** (el costo nunca lleva el IVA
+  sumado; en los productos migrados es el costo de Sara tal cual). Una segunda línea da el valor a
+  precio de venta **con IVA** (los precios lo traen incluido). Sin permiso de costo (R11), el valor
+  grande es el de precio de venta, con IVA, y no hay segunda línea. El subtítulo dice cuál es.
 - **Productos**: los activos.
 - **Bodegas**: cuántas bodegas activas tiene el negocio y sus nombres.
 - **Tarifas por revisar**: los activos con la tarifa de IVA sin confirmar. Tocarla activa o quita
