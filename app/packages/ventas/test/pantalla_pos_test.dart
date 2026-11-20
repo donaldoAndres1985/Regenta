@@ -872,7 +872,7 @@ void main() {
     await _montar(tester, _RepoFake(), size: const Size(1440, 900));
     final encabezado = find.byType(EncabezadoDeSeccion);
     expect(encabezado, findsOneWidget);
-    expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.shopping_cart_outlined)), findsOneWidget);
+    expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.shopping_cart_outlined)), findsNothing);
     expect(find.descendant(of: encabezado, matching: find.text('Nueva venta')), findsOneWidget);
     expect(find.descendant(of: encabezado, matching: find.byKey(const Key('boton-historial-ventas'))),
         findsOneWidget);
