@@ -238,7 +238,7 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
       return Scaffold(
         backgroundColor: RegentaColors.paper,
         appBar: web
-            ? null
+            ? _encabezado(estado, puedeImportar)
             : AppBar(
                 backgroundColor: RegentaColors.surface,
                 surfaceTintColor: RegentaColors.surface,
@@ -271,10 +271,8 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
   // ---- web ----
 
   Widget _web(EstadoDeInventario estado, bool puedeImportar) => Padding(
-        padding: const EdgeInsets.fromLTRB(28, 22, 28, 22),
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          _encabezado(estado, puedeImportar),
-          const SizedBox(height: 18),
           _tarjetas(estado),
           const SizedBox(height: 18),
           Expanded(
@@ -332,21 +330,11 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
         ]),
       );
 
-  Widget _encabezado(EstadoDeInventario estado, bool puedeImportar) {
+  /// Encabezado común de las secciones (design/comportamiento/Encabezado.md), sin ruta de migas.
+  PreferredSizeWidget _encabezado(EstadoDeInventario estado, bool puedeImportar) {
     final consulta = estado.consulta;
-    return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Regenta / ${widget.titulo}',
-              style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.muted)),
-          const SizedBox(height: 4),
-          Text(widget.titulo,
-              style: RegentaType.tituloPantalla.copyWith(
-                  fontSize: 26, fontWeight: FontWeight.w700, color: RegentaColors.ink)),
-        ]),
-      ),
+    return EncabezadoDeSeccion(icono: Icons.inventory_2_outlined, titulo: widget.titulo, acciones: [
       _MenuHerramientas(puedeImportar: puedeImportar, compacto: false, onOpcion: _herramienta),
-      const SizedBox(width: 10),
       SizedBox(
         height: 38,
         child: OutlinedButton.icon(
@@ -359,7 +347,6 @@ class _PantallaInventarioState extends ConsumerState<PantallaInventario> {
               : 'Cambiar tarifa (${_seleccion.length})'),
         ),
       ),
-      const SizedBox(width: 10),
       SizedBox(
         height: 38,
         child: FilledButton.icon(
