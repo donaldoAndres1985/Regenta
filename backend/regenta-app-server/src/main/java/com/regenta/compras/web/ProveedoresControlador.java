@@ -1,7 +1,5 @@
 package com.regenta.compras.web;
 
-import com.regenta.compras.api.*;
-
 import java.util.List;
 import java.util.UUID;
 
@@ -13,13 +11,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.compras.application.GestionDeProveedores;
 import com.regenta.compras.application.ProductoDeProveedor;
-import com.regenta.compras.application.ProveedorDelNegocio;
 import com.regenta.compras.application.ProveedorDeProducto;
+import com.regenta.compras.application.ProveedorDelNegocio;
 import com.regenta.compras.application.SolicitudDeProductoDeProveedor;
 import com.regenta.compras.application.SolicitudDeProveedor;
 
@@ -28,10 +27,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
-/** Proveedores y quÃ© productos venden. HU-046. */
+/** Proveedores y qué productos venden. HU-046 y HU-166. */
 @RestController
 @RequestMapping("/api/compras/proveedores")
-@Tag(name = "Proveedores", description = "A quiÃ©n comprarle, con quÃ© plazo y a quÃ© costo")
+@Tag(name = "Proveedores", description = "A quién comprarle, con qué plazo y a qué costo")
 public class ProveedoresControlador {
 
     private final GestionDeProveedores proveedores;
@@ -41,13 +40,15 @@ public class ProveedoresControlador {
     }
 
     @GetMapping
-    @Operation(summary = "Los proveedores activos del negocio")
-    public List<ProveedorDelNegocio> listar() {
-        return proveedores.listar();
+    @Operation(summary = "Los proveedores del negocio, con su deuda calculada",
+            description = "Por omisión solo los activos; `estado=TODOS` o `INACTIVOS` para el resto.")
+    public List<ProveedorDelNegocio> listar(
+            @RequestParam(defaultValue = "ACTIVOS") GestionDeProveedores.Estado estado) {
+        return proveedores.listar(estado);
     }
 
     @GetMapping("/{proveedorId}")
-    @Operation(summary = "Un proveedor por id")
+    @Operation(summary = "Un proveedor por id, activo o no")
     @ApiResponse(responseCode = "404", description = "No existe en este negocio")
     public ProveedorDelNegocio ver(@PathVariable UUID proveedorId) {
         return proveedores.ver(proveedorId);
@@ -55,8 +56,8 @@ public class ProveedoresControlador {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Registra un proveedor con sus condiciones de crÃ©dito")
-    @ApiResponse(responseCode = "409", description = "Ya hay un proveedor con ese documento")
+    @Operation(summary = "Registra un proveedor con sus condiciones de crédito")
+    @ApiResponse(responseCode = "409", description = "Ya existe un proveedor con ese documento")
     public ProveedorDelNegocio crear(@Valid @RequestBody SolicitudDeProveedor solicitud) {
         return proveedores.crear(solicitud);
     }
@@ -64,29 +65,46 @@ public class ProveedoresControlador {
     @PutMapping("/{proveedorId}")
     @Operation(summary = "Cambia los datos y las condiciones de un proveedor")
     @ApiResponse(responseCode = "404", description = "No existe en este negocio")
+    @ApiResponse(responseCode = "409", description = "El proveedor está desactivado")
     public ProveedorDelNegocio actualizar(@PathVariable UUID proveedorId,
             @Valid @RequestBody SolicitudDeProveedor solicitud) {
         return proveedores.actualizar(proveedorId, solicitud);
     }
 
     @DeleteMapping("/{proveedorId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Desactiva un proveedor (no se borra: queda inactivo)")
-    public void desactivar(@PathVariable UUID proveedorId) {
-        proveedores.desactivar(proveedorId);
+    public ProveedorDelNegocio desactivar(@PathVariable UUID proveedorId) {
+        return proveedores.desactivar(proveedorId);
+    }
+
+    @PostMapping("/{proveedorId}/reactivacion")
+    @Operation(summary = "Reactiva un proveedor desactivado")
+    @ApiResponse(responseCode = "404", description = "No existe en este negocio")
+    public ProveedorDelNegocio reactivar(@PathVariable UUID proveedorId) {
+        return proveedores.reactivar(proveedorId);
     }
 
     @GetMapping("/{proveedorId}/productos")
-    @Operation(summary = "Los productos que vende el proveedor, con su cÃ³digo y costo")
+    @Operation(summary = "Los productos que vende el proveedor, con su código y costo")
     public List<ProductoDeProveedor> productos(@PathVariable UUID proveedorId) {
         return proveedores.productosDe(proveedorId);
     }
 
     @PostMapping("/{proveedorId}/productos")
-    @Operation(summary = "Asocia (o actualiza) un producto del proveedor con su costo")
+    @Operation(summary = "Asocia (o actualiza) un producto del proveedor con su costo",
+            description = "Si se marca preferido, deja de serlo el proveedor que lo era.")
+    @ApiResponse(responseCode = "404", description = "El producto no existe en el catálogo")
+    @ApiResponse(responseCode = "409", description = "El proveedor está desactivado")
     public ProductoDeProveedor asociarProducto(@PathVariable UUID proveedorId,
             @Valid @RequestBody SolicitudDeProductoDeProveedor solicitud) {
         return proveedores.asociarProducto(proveedorId, solicitud);
+    }
+
+    @DeleteMapping("/{proveedorId}/productos/{productoId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Saca un producto del catálogo del proveedor")
+    public void quitarProducto(@PathVariable UUID proveedorId, @PathVariable UUID productoId) {
+        proveedores.quitarProducto(proveedorId, productoId);
     }
 
     @GetMapping("/de-producto/{productoId}")

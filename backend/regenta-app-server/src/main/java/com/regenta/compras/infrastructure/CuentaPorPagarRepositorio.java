@@ -5,6 +5,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.regenta.compras.domain.CuentaPorPagar;
 
@@ -19,4 +21,18 @@ public interface CuentaPorPagarRepositorio extends JpaRepository<CuentaPorPagar,
 
     boolean existsByNegocioIdAndProveedorIdAndNumeroFactura(UUID negocioId, UUID proveedorId,
             String numeroFactura);
+
+    /**
+     * HU-166 · Lo que se le debe a cada proveedor: la suma de los saldos de sus cuentas abiertas
+     * (I5). Cada fila es {@code [proveedorId, saldo]}; un proveedor sin cuentas abiertas no aparece.
+     */
+    @Query("""
+            select c.proveedorId, sum(c.saldo)
+            from CuentaPorPagar c
+            where c.negocioId = :negocioId
+              and c.estado <> com.regenta.compras.domain.EstadoCuentaPorPagar.PAGADA
+              and c.estado <> com.regenta.compras.domain.EstadoCuentaPorPagar.ANULADA
+            group by c.proveedorId
+            """)
+    List<Object[]> saldosAbiertosPorProveedor(@Param("negocioId") UUID negocioId);
 }

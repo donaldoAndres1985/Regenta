@@ -19,9 +19,13 @@ class PantallaCompras extends ConsumerWidget {
   const PantallaCompras({
     super.key,
     required this.onOrdenSeleccionada,
+    this.onProveedores,
   });
 
   final ValueChanged<String> onOrdenSeleccionada;
+
+  /// HU-166 · Abre el listado de proveedores. Nulo: el botón no aparece.
+  final VoidCallback? onProveedores;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -29,6 +33,13 @@ class PantallaCompras extends ConsumerWidget {
     final locales = ref.watch(ordenesCreadasLocalProvider);
 
     final acciones = <Widget>[
+      if (onProveedores != null)
+        TextButton.icon(
+          key: const Key('compras-proveedores'),
+          onPressed: onProveedores,
+          icon: const Icon(Icons.store_mall_directory_outlined, size: 18, color: RegentaColors.ink),
+          label: Text('Proveedores', style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink)),
+        ),
       IconButton(
         tooltip: 'Nueva Orden',
         icon: const Icon(Icons.add, color: RegentaColors.accent),

@@ -34,4 +34,7 @@ public interface InventarioApi {
      * del negocio no vienen en el mapa.
      */
     Map<UUID, ReglaDeLote> reglasDeLote(UUID negocioId, Collection<UUID> productoIds);
+
+    /** HU-166 · SKU y nombre de cada producto del negocio; los de otro negocio no vienen. */
+    Map<UUID, ProductoResumido> resumenDe(UUID negocioId, Collection<UUID> productoIds);
 }
