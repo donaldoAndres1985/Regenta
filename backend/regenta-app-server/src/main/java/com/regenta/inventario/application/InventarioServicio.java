@@ -20,11 +20,14 @@ public class InventarioServicio implements InventarioApi {
     private final GestionDeProductos productos;
     private final GestionDeReservasStock reservas;
     private final GestionDeFracciones fracciones;
+    private final com.regenta.inventario.infrastructure.BodegaRepositorio bodegas;
 
     public InventarioServicio(GestionDeLotes lotes,
                              GestionDeProductos productos,
                              GestionDeReservasStock reservas,
-                             GestionDeFracciones fracciones) {
+                             GestionDeFracciones fracciones,
+                             com.regenta.inventario.infrastructure.BodegaRepositorio bodegas) {
+        this.bodegas = bodegas;
         this.lotes = lotes;
         this.productos = productos;
         this.reservas = reservas;
@@ -72,5 +75,18 @@ public class InventarioServicio implements InventarioApi {
     public Map<UUID, com.regenta.inventario.api.ProductoResumido> resumenDe(UUID negocioId,
             Collection<UUID> productoIds) {
         return productos.resumenDe(negocioId, productoIds);
+    }
+
+    @Override
+    public Map<UUID, com.regenta.inventario.api.ProductoParaComprar> paraComprar(UUID negocioId,
+            Collection<UUID> productoIds) {
+        return productos.paraComprar(negocioId, productoIds);
+    }
+
+    @Override
+    public boolean bodegaActiva(UUID negocioId, UUID bodegaId) {
+        return bodegaId != null && bodegas.findById(bodegaId)
+                .filter(b -> negocioId.equals(b.getNegocioId()) && b.isActiva())
+                .isPresent();
     }
 }

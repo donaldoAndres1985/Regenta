@@ -2,6 +2,7 @@ package com.regenta.compras.domain;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -19,7 +20,11 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
 /**
- * Lo que llegó de un proveedor contra una orden de compra (HU-048).
+ * Lo que llegó de un proveedor, con su factura (HU-048, HU-167). Con {@code ordenId} nulo es una
+ * compra directa (I13 de {@code docs/dominio/compras.md}).
+ *
+ * <p>Totales (I22): {@code subtotal} = suma de las bases de las líneas; {@code impuestoTotal} =
+ * suma de su IVA; {@code total} = subtotal + IVA + flete. Es lo que se le debe al proveedor.
  *
  * <p>Se arma en {@link EstadoRecepcion#BORRADOR} con las líneas recibidas y sus
  * lotes; al {@link #confirmar()} se sube el inventario y —si trae la factura del
@@ -57,6 +62,18 @@ public class Recepcion {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private EstadoRecepcion estado;
+
+    @Column(name = "fecha_factura")
+    private LocalDate fechaFactura;
+
+    @Column(nullable = false)
+    private BigDecimal subtotal = BigDecimal.ZERO;
+
+    @Column(name = "impuesto_total", nullable = false)
+    private BigDecimal impuestoTotal = BigDecimal.ZERO;
+
+    @Column(nullable = false)
+    private BigDecimal flete = BigDecimal.ZERO;
 
     @Column(nullable = false)
     private BigDecimal total;
@@ -97,11 +114,43 @@ public class Recepcion {
     }
 
     public void totalizar(List<RecepcionLinea> lineas) {
-        BigDecimal suma = BigDecimal.ZERO;
+        BigDecimal base = BigDecimal.ZERO;
+        BigDecimal iva = BigDecimal.ZERO;
         for (RecepcionLinea l : lineas) {
-            suma = suma.add(l.subtotal());
+            base = base.add(l.subtotal());
+            iva = iva.add(l.impuesto());
         }
-        this.total = suma.setScale(4, RoundingMode.HALF_UP);
+        this.subtotal = base.setScale(4, RoundingMode.HALF_UP);
+        this.impuestoTotal = iva.setScale(4, RoundingMode.HALF_UP);
+        this.total = subtotal.add(impuestoTotal).add(flete).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * HU-167 · Los datos de la factura del proveedor: número, fecha y flete. Solo en borrador: una
+     * recepción confirmada no se edita (I17).
+     */
+    public void datosDeFactura(String numero, LocalDate fecha, BigDecimal flete,
+            String observaciones) {
+        exigirBorrador();
+        if (flete != null && flete.signum() < 0) {
+            throw new com.regenta.shared.web.ReglaDeNegocioException("El flete no puede ser negativo");
+        }
+        this.facturaProveedor = limpiar(numero);
+        this.fechaFactura = fecha;
+        this.flete = flete == null ? BigDecimal.ZERO : flete;
+        this.observaciones = limpiar(observaciones);
+    }
+
+    /** I17: una recepción confirmada o anulada no se edita (409). */
+    public void exigirBorrador() {
+        if (estado != EstadoRecepcion.BORRADOR) {
+            throw new ConflictoDeEstadoException(
+                    "Esta recepción ya está " + estado + ": no se edita. Se anula o se devuelve.");
+        }
+    }
+
+    public boolean esCompraDirecta() {
+        return ordenId == null;
     }
 
     /** BORRADOR → CONFIRMADA. Confirmar dos veces es un conflicto de estado. */
@@ -175,5 +224,21 @@ public class Recepcion {
 
     public String getObservaciones() {
         return observaciones;
+    }
+
+    public LocalDate getFechaFactura() {
+        return fechaFactura;
+    }
+
+    public BigDecimal getSubtotal() {
+        return subtotal;
+    }
+
+    public BigDecimal getImpuestoTotal() {
+        return impuestoTotal;
+    }
+
+    public BigDecimal getFlete() {
+        return flete;
     }
 }

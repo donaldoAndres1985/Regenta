@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.compras.application.GestionDeProveedores;
 import com.regenta.compras.application.ProductoDeProveedor;
+import com.regenta.compras.application.ProductoParaComprarDelProveedor;
 import com.regenta.compras.application.ProveedorDeProducto;
 import com.regenta.compras.application.ProveedorDelNegocio;
 import com.regenta.compras.application.SolicitudDeProductoDeProveedor;
@@ -105,6 +106,14 @@ public class ProveedoresControlador {
     @Operation(summary = "Saca un producto del catálogo del proveedor")
     public void quitarProducto(@PathVariable UUID proveedorId, @PathVariable UUID productoId) {
         proveedores.quitarProducto(proveedorId, productoId);
+    }
+
+    @GetMapping("/{proveedorId}/para-comprar/{productoId}")
+    @Operation(summary = "Tarifa de IVA, regla de lote y costo sugerido para comprarle un producto")
+    @ApiResponse(responseCode = "404", description = "El proveedor o el producto no existen")
+    public ProductoParaComprarDelProveedor paraComprar(@PathVariable UUID proveedorId,
+            @PathVariable UUID productoId) {
+        return proveedores.paraComprar(proveedorId, productoId);
     }
 
     @GetMapping("/de-producto/{productoId}")

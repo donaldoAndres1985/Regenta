@@ -114,10 +114,15 @@ final List<RutaProtegida> rutasDeLaApp = [
           onProveedores: () {
             unawaited(Navigator.of(context).pushNamed('/compras/proveedores'));
           },
+          onCompraDirecta: () {
+            unawaited(Navigator.of(context).pushNamed('/compras/compra-directa'));
+          },
         );
       }
       // HU-166 · `/compras/proveedores` cae en el mismo `:id` que una orden.
       if (id == 'proveedores') return const PantallaProveedores();
+      // HU-167 · compra directa con la factura del proveedor, sin orden.
+      if (id == 'compra-directa') return const PantallaCompraDirecta();
       return PantallaRecepcion(ordenId: id);
     },
   ),

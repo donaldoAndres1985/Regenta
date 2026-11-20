@@ -322,4 +322,18 @@ public class GestionDeProductos {
         }
         return resumen;
     }
+
+    /** HU-167 · Tarifa de IVA y regla de lote, para registrar el producto en una compra. */
+    public Map<UUID, ProductoParaComprar> paraComprar(UUID negocioId,
+            java.util.Collection<UUID> productoIds) {
+        Map<UUID, ProductoParaComprar> datos = new LinkedHashMap<>();
+        for (Producto p : productos.findAllById(productoIds)) {
+            if (negocioId.equals(p.getNegocioId())) {
+                datos.put(p.getId(), new ProductoParaComprar(p.getId(), p.getSku(), p.getNombre(),
+                        p.isActivo(), p.getTarifaIva().name(), p.getTarifaIva().porcentaje(),
+                        p.isManejaLotes(), p.isPerecedero()));
+            }
+        }
+        return datos;
+    }
 }
