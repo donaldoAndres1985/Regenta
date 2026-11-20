@@ -65,6 +65,14 @@ public class RecepcionLinea {
     @Column(name = "impuesto_pct", nullable = false)
     private BigDecimal impuestoPct;
 
+    /** HU-168 · Con qué costo unitario entra al inventario (I14). Lo fija la recepción al totalizar. */
+    @Column(name = "costo_entrada")
+    private BigDecimal costoEntrada;
+
+    /** HU-168 · El IVA de la línea ya descontada su parte del descuento global. */
+    @Column(name = "impuesto_valor")
+    private BigDecimal impuestoValor;
+
     @Column(name = "codigo_lote", length = 60)
     private String codigoLote;
 
@@ -170,9 +178,26 @@ public class RecepcionLinea {
         return cantidad.multiply(costoNeto()).setScale(4, RoundingMode.HALF_UP);
     }
 
-    /** El IVA de la línea: base × tarifa. */
+    /**
+     * El IVA de la línea. Si la recepción ya repartió el descuento global, es el que se calculó
+     * sobre la base rebajada; si no, base × tarifa.
+     */
     public BigDecimal impuesto() {
+        if (impuestoValor != null) {
+            return impuestoValor;
+        }
         return subtotal().multiply(impuestoPct).divide(CIEN, 4, RoundingMode.HALF_UP);
+    }
+
+    /** HU-168 · Lo calcula {@link CostoDeEntrada} al totalizar la recepción. */
+    void asignarCosto(BigDecimal costoEntrada, BigDecimal impuesto) {
+        this.costoEntrada = costoEntrada;
+        this.impuestoValor = impuesto;
+    }
+
+    /** El costo con que entra al inventario; antes de totalizar, el costo neto. */
+    public BigDecimal getCostoEntrada() {
+        return costoEntrada != null ? costoEntrada : costoNeto();
     }
 
     private static String limpiar(String v) {

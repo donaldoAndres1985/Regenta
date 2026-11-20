@@ -61,6 +61,8 @@ class ControladorDeCompraDirecta extends StateNotifier<EstadoDeCompraDirecta> {
   void cambiarFactura(String numero) => state = state.copiar(factura: numero);
   void cambiarFecha(DateTime? fecha) => state = state.copiar(fechaFactura: fecha);
   void cambiarFlete(num flete) => state = state.copiar(flete: flete < 0 ? 0 : flete);
+  void cambiarDescuentoGlobal(num descuento) =>
+      state = state.copiar(descuentoGlobal: descuento < 0 ? 0 : descuento);
 
   Future<void> buscar(String termino) async {
     if (state.proveedorId == null) {

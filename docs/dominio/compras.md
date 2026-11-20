@@ -130,7 +130,10 @@ DevolucionAProveedor (agregado)           SugerenciaDeCompra (agregado)
   última línea para que la suma cuadre con la factura):
   `costoFactura × (1 − descuento%) − descuentoGlobalProrrateado + fleteProrrateado`
   `+ IVA de la línea` **solo si el negocio no es responsable de IVA**.
-  Descuento global y flete se prorratean por el valor neto de cada línea.
+  Descuento global y flete se prorratean por el valor neto de cada línea (si todas valen cero, por
+  cantidad). El IVA de la línea se calcula sobre su base **ya rebajada** con su parte del descuento
+  global, así que el total de la factura es `netos − descuento global + IVA + flete`. El costo de
+  entrada se fija con el régimen vigente al confirmar la recepción (HU-168).
 - **I15** · La cantidad acumulada recibida de una línea de orden no supera
   `pedida × (1 + tolerancia)`; si la supera, se rechaza la recepción entera (422). Tolerancia 0
   significa que no se acepta exceso.

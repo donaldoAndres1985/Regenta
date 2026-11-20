@@ -34,14 +34,14 @@ class CompraDirectaEnLaBaseTest extends PostgresDePrueba {
     private JdbcTemplate jdbc;
 
     @Test
-    @DisplayName("HU-167 C1 · Se guarda sin orden, con base, IVA, flete y total; cada línea con su tarifa y código")
+    @DisplayName("HU-167 C1 / HU-168 · Se guarda sin orden, con base, IVA, flete y total; cada línea con su tarifa y código")
     void seGuardaLaFactura() {
         UUID negocio = UUID.randomUUID();
         comoElNegocio(jdbc, negocio);
         Proveedor p = proveedores.saveAndFlush(Proveedor.crear(negocio, TipoDocumentoProveedor.NIT, "900123456",
                 "Distribuidora Andina SAS", null, null, null, null, null, null, 30, BigDecimal.ZERO, null, null));
         Recepcion r = Recepcion.crear(negocio, "REC-1", null, p.getId(), UUID.randomUUID(), "FV-100", null, null);
-        r.datosDeFactura("FV-100", LocalDate.of(2026, 11, 20), new BigDecimal("10000"), "Llegó completo");
+        r.datosDeFactura("FV-100", LocalDate.of(2026, 11, 20), new BigDecimal("10000"), null, "Llegó completo");
         List<RecepcionLinea> ls = List.of(
                 linea(negocio, r, "Acetaminofén 500 mg", "AND-77", "10", "10000"),
                 linea(negocio, r, "Ibuprofeno 400 mg", null, "5", "20000"));
@@ -59,12 +59,15 @@ class CompraDirectaEnLaBaseTest extends PostgresDePrueba {
         assertThat((BigDecimal) fila.get("total")).isEqualByComparingTo("248000");
 
         Map<String, Object> primera = jdbc.queryForMap("select nombre_snapshot, codigo_proveedor, tarifa_iva, "
-                + "impuesto_pct from compras.recepcion_lineas where recepcion_id = ? and codigo_proveedor is not null",
+                + "impuesto_pct, costo_entrada, impuesto_valor from compras.recepcion_lineas where recepcion_id = ? and codigo_proveedor is not null",
                 r.getId());
         assertThat(primera.get("nombre_snapshot")).isEqualTo("Acetaminofén 500 mg");
         assertThat(primera.get("codigo_proveedor")).isEqualTo("AND-77");
         assertThat(primera.get("tarifa_iva")).isEqualTo("IVA_19");
         assertThat((BigDecimal) primera.get("impuesto_pct")).isEqualByComparingTo("19");
+        // HU-168 · migración V9: el costo de entrada (con su parte del flete) y el IVA quedan guardados.
+        assertThat((BigDecimal) primera.get("costo_entrada")).isEqualByComparingTo("10500");
+        assertThat((BigDecimal) primera.get("impuesto_valor")).isEqualByComparingTo("19000");
 
         assertThat(recepciones.findByNegocioIdAndProveedorIdAndFacturaProveedor(negocio, p.getId(), "FV-100"))
                 .extracting(Recepcion::getId).containsExactly(r.getId());

@@ -49,6 +49,7 @@ import com.regenta.shared.tenancy.DatosDelNegocio;
 import com.regenta.shared.web.ConflictoDeEstadoException;
 import com.regenta.shared.web.NoEncontradoException;
 import com.regenta.shared.web.ReglaDeNegocioException;
+import com.regenta.usuarios.api.ConfiguracionNegocioApi;
 
 /**
  * HU-167 · Compra directa con la factura del proveedor. Factura de referencia: A, 10 und × $ 10.000;
@@ -66,7 +67,7 @@ class CompraDirectaTest {
     private final InventarioApi inventario = mock(InventarioApi.class);
     private final GestionDeRecepciones gestion = new GestionDeRecepciones(recepciones, recepcionLineas,
             mock(OrdenDeCompraRepositorio.class), mock(OrdenCompraLineaRepositorio.class), cuentas,
-            proveedores, catalogo, consecutivos, eventos, inventario);
+            proveedores, catalogo, consecutivos, eventos, inventario, null);
 
     private final UUID negocioId = UUID.randomUUID();
     private final UUID bodegaId = UUID.randomUUID();
@@ -113,7 +114,7 @@ class CompraDirectaTest {
 
     private SolicitudDeCompraDirecta facturaDeReferencia(String numero) {
         return new SolicitudDeCompraDirecta(proveedor.getId(), bodegaId, numero,
-                LocalDate.of(2026, 11, 20), new BigDecimal("10000"), null,
+                LocalDate.of(2026, 11, 20), new BigDecimal("10000"), null, null,
                 List.of(linea(productoA, "10", "10000"), linea(productoB, "5", "20000")));
     }
 
@@ -190,7 +191,7 @@ class CompraDirectaTest {
                 negocioId, proveedor.getId(), productoA, "AND-77", new BigDecimal("9800"), null, null, false)));
 
         RecepcionDelNegocio r = gestion.crearDirecta(new SolicitudDeCompraDirecta(proveedor.getId(),
-                bodegaId, "FV-101", null, null, null, List.of(linea(productoA, "10", null))));
+                bodegaId, "FV-101", null, null, null, null, List.of(linea(productoA, "10", null))));
 
         assertThat(r.lineas().get(0).costoUnitario()).isEqualByComparingTo("9800");
     }
@@ -199,7 +200,7 @@ class CompraDirectaTest {
     @DisplayName("HU-167 C3 · Sin costo y sin compras anteriores a ese proveedor, se pide el costo (422)")
     void sinCostoNiCatalogo() {
         assertThatThrownBy(() -> gestion.crearDirecta(new SolicitudDeCompraDirecta(proveedor.getId(),
-                bodegaId, "FV-101", null, null, null, List.of(linea(productoA, "10", null)))))
+                bodegaId, "FV-101", null, null, null, null, List.of(linea(productoA, "10", null)))))
                 .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessageContaining("Indica el costo");
     }
@@ -212,7 +213,7 @@ class CompraDirectaTest {
         when(catalogo.findByProveedorIdAndProductoId(proveedor.getId(), productoA)).thenReturn(Optional.of(conocido));
         when(catalogo.findByProveedorIdAndProductoId(proveedor.getId(), productoB)).thenReturn(Optional.empty());
         Recepcion recepcion = crearYRecordar(new SolicitudDeCompraDirecta(proveedor.getId(), bodegaId,
-                "FV-100", null, null, null, List.of(
+                "FV-100", null, null, null, null, List.of(
                         new SolicitudDeCompraDirecta.LineaDeCompra(productoA, BigDecimal.TEN,
                                 new BigDecimal("10000"), null, "AND-77", null, null, null),
                         linea(productoB, "5", "20000"))));
@@ -247,7 +248,7 @@ class CompraDirectaTest {
         Recepcion recepcion = crearYRecordar(facturaDeReferencia("FV-100"));
 
         RecepcionDelNegocio r = gestion.actualizarDirecta(recepcion.getId(), new SolicitudDeCompraDirecta(
-                proveedor.getId(), bodegaId, "FV-100", null, null, null, List.of(linea(productoA, "2", "10000"))));
+                proveedor.getId(), bodegaId, "FV-100", null, null, null, null, List.of(linea(productoA, "2", "10000"))));
 
         assertThat(r.lineas()).hasSize(1);
         assertThat(r.total()).isEqualByComparingTo("23800");
@@ -309,11 +310,91 @@ class CompraDirectaTest {
     @DisplayName("HU-167 · Un descuento de línea del 10 % baja la base y el IVA en proporción")
     void descuentoDeLinea() {
         RecepcionDelNegocio r = gestion.crearDirecta(new SolicitudDeCompraDirecta(proveedor.getId(), bodegaId,
-                "FV-102", null, null, null, List.of(new SolicitudDeCompraDirecta.LineaDeCompra(productoA,
+                "FV-102", null, null, null, null, List.of(new SolicitudDeCompraDirecta.LineaDeCompra(productoA,
                         BigDecimal.TEN, new BigDecimal("10000"), BigDecimal.TEN, null, null, null, null))));
 
         assertThat(r.subtotal()).isEqualByComparingTo("90000");
         assertThat(r.impuestoTotal()).isEqualByComparingTo("17100");
         assertThat(r.total()).isEqualByComparingTo("107100");
+    }
+
+    // ---------------------------------------------------------------- HU-168 · costo de entrada
+
+    private GestionDeRecepciones conRegimen(boolean responsable) {
+        ConfiguracionNegocioApi configuracion = mock(ConfiguracionNegocioApi.class);
+        when(configuracion.responsableDeIva(negocioId)).thenReturn(responsable);
+        return new GestionDeRecepciones(recepciones, recepcionLineas, mock(OrdenDeCompraRepositorio.class),
+                mock(OrdenCompraLineaRepositorio.class), cuentas, proveedores, catalogo, consecutivos, eventos,
+                inventario, configuracion);
+    }
+
+    /** Confirma la compra con [g] y devuelve el costo unitario que se le manda a Inventario por línea. */
+    @SuppressWarnings("unchecked")
+    private List<BigDecimal> costosEnviadosAInventario(GestionDeRecepciones g, SolicitudDeCompraDirecta compra) {
+        ArgumentCaptor<Recepcion> r = ArgumentCaptor.forClass(Recepcion.class);
+        g.crearDirecta(compra);
+        verify(recepciones, atLeastOnce()).save(r.capture());
+        Recepcion recepcion = r.getValue();
+        when(recepciones.findByIdAndNegocioId(recepcion.getId(), negocioId)).thenReturn(Optional.of(recepcion));
+        when(recepcionLineas.findByRecepcionId(recepcion.getId())).thenReturn(List.copyOf(guardadas));
+        g.confirmar(recepcion.getId(), null);
+        ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
+        verify(eventos).registrar(eq(negocioId), eq("Recepcion"), eq(recepcion.getId()),
+                eq("recepcion_registrada"), payload.capture());
+        List<Map<String, Object>> lineas = (List<Map<String, Object>>) ((Map<String, Object>) payload.getValue())
+                .get("lineas");
+        return lineas.stream().map(l -> (BigDecimal) l.get("costo_unitario")).toList();
+    }
+
+    @Test
+    @DisplayName("HU-168 C1 · Negocio responsable de IVA: Inventario recibe A a $ 10.500 y B a $ 21.000")
+    void inventarioRecibeCostoResponsable() {
+        List<BigDecimal> costos = costosEnviadosAInventario(conRegimen(true), facturaDeReferencia("FV-100"));
+
+        assertThat(costos.get(0)).isEqualByComparingTo("10500");
+        assertThat(costos.get(1)).isEqualByComparingTo("21000");
+    }
+
+    @Test
+    @DisplayName("HU-168 C2 · Negocio no responsable: Inventario recibe A a $ 12.400 y B a $ 24.800")
+    void inventarioRecibeCostoNoResponsable() {
+        List<BigDecimal> costos = costosEnviadosAInventario(conRegimen(false), facturaDeReferencia("FV-100"));
+
+        assertThat(costos.get(0)).isEqualByComparingTo("12400");
+        assertThat(costos.get(1)).isEqualByComparingTo("24800");
+    }
+
+    @Test
+    @DisplayName("HU-168 C2 · El régimen no cambia lo que se le debe al proveedor: la factura sigue en $ 248.000")
+    void elRegimenNoCambiaLaDeuda() {
+        RecepcionDelNegocio r = conRegimen(false).crearDirecta(facturaDeReferencia("FV-100"));
+
+        assertThat(r.total()).isEqualByComparingTo("248000");
+        assertThat(r.lineas().get(0).costoEntrada()).isEqualByComparingTo("12400");
+    }
+
+    @Test
+    @DisplayName("HU-168 C4 · Con $ 4.000 de descuento global la base baja a $ 196.000 y el IVA a $ 37.240")
+    void descuentoGlobalEnLaFactura() {
+        RecepcionDelNegocio r = conRegimen(true).crearDirecta(new SolicitudDeCompraDirecta(proveedor.getId(),
+                bodegaId, "FV-103", null, new BigDecimal("10000"), new BigDecimal("4000"), null,
+                List.of(linea(productoA, "10", "10000"), linea(productoB, "5", "20000"))));
+
+        assertThat(r.subtotal()).isEqualByComparingTo("200000");
+        assertThat(r.descuentoGlobal()).isEqualByComparingTo("4000");
+        assertThat(r.impuestoTotal()).isEqualByComparingTo("37240");
+        assertThat(r.total()).isEqualByComparingTo("243240");
+        assertThat(r.lineas().get(0).costoEntrada()).isEqualByComparingTo("10300");
+        assertThat(r.lineas().get(1).costoEntrada()).isEqualByComparingTo("20600");
+    }
+
+    @Test
+    @DisplayName("HU-168 · Un descuento global mayor que la factura se rechaza (422)")
+    void descuentoGlobalExcesivo() {
+        assertThatThrownBy(() -> conRegimen(true).crearDirecta(new SolicitudDeCompraDirecta(proveedor.getId(),
+                bodegaId, "FV-104", null, null, new BigDecimal("300000"), null,
+                List.of(linea(productoA, "10", "10000")))))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessageContaining("descuento global");
     }
 }
