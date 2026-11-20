@@ -117,6 +117,8 @@ class _EscritorioLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: RegentaColors.paper,
+      // Encabezado común (design/comportamiento/Encabezado.md) con búsqueda, sede y nueva venta.
+      appBar: _EncabezadoSuperior(onNuevaVenta: () => onNavegar('/ventas')),
       body: Stack(
         children: [
           Row(
@@ -126,18 +128,12 @@ class _EscritorioLayout extends StatelessWidget {
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.only(
                     left: 24,
-                    right: 32,
-                    top: 24,
+                    right: 24,
                     bottom: 32,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Encabezado superior con búsqueda, sede y nueva venta
-                      _EncabezadoSuperior(
-                        onNuevaVenta: () => onNavegar('/ventas'),
-                      ),
-                      const SizedBox(height: 24),
 
                       if (sinModulos) ...[
                         _AvisoSinModulos(),
@@ -436,38 +432,24 @@ class _AccesosRapidosModulos extends StatelessWidget {
 // ENCABEZADO SUPERIOR (HEADER)
 // =========================================================================
 
-class _EncabezadoSuperior extends StatelessWidget {
+class _EncabezadoSuperior extends StatelessWidget implements PreferredSizeWidget {
   const _EncabezadoSuperior({required this.onNuevaVenta});
 
   final VoidCallback onNuevaVenta;
 
   @override
+  Size get preferredSize => const Size.fromHeight(EncabezadoDeSeccion.alto);
+
+  @override
   Widget build(BuildContext context) {
-    return Row(
+    return EncabezadoDeSeccion(
+      icono: Icons.home_outlined,
+      titulo: 'Inicio',
+      subtitulo: 'Lunes 2 de noviembre · Sede Centro',
+      acciones: [
+        Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Título y fecha
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Inicio',
-              style: PastelTheme.titulo(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: RegentaColors.ink,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Lunes 2 de noviembre · Sede Centro',
-              style: PastelTheme.cuerpo(
-                fontSize: 13,
-                color: RegentaColors.ink2,
-              ),
-            ),
-          ],
-        ),
-        const Spacer(),
 
         // Barra de Búsqueda
         Container(
@@ -601,6 +583,8 @@ class _EncabezadoSuperior extends StatelessWidget {
             shape: const StadiumBorder(),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           ),
+        ),
+      ],
         ),
       ],
     );

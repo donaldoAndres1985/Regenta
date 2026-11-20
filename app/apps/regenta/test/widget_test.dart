@@ -88,6 +88,15 @@ Future<DependenciasDeLaApp> _arrancar(
 }
 
 void main() {
+  testWidgets('Encabezado E1-E4 · Inicio en web usa el encabezado común con su ícono', (tester) async {
+    await _arrancar(tester, guardada: _sesionCon(modulos: ['VENTAS']), tamano: const Size(1440, 900));
+    final encabezado = find.byType(EncabezadoDeSeccion);
+    expect(encabezado, findsOneWidget);
+    expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.home_outlined)), findsOneWidget);
+    expect(find.descendant(of: encabezado, matching: find.text('Inicio')), findsOneWidget);
+    expect(find.descendant(of: encabezado, matching: find.text('Nueva venta')), findsOneWidget);
+  });
+
   testWidgets('Criterio 1: sin sesión, la app abre en la pantalla de entrada', (
     tester,
   ) async {
