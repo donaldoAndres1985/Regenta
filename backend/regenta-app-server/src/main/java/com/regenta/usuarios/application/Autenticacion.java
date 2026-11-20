@@ -239,7 +239,7 @@ public class Autenticacion {
         EmisorDeTokens.TokenDeAcceso acceso = emisor.emitir(new EmisorDeTokens.Contexto(
                 negocio.getId(), usuario.getId(), plan, negocio.getPatronOperativo(),
                 negocio.getEstado(), nombresDeRoles, modulos, permisos, usuario.getSucursales(),
-                negocio.getNombreComercial()));
+                negocio.getNombreComercial(), usuario.getNombre()));
 
         String refresco = emisor.nuevoRefresco(negocio.getId());
         refrescos.saveAndFlush(RefreshToken.nuevo(negocio.getId(), usuario.getId(),
