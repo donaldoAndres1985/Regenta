@@ -12,6 +12,7 @@ export 'src/alertas/controlador_de_alertas.dart';
 export 'src/alertas/repositorio_de_alertas.dart';
 export 'src/alertas/widgets_de_alertas.dart';
 export 'src/adaptativa/composicion_adaptativa.dart';
+export 'src/adaptativa/encabezado_de_seccion.dart';
 export 'src/adaptativa/forma_de_pantalla.dart';
 export 'src/http/cliente_http.dart';
 export 'src/http/cola_de_salida.dart';
