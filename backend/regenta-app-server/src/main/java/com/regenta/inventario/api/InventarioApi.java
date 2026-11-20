@@ -28,4 +28,10 @@ public interface InventarioApi {
 
     /** Confirma una reserva de stock previa, convirtiéndola en salida definitiva. */
     void confirmarReserva(String origenTipo, UUID origenId);
+
+    /**
+     * HU-165 · Qué exige cada producto al recibirlo (lote, vencimiento). Los productos que no son
+     * del negocio no vienen en el mapa.
+     */
+    Map<UUID, ReglaDeLote> reglasDeLote(UUID negocioId, Collection<UUID> productoIds);
 }
