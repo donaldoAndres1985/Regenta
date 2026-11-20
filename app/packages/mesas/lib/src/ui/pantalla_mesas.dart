@@ -34,70 +34,83 @@ class _PantallaMesasState extends ConsumerState<PantallaMesas> {
     final estado = ref.watch(controladorDelPlanoProvider);
     final ctrl = ref.read(controladorDelPlanoProvider.notifier);
 
-    return Scaffold(
-      backgroundColor: RegentaColors.paper,
-      appBar: AppBar(
-        backgroundColor: RegentaColors.surface,
-        surfaceTintColor: RegentaColors.surface,
-        elevation: 0,
-        shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
-        title: Text('Mesas',
-            style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
-        actions: [
-          IconButton(
-            tooltip: 'Añadir mesa',
-            icon: const Icon(Icons.add, color: RegentaColors.accent),
-            onPressed: () => _abrirFormularioMesa(context, estado),
-          ),
-          if (widget.puedeEditar)
-            TextButton(
-              key: const Key('mesas-toggle-edicion'),
-              onPressed: ctrl.alternarEdicion,
-              child: Text(estado.modoEdicion ? 'Listo' : 'Editar plano',
-                  style: RegentaType.item.copyWith(color: RegentaColors.accent)),
-            ),
-          const SizedBox(width: 8),
-        ],
+    final acciones = <Widget>[
+      IconButton(
+        tooltip: 'Añadir mesa',
+        icon: const Icon(Icons.add, color: RegentaColors.accent),
+        onPressed: () => _abrirFormularioMesa(context, estado),
       ),
-      floatingActionButton: (estado.modoEdicion || (estado.plano.zonas.isEmpty && estado.plano.sinZona.isEmpty))
-          ? FloatingActionButton.extended(
-              key: const Key('mesas-anadir'),
-              backgroundColor: RegentaColors.accent,
-              onPressed: () => _abrirFormularioMesa(context, estado),
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: Text('Añadir mesa',
-                  style: RegentaType.item.copyWith(color: Colors.white)),
-            )
-          : null,
-      body: LayoutBuilder(
-        builder: (context, restricciones) {
-          final escritorio = restricciones.maxWidth >= kBreakpointEscritorio;
-          final cuerpo = _Cuerpo(
-            estado: estado,
-            anchoTarjeta: escritorio ? 150 : (restricciones.maxWidth - 28 - 18) / 3,
-            onMover: ctrl.moverMesa,
-            onEliminar: (mesa) => _confirmarEliminar(context, ctrl, mesa),
-            onTocarMesa: (mesa) => _abrirHojaDeMesa(context, mesa),
-            onCerrarMensaje: ctrl.limpiarMensaje,
-            onAnadirMesa: () => _abrirFormularioMesa(context, estado),
-            onGenerarDemo: () async {
-              for (int i = 1; i <= 4; i++) {
-                await ctrl.crearMesa(codigo: 'Mesa $i', capacidad: 4);
-              }
-            },
-          );
-          return KeyedSubtree(
-            key: Key(escritorio ? 'mesas-escritorio' : 'mesas-movil'),
-            child: escritorio
-                ? Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 900),
-                      child: cuerpo,
-                    ),
-                  )
-                : cuerpo,
-          );
-        },
+      if (widget.puedeEditar)
+        TextButton(
+          key: const Key('mesas-toggle-edicion'),
+          onPressed: ctrl.alternarEdicion,
+          child: Text(
+            estado.modoEdicion ? 'Listo' : 'Editar plano',
+            style: RegentaType.item.copyWith(color: RegentaColors.accent),
+          ),
+        ),
+    ];
+    return LayoutBuilder(
+      builder: (context, afuera) => Scaffold(
+        backgroundColor: RegentaColors.paper,
+        // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
+        appBar: afuera.maxWidth >= kBreakpointEscritorio
+            ? EncabezadoDeSeccion(
+                icono: Icons.table_restaurant_outlined,
+                titulo: 'Mesas',
+                acciones: acciones,
+              )
+            : AppBar(
+                backgroundColor: RegentaColors.surface,
+                surfaceTintColor: RegentaColors.surface,
+                elevation: 0,
+                shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
+                title: Text(
+                  'Mesas',
+                  style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink),
+                ),
+                actions: [...acciones, const SizedBox(width: 8)],
+              ),
+        floatingActionButton:
+            (estado.modoEdicion || (estado.plano.zonas.isEmpty && estado.plano.sinZona.isEmpty))
+            ? FloatingActionButton.extended(
+                key: const Key('mesas-anadir'),
+                backgroundColor: RegentaColors.accent,
+                onPressed: () => _abrirFormularioMesa(context, estado),
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: Text('Añadir mesa', style: RegentaType.item.copyWith(color: Colors.white)),
+              )
+            : null,
+        body: LayoutBuilder(
+          builder: (context, restricciones) {
+            final escritorio = restricciones.maxWidth >= kBreakpointEscritorio;
+            final cuerpo = _Cuerpo(
+              estado: estado,
+              anchoTarjeta: escritorio ? 150 : (restricciones.maxWidth - 28 - 18) / 3,
+              onMover: ctrl.moverMesa,
+              onEliminar: (mesa) => _confirmarEliminar(context, ctrl, mesa),
+              onTocarMesa: (mesa) => _abrirHojaDeMesa(context, mesa),
+              onCerrarMensaje: ctrl.limpiarMensaje,
+              onAnadirMesa: () => _abrirFormularioMesa(context, estado),
+              onGenerarDemo: () async {
+                for (int i = 1; i <= 4; i++) {
+                  await ctrl.crearMesa(codigo: 'Mesa $i', capacidad: 4);
+                }
+              },
+            );
+            return KeyedSubtree(
+              key: Key(escritorio ? 'mesas-escritorio' : 'mesas-movil'),
+              child: escritorio
+                  ? Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 900),
+                        child: cuerpo,
+                      ),
+                    )
+                  : cuerpo,
+            );
+          },
+        ),
       ),
     );
   }
@@ -107,14 +120,16 @@ class _PantallaMesasState extends ConsumerState<PantallaMesas> {
       context: context,
       builder: (_) => _FormularioMesa(
         zonas: estado.plano.zonas,
-        onCrear: ({
-          required String codigo,
-          String? zonaId,
-          String? nombre,
-          int? capacidad,
-          String? forma,
-        }) =>
-            ref.read(controladorDelPlanoProvider.notifier).crearMesa(
+        onCrear:
+            ({
+              required String codigo,
+              String? zonaId,
+              String? nombre,
+              int? capacidad,
+              String? forma,
+            }) => ref
+                .read(controladorDelPlanoProvider.notifier)
+                .crearMesa(
                   codigo: codigo,
                   zonaId: zonaId,
                   nombre: nombre,
@@ -153,23 +168,25 @@ class _PantallaMesasState extends ConsumerState<PantallaMesas> {
     );
   }
 
-  Future<void> _confirmarEliminar(
-      BuildContext context, dynamic ctrl, MesaEnPlano mesa) async {
+  Future<void> _confirmarEliminar(BuildContext context, dynamic ctrl, MesaEnPlano mesa) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Borrar ${mesa.codigo}',
-            style: RegentaType.seccion.copyWith(fontSize: 16)),
-        content: Text('La mesa sale del plano. Se puede volver a crear con otro código.',
-            style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2)),
+        title: Text('Borrar ${mesa.codigo}', style: RegentaType.seccion.copyWith(fontSize: 16)),
+        content: Text(
+          'La mesa sale del plano. Se puede volver a crear con otro código.',
+          style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar')),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
-              key: const Key('mesas-confirmar-borrado'),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Borrar')),
+            key: const Key('mesas-confirmar-borrado'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Borrar'),
+          ),
         ],
       ),
     );
@@ -210,14 +227,16 @@ class _Cuerpo extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('No se pudo cargar el plano',
-                style: RegentaType.cuerpo.copyWith(color: RegentaColors.muted)),
+            Text(
+              'No se pudo cargar el plano',
+              style: RegentaType.cuerpo.copyWith(color: RegentaColors.muted),
+            ),
             const SizedBox(height: 10),
             FilledButton(
               key: const Key('mesas-reintentar'),
-              onPressed: () => ProviderScope.containerOf(context)
-                  .read(controladorDelPlanoProvider.notifier)
-                  .cargar(),
+              onPressed: () => ProviderScope.containerOf(
+                context,
+              ).read(controladorDelPlanoProvider.notifier).cargar(),
               child: const Text('Reintentar'),
             ),
           ],
@@ -228,9 +247,11 @@ class _Cuerpo extends StatelessWidget {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text('Todavía no hay mesas en el salón',
-              textAlign: TextAlign.center,
-              style: RegentaType.cuerpo.copyWith(color: RegentaColors.muted)),
+          child: Text(
+            'Todavía no hay mesas en el salón',
+            textAlign: TextAlign.center,
+            style: RegentaType.cuerpo.copyWith(color: RegentaColors.muted),
+          ),
         ),
       );
     }
@@ -257,15 +278,17 @@ class _Cuerpo extends StatelessWidget {
     final bloques = <Widget>[];
 
     void seccion(String titulo, List<MesaEnPlano> mesas) {
-      bloques.add(_Seccion(
-        titulo: titulo,
-        mesas: mesas,
-        anchoTarjeta: anchoTarjeta,
-        modoEdicion: estado.modoEdicion,
-        onMover: onMover,
-        onEliminar: onEliminar,
-        onTocarMesa: onTocarMesa,
-      ));
+      bloques.add(
+        _Seccion(
+          titulo: titulo,
+          mesas: mesas,
+          anchoTarjeta: anchoTarjeta,
+          modoEdicion: estado.modoEdicion,
+          onMover: onMover,
+          onEliminar: onEliminar,
+          onTocarMesa: onTocarMesa,
+        ),
+      );
     }
 
     for (final z in estado.plano.zonas) {
@@ -278,48 +301,50 @@ class _Cuerpo extends StatelessWidget {
       seccion('Sin zona', sinZona);
     }
     if (bloques.isEmpty) {
-      bloques.add(Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.table_restaurant_outlined, size: 64, color: RegentaColors.ink2),
-              const SizedBox(height: 16),
-              Text(
-                'No hay mesas en el salón',
-                style: RegentaType.seccion.copyWith(fontSize: 18, color: RegentaColors.ink),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Añade mesas individuales o genera una distribución de prueba para gestionar comandas y salones.',
-                textAlign: TextAlign.center,
-                style: RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.ink2),
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: [
-                  if (onAnadirMesa != null)
-                    FilledButton.icon(
-                      icon: const Icon(Icons.add),
-                      label: const Text('Añadir Mesa'),
-                      onPressed: onAnadirMesa,
-                    ),
-                  if (onGenerarDemo != null)
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.auto_awesome),
-                      label: const Text('Generar 4 Mesas Demo'),
-                      onPressed: onGenerarDemo,
-                    ),
-                ],
-              ),
-            ],
+      bloques.add(
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.table_restaurant_outlined, size: 64, color: RegentaColors.ink2),
+                const SizedBox(height: 16),
+                Text(
+                  'No hay mesas en el salón',
+                  style: RegentaType.seccion.copyWith(fontSize: 18, color: RegentaColors.ink),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Añade mesas individuales o genera una distribución de prueba para gestionar comandas y salones.',
+                  textAlign: TextAlign.center,
+                  style: RegentaType.cuerpo.copyWith(fontSize: 14, color: RegentaColors.ink2),
+                ),
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    if (onAnadirMesa != null)
+                      FilledButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: const Text('Añadir Mesa'),
+                        onPressed: onAnadirMesa,
+                      ),
+                    if (onGenerarDemo != null)
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.auto_awesome),
+                        label: const Text('Generar 4 Mesas Demo'),
+                        onPressed: onGenerarDemo,
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-      ));
+      );
     }
     return bloques;
   }
@@ -361,11 +386,7 @@ class _ChipsDeZona extends ConsumerWidget {
 }
 
 class _ChipZona extends StatelessWidget {
-  const _ChipZona({
-    required this.nombre,
-    required this.seleccionado,
-    required this.onTap,
-  });
+  const _ChipZona({required this.nombre, required this.seleccionado, required this.onTap});
 
   final String nombre;
   final bool seleccionado;
@@ -432,8 +453,10 @@ class _Seccion extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(0, 16, 0, 9),
-          child: Text(titulo.toUpperCase(),
-              style: RegentaType.etiqueta.copyWith(fontSize: 9.5, letterSpacing: 0.8)),
+          child: Text(
+            titulo.toUpperCase(),
+            style: RegentaType.etiqueta.copyWith(fontSize: 9.5, letterSpacing: 0.8),
+          ),
         ),
         Wrap(
           spacing: 9,
@@ -498,16 +521,20 @@ class _TarjetaMesaState extends State<_TarjetaMesa> {
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(widget.mesa.codigo,
-                    style: const TextStyle(
-                        fontFamily: RegentaType.mono,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: RegentaColors.ink)),
+                Text(
+                  widget.mesa.codigo,
+                  style: const TextStyle(
+                    fontFamily: RegentaType.mono,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: RegentaColors.ink,
+                  ),
+                ),
                 const SizedBox(height: 1),
-                Text('${widget.mesa.numComensales ?? widget.mesa.capacidad} pax',
-                    style: RegentaType.codigo
-                        .copyWith(fontSize: 9.5, color: RegentaColors.muted)),
+                Text(
+                  '${widget.mesa.numComensales ?? widget.mesa.capacidad} pax',
+                  style: RegentaType.codigo.copyWith(fontSize: 9.5, color: RegentaColors.muted),
+                ),
                 const SizedBox(height: 5),
                 Text(
                   widget.mesa.ocupada && widget.mesa.minutosAbierta != null
@@ -525,10 +552,12 @@ class _TarjetaMesaState extends State<_TarjetaMesa> {
             Positioned(
               top: 0,
               left: 0,
-              child: Icon(Icons.link,
-                  key: Key('mesa-unida-${widget.mesa.id}'),
-                  size: 13,
-                  color: estilo.borde),
+              child: Icon(
+                Icons.link,
+                key: Key('mesa-unida-${widget.mesa.id}'),
+                size: 13,
+                color: estilo.borde,
+              ),
             ),
           if (widget.modoEdicion)
             Positioned(
@@ -541,7 +570,9 @@ class _TarjetaMesaState extends State<_TarjetaMesa> {
                   width: 22,
                   height: 22,
                   decoration: const BoxDecoration(
-                      color: RegentaColors.surface, shape: BoxShape.circle),
+                    color: RegentaColors.surface,
+                    shape: BoxShape.circle,
+                  ),
                   child: const Icon(Icons.close, size: 14, color: RegentaColors.comanda),
                 ),
               ),
@@ -582,9 +613,11 @@ class _AvisoMensaje extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(mensaje,
-                key: const Key('mesas-aviso'),
-                style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.crit)),
+            child: Text(
+              mensaje,
+              key: const Key('mesas-aviso'),
+              style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.crit),
+            ),
           ),
           IconButton(
             onPressed: onCerrar,
@@ -597,19 +630,17 @@ class _AvisoMensaje extends StatelessWidget {
   }
 }
 
-typedef _AltaDeMesa = Future<String?> Function({
-  required String codigo,
-  String? zonaId,
-  String? nombre,
-  int? capacidad,
-  String? forma,
-});
+typedef _AltaDeMesa =
+    Future<String?> Function({
+      required String codigo,
+      String? zonaId,
+      String? nombre,
+      int? capacidad,
+      String? forma,
+    });
 
 class _FormularioMesa extends StatefulWidget {
-  const _FormularioMesa({
-    required this.zonas,
-    required this.onCrear,
-  });
+  const _FormularioMesa({required this.zonas, required this.onCrear});
 
   final List<ZonaConMesas> zonas;
   final _AltaDeMesa onCrear;
@@ -698,8 +729,7 @@ class _FormularioMesaState extends State<_FormularioMesa> {
               decoration: const InputDecoration(labelText: 'Zona'),
               items: [
                 const DropdownMenuItem(value: null, child: Text('Sin zona')),
-                for (final z in widget.zonas)
-                  DropdownMenuItem(value: z.id, child: Text(z.nombre)),
+                for (final z in widget.zonas) DropdownMenuItem(value: z.id, child: Text(z.nombre)),
               ],
               onChanged: (v) => setState(() => _zonaId = v),
             ),
@@ -718,17 +748,20 @@ class _FormularioMesaState extends State<_FormularioMesa> {
             ),
             if (_error != null) ...[
               const SizedBox(height: 10),
-              Text(_error!,
-                  key: const Key('mesa-form-error'),
-                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.crit)),
+              Text(
+                _error!,
+                key: const Key('mesa-form-error'),
+                style: RegentaType.cuerpo.copyWith(color: RegentaColors.crit),
+              ),
             ],
           ],
         ),
       ),
       actions: [
         TextButton(
-            onPressed: _enviando ? null : () => Navigator.of(context).pop(),
-            child: const Text('Cancelar')),
+          onPressed: _enviando ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
         FilledButton(
           key: const Key('mesa-form-guardar'),
           onPressed: _enviando ? null : _enviar,
@@ -821,8 +854,7 @@ class _HojaDeMesaState extends State<_HojaDeMesa> {
     final elegida = await showDialog<String>(
       context: context,
       builder: (_) => SimpleDialog(
-        title: Text('Unir una mesa libre',
-            style: RegentaType.seccion.copyWith(fontSize: 15)),
+        title: Text('Unir una mesa libre', style: RegentaType.seccion.copyWith(fontSize: 15)),
         children: [
           for (final m in widget.mesasLibres)
             SimpleDialogOption(
@@ -847,18 +879,24 @@ class _HojaDeMesaState extends State<_HojaDeMesa> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Mesa ${widget.mesa.codigo}',
-                style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
+            Text(
+              'Mesa ${widget.mesa.codigo}',
+              style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink),
+            ),
             const SizedBox(height: 2),
-            Text(estiloDeEstado(widget.mesa.estado).etiqueta.toUpperCase(),
-                style: RegentaType.etiqueta.copyWith(fontSize: 9.5)),
+            Text(
+              estiloDeEstado(widget.mesa.estado).etiqueta.toUpperCase(),
+              style: RegentaType.etiqueta.copyWith(fontSize: 9.5),
+            ),
             const SizedBox(height: 14),
             ..._contenido(),
             if (_error != null) ...[
               const SizedBox(height: 10),
-              Text(_error!,
-                  key: const Key('hoja-error'),
-                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.crit)),
+              Text(
+                _error!,
+                key: const Key('hoja-error'),
+                style: RegentaType.cuerpo.copyWith(color: RegentaColors.crit),
+              ),
             ],
           ],
         ),

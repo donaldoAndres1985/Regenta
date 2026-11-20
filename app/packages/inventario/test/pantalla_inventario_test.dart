@@ -283,6 +283,24 @@ void main() {
       expect(find.text(formatearPesos(35500)), findsWidgets);
     });
 
+    testWidgets('Encabezado E1-E4 · encabezado común con ícono, sin «Regenta / Inventario»', (tester) async {
+      await _montar(tester);
+      final encabezado = find.byType(EncabezadoDeSeccion);
+      expect(encabezado, findsOneWidget);
+      expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.inventory_2_outlined)), findsOneWidget);
+      expect(find.descendant(of: encabezado, matching: find.text('Inventario')), findsOneWidget);
+      expect(find.descendant(of: encabezado, matching: find.byKey(const Key('inventario-herramientas'))),
+          findsOneWidget);
+      expect(find.descendant(of: encabezado, matching: find.byKey(const Key('inventario-nuevo'))), findsOneWidget);
+      expect(find.textContaining('Regenta /'), findsNothing);
+    });
+
+    testWidgets('Encabezado E5 · en móvil se conserva la barra de la aplicación', (tester) async {
+      await _montar(tester, tamano: const Size(390, 844));
+      expect(find.byType(EncabezadoDeSeccion), findsNothing);
+      expect(find.byType(AppBar), findsOneWidget);
+    });
+
     testWidgets('R6 · no hay panel lateral', (tester) async {
       await _montar(tester);
       expect(find.byKey(const Key('panel-bodegas')), findsNothing);

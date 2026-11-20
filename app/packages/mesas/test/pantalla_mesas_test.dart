@@ -231,6 +231,19 @@ Future<void> _montar(WidgetTester tester, _RepoFake repo,
 }
 
 void main() {
+  testWidgets('Encabezado E1-E5 · en web, el encabezado común con ícono; en móvil, la barra', (tester) async {
+    await _montar(tester, _RepoFake(plano: _planoCon(const [])), size: const Size(1440, 900));
+    final encabezado = find.byType(EncabezadoDeSeccion);
+    expect(encabezado, findsOneWidget);
+    expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.table_restaurant_outlined)), findsOneWidget);
+    expect(find.descendant(of: encabezado, matching: find.text('Mesas')), findsOneWidget);
+    expect(find.descendant(of: encabezado, matching: find.byKey(const Key('mesas-toggle-edicion'))), findsOneWidget);
+
+    await _montar(tester, _RepoFake(plano: _planoCon(const [])));
+    expect(find.byType(EncabezadoDeSeccion), findsNothing);
+    expect(find.byType(AppBar), findsOneWidget);
+  });
+
   testWidgets('Criterio 1: en modo edición se crea una mesa con código, capacidad, zona y forma',
       (tester) async {
     final repo = _RepoFake(

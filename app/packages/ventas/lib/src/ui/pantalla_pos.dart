@@ -1237,59 +1237,67 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
         final escritorio = restricciones.maxWidth >= kBreakpointEscritorio;
         final esMovil = restricciones.maxWidth < 600;
 
+        final acciones = <Widget>[
+          IconButton(
+            key: const Key('pos-boton-cargar-cotizacion'),
+            tooltip: 'Cargar cotización',
+            icon: const Icon(Icons.request_quote_outlined, color: RegentaColors.ink),
+            onPressed: _abrirCargarCotizacion,
+          ),
+          IconButton(
+            key: const Key('boton-historial-ventas'),
+            tooltip: 'Historial y anulación de ventas',
+            icon: const Icon(Icons.history, color: RegentaColors.ink),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const PantallaBuscarVenta(),
+                ),
+              );
+            },
+          ),
+          if (!esMovil)
+            _PestanasHeader(
+              estado: estado,
+              onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
+              onCerrar: _confirmarCerrarVenta,
+              onNueva: estado.ventasAbiertas >= ventasMaximas
+                  ? null
+                  : () => _cambiarDeVenta(pos.nuevaVenta),
+            )
+          else
+            _SelectorVentasMovil(
+              estado: estado,
+              onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
+              onNueva: estado.ventasAbiertas >= ventasMaximas
+                  ? null
+                  : () => _cambiarDeVenta(pos.nuevaVenta),
+            ),
+        ];
         return Scaffold(
           backgroundColor: RegentaColors.paper,
-          appBar: AppBar(
-            backgroundColor: RegentaColors.surface,
-            surfaceTintColor: RegentaColors.surface,
-            elevation: 0,
-            shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
-            title: Text(
-              'Nueva venta',
-              style: PastelTheme.titulo(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: RegentaColors.ink,
-              ),
-            ),
-            actions: [
-              IconButton(
-                key: const Key('pos-boton-cargar-cotizacion'),
-                tooltip: 'Cargar cotización',
-                icon: const Icon(Icons.request_quote_outlined, color: RegentaColors.ink),
-                onPressed: _abrirCargarCotizacion,
-              ),
-              IconButton(
-                key: const Key('boton-historial-ventas'),
-                tooltip: 'Historial y anulación de ventas',
-                icon: const Icon(Icons.history, color: RegentaColors.ink),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const PantallaBuscarVenta(),
-                    ),
-                  );
-                },
-              ),
-              if (!esMovil)
-                _PestanasHeader(
-                  estado: estado,
-                  onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
-                  onCerrar: _confirmarCerrarVenta,
-                  onNueva: estado.ventasAbiertas >= ventasMaximas
-                      ? null
-                      : () => _cambiarDeVenta(pos.nuevaVenta),
+          // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
+          appBar: escritorio
+              ? EncabezadoDeSeccion(
+                  icono: Icons.shopping_cart_outlined,
+                  titulo: 'Nueva venta',
+                  acciones: acciones,
                 )
-              else
-                _SelectorVentasMovil(
-                  estado: estado,
-                  onSeleccionar: (v) => _cambiarDeVenta(() => pos.cambiarDeVenta(v)),
-                  onNueva: estado.ventasAbiertas >= ventasMaximas
-                      ? null
-                      : () => _cambiarDeVenta(pos.nuevaVenta),
+              : AppBar(
+                backgroundColor: RegentaColors.surface,
+                surfaceTintColor: RegentaColors.surface,
+                elevation: 0,
+                shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
+                title: Text(
+                  'Nueva venta',
+                  style: PastelTheme.titulo(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: RegentaColors.ink,
+                  ),
                 ),
-            ],
-          ),
+                actions: acciones,
+              ),
           body: Builder(
             builder: (context) {
               final desplegable =
