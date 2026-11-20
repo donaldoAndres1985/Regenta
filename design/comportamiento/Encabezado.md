@@ -24,7 +24,8 @@ todas usan `EncabezadoDeSeccion` de `core`.
   de lugar al encabezado.
 - **E7 · Inicio saluda.** En Inicio el encabezado no lleva ícono. El título es «Buenos días, <primer nombre>» antes de las 12:00 y «Buenas tardes,
   <primer nombre>» desde las 12:00, con el nombre del usuario que inició sesión (claim
-  `nombre_usuario` del token). El subtítulo es «<fecha> · así va tu <nombre del negocio> hoy».
+  `nombre_usuario` del token). El subtítulo es «<fecha> · así va tu <nombre del negocio> hoy». Es la única excepción a E3: va
+  más arriba, con 8 px de margen arriba y 17 abajo (81 px de alto).
 - **E8 · Subtítulos.** Nueva venta: «Busca o escanea productos para armar la venta». Caja: «Abre el
   turno, registra movimientos y cierra con arqueo». Inventario: «Productos, existencias y valor de
   tu inventario». Órdenes de compra: «Pedidos a proveedores y recepción de mercancía». Clientes:

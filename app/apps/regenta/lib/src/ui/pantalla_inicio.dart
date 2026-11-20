@@ -451,7 +451,7 @@ class _EncabezadoSuperior extends StatelessWidget implements PreferredSizeWidget
   final VoidCallback onNuevaVenta;
 
   @override
-  Size get preferredSize => const Size.fromHeight(EncabezadoDeSeccion.alto);
+  Size get preferredSize => Size.fromHeight(EncabezadoDeSeccion.margenInicio.vertical + EncabezadoDeSeccion.altoFila);
 
   @override
   Widget build(BuildContext context) {
@@ -459,6 +459,7 @@ class _EncabezadoSuperior extends StatelessWidget implements PreferredSizeWidget
     final saludo = ahora.hour < 12 ? 'Buenos días' : 'Buenas tardes';
     final primerNombre = nombreUsuario.split(RegExp(r'\s+')).first;
     return EncabezadoDeSeccion(
+      margen: EncabezadoDeSeccion.margenInicio,
       titulo: '$saludo, $primerNombre',
       subtitulo: '${_fecha(ahora)} · así va tu $nombreNegocio hoy',
       acciones: [
