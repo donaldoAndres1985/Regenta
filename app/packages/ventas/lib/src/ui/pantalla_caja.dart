@@ -49,8 +49,10 @@ class _PantallaCajaState extends ConsumerState<PantallaCaja> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo imprimir la tirilla: $e'),
-            backgroundColor: RegentaColors.crit),
+        SnackBar(
+          content: Text('No se pudo imprimir la tirilla: $e'),
+          backgroundColor: RegentaColors.crit,
+        ),
       );
     }
   }
@@ -60,126 +62,130 @@ class _PantallaCajaState extends ConsumerState<PantallaCaja> {
     final estado = ref.watch(controladorDeCajaProvider);
     final ctrl = ref.read(controladorDeCajaProvider.notifier);
 
-    return Scaffold(
-      backgroundColor: RegentaColors.paper,
-      appBar: AppBar(
-        backgroundColor: RegentaColors.surface,
-        surfaceTintColor: RegentaColors.surface,
-        elevation: 0,
-        shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
-        title: Row(
-          children: [
-            const Icon(Icons.point_of_sale, color: RegentaColors.ink, size: 22),
-            const SizedBox(width: 8),
-            Text(
-              'Gestión de Caja y Turnos',
-              style: RegentaType.seccion.copyWith(
-                fontSize: 18,
-                color: RegentaColors.ink,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          if (estado.cajas.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-              child: DropdownButton<String>(
-                value: estado.cajaSeleccionada?.id,
-                underline: const SizedBox.shrink(),
-                items: estado.cajas
-                    .map(
-                      (c) => DropdownMenuItem(
-                        value: c.id,
-                        child: Text(
-                          c.nombre.isEmpty ? c.codigo : c.nombre,
-                          style: RegentaType.cuerpo.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (id) {
-                  if (id != null) {
-                    final seleccionada = estado.cajas.firstWhere((c) => c.id == id);
-                    ctrl.seleccionarCaja(seleccionada);
-                  }
-                },
-              ),
-            ),
-          IconButton(
-            tooltip: 'Refrescar',
-            icon: const Icon(Icons.refresh, color: RegentaColors.ink),
-            onPressed: () {
-              ctrl.cargar();
+    final acciones = <Widget>[
+      if (estado.cajas.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          child: DropdownButton<String>(
+            value: estado.cajaSeleccionada?.id,
+            underline: const SizedBox.shrink(),
+            items: estado.cajas
+                .map(
+                  (c) => DropdownMenuItem(
+                    value: c.id,
+                    child: Text(
+                      c.nombre.isEmpty ? c.codigo : c.nombre,
+                      style: RegentaType.cuerpo.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (id) {
+              if (id != null) {
+                final seleccionada = estado.cajas.firstWhere((c) => c.id == id);
+                ctrl.seleccionarCaja(seleccionada);
+              }
             },
           ),
-          const SizedBox(width: 8),
-        ],
+        ),
+      IconButton(
+        tooltip: 'Refrescar',
+        icon: const Icon(Icons.refresh, color: RegentaColors.ink),
+        onPressed: () {
+          ctrl.cargar();
+        },
       ),
-      body: estado.cargando && estado.sesionActiva == null
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (estado.error != null)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: RegentaColors.critSoft,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: RegentaColors.crit.withValues(alpha: 0.3)),
+    ];
+    return LayoutBuilder(
+      builder: (context, afuera) => Scaffold(
+        backgroundColor: RegentaColors.paper,
+        // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
+        appBar: afuera.maxWidth >= kBreakpointEscritorio
+            ? EncabezadoDeSeccion(
+                icono: Icons.payments_outlined,
+                titulo: 'Gestión de Caja y Turnos',
+                acciones: acciones,
+              )
+            : AppBar(
+                backgroundColor: RegentaColors.surface,
+                surfaceTintColor: RegentaColors.surface,
+                elevation: 0,
+                shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
+                title: Row(
+                  children: [
+                    const Icon(Icons.point_of_sale, color: RegentaColors.ink, size: 22),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Gestión de Caja y Turnos',
+                        overflow: TextOverflow.ellipsis,
+                        style: RegentaType.seccion.copyWith(fontSize: 18, color: RegentaColors.ink),
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline, color: RegentaColors.crit),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              estado.error!,
-                              style: RegentaType.cuerpo.copyWith(color: RegentaColors.crit),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (estado.sesionActiva == null)
-                    _TarjetaSinSesion(
-                      cajaNombre: estado.cajaSeleccionada?.nombre ?? 'Caja Principal',
-                      onAbrir: (monto) => ctrl.abrirSesion(monto),
-                    )
-                    else ...[
-                    _ResumenDeTurno(estado: estado),
-                    const SizedBox(height: 16),
-                    _AccionesDeTurno(
-                      onIngreso: (monto, concepto) => ctrl.registrarIngreso(monto, concepto),
-                      onRetiro: (monto, concepto) => ctrl.registrarRetiro(monto, concepto),
-                      cargarArqueo: ctrl.arqueoPorMetodo,
-                      onCierre: (contados) => _cerrarEImprimir(contados),
-                    ),
-                    const SizedBox(height: 24),
-                    _ListaDeMovimientos(
-                      movimientos: estado.movimientos,
-                      puedeAnular: ref.watch(puedeAnularMovimientosDeCajaProvider),
-                      onAnular: (id, motivo) => ctrl.anularMovimiento(id, motivo),
                     ),
                   ],
-                ],
+                ),
+                actions: [...acciones, const SizedBox(width: 8)],
               ),
-            ),
+        body: estado.cargando && estado.sesionActiva == null
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (estado.error != null)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: RegentaColors.critSoft,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: RegentaColors.crit.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: RegentaColors.crit),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                estado.error!,
+                                style: RegentaType.cuerpo.copyWith(color: RegentaColors.crit),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (estado.sesionActiva == null)
+                      _TarjetaSinSesion(
+                        cajaNombre: estado.cajaSeleccionada?.nombre ?? 'Caja Principal',
+                        onAbrir: (monto) => ctrl.abrirSesion(monto),
+                      )
+                    else ...[
+                      _ResumenDeTurno(estado: estado),
+                      const SizedBox(height: 16),
+                      _AccionesDeTurno(
+                        onIngreso: (monto, concepto) => ctrl.registrarIngreso(monto, concepto),
+                        onRetiro: (monto, concepto) => ctrl.registrarRetiro(monto, concepto),
+                        cargarArqueo: ctrl.arqueoPorMetodo,
+                        onCierre: (contados) => _cerrarEImprimir(contados),
+                      ),
+                      const SizedBox(height: 24),
+                      _ListaDeMovimientos(
+                        movimientos: estado.movimientos,
+                        puedeAnular: ref.watch(puedeAnularMovimientosDeCajaProvider),
+                        onAnular: (id, motivo) => ctrl.anularMovimiento(id, motivo),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+      ),
     );
   }
 }
 
 class _TarjetaSinSesion extends StatelessWidget {
-  const _TarjetaSinSesion({
-    required this.cajaNombre,
-    required this.onAbrir,
-  });
+  const _TarjetaSinSesion({required this.cajaNombre, required this.onAbrir});
 
   final String cajaNombre;
   final ValueChanged<num> onAbrir;
@@ -199,21 +205,11 @@ class _TarjetaSinSesion extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: RegentaColors.moduloCaja,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.lock_clock,
-                size: 48,
-                color: RegentaColors.accent,
-              ),
+              decoration: BoxDecoration(color: RegentaColors.moduloCaja, shape: BoxShape.circle),
+              child: const Icon(Icons.lock_clock, size: 48, color: RegentaColors.accent),
             ),
             const SizedBox(height: 16),
-            Text(
-              'Turno Cerrado en $cajaNombre',
-              style: RegentaType.seccion.copyWith(fontSize: 18),
-            ),
+            Text('Turno Cerrado en $cajaNombre', style: RegentaType.seccion.copyWith(fontSize: 18)),
             const SizedBox(height: 8),
             Text(
               'Abre una nueva sesión indicando la base de efectivo inicial para empezar a operar.',
@@ -386,13 +382,7 @@ class _TarjetaMetrica extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              valor,
-              style: RegentaType.dinero.copyWith(
-                fontSize: 18,
-                color: color,
-              ),
-            ),
+            Text(valor, style: RegentaType.dinero.copyWith(fontSize: 18, color: color)),
           ],
         ),
       ),
@@ -470,10 +460,7 @@ class _AccionesDeTurno extends StatelessWidget {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar'),
-            ),
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
             FilledButton(
               onPressed: () {
                 final monto = num.tryParse(montoCtrl.text.trim()) ?? 0;
@@ -514,10 +501,7 @@ class _AccionesDeTurno extends StatelessWidget {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
         ],
       ),
     );
@@ -584,7 +568,8 @@ class _ListaDeMovimientos extends StatelessWidget {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: movimientos.length,
-                separatorBuilder: (context, index) => const Divider(color: RegentaColors.line, height: 1),
+                separatorBuilder: (context, index) =>
+                    const Divider(color: RegentaColors.line, height: 1),
                 itemBuilder: (context, i) {
                   final mov = movimientos[i];
                   final anulados = {
@@ -593,11 +578,14 @@ class _ListaDeMovimientos extends StatelessWidget {
                   };
                   final anulado = anulados.contains(mov.id);
                   final esAnulacion = mov.tipo.toUpperCase() == 'ANULACION';
-                  final esIngreso = mov.tipo.toUpperCase() == 'INGRESO' ||
+                  final esIngreso =
+                      mov.tipo.toUpperCase() == 'INGRESO' ||
                       mov.tipo.toUpperCase() == 'VENTA' ||
                       mov.tipo.toUpperCase() == 'APERTURA' ||
-                      (esAnulacion && movimientos.any((m) =>
-                          m.id == mov.anulaA && m.tipo.toUpperCase() != 'INGRESO'));
+                      (esAnulacion &&
+                          movimientos.any(
+                            (m) => m.id == mov.anulaA && m.tipo.toUpperCase() != 'INGRESO',
+                          ));
                   final color = esIngreso ? RegentaColors.ok : RegentaColors.crit;
 
                   return ListTile(
@@ -627,8 +615,10 @@ class _ListaDeMovimientos extends StatelessWidget {
                               color: RegentaColors.critSoft,
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: Text('ANULADO',
-                                style: RegentaType.etiqueta.copyWith(color: RegentaColors.crit)),
+                            child: Text(
+                              'ANULADO',
+                              style: RegentaType.etiqueta.copyWith(color: RegentaColors.crit),
+                            ),
                           ),
                         ],
                       ],
@@ -691,28 +681,26 @@ class _DialogoDeAnulacionState extends State<_DialogoDeAnulacion> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${mov.tipo} · ${formatearPesos(mov.monto)} · ${mov.concepto}',
-              style: RegentaType.cuerpo),
+          Text(
+            '${mov.tipo} · ${formatearPesos(mov.monto)} · ${mov.concepto}',
+            style: RegentaType.cuerpo,
+          ),
           const SizedBox(height: 4),
-          Text('Se registra un movimiento que lo compensa; el original no se borra.',
-              style: RegentaType.etiqueta),
+          Text(
+            'Se registra un movimiento que lo compensa; el original no se borra.',
+            style: RegentaType.etiqueta,
+          ),
           const SizedBox(height: 12),
           TextField(
             key: const ValueKey('motivo-anulacion'),
             controller: _motivo,
-            decoration: const InputDecoration(
-              labelText: 'Motivo',
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(labelText: 'Motivo', border: OutlineInputBorder()),
             onChanged: (_) => setState(() {}),
           ),
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
-        ),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: RegentaColors.crit),
           onPressed: _motivo.text.trim().isEmpty
