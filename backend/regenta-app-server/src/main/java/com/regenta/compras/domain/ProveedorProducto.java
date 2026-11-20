@@ -64,6 +64,17 @@ public class ProveedorProducto {
         return pp;
     }
 
+    /**
+     * HU-167 · I4: al confirmar una compra, el catálogo del proveedor queda con el costo de esa
+     * factura y, si vino, con el código con que la vende. El preferido y lo demás no cambian.
+     */
+    public void registrarCompra(BigDecimal costo, String codigo) {
+        this.costoUltimo = costo;
+        if (codigo != null && !codigo.isBlank()) {
+            this.codigoProveedor = codigo.trim();
+        }
+    }
+
     public void actualizar(String codigoProveedor, BigDecimal costoUltimo, Short diasEntrega,
             BigDecimal cantidadMinima, boolean preferido) {
         this.codigoProveedor = codigoProveedor;

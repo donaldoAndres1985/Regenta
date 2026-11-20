@@ -4,6 +4,10 @@ library;
 
 import 'package:regenta_core/regenta_core.dart';
 
+export 'src/compra_directa/controlador.dart';
+export 'src/compra_directa/datos.dart';
+export 'src/compra_directa/estado.dart';
+export 'src/compra_directa/pantalla_compra_directa.dart';
 export 'src/datos/orden_recibible.dart';
 export 'src/datos/orden_resumen_vista.dart';
 export 'src/datos/repositorio_de_recepciones.dart';

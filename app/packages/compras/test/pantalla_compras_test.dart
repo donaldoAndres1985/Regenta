@@ -132,4 +132,37 @@ void main() {
     await tester.tap(find.byKey(const Key('compras-proveedores')));
     expect(abiertos, 1);
   });
+
+  testWidgets('HU-167 · El botón Compra directa abre la compra directa', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var abiertas = 0;
+    await tester.pumpWidget(ProviderScope(
+      overrides: [repositorioDeRecepcionesProvider.overrideWithValue(_RepoComprasFake(const []))],
+      child: MaterialApp(
+        home: PantallaCompras(onOrdenSeleccionada: (_) {}, onCompraDirecta: () => abiertas++),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('compras-compra-directa')));
+    expect(abiertas, 1);
+    expect(find.text('Compra directa'), findsOneWidget);
+  });
+
+  testWidgets('HU-167 · En el celular los atajos son solo íconos y la barra no se desborda', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(ProviderScope(
+      overrides: [repositorioDeRecepcionesProvider.overrideWithValue(_RepoComprasFake(const []))],
+      child: MaterialApp(
+        home: PantallaCompras(onOrdenSeleccionada: (_) {}, onCompraDirecta: () {}, onProveedores: () {}),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Compra directa'), findsOneWidget);
+    expect(find.byTooltip('Proveedores'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

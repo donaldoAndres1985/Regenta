@@ -9,16 +9,24 @@ import java.util.UUID;
 import com.regenta.compras.domain.Recepcion;
 import com.regenta.compras.domain.RecepcionLinea;
 
-/** Una recepciÃ³n con sus lÃ­neas y los lotes capturados (HU-048). */
+/**
+ * Una recepción como la ve la app (HU-048, HU-167): la factura del proveedor con su base, IVA,
+ * flete y total, y cada línea con su descuento, IVA y lote.
+ */
 public record RecepcionDelNegocio(
         UUID id,
         String numero,
         UUID ordenId,
+        boolean compraDirecta,
         UUID proveedorId,
         UUID bodegaId,
         String estado,
         OffsetDateTime fecha,
         String facturaProveedor,
+        LocalDate fechaFactura,
+        BigDecimal subtotal,
+        BigDecimal impuestoTotal,
+        BigDecimal flete,
         BigDecimal total,
         String observaciones,
         List<LineaRecibida> lineas) {
@@ -26,23 +34,33 @@ public record RecepcionDelNegocio(
     public record LineaRecibida(
             UUID ordenLineaId,
             UUID productoId,
+            String nombre,
+            String codigoProveedor,
             BigDecimal cantidad,
             BigDecimal costoUnitario,
+            BigDecimal descuentoPct,
+            String tarifaIva,
+            BigDecimal impuestoPct,
+            BigDecimal subtotal,
+            BigDecimal impuesto,
             String codigoLote,
             LocalDate fechaVencimiento,
             String registroSanitario) {
 
         static LineaRecibida de(RecepcionLinea l) {
-            return new LineaRecibida(l.getOrdenLineaId(), l.getProductoId(), l.getCantidad(),
-                    l.getCostoUnitario(), l.getCodigoLote(), l.getFechaVencimiento(),
+            return new LineaRecibida(l.getOrdenLineaId(), l.getProductoId(), l.getNombre(),
+                    l.getCodigoProveedor(), l.getCantidad(), l.getCostoUnitario(),
+                    l.getDescuentoPct(), l.getTarifaIva(), l.getImpuestoPct(), l.subtotal(),
+                    l.impuesto(), l.getCodigoLote(), l.getFechaVencimiento(),
                     l.getRegistroSanitario());
         }
     }
 
     static RecepcionDelNegocio de(Recepcion r, List<RecepcionLinea> lineas) {
         return new RecepcionDelNegocio(r.getId(), r.getNumero(), r.getOrdenId(),
-                r.getProveedorId(), r.getBodegaId(), r.getEstado().name(), r.getFecha(),
-                r.getFacturaProveedor(), r.getTotal(), r.getObservaciones(),
+                r.esCompraDirecta(), r.getProveedorId(), r.getBodegaId(), r.getEstado().name(),
+                r.getFecha(), r.getFacturaProveedor(), r.getFechaFactura(), r.getSubtotal(),
+                r.getImpuestoTotal(), r.getFlete(), r.getTotal(), r.getObservaciones(),
                 lineas.stream().map(LineaRecibida::de).toList());
     }
 }

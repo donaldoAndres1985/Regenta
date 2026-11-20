@@ -20,6 +20,7 @@ class PantallaCompras extends ConsumerWidget {
     super.key,
     required this.onOrdenSeleccionada,
     this.onProveedores,
+    this.onCompraDirecta,
   });
 
   final ValueChanged<String> onOrdenSeleccionada;
@@ -27,32 +28,46 @@ class PantallaCompras extends ConsumerWidget {
   /// HU-166 · Abre el listado de proveedores. Nulo: el botón no aparece.
   final VoidCallback? onProveedores;
 
+  /// HU-167 · Registra una compra que llegó con su factura, sin orden. Nulo: el botón no aparece.
+  final VoidCallback? onCompraDirecta;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordenesAsync = ref.watch(listaOrdenesComprasProvider);
     final locales = ref.watch(ordenesCreadasLocalProvider);
 
-    final acciones = <Widget>[
-      if (onProveedores != null)
-        TextButton.icon(
-          key: const Key('compras-proveedores'),
-          onPressed: onProveedores,
-          icon: const Icon(Icons.store_mall_directory_outlined, size: 18, color: RegentaColors.ink),
-          label: Text('Proveedores', style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink)),
-        ),
-      IconButton(
-        tooltip: 'Nueva Orden',
-        icon: const Icon(Icons.add, color: RegentaColors.accent),
-        onPressed: () => _abrirDialogoNuevaOrden(context, ref),
-      ),
-      IconButton(
-        tooltip: 'Refrescar',
-        icon: const Icon(Icons.refresh, color: RegentaColors.ink),
-        onPressed: () {
-          ref.invalidate(listaOrdenesComprasProvider);
-        },
-      ),
-    ];
+    // En web van con texto; en el celular, solo el ícono (con su nombre al dejarlo presionado),
+    // para que quepan en la barra.
+    List<Widget> acciones({required bool conTexto}) => <Widget>[
+          if (onCompraDirecta != null)
+            _Atajo(
+              clave: const Key('compras-compra-directa'),
+              texto: 'Compra directa',
+              icono: Icons.receipt_long_outlined,
+              conTexto: conTexto,
+              onPressed: onCompraDirecta!,
+            ),
+          if (onProveedores != null)
+            _Atajo(
+              clave: const Key('compras-proveedores'),
+              texto: 'Proveedores',
+              icono: Icons.store_mall_directory_outlined,
+              conTexto: conTexto,
+              onPressed: onProveedores!,
+            ),
+          IconButton(
+            tooltip: 'Nueva Orden',
+            icon: const Icon(Icons.add, color: RegentaColors.accent),
+            onPressed: () => _abrirDialogoNuevaOrden(context, ref),
+          ),
+          IconButton(
+            tooltip: 'Refrescar',
+            icon: const Icon(Icons.refresh, color: RegentaColors.ink),
+            onPressed: () {
+              ref.invalidate(listaOrdenesComprasProvider);
+            },
+          ),
+        ];
     return LayoutBuilder(builder: (context, afuera) => Scaffold(
       backgroundColor: RegentaColors.paper,
       // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
@@ -60,7 +75,7 @@ class PantallaCompras extends ConsumerWidget {
           ? EncabezadoDeSeccion(
               subtitulo: 'Pedidos a proveedores y recepción de mercancía',
               titulo: 'Órdenes de Compra',
-              acciones: acciones,
+              acciones: acciones(conTexto: true),
             )
           : AppBar(
               backgroundColor: RegentaColors.surface,
@@ -83,7 +98,7 @@ class PantallaCompras extends ConsumerWidget {
                   ),
                 ],
               ),
-              actions: [...acciones, const SizedBox(width: 8)],
+              actions: [...acciones(conTexto: false), const SizedBox(width: 8)],
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _abrirDialogoNuevaOrden(context, ref),
@@ -357,3 +372,38 @@ class PantallaCompras extends ConsumerWidget {
       ),
     );
   }
+
+/// Un atajo de la barra de Compras: con texto en web, solo ícono en el celular.
+class _Atajo extends StatelessWidget {
+  const _Atajo({
+    required this.clave,
+    required this.texto,
+    required this.icono,
+    required this.conTexto,
+    required this.onPressed,
+  });
+
+  final Key clave;
+  final String texto;
+  final IconData icono;
+  final bool conTexto;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!conTexto) {
+      return IconButton(
+        key: clave,
+        tooltip: texto,
+        onPressed: onPressed,
+        icon: Icon(icono, color: RegentaColors.ink),
+      );
+    }
+    return TextButton.icon(
+      key: clave,
+      onPressed: onPressed,
+      icon: Icon(icono, size: 18, color: RegentaColors.ink),
+      label: Text(texto, style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink)),
+    );
+  }
+}

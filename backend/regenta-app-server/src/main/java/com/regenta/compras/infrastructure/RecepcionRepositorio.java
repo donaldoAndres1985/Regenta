@@ -15,4 +15,8 @@ public interface RecepcionRepositorio extends JpaRepository<Recepcion, UUID> {
     List<Recepcion> findByNegocioIdOrderByFechaDesc(UUID negocioId);
 
     List<Recepcion> findByNegocioIdAndOrdenIdOrderByFechaDesc(UUID negocioId, UUID ordenId);
+
+    /** HU-167 · Las recepciones de un proveedor con ese número de factura (C6: no se repite). */
+    List<Recepcion> findByNegocioIdAndProveedorIdAndFacturaProveedor(UUID negocioId,
+            UUID proveedorId, String facturaProveedor);
 }

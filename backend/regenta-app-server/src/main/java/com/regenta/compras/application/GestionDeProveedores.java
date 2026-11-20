@@ -199,6 +199,28 @@ public class GestionDeProveedores {
                 .ifPresent(catalogo::delete);
     }
 
+    /**
+     * HU-167 C3 · Para agregar un producto a una compra: tarifa de IVA y regla de lote del catálogo,
+     * y el último costo y código con que se le compró a este proveedor, si ya se le había comprado.
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("COMPRAS_PROVEEDOR_VER")
+    public ProductoParaComprarDelProveedor paraComprar(UUID proveedorId, UUID productoId) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        delNegocio(proveedorId);
+        com.regenta.inventario.api.ProductoParaComprar p = inventario
+                .paraComprar(negocioId, List.of(productoId)).get(productoId);
+        if (p == null) {
+            throw new NoEncontradoException("Ese producto no existe en el catálogo");
+        }
+        ProveedorProducto conocido = catalogo.findByProveedorIdAndProductoId(proveedorId, productoId)
+                .orElse(null);
+        return new ProductoParaComprarDelProveedor(p.productoId(), p.sku(), p.nombre(),
+                p.tarifaIva(), p.impuestoPct(), p.manejaLotes(), p.perecedero(),
+                conocido == null ? null : conocido.getCostoUltimo(),
+                conocido == null ? null : conocido.getCodigoProveedor());
+    }
+
     /** HU-046 C2 y C3: los proveedores activos de un producto, con el preferido primero. */
     @Transactional(readOnly = true)
     @RequierePermiso("COMPRAS_PROVEEDOR_VER")

@@ -37,4 +37,10 @@ public interface InventarioApi {
 
     /** HU-166 · SKU y nombre de cada producto del negocio; los de otro negocio no vienen. */
     Map<UUID, ProductoResumido> resumenDe(UUID negocioId, Collection<UUID> productoIds);
+
+    /** HU-167 · Tarifa de IVA y regla de lote de cada producto del negocio, para comprarlo. */
+    Map<UUID, ProductoParaComprar> paraComprar(UUID negocioId, Collection<UUID> productoIds);
+
+    /** HU-167 · Si la bodega existe, es del negocio y está activa. */
+    boolean bodegaActiva(UUID negocioId, UUID bodegaId);
 }
