@@ -57,6 +57,7 @@ class _PantallaMesasState extends ConsumerState<PantallaMesas> {
         appBar: afuera.maxWidth >= kBreakpointEscritorio
             ? EncabezadoDeSeccion(
                 icono: Icons.table_restaurant_outlined,
+                subtitulo: 'Plano del salón y estado de cada mesa',
                 titulo: 'Mesas',
                 acciones: acciones,
               )

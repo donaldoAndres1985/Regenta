@@ -48,6 +48,7 @@ class PantallaCompras extends ConsumerWidget {
       appBar: afuera.maxWidth >= kBreakpointEscritorio
           ? EncabezadoDeSeccion(
               icono: Icons.local_shipping_outlined,
+              subtitulo: 'Pedidos a proveedores y recepción de mercancía',
               titulo: 'Órdenes de Compra',
               acciones: acciones,
             )

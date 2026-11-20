@@ -44,6 +44,7 @@ class PantallaListaFacturas extends ConsumerWidget {
         appBar: afuera.maxWidth >= kBreakpointEscritorio
             ? EncabezadoDeSeccion(
                 icono: Icons.receipt_long_outlined,
+                subtitulo: 'Facturas electrónicas emitidas y su estado',
                 titulo: 'Facturas Electrónicas',
                 acciones: acciones,
               )

@@ -103,6 +103,7 @@ class _PantallaCajaState extends ConsumerState<PantallaCaja> {
         appBar: afuera.maxWidth >= kBreakpointEscritorio
             ? EncabezadoDeSeccion(
                 icono: Icons.payments_outlined,
+                subtitulo: 'Abre el turno, registra movimientos y cierra con arqueo',
                 titulo: 'Gestión de Caja y Turnos',
                 acciones: acciones,
               )
