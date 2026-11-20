@@ -403,3 +403,63 @@ solo con el tiempo, y cada mes que pasa cuesta más.
 - `HU-132` Lista de precios por cliente
 
 </details>
+
+---
+
+## Hito 11 · Compras completo
+
+Recibir mercancía tiene que subir el stock con su costo real; hoy no lo hace (B1 en
+`docs/dominio/compras.md`). Después, la compra del día a día, la deuda con el proveedor y las
+órdenes, en ese orden. Cada etapa se puede usar sola.
+
+**20 historias · 97 puntos**
+
+| Épica | Nombre | HU | Puntos |
+|---|---|---:|---:|
+| `E05` | Compras y proveedores | 20 | 97 |
+
+<details><summary>Historias del hito, por etapa</summary>
+
+**Etapa 0 · Stock**
+- `HU-165` Recibir mercancía sube el stock y el costo promedio
+
+**Etapa 1 · Proveedores**
+- `HU-166` Proveedores y su catálogo en la app
+
+**Etapa 2 · Compra directa**
+- `HU-167` Compra directa con la factura del proveedor
+- `HU-168` Costo de entrada con descuentos, flete e IVA según régimen
+
+**Etapa 3 · Cuentas por pagar y pagos**
+- `HU-169` Contado o crédito al registrar la factura
+- `HU-170` Recibir con remisión y registrar la factura después
+- `HU-171` Un pago a varias facturas del mismo proveedor
+- `HU-172` Anular un pago a proveedor
+
+**Etapa 4 · Órdenes**
+- `HU-173` Aprobación y tolerancia configurables
+- `HU-174` Órdenes de compra en la app y PDF para el proveedor
+
+**Etapa 5 · Recibir contra orden**
+- `HU-175` Recibir contra una orden desde la web
+- `HU-176` Anular una orden o cerrarla con faltante
+
+**Etapa 6 · Anulaciones y devoluciones**
+- `HU-177` Anular una recepción
+- `HU-178` Devolución a proveedor con nota crédito
+
+**Etapa 7 · Precio y producto nuevo**
+- `HU-179` Actualizar el precio de venta al recibir
+- `HU-180` Crear un producto desde la recepción
+
+**Etapa 8 · Sugerencias**
+- `HU-181` Sugerencias de compra en la app
+
+**Etapa 9 · Celular sin conexión**
+- `HU-182` Recepción en el celular sin conexión
+
+**Etapa 10 · Informes**
+- `HU-183` Informes de compras y de costos
+- `HU-184` Cuentas por pagar por antigüedad y pendientes por recibir
+
+</details>

@@ -1,6 +1,6 @@
 # Historias de usuario de Regenta
 
-Backlog completo del producto: **145 historias** en **19 épicas**, **806 puntos**.
+Backlog completo del producto: **165 historias** en **19 épicas**, **903 puntos**.
 
 Cada historia declara qué tablas del modelo toca, qué pantalla del diseño implementa y de
 qué otras historias depende. Nada aquí es genérico: los criterios de aceptación salen de las
@@ -15,7 +15,7 @@ restricciones reales del modelo de datos.
 | `E02` | Clientes y cartera | 5 | 20 | Profesional | [`E02-clientes-cartera.md`](epicas/E02-clientes-cartera.md) |
 | `E03` | Inventario · catálogo del patrón Venta directa | 11 | 65 | Básico | [`E03-inventario.md`](epicas/E03-inventario.md) |
 | `E04` | Ventas · transacción del patrón Venta directa | 11 | 68 | Básico | [`E04-ventas.md`](epicas/E04-ventas.md) |
-| `E05` | Compras y proveedores | 6 | 31 | Profesional | [`E05-compras-proveedores.md`](epicas/E05-compras-proveedores.md) |
+| `E05` | Compras y proveedores | 26 | 128 | Profesional | [`E05-compras-proveedores.md`](epicas/E05-compras-proveedores.md) |
 | `E06` | Facturación electrónica DIAN | 10 | 75 | Profesional | [`E06-facturacion-electronica-dian.md`](epicas/E06-facturacion-electronica-dian.md) |
 | `E07` | Caja y POS | 13 | 48 | Empresarial | [`E07-caja-pos.md`](epicas/E07-caja-pos.md) |
 | `E08` | Recursos · catálogo del patrón Reserva | 5 | 24 | Básico | [`E08-recursos.md`](epicas/E08-recursos.md) |
@@ -85,6 +85,26 @@ restricciones reales del modelo de datos.
 | `HU-049` | Cuentas por pagar y pagos a proveedores | `E05` | 5 | `HU-048` |
 | `HU-050` | Sugerencia de compra a partir de stock bajo mínimo | `E05` | 5 | `HU-046` `HU-093` |
 | `HU-051` | Recepción desde el celular en la bodega | `E05` | 5 | `HU-048` |
+| `HU-165` | Recibir mercancía sube el stock y el costo promedio | `E05` | 5 | `HU-048` `HU-031` |
+| `HU-166` | Proveedores y su catálogo en la app | `E05` | 5 | `HU-046` |
+| `HU-167` | Compra directa con la factura del proveedor | `E05` | 8 | `HU-165` `HU-166` |
+| `HU-168` | Costo de entrada con descuentos, flete e IVA según régimen | `E05` | 5 | `HU-167` `HU-018` |
+| `HU-169` | Contado o crédito al registrar la factura | `E05` | 5 | `HU-167` `HU-145` |
+| `HU-170` | Recibir con remisión y registrar la factura después | `E05` | 3 | `HU-169` |
+| `HU-171` | Un pago a varias facturas del mismo proveedor | `E05` | 5 | `HU-169` `HU-145` |
+| `HU-172` | Anular un pago a proveedor | `E05` | 3 | `HU-171` |
+| `HU-173` | Aprobación y tolerancia configurables | `E05` | 3 | `HU-047` |
+| `HU-174` | Órdenes de compra en la app y PDF para el proveedor | `E05` | 8 | `HU-173` `HU-166` |
+| `HU-175` | Recibir contra una orden desde la web | `E05` | 5 | `HU-174` `HU-168` `HU-169` |
+| `HU-176` | Anular una orden o cerrarla con faltante | `E05` | 3 | `HU-175` |
+| `HU-177` | Anular una recepción | `E05` | 5 | `HU-175` |
+| `HU-178` | Devolución a proveedor con nota crédito | `E05` | 8 | `HU-177` `HU-171` |
+| `HU-179` | Actualizar el precio de venta al recibir | `E05` | 3 | `HU-175` `HU-150` |
+| `HU-180` | Crear un producto desde la recepción | `E05` | 5 | `HU-167` `HU-147` |
+| `HU-181` | Sugerencias de compra en la app | `E05` | 5 | `HU-050` `HU-174` |
+| `HU-182` | Recepción en el celular sin conexión | `E05` | 5 | `HU-175` `HU-111` |
+| `HU-183` | Informes de compras y de costos | `E05` | 5 | `HU-175` |
+| `HU-184` | Cuentas por pagar por antigüedad y pendientes por recibir | `E05` | 3 | `HU-171` `HU-176` |
 | `HU-052` | Administrar resoluciones de numeración DIAN | `E06` | 5 | `HU-018` |
 | `HU-053` | Emitir factura desde cualquiera de los tres patrones | `E06` | 13 | `HU-054` `HU-038` |
 | `HU-054` | Asignación del consecutivo dentro del rango autorizado | `E06` | 8 | `HU-052` |
