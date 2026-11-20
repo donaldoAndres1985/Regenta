@@ -80,7 +80,11 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
     ConfiguradorDeTicket.impresionAutomaticaFactura = _impresionAutomaticaFactura;
     ConfiguradorDeTicket.razonSocial = config.razonSocial;
     ConfiguradorDeTicket.nombreComercial = config.nombreComercial;
-    ConfiguradorDeTicket.nit = config.numeroDocumento + (config.digitoVerificacion != null && config.digitoVerificacion!.isNotEmpty ? '-${config.digitoVerificacion}' : '');
+    ConfiguradorDeTicket.nit =
+        config.numeroDocumento +
+        (config.digitoVerificacion != null && config.digitoVerificacion!.isNotEmpty
+            ? '-${config.digitoVerificacion}'
+            : '');
     ConfiguradorDeTicket.direccion = config.direccion;
     ConfiguradorDeTicket.ciudad = config.ciudad;
     ConfiguradorDeTicket.telefono = config.telefono;
@@ -138,10 +142,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al guardar: $e'),
-            backgroundColor: RegentaColors.crit,
-          ),
+          SnackBar(content: Text('Error al guardar: $e'), backgroundColor: RegentaColors.crit),
         );
       }
     } finally {
@@ -149,10 +150,7 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
     }
   }
 
-  InputDecoration _decoracionCampo({
-    required String labelText,
-    String? hintText,
-  }) {
+  InputDecoration _decoracionCampo({required String labelText, String? hintText}) {
     return InputDecoration(
       labelText: labelText,
       labelStyle: const TextStyle(color: RegentaColors.ink2, fontWeight: FontWeight.w500),
@@ -190,335 +188,387 @@ class _PantallaConfiguracionState extends ConsumerState<PantallaConfiguracion> {
 
     return Theme(
       data: PastelTheme.light(),
-      child: Scaffold(
-      backgroundColor: RegentaColors.paper,
-      appBar: AppBar(
-        backgroundColor: RegentaColors.surface,
-        surfaceTintColor: RegentaColors.surface,
-        elevation: 0,
-        shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
-        title: Row(
-          children: [
-            const Icon(Icons.settings_outlined, color: RegentaColors.ink, size: 22),
-            const SizedBox(width: 8),
-            Text(
-              'Configuración del Negocio',
-              style: RegentaType.seccion.copyWith(
-                fontSize: 18,
-                color: RegentaColors.ink,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Refrescar',
-            icon: const Icon(Icons.refresh, color: RegentaColors.ink),
-            onPressed: () {
-              _inicializado = false;
-              ref.invalidate(configuracionNegocioProvider);
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: configAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, size: 48, color: RegentaColors.crit),
-                const SizedBox(height: 16),
-                Text(
-                  'No se pudo cargar la configuración: $err',
-                  textAlign: TextAlign.center,
-                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    _inicializado = false;
-                    ref.invalidate(configuracionNegocioProvider);
-                  },
-                  child: const Text('Reintentar'),
-                ),
-              ],
-            ),
-          ),
-        ),
-        data: (config) {
-          _poblar(config);
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 800),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: LayoutBuilder(
+        builder: (context, afuera) => Scaffold(
+          backgroundColor: RegentaColors.paper,
+          // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
+          appBar: afuera.maxWidth >= kBreakpointEscritorio
+              ? EncabezadoDeSeccion(
+                  icono: Icons.settings_outlined,
+                  titulo: 'Configuración del Negocio',
+                  acciones: [_refrescar()],
+                )
+              : AppBar(
+                  backgroundColor: RegentaColors.surface,
+                  surfaceTintColor: RegentaColors.surface,
+                  elevation: 0,
+                  shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
+                  title: Row(
                     children: [
-                      // Tarjeta Datos Fiscales
-                      Card(
-                        elevation: 0,
-                        color: RegentaColors.surface,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(10)),
-                          side: BorderSide(color: RegentaColors.line),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Datos de Identificación y Fiscales',
-                                style: RegentaType.seccion.copyWith(fontSize: 16),
-                              ),
-                              const Divider(color: RegentaColors.line, height: 24),
-                              TextFormField(
-                                controller: _razonSocialCtrl,
-                                style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                decoration: _decoracionCampo(labelText: 'Razón Social *'),
-                                validator: (v) =>
-                                    (v == null || v.trim().isEmpty) ? 'Requerido' : null,
-                              ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: _nombreComercialCtrl,
-                                style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                decoration: _decoracionCampo(labelText: 'Nombre Comercial'),
-                              ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: _documentoCtrl,
-                                style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                decoration: _decoracionCampo(labelText: 'NIT / Número de Documento *'),
-                                validator: (v) =>
-                                    (v == null || v.trim().isEmpty) ? 'Requerido' : null,
-                              ),
-                            ],
+                      const Icon(Icons.settings_outlined, color: RegentaColors.ink, size: 22),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'Configuración del Negocio',
+                          overflow: TextOverflow.ellipsis,
+                          style: RegentaType.seccion.copyWith(
+                            fontSize: 18,
+                            color: RegentaColors.ink,
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Tarjeta Contacto
-                      Card(
-                        elevation: 0,
-                        color: RegentaColors.surface,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(10)),
-                          side: BorderSide(color: RegentaColors.line),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Contacto y Ubicación',
-                                style: RegentaType.seccion.copyWith(fontSize: 16),
-                              ),
-                              const Divider(color: RegentaColors.line, height: 24),
-                              TextFormField(
-                                controller: _direccionCtrl,
-                                style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                decoration: _decoracionCampo(labelText: 'Dirección Comercial'),
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _ciudadCtrl,
-                                      style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                      decoration: _decoracionCampo(labelText: 'Ciudad'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _telefonoCtrl,
-                                      style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                      decoration: _decoracionCampo(labelText: 'Teléfono'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: _emailCtrl,
-                                style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
-                                decoration: _decoracionCampo(labelText: 'Correo Electrónico'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Tarjeta Políticas
-                      Card(
-                        elevation: 0,
-                        color: RegentaColors.surface,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(10)),
-                          side: BorderSide(color: RegentaColors.line),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Políticas de Operación y Precios',
-                                style: RegentaType.seccion.copyWith(fontSize: 16),
-                              ),
-                              const Divider(color: RegentaColors.line, height: 24),
-                              SwitchListTile(
-                                title: const Text('Los precios de venta incluyen impuestos', style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600)),
-                                subtitle: Text(
-                                  'Si se desactiva, el IVA se sumará sobre el precio al cobrar.',
-                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
-                                ),
-                                value: _preciosConIva,
-                                onChanged: (val) => setState(() => _preciosConIva = val),
-                              ),
-                              const Divider(color: RegentaColors.line, height: 16),
-                              SwitchListTile(
-                                title: const Text('Permitir venta con inventario en negativo', style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600)),
-                                subtitle: Text(
-                                  'Permite completar ventas aunque el stock registrado sea 0.',
-                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
-                                ),
-                                value: _stockNegativo,
-                                onChanged: (val) => setState(() => _stockNegativo = val),
-                              ),
-                              const Divider(color: RegentaColors.line, height: 16),
-                              SwitchListTile(
-                                title: const Text('Búsqueda difusa multi-palabra', style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600)),
-                                subtitle: Text(
-                                  'Si se activa, busca escribiendo palabras en cualquier orden (ej: "esmal negr"). Si se desactiva, usa la búsqueda directa estándar tradicional más rápida.',
-                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
-                                ),
-                                value: _busquedaDifusa,
-                                onChanged: (val) {
-                                  setState(() => _busquedaDifusa = val);
-                                  ConfiguradorDeBusqueda.busquedaDifusaHabilitada = val;
-                                },
-                              ),
-                              const Divider(color: RegentaColors.line, height: 16),
-                              SwitchListTile(
-                                title: const Text('Permitir crédito directo sin cupo a todos los clientes', style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600)),
-                                subtitle: Text(
-                                  'Si se activa, deja hacer crédito a cualquier cliente sin exigir cupo disponible asignado. Si se desactiva, valida y pide cupo.',
-                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
-                                ),
-                                value: _creditoSinCupo,
-                                onChanged: (val) {
-                                  setState(() => _creditoSinCupo = val);
-                                  ConfiguradorDeCredito.creditoSinCupoHabilitado = val;
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Tarjeta Impresión y Facturación Térmica POS
-                      Card(
-                        elevation: 0,
-                        color: RegentaColors.surface,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(10)),
-                          side: BorderSide(color: RegentaColors.line),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Impresión y Facturación Térmica POS',
-                                style: RegentaType.seccion.copyWith(fontSize: 16),
-                              ),
-                              const Divider(color: RegentaColors.line, height: 24),
-                              SwitchListTile(
-                                title: const Text(
-                                  'Imprimir cotización automáticamente',
-                                  style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600),
-                                ),
-                                subtitle: Text(
-                                  'Si se activa, manda el tiquete directo a la impresora térmica al crear una cotización en el POS (sin abrir pantalla de previsualización). Si se desactiva, muestra la notificación con el botón Imprimir.',
-                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
-                                ),
-                                value: _impresionAutomaticaCotizacion,
-                                onChanged: (val) {
-                                  setState(() => _impresionAutomaticaCotizacion = val);
-                                  ConfiguradorDeTicket.impresionAutomaticaCotizacion = val;
-                                },
-                              ),
-                              const Divider(color: RegentaColors.line, height: 16),
-                              SwitchListTile(
-                                title: const Text(
-                                  'Imprimir factura / tirilla automáticamente',
-                                  style: TextStyle(color: RegentaColors.ink, fontWeight: FontWeight.w600),
-                                ),
-                                subtitle: Text(
-                                  'Si se activa, manda la tirilla de venta directo a la impresora térmica al cobrar en el POS (sin abrir pantalla de previsualización).',
-                                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
-                                ),
-                                value: _impresionAutomaticaFactura,
-                                onChanged: (val) {
-                                  setState(() => _impresionAutomaticaFactura = val);
-                                  ConfiguradorDeTicket.impresionAutomaticaFactura = val;
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // HU-139: métodos de pago que se cuentan al cerrar la caja.
-                      // Se guarda aparte (su propio botón): vive en el módulo caja.
-                      const TarjetaMetodosNoCuadrables(),
-                      const SizedBox(height: 24),
-
-                      // Botón Guardar
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: RegentaColors.accent,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        onPressed: _guardando ? null : _guardar,
-                        icon: _guardando
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.save),
-                        label: Text(
-                          _guardando ? 'Guardando...' : 'Guardar Configuración',
-                          style: const TextStyle(fontSize: 16),
                         ),
                       ),
                     ],
                   ),
+                  actions: [_refrescar(), const SizedBox(width: 8)],
+                ),
+          body: configAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: RegentaColors.crit),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No se pudo cargar la configuración: $err',
+                      textAlign: TextAlign.center,
+                      style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        _inicializado = false;
+                        ref.invalidate(configuracionNegocioProvider);
+                      },
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
                 ),
               ),
             ),
-          );
-        },
+            data: (config) {
+              _poblar(config);
+
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 800),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Tarjeta Datos Fiscales
+                          Card(
+                            elevation: 0,
+                            color: RegentaColors.surface,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(10)),
+                              side: BorderSide(color: RegentaColors.line),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Datos de Identificación y Fiscales',
+                                    style: RegentaType.seccion.copyWith(fontSize: 16),
+                                  ),
+                                  const Divider(color: RegentaColors.line, height: 24),
+                                  TextFormField(
+                                    controller: _razonSocialCtrl,
+                                    style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
+                                    decoration: _decoracionCampo(labelText: 'Razón Social *'),
+                                    validator: (v) =>
+                                        (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  TextFormField(
+                                    controller: _nombreComercialCtrl,
+                                    style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
+                                    decoration: _decoracionCampo(labelText: 'Nombre Comercial'),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  TextFormField(
+                                    controller: _documentoCtrl,
+                                    style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
+                                    decoration: _decoracionCampo(
+                                      labelText: 'NIT / Número de Documento *',
+                                    ),
+                                    validator: (v) =>
+                                        (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Tarjeta Contacto
+                          Card(
+                            elevation: 0,
+                            color: RegentaColors.surface,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(10)),
+                              side: BorderSide(color: RegentaColors.line),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Contacto y Ubicación',
+                                    style: RegentaType.seccion.copyWith(fontSize: 16),
+                                  ),
+                                  const Divider(color: RegentaColors.line, height: 24),
+                                  TextFormField(
+                                    controller: _direccionCtrl,
+                                    style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
+                                    decoration: _decoracionCampo(labelText: 'Dirección Comercial'),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextFormField(
+                                          controller: _ciudadCtrl,
+                                          style: const TextStyle(
+                                            color: RegentaColors.ink,
+                                            fontSize: 14,
+                                          ),
+                                          decoration: _decoracionCampo(labelText: 'Ciudad'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: TextFormField(
+                                          controller: _telefonoCtrl,
+                                          style: const TextStyle(
+                                            color: RegentaColors.ink,
+                                            fontSize: 14,
+                                          ),
+                                          decoration: _decoracionCampo(labelText: 'Teléfono'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  TextFormField(
+                                    controller: _emailCtrl,
+                                    style: const TextStyle(color: RegentaColors.ink, fontSize: 14),
+                                    decoration: _decoracionCampo(labelText: 'Correo Electrónico'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Tarjeta Políticas
+                          Card(
+                            elevation: 0,
+                            color: RegentaColors.surface,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(10)),
+                              side: BorderSide(color: RegentaColors.line),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Políticas de Operación y Precios',
+                                    style: RegentaType.seccion.copyWith(fontSize: 16),
+                                  ),
+                                  const Divider(color: RegentaColors.line, height: 24),
+                                  SwitchListTile(
+                                    title: const Text(
+                                      'Los precios de venta incluyen impuestos',
+                                      style: TextStyle(
+                                        color: RegentaColors.ink,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Si se desactiva, el IVA se sumará sobre el precio al cobrar.',
+                                      style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                                    ),
+                                    value: _preciosConIva,
+                                    onChanged: (val) => setState(() => _preciosConIva = val),
+                                  ),
+                                  const Divider(color: RegentaColors.line, height: 16),
+                                  SwitchListTile(
+                                    title: const Text(
+                                      'Permitir venta con inventario en negativo',
+                                      style: TextStyle(
+                                        color: RegentaColors.ink,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Permite completar ventas aunque el stock registrado sea 0.',
+                                      style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                                    ),
+                                    value: _stockNegativo,
+                                    onChanged: (val) => setState(() => _stockNegativo = val),
+                                  ),
+                                  const Divider(color: RegentaColors.line, height: 16),
+                                  SwitchListTile(
+                                    title: const Text(
+                                      'Búsqueda difusa multi-palabra',
+                                      style: TextStyle(
+                                        color: RegentaColors.ink,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Si se activa, busca escribiendo palabras en cualquier orden (ej: "esmal negr"). Si se desactiva, usa la búsqueda directa estándar tradicional más rápida.',
+                                      style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                                    ),
+                                    value: _busquedaDifusa,
+                                    onChanged: (val) {
+                                      setState(() => _busquedaDifusa = val);
+                                      ConfiguradorDeBusqueda.busquedaDifusaHabilitada = val;
+                                    },
+                                  ),
+                                  const Divider(color: RegentaColors.line, height: 16),
+                                  SwitchListTile(
+                                    title: const Text(
+                                      'Permitir crédito directo sin cupo a todos los clientes',
+                                      style: TextStyle(
+                                        color: RegentaColors.ink,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Si se activa, deja hacer crédito a cualquier cliente sin exigir cupo disponible asignado. Si se desactiva, valida y pide cupo.',
+                                      style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                                    ),
+                                    value: _creditoSinCupo,
+                                    onChanged: (val) {
+                                      setState(() => _creditoSinCupo = val);
+                                      ConfiguradorDeCredito.creditoSinCupoHabilitado = val;
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Tarjeta Impresión y Facturación Térmica POS
+                          Card(
+                            elevation: 0,
+                            color: RegentaColors.surface,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(10)),
+                              side: BorderSide(color: RegentaColors.line),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Impresión y Facturación Térmica POS',
+                                    style: RegentaType.seccion.copyWith(fontSize: 16),
+                                  ),
+                                  const Divider(color: RegentaColors.line, height: 24),
+                                  SwitchListTile(
+                                    title: const Text(
+                                      'Imprimir cotización automáticamente',
+                                      style: TextStyle(
+                                        color: RegentaColors.ink,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Si se activa, manda el tiquete directo a la impresora térmica al crear una cotización en el POS (sin abrir pantalla de previsualización). Si se desactiva, muestra la notificación con el botón Imprimir.',
+                                      style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                                    ),
+                                    value: _impresionAutomaticaCotizacion,
+                                    onChanged: (val) {
+                                      setState(() => _impresionAutomaticaCotizacion = val);
+                                      ConfiguradorDeTicket.impresionAutomaticaCotizacion = val;
+                                    },
+                                  ),
+                                  const Divider(color: RegentaColors.line, height: 16),
+                                  SwitchListTile(
+                                    title: const Text(
+                                      'Imprimir factura / tirilla automáticamente',
+                                      style: TextStyle(
+                                        color: RegentaColors.ink,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Si se activa, manda la tirilla de venta directo a la impresora térmica al cobrar en el POS (sin abrir pantalla de previsualización).',
+                                      style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
+                                    ),
+                                    value: _impresionAutomaticaFactura,
+                                    onChanged: (val) {
+                                      setState(() => _impresionAutomaticaFactura = val);
+                                      ConfiguradorDeTicket.impresionAutomaticaFactura = val;
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // HU-139: métodos de pago que se cuentan al cerrar la caja.
+                          // Se guarda aparte (su propio botón): vive en el módulo caja.
+                          const TarjetaMetodosNoCuadrables(),
+                          const SizedBox(height: 24),
+
+                          // Botón Guardar
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: RegentaColors.accent,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            onPressed: _guardando ? null : _guardar,
+                            icon: _guardando
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.save),
+                            label: Text(
+                              _guardando ? 'Guardando...' : 'Guardar Configuración',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ),
-    ),
+    );
+  }
+
+  Widget _refrescar() => IconButton(
+    tooltip: 'Refrescar',
+    icon: const Icon(Icons.refresh, color: RegentaColors.ink),
+    onPressed: () {
+      _inicializado = false;
+      ref.invalidate(configuracionNegocioProvider);
+    },
   );
-}
 }

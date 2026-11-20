@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:regenta_core/regenta_core.dart';
 import 'package:regenta_usuarios/regenta_usuarios.dart';
 
 class _RepoUsuariosFake implements RepositorioDeUsuarios {
@@ -32,6 +33,28 @@ class _RepoCajaFake implements RepositorioDeConfigDeCaja {
 }
 
 void main() {
+  testWidgets('Encabezado E1-E5 · en web, el encabezado común con ícono; en móvil, la barra', (tester) async {
+    Future<void> montar(Size tamano) async {
+      await tester.binding.setSurfaceSize(tamano);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(ProviderScope(
+        overrides: [repositorioDeUsuariosProvider.overrideWithValue(_RepoUsuariosFake(const ConfiguracionNegocioVista(razonSocial: 'X', nombreComercial: 'X', tipoDocumento: 'NIT', numeroDocumento: '1', direccion: '', ciudad: '', telefono: '', email: '', preciosIncluyenImpuesto: true, politicaStockNegativo: false))), repositorioDeConfigDeCajaProvider.overrideWithValue(_RepoCajaFake())],
+        child: MaterialApp(home: const PantallaConfiguracion()),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    await montar(const Size(1440, 900));
+    final encabezado = find.byType(EncabezadoDeSeccion);
+    expect(encabezado, findsOneWidget);
+    expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.settings_outlined)), findsOneWidget);
+    expect(find.descendant(of: encabezado, matching: find.text('Configuración del Negocio')), findsOneWidget);
+
+    await montar(const Size(390, 844));
+    expect(find.byType(EncabezadoDeSeccion), findsNothing);
+    expect(find.byType(AppBar), findsOneWidget);
+  });
+
   testWidgets('Carga y muestra el formulario de configuración', (tester) async {
     const configInicial = ConfiguracionNegocioVista(
       razonSocial: 'Ferretería Central SAS',
