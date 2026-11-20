@@ -24,12 +24,14 @@ class _PantallaCompraDirectaState extends ConsumerState<PantallaCompraDirecta> {
   final TextEditingController _buscador = TextEditingController();
   final TextEditingController _factura = TextEditingController();
   final TextEditingController _flete = TextEditingController();
+  final TextEditingController _descuento = TextEditingController();
 
   @override
   void dispose() {
     _buscador.dispose();
     _factura.dispose();
     _flete.dispose();
+    _descuento.dispose();
     super.dispose();
   }
 
@@ -39,6 +41,7 @@ class _PantallaCompraDirectaState extends ConsumerState<PantallaCompraDirecta> {
     if (hecha == null || !mounted) return;
     _factura.clear();
     _flete.clear();
+    _descuento.clear();
     _buscador.clear();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -103,10 +106,12 @@ class _PantallaCompraDirectaState extends ConsumerState<PantallaCompraDirecta> {
                               estado: estado,
                               factura: _factura,
                               flete: _flete,
+                              descuento: _descuento,
                               onProveedor: ctrl.elegirProveedor,
                               onBodega: ctrl.elegirBodega,
                               onFactura: ctrl.cambiarFactura,
                               onFlete: (t) => ctrl.cambiarFlete(num.tryParse(_digitos(t)) ?? 0),
+                              onDescuento: (t) => ctrl.cambiarDescuentoGlobal(num.tryParse(_digitos(t)) ?? 0),
                               onFecha: () => unawaited(_elegirFecha(estado.fechaFactura)),
                             ),
                           ),
@@ -247,20 +252,24 @@ class _Cabecera extends StatelessWidget {
     required this.estado,
     required this.factura,
     required this.flete,
+    required this.descuento,
     required this.onProveedor,
     required this.onBodega,
     required this.onFactura,
     required this.onFlete,
+    required this.onDescuento,
     required this.onFecha,
   });
 
   final EstadoDeCompraDirecta estado;
   final TextEditingController factura;
   final TextEditingController flete;
+  final TextEditingController descuento;
   final ValueChanged<String?> onProveedor;
   final ValueChanged<String?> onBodega;
   final ValueChanged<String> onFactura;
   final ValueChanged<String> onFlete;
+  final ValueChanged<String> onDescuento;
   final VoidCallback onFecha;
 
   @override
@@ -336,6 +345,18 @@ class _Cabecera extends StatelessWidget {
                 ),
                 icon: const Icon(Icons.event, size: 18),
                 label: Text(estado.fechaFactura == null ? 'Hoy' : _fechaVisible(estado.fechaFactura!)),
+              ),
+            ),
+            CampoConEtiqueta(
+              etiqueta: 'Descuento global',
+              ayuda: 'A pie de factura, sin IVA',
+              hijo: TextField(
+                key: const Key('compra-descuento-global'),
+                controller: descuento,
+                onChanged: onDescuento,
+                keyboardType: TextInputType.number,
+                style: estiloDeCampo,
+                decoration: decoracionDeCampo(hint: '0'),
               ),
             ),
             CampoConEtiqueta(
@@ -666,6 +687,7 @@ class _Totales extends StatelessWidget {
       hijo: Column(
         children: [
           fila('Base (sin IVA)', estado.base, 'base'),
+          if (estado.descuentoGlobal > 0) fila('Descuento global', -estado.descuentoGlobal, 'descuento'),
           fila('IVA', estado.iva, 'iva'),
           fila('Flete', estado.flete, 'flete'),
           const Divider(height: 14, color: RegentaColors.line),

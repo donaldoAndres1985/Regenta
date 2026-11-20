@@ -25,6 +25,7 @@ public record RecepcionDelNegocio(
         String facturaProveedor,
         LocalDate fechaFactura,
         BigDecimal subtotal,
+        BigDecimal descuentoGlobal,
         BigDecimal impuestoTotal,
         BigDecimal flete,
         BigDecimal total,
@@ -43,6 +44,8 @@ public record RecepcionDelNegocio(
             BigDecimal impuestoPct,
             BigDecimal subtotal,
             BigDecimal impuesto,
+            /** HU-168 · Con qué costo unitario entra al inventario (I14). */
+            BigDecimal costoEntrada,
             String codigoLote,
             LocalDate fechaVencimiento,
             String registroSanitario) {
@@ -51,7 +54,7 @@ public record RecepcionDelNegocio(
             return new LineaRecibida(l.getOrdenLineaId(), l.getProductoId(), l.getNombre(),
                     l.getCodigoProveedor(), l.getCantidad(), l.getCostoUnitario(),
                     l.getDescuentoPct(), l.getTarifaIva(), l.getImpuestoPct(), l.subtotal(),
-                    l.impuesto(), l.getCodigoLote(), l.getFechaVencimiento(),
+                    l.impuesto(), l.getCostoEntrada(), l.getCodigoLote(), l.getFechaVencimiento(),
                     l.getRegistroSanitario());
         }
     }
@@ -60,7 +63,7 @@ public record RecepcionDelNegocio(
         return new RecepcionDelNegocio(r.getId(), r.getNumero(), r.getOrdenId(),
                 r.esCompraDirecta(), r.getProveedorId(), r.getBodegaId(), r.getEstado().name(),
                 r.getFecha(), r.getFacturaProveedor(), r.getFechaFactura(), r.getSubtotal(),
-                r.getImpuestoTotal(), r.getFlete(), r.getTotal(), r.getObservaciones(),
+                r.getDescuentoGlobal(), r.getImpuestoTotal(), r.getFlete(), r.getTotal(), r.getObservaciones(),
                 lineas.stream().map(LineaRecibida::de).toList());
     }
 }

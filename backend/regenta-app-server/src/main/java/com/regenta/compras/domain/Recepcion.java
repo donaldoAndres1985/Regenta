@@ -75,6 +75,10 @@ public class Recepcion {
     @Column(nullable = false)
     private BigDecimal flete = BigDecimal.ZERO;
 
+    /** HU-168 · Descuento a pie de factura; se reparte entre las líneas por su valor. */
+    @Column(name = "descuento_global", nullable = false)
+    private BigDecimal descuentoGlobal = BigDecimal.ZERO;
+
     @Column(nullable = false)
     private BigDecimal total;
 
@@ -113,16 +117,38 @@ public class Recepcion {
         return r;
     }
 
+    /** Totaliza como un negocio responsable de IVA. */
     public void totalizar(List<RecepcionLinea> lineas) {
-        BigDecimal base = BigDecimal.ZERO;
-        BigDecimal iva = BigDecimal.ZERO;
+        totalizar(lineas, true);
+    }
+
+    /**
+     * HU-168 · Reparte descuento global y flete, fija el costo de entrada de cada línea (I14) y deja
+     * los totales: {@code subtotal} = suma de netos; {@code impuestoTotal} = IVA sobre la base ya
+     * rebajada; {@code total} = subtotal − descuento global + IVA + flete.
+     */
+    public void totalizar(List<RecepcionLinea> lineas, boolean responsableDeIva) {
+        BigDecimal netos = BigDecimal.ZERO;
+        List<CostoDeEntrada.Entrada> entradas = new java.util.ArrayList<>();
         for (RecepcionLinea l : lineas) {
-            base = base.add(l.subtotal());
-            iva = iva.add(l.impuesto());
+            netos = netos.add(l.subtotal());
+            entradas.add(new CostoDeEntrada.Entrada(l.getCantidad(), l.subtotal(), l.getImpuestoPct()));
         }
-        this.subtotal = base.setScale(4, RoundingMode.HALF_UP);
+        if (descuentoGlobal.compareTo(netos) > 0) {
+            throw new com.regenta.shared.web.ReglaDeNegocioException("El descuento global ("
+                    + descuentoGlobal + ") no puede ser mayor que el valor de la factura (" + netos + ")");
+        }
+        List<CostoDeEntrada.Resultado> costos = CostoDeEntrada.calcular(entradas, descuentoGlobal,
+                flete, responsableDeIva);
+        BigDecimal iva = BigDecimal.ZERO;
+        for (int i = 0; i < lineas.size(); i++) {
+            lineas.get(i).asignarCosto(costos.get(i).costoUnitario(), costos.get(i).iva());
+            iva = iva.add(costos.get(i).iva());
+        }
+        this.subtotal = netos.setScale(4, RoundingMode.HALF_UP);
         this.impuestoTotal = iva.setScale(4, RoundingMode.HALF_UP);
-        this.total = subtotal.add(impuestoTotal).add(flete).setScale(4, RoundingMode.HALF_UP);
+        this.total = subtotal.subtract(descuentoGlobal).add(impuestoTotal).add(flete)
+                .setScale(4, RoundingMode.HALF_UP);
     }
 
     /**
@@ -130,11 +156,16 @@ public class Recepcion {
      * recepción confirmada no se edita (I17).
      */
     public void datosDeFactura(String numero, LocalDate fecha, BigDecimal flete,
-            String observaciones) {
+            BigDecimal descuentoGlobal, String observaciones) {
         exigirBorrador();
         if (flete != null && flete.signum() < 0) {
             throw new com.regenta.shared.web.ReglaDeNegocioException("El flete no puede ser negativo");
         }
+        if (descuentoGlobal != null && descuentoGlobal.signum() < 0) {
+            throw new com.regenta.shared.web.ReglaDeNegocioException(
+                    "El descuento global no puede ser negativo");
+        }
+        this.descuentoGlobal = descuentoGlobal == null ? BigDecimal.ZERO : descuentoGlobal;
         this.facturaProveedor = limpiar(numero);
         this.fechaFactura = fecha;
         this.flete = flete == null ? BigDecimal.ZERO : flete;
@@ -240,5 +271,9 @@ public class Recepcion {
 
     public BigDecimal getFlete() {
         return flete;
+    }
+
+    public BigDecimal getDescuentoGlobal() {
+        return descuentoGlobal;
     }
 }

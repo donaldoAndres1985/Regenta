@@ -92,6 +92,7 @@ class EstadoDeCompraDirecta {
     this.factura = '',
     this.fechaFactura,
     this.flete = 0,
+    this.descuentoGlobal = 0,
     this.lineas = const [],
     this.resultados = const [],
     this.cargando = false,
@@ -108,6 +109,9 @@ class EstadoDeCompraDirecta {
   final String factura;
   final DateTime? fechaFactura;
   final num flete;
+
+  /// HU-168 · Descuento a pie de factura; se reparte entre las líneas por su valor.
+  final num descuentoGlobal;
   final List<LineaEnEdicion> lineas;
   final List<ProductoEncontrado> resultados;
   final bool cargando;
@@ -121,11 +125,22 @@ class EstadoDeCompraDirecta {
   ProveedorDelNegocio? get proveedor =>
       proveedores.where((p) => p.id == proveedorId).firstOrNull;
 
+  /// La suma de los netos de las líneas, antes del descuento global.
   num get base => lineas.fold<num>(0, (s, l) => s + l.base);
-  num get iva => lineas.fold<num>(0, (s, l) => s + l.iva);
 
-  /// HU-167 C1 / I22: lo que se le debe al proveedor = base + IVA + flete.
-  num get total => base + iva + flete;
+  /// HU-168 · El IVA se calcula sobre la base de cada línea ya rebajada con su parte del descuento
+  /// global (repartido por valor), como en el backend.
+  num get iva {
+    final total = base;
+    if (total <= 0 || descuentoGlobal == 0) return lineas.fold<num>(0, (s, l) => s + l.iva);
+    return lineas.fold<num>(0, (s, l) {
+      final rebajada = l.base - descuentoGlobal * l.base / total;
+      return s + rebajada * l.producto.impuestoPct / 100;
+    });
+  }
+
+  /// HU-167 C1 / I22: lo que se le debe al proveedor = base − descuento global + IVA + flete.
+  num get total => base - descuentoGlobal + iva + flete;
 
   /// Lo que falta para poder registrar la compra, o `null` si está lista.
   String? get falta {
@@ -133,6 +148,7 @@ class EstadoDeCompraDirecta {
     if (bodegaId == null) return 'Elige la bodega a la que entra la mercancía.';
     if (factura.trim().isEmpty) return 'Escribe el número de la factura del proveedor.';
     if (lineas.isEmpty) return 'Agrega al menos un producto.';
+    if (descuentoGlobal > base) return 'El descuento global no puede ser mayor que el valor de la factura.';
     for (final l in lineas) {
       final f = l.falta;
       if (f != null) return f;
@@ -146,6 +162,7 @@ class EstadoDeCompraDirecta {
         'facturaProveedor': factura.trim(),
         if (fechaFactura != null) 'fechaFactura': _fecha(fechaFactura!),
         'flete': flete,
+        'descuentoGlobal': descuentoGlobal,
         'lineas': [for (final l in lineas) l.aJson()],
       };
 
@@ -157,6 +174,7 @@ class EstadoDeCompraDirecta {
     String? factura,
     Object? fechaFactura = _sin,
     num? flete,
+    num? descuentoGlobal,
     List<LineaEnEdicion>? lineas,
     List<ProductoEncontrado>? resultados,
     bool? cargando,
@@ -173,6 +191,7 @@ class EstadoDeCompraDirecta {
         factura: factura ?? this.factura,
         fechaFactura: identical(fechaFactura, _sin) ? this.fechaFactura : fechaFactura as DateTime?,
         flete: flete ?? this.flete,
+        descuentoGlobal: descuentoGlobal ?? this.descuentoGlobal,
         lineas: lineas ?? this.lineas,
         resultados: resultados ?? this.resultados,
         cargando: cargando ?? this.cargando,

@@ -11,6 +11,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +41,7 @@ import com.regenta.shared.tenancy.ContextoDeNegocio;
 import com.regenta.shared.web.ConflictoDeEstadoException;
 import com.regenta.shared.web.NoEncontradoException;
 import com.regenta.shared.web.ReglaDeNegocioException;
+import com.regenta.usuarios.api.ConfiguracionNegocioApi;
 
 /**
  * Recepción de mercancía con la factura del proveedor (HU-048, HU-165, HU-167).
@@ -65,13 +67,16 @@ public class GestionDeRecepciones {
     private final AsignadorDeConsecutivos consecutivos;
     private final RegistroDeEventos eventos;
     private final InventarioApi inventario;
+    private final ConfiguracionNegocioApi configuracion;
 
     public GestionDeRecepciones(RecepcionRepositorio recepciones,
             RecepcionLineaRepositorio recepcionLineas, OrdenDeCompraRepositorio ordenes,
             OrdenCompraLineaRepositorio ordenLineas, CuentaPorPagarRepositorio cuentas,
             ProveedorRepositorio proveedores, ProveedorProductoRepositorio catalogo,
             AsignadorDeConsecutivos consecutivos, RegistroDeEventos eventos,
-            InventarioApi inventario) {
+            InventarioApi inventario,
+            @Autowired(required = false) ConfiguracionNegocioApi configuracion) {
+        this.configuracion = configuracion;
         this.recepciones = recepciones;
         this.recepcionLineas = recepcionLineas;
         this.ordenes = ordenes;
@@ -148,7 +153,7 @@ public class GestionDeRecepciones {
                     regla.perecedero(), l.codigoLote(), l.fechaVencimiento(),
                     l.registroSanitario()), hoy));
         }
-        recepcion.totalizar(lineas);
+        recepcion.totalizar(lineas, responsableDeIva(negocioId));
 
         recepciones.save(recepcion);
         recepcionLineas.saveAll(lineas);
@@ -174,10 +179,10 @@ public class GestionDeRecepciones {
                 solicitud.bodegaId(), solicitud.facturaProveedor(),
                 ContextoDeNegocio.actual().usuario(), solicitud.observaciones());
         recepcion.datosDeFactura(solicitud.facturaProveedor(), fechaDe(solicitud),
-                solicitud.flete(), solicitud.observaciones());
+                solicitud.flete(), solicitud.descuentoGlobal(), solicitud.observaciones());
 
         List<RecepcionLinea> lineas = lineasDirectas(negocioId, recepcion, solicitud.lineas());
-        recepcion.totalizar(lineas);
+        recepcion.totalizar(lineas, responsableDeIva(negocioId));
         recepciones.save(recepcion);
         recepcionLineas.saveAll(lineas);
         return RecepcionDelNegocio.de(recepcion, lineas);
@@ -208,9 +213,9 @@ public class GestionDeRecepciones {
                 solicitud.facturaProveedor(), recepcionId);
 
         recepcion.datosDeFactura(solicitud.facturaProveedor(), fechaDe(solicitud),
-                solicitud.flete(), solicitud.observaciones());
+                solicitud.flete(), solicitud.descuentoGlobal(), solicitud.observaciones());
         List<RecepcionLinea> lineas = lineasDirectas(negocioId, recepcion, solicitud.lineas());
-        recepcion.totalizar(lineas);
+        recepcion.totalizar(lineas, responsableDeIva(negocioId));
         recepcionLineas.deleteAll(recepcionLineas.findByRecepcionId(recepcionId));
         recepcionLineas.flush();
         recepciones.save(recepcion);
@@ -235,6 +240,9 @@ public class GestionDeRecepciones {
         recepcion.confirmar();
 
         List<RecepcionLinea> lineas = recepcionLineas.findByRecepcionId(recepcionId);
+        // HU-168 · El costo de entrada se fija con el régimen vigente al confirmar.
+        recepcion.totalizar(lineas, responsableDeIva(negocioId));
+        recepcionLineas.saveAll(lineas);
 
         if (recepcion.getOrdenId() != null) {
             aplicarSobreLaOrden(negocioId, recepcion.getOrdenId(), lineas);
@@ -313,6 +321,11 @@ public class GestionDeRecepciones {
             throw new ConflictoDeEstadoException(
                     "La factura " + numero + " de este proveedor ya está registrada");
         }
+    }
+
+    /** HU-168 · Sin el módulo de usuarios cargado, se asume responsable de IVA (como Ventas). */
+    private boolean responsableDeIva(UUID negocioId) {
+        return configuracion == null || configuracion.responsableDeIva(negocioId);
     }
 
     private static LocalDate fechaDe(SolicitudDeCompraDirecta solicitud) {
@@ -403,8 +416,8 @@ public class GestionDeRecepciones {
             Map<String, Object> renglon = new LinkedHashMap<>();
             renglon.put("producto_id", l.getProductoId().toString());
             renglon.put("cantidad", l.getCantidad());
-            // El costo con el descuento de la línea; HU-168 agrega prorrateos e IVA no descontable.
-            renglon.put("costo_unitario", l.costoNeto());
+            // HU-168 · I14: descuento, descuento global y flete repartidos, e IVA si no es descontable.
+            renglon.put("costo_unitario", l.getCostoEntrada());
             renglon.put("codigo_lote", l.getCodigoLote());
             renglon.put("fecha_vencimiento",
                     l.getFechaVencimiento() == null ? null : l.getFechaVencimiento().toString());

@@ -109,6 +109,24 @@ void main() {
       expect(estado.total, 248000);
     });
 
+    test('HU-168 C4 · El descuento global rebaja la base de cada línea antes del IVA', () {
+      const estado = EstadoDeCompraDirecta(flete: 10000, descuentoGlobal: 4000, lineas: [
+        LineaEnEdicion(producto: a, cantidad: 10, costo: 10000),
+        LineaEnEdicion(producto: a, cantidad: 5, costo: 20000),
+      ]);
+      expect(estado.base, 200000);
+      expect(estado.iva, closeTo(37240, 0.001));
+      expect(estado.total, closeTo(243240, 0.001));
+    });
+
+    test('HU-168 · Un descuento global mayor que la factura no deja registrar', () {
+      const estado = EstadoDeCompraDirecta(
+        proveedorId: 'p', bodegaId: 'b', factura: 'F', descuentoGlobal: 999999,
+        lineas: [LineaEnEdicion(producto: a, cantidad: 1, costo: 1000)],
+      );
+      expect(estado.falta, 'El descuento global no puede ser mayor que el valor de la factura.');
+    });
+
     test('HU-167 · El descuento de línea baja base e IVA en proporción', () {
       const l = LineaEnEdicion(producto: a, cantidad: 10, costo: 10000, descuentoPct: 10);
       expect(l.base, 90000);
@@ -210,5 +228,20 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(tester.widget<Text>(find.byKey(const Key('compra-total'))).data, '\$248.000');
+  });
+
+  testWidgets('HU-168 C4 · El descuento global se ve en los totales y viaja al backend', (tester) async {
+    final repo = await _montar(tester);
+    await _facturaDeReferencia(tester);
+    await tester.enterText(find.byKey(const Key('compra-descuento-global')), '4000');
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Text>(find.byKey(const Key('compra-descuento'))).data, '-\$4.000');
+    expect(tester.widget<Text>(find.byKey(const Key('compra-iva'))).data, '\$37.240');
+    expect(tester.widget<Text>(find.byKey(const Key('compra-total'))).data, '\$243.240');
+
+    await tester.tap(find.byKey(const Key('compra-registrar')));
+    await tester.pumpAndSettle();
+    expect(repo.enviadas.single['descuentoGlobal'], 4000);
   });
 }

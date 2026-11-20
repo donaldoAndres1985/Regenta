@@ -25,6 +25,8 @@ public record SolicitudDeCompraDirecta(
         @Size(max = 40) String facturaProveedor,
         LocalDate fechaFactura,
         @PositiveOrZero BigDecimal flete,
+        /** HU-168 · Descuento a pie de factura; se reparte entre las líneas por su valor. */
+        @PositiveOrZero BigDecimal descuentoGlobal,
         @Size(max = 2000) String observaciones,
         @NotEmpty @Valid List<LineaDeCompra> lineas) {
 
