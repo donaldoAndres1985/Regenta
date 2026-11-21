@@ -99,6 +99,52 @@ public class RegistroDeMovimientos {
         return registrados;
     }
 
+    /**
+     * HU-145 · Un pago a proveedor en efectivo hecho con la plata de la caja: una salida
+     * {@code PAGO_PROVEEDOR} por el mismo monto, con el número de factura como documento (C1). Si el
+     * pago no fue en efectivo (C2) o no indicó sesión (C3), la caja no cambia. Compras ya validó
+     * que la sesión estaba abierta (C4); si se cerró entretanto, se ignora, como con los cobros.
+     * El mismo pago dos veces no duplica la salida (C5).
+     */
+    @Transactional
+    public boolean registrarPagoAProveedor(Map<String, Object> datos) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        UUID sesionId = uuid(datos.get("sesion_caja_id"));
+        if (sesionId == null || !"EFECTIVO".equalsIgnoreCase(texto(datos.get("metodo")))) {
+            return false;
+        }
+        SesionDeCaja sesion = sesiones.findByIdAndNegocioId(sesionId, negocioId).orElse(null);
+        if (sesion == null || !sesion.getEstado().estaAbierta()) {
+            log.warn("Pago a proveedor para la sesión {} que ya no está abierta: no entra a la caja",
+                    sesionId);
+            return false;
+        }
+        BigDecimal monto = numero(datos.get("monto"));
+        UUID pagoId = uuid(datos.get("pago_id"));
+        if (monto == null || monto.signum() <= 0 || pagoId == null) {
+            return false;
+        }
+        String idem = "PAGO_PROVEEDOR:" + pagoId;
+        if (movimientos.existsByNegocioIdAndIdempotencyKey(negocioId, idem)) {
+            return false;
+        }
+        UUID usuarioEvento = uuid(datos.get("usuario_id"));
+        String proveedor = texto(datos.get("proveedor_nombre"));
+        String concepto = "Pago a proveedor" + (proveedor == null ? "" : " " + proveedor);
+        MovimientoDeCaja mov = MovimientoDeCaja.pagoAProveedor(negocioId, sesionId,
+                usuarioEvento != null ? usuarioEvento : sesion.getUsuarioAperturaId(), pagoId,
+                texto(datos.get("numero_factura")),
+                concepto.length() > 200 ? concepto.substring(0, 200) : concepto, monto, idem);
+        try {
+            movimientos.save(mov);
+            movimientos.flush();
+            return true;
+        } catch (DataIntegrityViolationException repetido) {
+            log.debug("Pago a proveedor {} ya registrado en la caja: se ignora", idem);
+            return false;
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> pagosDe(Map<String, Object> datos) {
         Object crudo = datos.get("pagos");

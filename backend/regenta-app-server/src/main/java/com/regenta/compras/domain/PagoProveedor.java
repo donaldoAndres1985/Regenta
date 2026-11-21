@@ -46,6 +46,10 @@ public class PagoProveedor {
     @Column(name = "usuario_id", updatable = false)
     private UUID usuarioId;
 
+    /** HU-145 · La sesión de caja de la que salió el efectivo; nula si se pagó por fuera. */
+    @Column(name = "sesion_caja_id", updatable = false)
+    private UUID sesionCajaId;
+
     @CreationTimestamp
     @Column(name = "creado_en", nullable = false, updatable = false)
     private OffsetDateTime creadoEn;
@@ -55,6 +59,15 @@ public class PagoProveedor {
 
     public static PagoProveedor registrar(UUID negocioId, UUID cuentaId, BigDecimal monto,
             MetodoDePago metodo, String referencia, UUID usuarioId) {
+        return registrar(negocioId, cuentaId, monto, metodo, referencia, usuarioId, null);
+    }
+
+    /**
+     * HU-145 · Solo un pago en efectivo puede salir de una sesión de caja; con otro método la sesión
+     * no se guarda (la caja no cambia).
+     */
+    public static PagoProveedor registrar(UUID negocioId, UUID cuentaId, BigDecimal monto,
+            MetodoDePago metodo, String referencia, UUID usuarioId, UUID sesionCajaId) {
         if (monto == null || monto.signum() <= 0) {
             throw new ReglaDeNegocioException("El pago debe ser mayor que cero");
         }
@@ -67,7 +80,16 @@ public class PagoProveedor {
         p.referencia = limpiar(referencia);
         p.fecha = LocalDate.now();
         p.usuarioId = usuarioId;
+        p.sesionCajaId = p.metodo == MetodoDePago.EFECTIVO ? sesionCajaId : null;
         return p;
+    }
+
+    public boolean salioDeLaCaja() {
+        return sesionCajaId != null;
+    }
+
+    public UUID getSesionCajaId() {
+        return sesionCajaId;
     }
 
     private static String limpiar(String v) {

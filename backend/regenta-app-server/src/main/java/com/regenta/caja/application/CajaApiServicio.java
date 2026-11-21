@@ -30,4 +30,15 @@ public class CajaApiServicio implements CajaApi {
         return sesiones.findFirstByNegocioIdAndUsuarioAperturaIdAndEstadoOrderByAbiertaEnDesc(
                 negocioId, usuarioId, EstadoSesionCaja.ABIERTA).map(SesionDeCaja::getId);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean sesionAbierta(UUID negocioId, UUID sesionId) {
+        if (negocioId == null || sesionId == null) {
+            return false;
+        }
+        return sesiones.findByIdAndNegocioId(sesionId, negocioId)
+                .filter(s -> s.getEstado().estaAbierta())
+                .isPresent();
+    }
 }

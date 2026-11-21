@@ -1,6 +1,7 @@
 package com.regenta.compras.application;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -10,5 +11,10 @@ import jakarta.validation.constraints.Size;
 public record SolicitudDePago(
         @NotNull @Positive BigDecimal monto,
         String metodo,
-        @Size(max = 60) String referencia) {
+        @Size(max = 60) String referencia,
+        /**
+         * HU-145 · Si el pago en efectivo sale de la caja, la sesión abierta de la que sale. Nula: se
+         * pagó con dinero de fuera de la caja.
+         */
+        UUID sesionCajaId) {
 }
