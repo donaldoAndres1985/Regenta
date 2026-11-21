@@ -131,6 +131,12 @@ public class OrdenCompraLinea {
      * pedido más el 5% se rechaza — 422 (criterio 4); el CHECK
      * {@code ck_recibida_oc} lo vuelve a cortar en la base.
      */
+    /** HU-177 · Se anuló una recepción: lo que trajo vuelve a faltar. */
+    public void revertirRecepcion(BigDecimal cantidad) {
+        BigDecimal queda = cantidadRecibida.subtract(cantidad);
+        this.cantidadRecibida = queda.signum() < 0 ? BigDecimal.ZERO : queda;
+    }
+
     public void recibir(BigDecimal cantidad, BigDecimal toleranciaPct) {
         if (cantidad == null || cantidad.signum() <= 0) {
             throw new ReglaDeNegocioException("La cantidad recibida debe ser mayor que cero");

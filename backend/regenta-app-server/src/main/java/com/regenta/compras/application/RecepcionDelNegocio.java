@@ -36,6 +36,10 @@ public record RecepcionDelNegocio(
         boolean pagarDesdeLaCaja,
         /** HU-169 C4 · Avisos que no impiden registrar (por ejemplo, que se supera el cupo). */
         List<String> avisos,
+        /** HU-177 C5 · Quién, cuándo y por qué se anuló; nulos si no. */
+        UUID anuladaPor,
+        OffsetDateTime anuladaEn,
+        String motivoAnulacion,
         List<LineaRecibida> lineas) {
 
     public record LineaRecibida(
@@ -75,6 +79,7 @@ public record RecepcionDelNegocio(
                 r.getFecha(), r.getFacturaProveedor(), r.getFechaFactura(), r.getSubtotal(),
                 r.getDescuentoGlobal(), r.getImpuestoTotal(), r.getFlete(), r.getTotal(), r.getObservaciones(),
                 r.getCondicionPago().name(), r.getMetodoPago() == null ? null : r.getMetodoPago().name(),
-                r.isPagarDesdeLaCaja(), avisos, lineas.stream().map(LineaRecibida::de).toList());
+                r.isPagarDesdeLaCaja(), avisos, r.getAnuladaPor(), r.getAnuladaEn(), r.getMotivoAnulacion(),
+                lineas.stream().map(LineaRecibida::de).toList());
     }
 }

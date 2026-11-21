@@ -105,6 +105,16 @@ public class Recepcion {
     @Column(columnDefinition = "text")
     private String observaciones;
 
+    /** HU-177 · Quién, cuándo y por qué se anuló; nulos si no se anuló. */
+    @Column(name = "anulada_por")
+    private UUID anuladaPor;
+
+    @Column(name = "anulada_en")
+    private java.time.OffsetDateTime anuladaEn;
+
+    @Column(name = "motivo_anulacion", length = 200)
+    private String motivoAnulacion;
+
     @CreationTimestamp
     @Column(name = "creado_en", nullable = false, updatable = false)
     private OffsetDateTime creadoEn;
@@ -235,6 +245,37 @@ public class Recepcion {
     public void descartar() {
         exigirBorrador();
         this.estado = EstadoRecepcion.ANULADA;
+    }
+
+    /**
+     * HU-177 · Anula una recepción confirmada, con motivo. Sigue visible (C5); quien la llama ya
+     * revisó que no tenga abonos y que la mercancía siga en la bodega.
+     */
+    public void anular(UUID usuario, String motivo) {
+        if (estado != EstadoRecepcion.CONFIRMADA) {
+            throw new ConflictoDeEstadoException("Se anula una recepción confirmada; esta está " + estado);
+        }
+        String limpio = motivo == null ? "" : motivo.trim();
+        if (limpio.isEmpty()) {
+            throw new com.regenta.shared.web.ReglaDeNegocioException(
+                    "La anulación de una recepción exige un motivo");
+        }
+        this.motivoAnulacion = limpio.length() > 200 ? limpio.substring(0, 200) : limpio;
+        this.anuladaPor = usuario;
+        this.anuladaEn = java.time.OffsetDateTime.now();
+        this.estado = EstadoRecepcion.ANULADA;
+    }
+
+    public UUID getAnuladaPor() {
+        return anuladaPor;
+    }
+
+    public java.time.OffsetDateTime getAnuladaEn() {
+        return anuladaEn;
+    }
+
+    public String getMotivoAnulacion() {
+        return motivoAnulacion;
     }
 
     public void confirmar() {

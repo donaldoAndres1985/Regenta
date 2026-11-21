@@ -21,13 +21,16 @@ public class InventarioServicio implements InventarioApi {
     private final GestionDeReservasStock reservas;
     private final GestionDeFracciones fracciones;
     private final com.regenta.inventario.infrastructure.BodegaRepositorio bodegas;
+    private final SalidaPorAnulacionDeCompra salidaPorAnulacion;
 
     public InventarioServicio(GestionDeLotes lotes,
                              GestionDeProductos productos,
                              GestionDeReservasStock reservas,
                              GestionDeFracciones fracciones,
-                             com.regenta.inventario.infrastructure.BodegaRepositorio bodegas) {
+                             com.regenta.inventario.infrastructure.BodegaRepositorio bodegas,
+                             SalidaPorAnulacionDeCompra salidaPorAnulacion) {
         this.bodegas = bodegas;
+        this.salidaPorAnulacion = salidaPorAnulacion;
         this.lotes = lotes;
         this.productos = productos;
         this.reservas = reservas;
@@ -88,5 +91,11 @@ public class InventarioServicio implements InventarioApi {
         return bodegaId != null && bodegas.findById(bodegaId)
                 .filter(b -> negocioId.equals(b.getNegocioId()) && b.isActiva())
                 .isPresent();
+    }
+
+    @Override
+    public List<String> faltantesParaSacar(UUID negocioId, UUID bodegaId,
+            Collection<com.regenta.inventario.api.SalidaPrevista> salidas) {
+        return salidaPorAnulacion.faltantes(negocioId, bodegaId, salidas);
     }
 }

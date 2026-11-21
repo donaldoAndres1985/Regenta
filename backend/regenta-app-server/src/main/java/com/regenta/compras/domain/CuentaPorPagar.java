@@ -167,6 +167,20 @@ public class CuentaPorPagar {
                 ? EstadoCuentaPorPagar.PENDIENTE : EstadoCuentaPorPagar.PARCIAL;
     }
 
+    /**
+     * HU-177 C2 · La recepción de esta factura se anuló: la cuenta también. Con un abono no se puede
+     * (409): primero se anulan los pagos.
+     */
+    public void anularPorRecepcion() {
+        if (estado == EstadoCuentaPorPagar.ANULADA) {
+            return;
+        }
+        if (saldo.compareTo(monto) < 0) {
+            throw new ConflictoDeEstadoException("Primero anula los pagos de esta factura.");
+        }
+        this.estado = EstadoCuentaPorPagar.ANULADA;
+    }
+
     public boolean estaVencida(LocalDate hoy) {
         return saldo.signum() > 0 && estado != EstadoCuentaPorPagar.ANULADA
                 && fechaVencimiento.isBefore(hoy);
