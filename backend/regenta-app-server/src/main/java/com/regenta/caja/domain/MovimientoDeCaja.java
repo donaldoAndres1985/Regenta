@@ -122,6 +122,25 @@ public class MovimientoDeCaja {
      * ingreso con {@code +1}. {@code autorizadoPor} queda cuando el retiro
      * superó el umbral (criterio 2).
      */
+    /**
+     * HU-145 · El efectivo que sale de la sesión para pagarle a un proveedor ({@code signo -1}: baja
+     * el efectivo esperado). El documento es el número de la factura que se abonó.
+     */
+    public static MovimientoDeCaja pagoAProveedor(UUID negocioId, UUID sesionId, UUID usuarioId,
+            UUID pagoId, String documentoRef, String concepto, BigDecimal monto,
+            String idempotencyKey) {
+        MovimientoDeCaja m = base(negocioId, sesionId, usuarioId, idempotencyKey, concepto);
+        m.tipo = TipoMovimientoCaja.PAGO_PROVEEDOR;
+        m.signo = -1;
+        m.metodoPago = MetodoPagoCaja.EFECTIVO;
+        m.monto = monto;
+        m.propina = BigDecimal.ZERO;
+        m.origenTipo = "PAGO_PROVEEDOR";
+        m.origenId = pagoId;
+        m.documentoRef = documentoRef;
+        return m;
+    }
+
     public static MovimientoDeCaja manual(UUID negocioId, UUID sesionId, UUID usuarioId,
             TipoMovimientoCaja tipo, String concepto, BigDecimal monto, UUID autorizadoPor,
             String idempotencyKey) {

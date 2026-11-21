@@ -13,4 +13,7 @@ public interface CajaApi {
      * la que entra el dinero de lo que ese usuario vende.
      */
     Optional<UUID> sesionAbiertaDe(UUID negocioId, UUID usuarioId);
+
+    /** HU-145 · Si esa sesión de caja existe en el negocio y está abierta. */
+    boolean sesionAbierta(UUID negocioId, UUID sesionId);
 }

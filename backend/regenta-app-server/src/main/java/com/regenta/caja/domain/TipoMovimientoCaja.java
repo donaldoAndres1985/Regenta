@@ -13,7 +13,12 @@ public enum TipoMovimientoCaja {
     AJUSTE,
     APERTURA,
     /** HU-141: compensa un movimiento manual; apunta al original con {@code anula_a}. */
-    ANULACION;
+    ANULACION,
+    /**
+     * HU-145: salida de efectivo de un pago a proveedor hecho desde la caja abierta. La registra
+     * Compras al pagar la cuenta; no es manual, así que no se anula desde la caja.
+     */
+    PAGO_PROVEEDOR;
 
     /** I5: solo los movimientos que registra el cajero a mano se pueden anular. */
     public boolean esManual() {
