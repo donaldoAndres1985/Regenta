@@ -108,16 +108,26 @@ public class GestionDeRecepciones {
         List<Recepcion> filas = ordenId == null
                 ? recepciones.findByNegocioIdOrderByFechaDesc(negocioId)
                 : recepciones.findByNegocioIdAndOrdenIdOrderByFechaDesc(negocioId, ordenId);
+        Map<UUID, String> nombres = new java.util.HashMap<>();
         return filas.stream()
-                .map(r -> RecepcionDelNegocio.de(r, recepcionLineas.findByRecepcionId(r.getId())))
+                .map(r -> RecepcionDelNegocio.de(r, recepcionLineas.findByRecepcionId(r.getId()), List.of(),
+                        nombres.computeIfAbsent(r.getProveedorId(), id -> nombreDe(negocioId, id))))
                 .toList();
+    }
+
+    /** HU-178 · El nombre con que se muestra un proveedor en las recepciones. */
+    private String nombreDe(UUID negocioId, UUID proveedorId) {
+        return proveedores.findByIdAndNegocioId(proveedorId, negocioId)
+                .map(p -> p.getNombreComercial() != null ? p.getNombreComercial() : p.getRazonSocial())
+                .orElse(null);
     }
 
     @Transactional(readOnly = true)
     @RequierePermiso("COMPRAS_COMPRA_VER")
     public RecepcionDelNegocio ver(UUID recepcionId) {
         Recepcion r = delNegocio(recepcionId);
-        return RecepcionDelNegocio.de(r, recepcionLineas.findByRecepcionId(recepcionId));
+        return RecepcionDelNegocio.de(r, recepcionLineas.findByRecepcionId(recepcionId), List.of(),
+                nombreDe(r.getNegocioId(), r.getProveedorId()));
     }
 
     /**
@@ -324,6 +334,7 @@ public class GestionDeRecepciones {
             throw new ConflictoDeEstadoException(
                     "Se anula una recepción confirmada; esta está " + recepcion.getEstado());
         }
+        recepcion.exigirSinDevoluciones(); // HU-178: con devoluciones ya no se anula
         List<CuentaPorPagar> suyas = cuentas.findByNegocioIdAndRecepcionId(negocioId, recepcionId);
         for (CuentaPorPagar c : suyas) {
             if (c.getEstado() != com.regenta.compras.domain.EstadoCuentaPorPagar.ANULADA

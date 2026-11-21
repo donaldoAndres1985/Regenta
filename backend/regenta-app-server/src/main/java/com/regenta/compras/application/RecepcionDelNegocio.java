@@ -19,6 +19,8 @@ public record RecepcionDelNegocio(
         UUID ordenId,
         boolean compraDirecta,
         UUID proveedorId,
+        /** HU-178 · Para el listado de recepciones; nulo si no se buscó. */
+        String proveedorNombre,
         UUID bodegaId,
         String estado,
         OffsetDateTime fecha,
@@ -43,6 +45,8 @@ public record RecepcionDelNegocio(
         List<LineaRecibida> lineas) {
 
     public record LineaRecibida(
+            /** HU-178 · De qué línea se devuelve. */
+            UUID id,
             UUID ordenLineaId,
             UUID productoId,
             String nombre,
@@ -61,7 +65,7 @@ public record RecepcionDelNegocio(
             String registroSanitario) {
 
         static LineaRecibida de(RecepcionLinea l) {
-            return new LineaRecibida(l.getOrdenLineaId(), l.getProductoId(), l.getNombre(),
+            return new LineaRecibida(l.getId(), l.getOrdenLineaId(), l.getProductoId(), l.getNombre(),
                     l.getCodigoProveedor(), l.getCantidad(), l.getCostoUnitario(),
                     l.getDescuentoPct(), l.getTarifaIva(), l.getImpuestoPct(), l.subtotal(),
                     l.impuesto(), l.getCostoEntrada(), l.getCodigoLote(), l.getFechaVencimiento(),
@@ -74,8 +78,13 @@ public record RecepcionDelNegocio(
     }
 
     static RecepcionDelNegocio de(Recepcion r, List<RecepcionLinea> lineas, List<String> avisos) {
+        return de(r, lineas, avisos, null);
+    }
+
+    static RecepcionDelNegocio de(Recepcion r, List<RecepcionLinea> lineas, List<String> avisos,
+            String proveedorNombre) {
         return new RecepcionDelNegocio(r.getId(), r.getNumero(), r.getOrdenId(),
-                r.esCompraDirecta(), r.getProveedorId(), r.getBodegaId(), r.getEstado().name(),
+                r.esCompraDirecta(), r.getProveedorId(), proveedorNombre, r.getBodegaId(), r.getEstado().name(),
                 r.getFecha(), r.getFacturaProveedor(), r.getFechaFactura(), r.getSubtotal(),
                 r.getDescuentoGlobal(), r.getImpuestoTotal(), r.getFlete(), r.getTotal(), r.getObservaciones(),
                 r.getCondicionPago().name(), r.getMetodoPago() == null ? null : r.getMetodoPago().name(),

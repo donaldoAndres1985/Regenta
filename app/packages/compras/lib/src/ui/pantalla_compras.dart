@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
+import '../devoluciones/pantalla_recepciones.dart';
 import '../ordenes/datos.dart';
 import '../ordenes/formulario_de_orden.dart';
 import '../ordenes/pantalla_orden.dart';
@@ -125,6 +126,15 @@ class _PantallaComprasState extends ConsumerState<PantallaCompras> {
               conTexto: conTexto,
               onPressed: widget.onCompraDirecta!,
             ),
+          // HU-178 · Lo recibido, para devolverle al proveedor o anular.
+          _Atajo(
+            clave: const Key('compras-recepciones'),
+            texto: 'Recepciones',
+            icono: Icons.assignment_return_outlined,
+            conTexto: conTexto,
+            onPressed: () => unawaited(Navigator.of(context)
+                .push<void>(MaterialPageRoute(builder: (_) => const PantallaRecepciones()))),
+          ),
           if (widget.onCuentasPorPagar != null)
             _Atajo(
               clave: const Key('compras-cuentas-por-pagar'),

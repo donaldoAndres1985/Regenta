@@ -90,6 +90,23 @@ public class SalidaPorAnulacionDeCompra {
     /** Saca cada línea de la recepción anulada. Idempotente: un evento repetido no saca dos veces. */
     @Transactional
     public void sacar(EntradaDeRecepcion anulada) {
+        sacar(anulada, TipoMovimiento.SALIDA_ANULACION_COMPRA, OrigenMovimiento.COMPRA, "anulacion-recepcion",
+                "Anulación de la recepción " + anulada.numero());
+    }
+
+    /**
+     * HU-178 · Lo devuelto al proveedor sale igual que lo de una recepción anulada: del lote indicado,
+     * al costo de entrada, deshaciendo su efecto en el promedio. {@code salida.recepcionId()} es el id
+     * de la devolución.
+     */
+    @Transactional
+    public void devolverAlProveedor(EntradaDeRecepcion devolucion) {
+        sacar(devolucion, TipoMovimiento.SALIDA_DEVOLUCION, OrigenMovimiento.DEVOLUCION,
+                "devolucion-proveedor", "Devolución al proveedor " + devolucion.numero());
+    }
+
+    private void sacar(EntradaDeRecepcion anulada, TipoMovimiento tipo, OrigenMovimiento origen, String prefijo,
+            String motivo) {
         List<EntradaDeRecepcion.Linea> lineas = anulada.lineas();
         for (int i = 0; i < lineas.size(); i++) {
             EntradaDeRecepcion.Linea l = lineas.get(i);
@@ -99,10 +116,9 @@ public class SalidaPorAnulacionDeCompra {
             BigDecimal promedioAntes = antes == null || antes.getCostoPromedio() == null
                     ? BigDecimal.ZERO : antes.getCostoPromedio();
 
-            RegistroDeMovimiento m = libro.registrar(new SolicitudDeMovimiento(l.productoId(), bodega,
-                    TipoMovimiento.SALIDA_ANULACION_COMPRA, l.cantidad(), OrigenMovimiento.COMPRA,
-                    anulada.recepcionId(), "Anulación de la recepción " + anulada.numero(),
-                    "anulacion-recepcion:" + anulada.recepcionId() + ":" + i, l.codigoLote(), null, null));
+            RegistroDeMovimiento m = libro.registrar(new SolicitudDeMovimiento(l.productoId(), bodega, tipo,
+                    l.cantidad(), origen, anulada.recepcionId(), motivo,
+                    prefijo + ":" + anulada.recepcionId() + ":" + i, l.codigoLote(), null, null));
             if (m.duplicado()) {
                 continue;
             }

@@ -71,6 +71,10 @@ public class PagoProveedor {
     @Column(name = "sesion_caja_id", updatable = false)
     private UUID sesionCajaId;
 
+    /** HU-171 C5 · Saldo a favor del negocio que se usó en este pago, además de su monto. */
+    @Column(name = "saldo_a_favor_usado", nullable = false, updatable = false)
+    private BigDecimal saldoAFavorUsado = BigDecimal.ZERO;
+
     @CreationTimestamp
     @Column(name = "creado_en", nullable = false, updatable = false)
     private OffsetDateTime creadoEn;
@@ -170,6 +174,15 @@ public class PagoProveedor {
 
     public UUID getCuentaId() {
         return cuentaId;
+    }
+
+    /** HU-171 C5 · Lo registra el servicio al crear el pago, antes de guardarlo. */
+    public void usoSaldoAFavor(BigDecimal usado) {
+        this.saldoAFavorUsado = usado == null ? BigDecimal.ZERO : usado;
+    }
+
+    public BigDecimal getSaldoAFavorUsado() {
+        return saldoAFavorUsado;
     }
 
     public BigDecimal getMonto() {

@@ -21,7 +21,15 @@ public record SolicitudDePagoAProveedor(
         @Size(max = 60) String referencia,
         /** En efectivo con la plata de la caja abierta del usuario (HU-145). */
         Boolean pagarDesdeLaCaja,
-        @Valid List<Aplicacion> aplicaciones) {
+        @Valid List<Aplicacion> aplicaciones,
+        /** HU-171 C5 · Usar el saldo a favor que el negocio tiene con este proveedor. */
+        Boolean usarSaldoAFavor) {
+
+    /** El pago de HU-171 sin saldo a favor. */
+    public SolicitudDePagoAProveedor(UUID proveedorId, BigDecimal monto, String metodo, String referencia,
+            Boolean pagarDesdeLaCaja, List<Aplicacion> aplicaciones) {
+        this(proveedorId, monto, metodo, referencia, pagarDesdeLaCaja, aplicaciones, null);
+    }
 
     public record Aplicacion(@NotNull UUID cuentaId, @NotNull @PositiveOrZero BigDecimal monto) {
     }

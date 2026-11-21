@@ -23,6 +23,8 @@ public record PagoDelNegocio(
         UUID anuladoPor,
         java.time.OffsetDateTime anuladoEn,
         UUID sesionReversoId,
+        /** HU-171 C5 · Saldo a favor usado además del monto: lo aplicado suma monto + esto. */
+        BigDecimal saldoAFavorUsado,
         List<Aplicada> aplicaciones) {
 
     public record Aplicada(UUID cuentaId, String numeroFactura, BigDecimal monto, BigDecimal saldo,
@@ -33,6 +35,7 @@ public record PagoDelNegocio(
         return new PagoDelNegocio(p.getId(), p.getProveedorId(), p.getMonto(), p.getMetodo().name(),
                 p.getReferencia(), p.getFecha(), p.salioDeLaCaja(), p.estaAnulado(),
                 p.getMotivoAnulacion(), p.getAnuladoPor(), p.getAnuladoEn(), p.getSesionReversoId(),
+                p.getSaldoAFavorUsado(),
                 abonos.stream().map(a -> new Aplicada(a.cuenta().getId(), a.cuenta().getNumeroFactura(),
                         a.monto(), a.cuenta().getSaldo(), a.cuenta().getEstado().name())).toList());
     }

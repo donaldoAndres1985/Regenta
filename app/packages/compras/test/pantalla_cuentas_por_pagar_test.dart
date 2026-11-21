@@ -16,8 +16,13 @@ class _RepoFake implements RepositorioDeCuentasPorPagar {
   final List<(String, String)> anulados = [];
   ErrorDeApi? fallaAlAnular;
 
+  Map<String, num> favor = const {};
+
   @override
   Future<bool> tengoCajaAbierta() async => cajaAbierta;
+
+  @override
+  Future<Map<String, num>> saldosAFavor() async => favor;
 
   @override
   Future<List<PagoDeLaCuenta>> pagosDe(String cuentaId) async => [...?pagosPorCuenta[cuentaId]];
@@ -46,9 +51,11 @@ class _RepoFake implements RepositorioDeCuentasPorPagar {
     String? referencia,
     bool desdeLaCaja = false,
     Map<String, num>? aplicaciones,
+    bool usarSaldoAFavor = false,
   }) async {
     if (falla != null) throw falla!;
     pagos.add({
+      'usarSaldoAFavor': usarSaldoAFavor,
       'proveedorId': proveedorId,
       'monto': monto,
       'metodo': metodo,
@@ -100,10 +107,11 @@ final _conFactura = CuentaPorPagarVista(
 );
 
 Future<_RepoFake> _montar(WidgetTester tester,
-    {Size tamano = const Size(1440, 900), List<CuentaPorPagarVista>? cuentas}) async {
+    {Size tamano = const Size(1440, 900), List<CuentaPorPagarVista>? cuentas, Map<String, num>? favor}) async {
   await tester.binding.setSurfaceSize(tamano);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final repo = _RepoFake(cuentas ?? [_remision, _conFactura]);
+  if (favor != null) repo.favor = favor;
   await tester.pumpWidget(ProviderScope(
     overrides: [repositorioDeCuentasPorPagarProvider.overrideWithValue(repo)],
     child: const MaterialApp(home: PantallaCuentasPorPagar()),
@@ -199,8 +207,10 @@ void main() {
     expect(repartirPorAntiguedad(200000, [vieja, nueva]), {'c-a': 200000});
   });
 
-  Future<_RepoFake> abrirPago(WidgetTester tester, {bool cajaAbierta = true, Size? tamano}) async {
-    final repo = await _montar(tester, cuentas: [nueva, vieja], tamano: tamano ?? const Size(1440, 1000));
+  Future<_RepoFake> abrirPago(WidgetTester tester, {bool cajaAbierta = true, Size? tamano,
+      Map<String, num>? favor}) async {
+    final repo = await _montar(tester, cuentas: [nueva, vieja], tamano: tamano ?? const Size(1440, 1000),
+        favor: favor);
     repo.cajaAbierta = cajaAbierta;
     await tester.tap(find.byKey(const Key('cuentas-pagar')));
     await tester.pumpAndSettle();
@@ -222,6 +232,40 @@ void main() {
     expect(repo.pagos.single['proveedorId'], 'p-1');
     expect(repo.pagos.single['aplicaciones'], isNull, reason: 'sin reparto a mano lo reparte el backend');
     expect(find.text('Pago registrado.'), findsOneWidget);
+  });
+
+  testWidgets('HU-171 C5 · Con 50.000 a favor se ofrece usarlo: se abonan 450.000 de un pago de 400.000',
+      (tester) async {
+    final repo = await abrirPago(tester, favor: const {'p-1': 50000});
+    await tester.enterText(find.byKey(const Key('pago-monto')), '400000');
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('pago-usar-saldo-a-favor')), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const Key('pago-reparto-c-a'))).data, '\$300.000');
+    expect(tester.widget<Text>(find.byKey(const Key('pago-reparto-c-b'))).data, '\$150.000');
+    expect(find.textContaining('Se abonan \$450.000'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('pago-registrar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.pagos.single['monto'], 400000);
+    expect(repo.pagos.single['usarSaldoAFavor'], isTrue);
+  });
+
+  testWidgets('HU-171 C5 · Si no se quiere usar el saldo a favor, el pago abona solo su monto', (tester) async {
+    final repo = await abrirPago(tester, favor: const {'p-1': 50000});
+    await tester.enterText(find.byKey(const Key('pago-monto')), '400000');
+    await tester.tap(find.byKey(const Key('pago-usar-saldo-a-favor')));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Text>(find.byKey(const Key('pago-reparto-c-b'))).data, '\$100.000');
+    await tester.tap(find.byKey(const Key('pago-registrar')));
+    await tester.pumpAndSettle();
+    expect(repo.pagos.single['usarSaldoAFavor'], isFalse);
+  });
+
+  testWidgets('HU-171 · Sin saldo a favor no aparece la opción', (tester) async {
+    await abrirPago(tester);
+    expect(find.byKey(const Key('pago-usar-saldo-a-favor')), findsNothing);
   });
 
   testWidgets('HU-171 C2 · Repartido a mano: todo a la segunda factura', (tester) async {

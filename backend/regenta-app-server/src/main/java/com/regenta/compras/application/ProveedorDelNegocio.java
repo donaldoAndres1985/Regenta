@@ -25,19 +25,28 @@ public record ProveedorDelNegocio(
         String ciudad,
         int diasCredito,
         BigDecimal cupoCredito,
+        /** I5 · Saldos abiertos menos el saldo a favor; se calcula, no se guarda. */
         BigDecimal deuda,
+        /** HU-178 · Lo que el proveedor le debe al negocio por notas crédito sin usar. */
+        BigDecimal saldoAFavor,
         boolean superaCupo,
         Integer calificacion,
         String notas,
         boolean activo) {
 
     static ProveedorDelNegocio de(Proveedor p, BigDecimal deuda) {
+        return de(p, deuda, BigDecimal.ZERO);
+    }
+
+    static ProveedorDelNegocio de(Proveedor p, BigDecimal saldosAbiertos, BigDecimal saldoAFavor) {
+        BigDecimal favor = saldoAFavor == null ? BigDecimal.ZERO : saldoAFavor;
+        BigDecimal deuda = saldosAbiertos.subtract(favor);
         BigDecimal cupo = p.getCupoCredito();
         boolean supera = cupo != null && cupo.signum() > 0 && deuda.compareTo(cupo) > 0;
         return new ProveedorDelNegocio(p.getId(), p.getTipoDocumento().name(),
                 p.getNumeroDocumento(), p.getRazonSocial(), p.getNombreComercial(),
                 p.getContactoNombre(), p.getEmail(), p.getTelefono(), p.getDireccion(),
-                p.getCiudad(), p.getDiasCredito(), cupo, deuda, supera,
+                p.getCiudad(), p.getDiasCredito(), cupo, deuda, favor, supera,
                 p.getCalificacion() == null ? null : (int) (short) p.getCalificacion(),
                 p.getNotas(), p.isActivo());
     }

@@ -113,8 +113,10 @@ class RepositorioDeCuentasPorPagar {
     String? referencia,
     bool desdeLaCaja = false,
     Map<String, num>? aplicaciones,
+    bool usarSaldoAFavor = false,
   }) async {
     await _http.post<dynamic>('$_base/pagos', datos: {
+      if (usarSaldoAFavor) 'usarSaldoAFavor': true,
       'proveedorId': proveedorId,
       'monto': monto,
       'metodo': metodo,
@@ -142,6 +144,20 @@ class RepositorioDeCuentasPorPagar {
   }
 
   /// Si el usuario tiene una caja abierta (para «Pagar con dinero de la caja»).
+  /// HU-171 C5 / HU-178 · El saldo a favor del negocio con cada proveedor (id → saldo), por las notas
+  /// crédito de sus devoluciones. Si no se puede leer, ninguno: el pago sigue sin él.
+  Future<Map<String, num>> saldosAFavor() async {
+    try {
+      final res = await _http.get<List<dynamic>>('/api/compras/proveedores?estado=TODOS');
+      return {
+        for (final e in res)
+          if (((e as Map)['saldoAFavor'] as num? ?? 0) > 0) e['id'] as String: e['saldoAFavor'] as num,
+      };
+    } on ErrorDeApi {
+      return const {};
+    }
+  }
+
   Future<bool> tengoCajaAbierta() async {
     try {
       await _http.get<dynamic>('/api/caja/sesiones/mia');

@@ -17,6 +17,7 @@ typedef AlPagar = Future<String?> Function({
   String? referencia,
   bool desdeLaCaja,
   Map<String, num>? aplicaciones,
+  bool usarSaldoAFavor,
 });
 
 /// HU-171 · Pagar a un proveedor: un monto que se reparte entre sus facturas abiertas. Por omisión
@@ -68,6 +69,7 @@ class _DialogoDePagoState extends State<DialogoDePago> {
   String? _proveedorId;
   String _metodo = 'TRANSFERENCIA';
   bool _repartirAMano = false;
+  bool _usarSaldoAFavor = true;
   late bool _desdeLaCaja = widget.estado.cajaAbierta;
   String? _error;
   bool _guardando = false;
@@ -96,12 +98,26 @@ class _DialogoDePagoState extends State<DialogoDePago> {
 
   num get _montoEscrito => num.tryParse(_monto.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
 
+  /// HU-171 C5 · El saldo a favor con el proveedor elegido.
+  num get _saldoAFavor => _proveedorId == null ? 0 : (widget.estado.saldosAFavor[_proveedorId] ?? 0);
+
+  /// Lo que se usa del saldo a favor: lo que quepa en la deuda después del monto.
+  num get _favorUsado {
+    if (!_usarSaldoAFavor || _saldoAFavor <= 0) return 0;
+    final cabe = _deuda - _montoEscrito;
+    if (cabe <= 0) return 0;
+    return _saldoAFavor < cabe ? _saldoAFavor : cabe;
+  }
+
+  /// Lo que se abona a las facturas: el monto más el saldo a favor usado.
+  num get _aAbonar => _montoEscrito + _favorUsado;
+
   Map<String, num> get _reparto => _repartirAMano
       ? {
           for (final c in _abiertas)
             c.id: num.tryParse((_aMano[c.id]?.text ?? '').replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0,
         }
-      : repartirPorAntiguedad(_montoEscrito, _abiertas);
+      : repartirPorAntiguedad(_aAbonar, _abiertas);
 
   TextEditingController _campoDe(CuentaPorPagarVista c) =>
       _aMano.putIfAbsent(c.id, () => TextEditingController());
@@ -110,7 +126,7 @@ class _DialogoDePagoState extends State<DialogoDePago> {
     setState(() {
       if (aMano) {
         // Arranca desde el reparto automático, para corregir solo lo que haga falta.
-        final auto = repartirPorAntiguedad(_montoEscrito, _abiertas);
+        final auto = repartirPorAntiguedad(_aAbonar, _abiertas);
         for (final c in _abiertas) {
           final v = auto[c.id] ?? 0;
           _campoDe(c).text = v == 0 ? '' : '${v.round()}';
@@ -127,8 +143,8 @@ class _DialogoDePagoState extends State<DialogoDePago> {
     if (monto > _deuda) return 'No se paga más de lo que se debe: le debes ${formatearPesos(_deuda)}.';
     if (_repartirAMano) {
       final suma = _reparto.values.fold<num>(0, (s, v) => s + v);
-      if (suma != monto) {
-        return 'El reparto suma ${formatearPesos(suma)} y el pago es de ${formatearPesos(monto)}.';
+      if (suma != _aAbonar) {
+        return 'El reparto suma ${formatearPesos(suma)} y se abonan ${formatearPesos(_aAbonar)}.';
       }
       for (final c in _abiertas) {
         if ((_reparto[c.id] ?? 0) > c.saldo) {
@@ -156,6 +172,7 @@ class _DialogoDePagoState extends State<DialogoDePago> {
       referencia: _referencia.text,
       desdeLaCaja: _metodo == 'EFECTIVO' && widget.estado.cajaAbierta && _desdeLaCaja,
       aplicaciones: _repartirAMano ? _reparto : null,
+      usarSaldoAFavor: _favorUsado > 0,
     );
     if (!mounted) return;
     if (rechazo == null) {
@@ -255,6 +272,23 @@ class _DialogoDePagoState extends State<DialogoDePago> {
                     controller: _referencia,
                     style: estiloDeCampo,
                     decoration: decoracionDeCampo(hint: 'Nº de transferencia o cheque'),
+                  ),
+                ),
+              if (_saldoAFavor > 0)
+                CheckboxListTile(
+                  key: const Key('pago-usar-saldo-a-favor'),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: _usarSaldoAFavor,
+                  onChanged: (v) => setState(() => _usarSaldoAFavor = v ?? false),
+                  title: Text('Usar el saldo a favor (${formatearPesos(_saldoAFavor)})'),
+                  subtitle: Text(
+                    _favorUsado > 0
+                        ? 'Se abonan ${formatearPesos(_aAbonar)}: ${formatearPesos(_montoEscrito)} que pagas y '
+                            '${formatearPesos(_favorUsado)} de las notas crédito.'
+                        : 'Viene de devoluciones al proveedor; se descuenta de lo que le debes.',
+                    key: const Key('pago-saldo-a-favor-detalle'),
+                    style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.muted),
                   ),
                 ),
               if (_abiertas.isNotEmpty) ...[

@@ -29,6 +29,7 @@ class EstadoDeCuentas {
     this.cargando = false,
     this.mensaje,
     this.cajaAbierta = false,
+    this.saldosAFavor = const {},
   });
 
   final List<CuentaPorPagarVista> todas;
@@ -36,6 +37,9 @@ class EstadoDeCuentas {
   final bool cargando;
   final String? mensaje;
   final bool cajaAbierta;
+
+  /// HU-171 C5 · Lo que cada proveedor le debe al negocio por notas crédito: id → saldo.
+  final Map<String, num> saldosAFavor;
 
   /// HU-171 · Las cuentas abiertas de un proveedor, de la que vence primero a la última.
   List<CuentaPorPagarVista> abiertasDe(String proveedorId) =>
@@ -58,6 +62,7 @@ class EstadoDeCuentas {
     bool? cargando,
     Object? mensaje = _sin,
     bool? cajaAbierta,
+    Map<String, num>? saldosAFavor,
   }) =>
       EstadoDeCuentas(
         todas: todas ?? this.todas,
@@ -65,6 +70,7 @@ class EstadoDeCuentas {
         cargando: cargando ?? this.cargando,
         mensaje: identical(mensaje, _sin) ? this.mensaje : mensaje as String?,
         cajaAbierta: cajaAbierta ?? this.cajaAbierta,
+        saldosAFavor: saldosAFavor ?? this.saldosAFavor,
       );
 
   static const _sin = Object();
@@ -94,7 +100,8 @@ class ControladorDeCuentas extends StateNotifier<EstadoDeCuentas> {
     try {
       final todas = await _repo.listar();
       final caja = await _repo.tengoCajaAbierta();
-      state = state.copiar(todas: todas, cajaAbierta: caja, cargando: false);
+      final favor = await _repo.saldosAFavor();
+      state = state.copiar(todas: todas, cajaAbierta: caja, saldosAFavor: favor, cargando: false);
     } on ErrorDeRed {
       state = state.copiar(cargando: false, mensaje: 'No hay conexión: no se pudieron cargar las cuentas.');
     } on ErrorDeApi catch (fallo) {
@@ -113,9 +120,11 @@ class ControladorDeCuentas extends StateNotifier<EstadoDeCuentas> {
     String? referencia,
     bool desdeLaCaja = false,
     Map<String, num>? aplicaciones,
+    bool usarSaldoAFavor = false,
   }) async {
     try {
       await _repo.pagar(
+        usarSaldoAFavor: usarSaldoAFavor,
         proveedorId: proveedorId,
         monto: monto,
         metodo: metodo,

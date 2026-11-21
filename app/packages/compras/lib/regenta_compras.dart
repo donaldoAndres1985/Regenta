@@ -16,6 +16,8 @@ export 'src/cuentas/dialogo_de_pagos.dart';
 export 'src/cuentas/reparto.dart';
 export 'src/cuentas/pantalla_cuentas_por_pagar.dart';
 export 'src/datos/orden_recibible.dart';
+export 'src/devoluciones/datos.dart';
+export 'src/devoluciones/pantalla_recepciones.dart';
 export 'src/ordenes/datos.dart';
 export 'src/ordenes/formulario_de_orden.dart';
 export 'src/ordenes/pantalla_orden.dart';

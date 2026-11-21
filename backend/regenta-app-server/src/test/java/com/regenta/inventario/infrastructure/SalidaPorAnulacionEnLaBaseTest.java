@@ -150,4 +150,22 @@ class SalidaPorAnulacionEnLaBaseTest extends PostgresDePrueba {
         assertThat(salida().faltantes(negocio, bodega, List.of(new SalidaPrevista(p.getId(), BigDecimal.TEN, "L-1"))))
                 .containsExactly("Del lote L-1 de «Acetaminofén 500 mg» quedan 7 y se tendrían que sacar 10");
     }
+
+    @Test
+    @DisplayName("HU-178 · Lo devuelto al proveedor sale del lote con su propio movimiento (inventario V14)")
+    void devolucionAlProveedor() {
+        Producto p = producto(true);
+        new EntradaDeCompras(libro, existencias, lotes).registrar(recepcion(p, "L-1"));
+        UUID devolucion = UUID.randomUUID();
+
+        salida().devolverAlProveedor(new EntradaDeRecepcion(devolucion, "DEV-1", bodega, List.of(
+                new EntradaDeRecepcion.Linea(p.getId(), new BigDecimal("2"), new BigDecimal("10500"), "L-1", null,
+                        null))));
+
+        assertThat(existencias.findByProductoIdAndBodegaId(p.getId(), bodega).orElseThrow().getCantidad())
+                .isEqualByComparingTo("8");
+        assertThat(jdbc.queryForMap("select tipo, origen_tipo from inventario.movimientos_inventario "
+                + "where origen_id = ?", devolucion))
+                .containsEntry("tipo", "SALIDA_DEVOLUCION").containsEntry("origen_tipo", "DEVOLUCION");
+    }
 }
