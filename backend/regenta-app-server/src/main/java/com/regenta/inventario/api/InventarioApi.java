@@ -49,4 +49,13 @@ public interface InventarioApi {
      * Devuelve qué falta, una frase por producto o lote; vacía si alcanza todo.
      */
     List<String> faltantesParaSacar(UUID negocioId, UUID bodegaId, Collection<SalidaPrevista> salidas);
+
+    /** HU-179 C1 · El costo promedio en la bodega y el precio con su base, de los productos del negocio. */
+    Map<UUID, CostoYPrecio> costosYPrecios(UUID negocioId, UUID bodegaId, Collection<UUID> productoIds);
+
+    /**
+     * HU-179 C2 · Cambia el precio de venta (IVA incluido). Quien llama ya exigió
+     * {@code INVENTARIO_PRODUCTO_EDITAR}.
+     */
+    void cambiarPrecioDeVenta(UUID negocioId, UUID productoId, BigDecimal precioConIva);
 }

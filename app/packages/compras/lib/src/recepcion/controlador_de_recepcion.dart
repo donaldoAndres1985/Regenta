@@ -26,6 +26,13 @@ class ControladorDeRecepcion extends StateNotifier<EstadoDeRecepcion> {
             l.id: EntradaDeLinea(costo: l.costoUnitario),
         },
       );
+      // HU-179 · El margen es una ayuda: si no se pueden traer los precios, se recibe igual.
+      try {
+        final precios = await _repo.preciosActuales(orden.bodegaId, orden.lineas.map((l) => l.productoId));
+        state = state.copiar(precios: precios);
+      } on ErrorDeApi {
+        // sin margen
+      }
     } on ErrorDeApi catch (e) {
       state = state.copiar(cargando: false, mensaje: e.mensaje);
     }
@@ -72,6 +79,17 @@ class ControladorDeRecepcion extends StateNotifier<EstadoDeRecepcion> {
     state = state.copiar(entradas: entradas, mensaje: null);
   }
 
+  /// HU-179 · El precio de venta nuevo de un producto; nulo o cero, no cambia.
+  void fijarPrecioNuevo(String productoId, num? precio) {
+    final nuevos = {...state.preciosNuevos};
+    if (precio == null || precio <= 0) {
+      nuevos.remove(productoId);
+    } else {
+      nuevos[productoId] = precio;
+    }
+    state = state.copiar(preciosNuevos: nuevos, mensaje: null);
+  }
+
   /// HU-175 · Los datos de la factura del proveedor.
   void fijarFactura(FacturaDeRecepcion factura) =>
       state = state.copiar(factura: factura, mensaje: null);
@@ -101,6 +119,10 @@ class ControladorDeRecepcion extends StateNotifier<EstadoDeRecepcion> {
         bodegaId: orden.bodegaId,
         factura: state.factura,
         lineas: lineas,
+        preciosNuevos: {
+          for (final e in state.preciosNuevos.entries)
+            if (state.lineasConEntrada.any((l) => l.productoId == e.key)) e.key: e.value,
+        },
       );
       if (resultado.encolada) {
         state = state.copiar(

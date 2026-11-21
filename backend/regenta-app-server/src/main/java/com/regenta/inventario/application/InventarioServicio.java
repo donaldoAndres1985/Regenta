@@ -22,13 +22,16 @@ public class InventarioServicio implements InventarioApi {
     private final GestionDeFracciones fracciones;
     private final com.regenta.inventario.infrastructure.BodegaRepositorio bodegas;
     private final SalidaPorAnulacionDeCompra salidaPorAnulacion;
+    private final PreciosParaCompras precios;
 
     public InventarioServicio(GestionDeLotes lotes,
                              GestionDeProductos productos,
                              GestionDeReservasStock reservas,
                              GestionDeFracciones fracciones,
                              com.regenta.inventario.infrastructure.BodegaRepositorio bodegas,
-                             SalidaPorAnulacionDeCompra salidaPorAnulacion) {
+                             SalidaPorAnulacionDeCompra salidaPorAnulacion,
+                             PreciosParaCompras precios) {
+        this.precios = precios;
         this.bodegas = bodegas;
         this.salidaPorAnulacion = salidaPorAnulacion;
         this.lotes = lotes;
@@ -97,5 +100,17 @@ public class InventarioServicio implements InventarioApi {
     public List<String> faltantesParaSacar(UUID negocioId, UUID bodegaId,
             Collection<com.regenta.inventario.api.SalidaPrevista> salidas) {
         return salidaPorAnulacion.faltantes(negocioId, bodegaId, salidas);
+    }
+
+    @Override
+    public Map<UUID, com.regenta.inventario.api.CostoYPrecio> costosYPrecios(UUID negocioId, UUID bodegaId,
+            Collection<UUID> productoIds) {
+        return precios.costosYPrecios(negocioId, bodegaId, productoIds);
+    }
+
+    @Override
+    @Transactional
+    public void cambiarPrecioDeVenta(UUID negocioId, UUID productoId, BigDecimal precioConIva) {
+        precios.cambiarPrecioDeVenta(negocioId, productoId, precioConIva);
     }
 }

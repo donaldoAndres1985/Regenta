@@ -9,6 +9,7 @@ import '../proveedores/ui/piezas.dart';
 import '../recepcion/entrada_de_linea.dart';
 import '../recepcion/estado_de_recepcion.dart';
 import '../recepcion/factura_de_recepcion.dart';
+import '../recepcion/precio_actual.dart';
 import '../recepcion/proveedores.dart';
 import 'formato.dart';
 
@@ -145,7 +146,8 @@ class _PantallaRecepcionState extends ConsumerState<PantallaRecepcion> {
               : LayoutBuilder(
                   builder: (context, restricciones) {
                     if (restricciones.maxWidth >= kBreakpointEscritorio) {
-                      return _Tabla(estado: estado, ctrl: ctrl);
+                      return _Tabla(
+                          estado: estado, ctrl: ctrl, puedeCambiarPrecios: ref.watch(puedeCambiarPreciosProvider));
                     }
                     return _UnaLinea(estado: estado, ctrl: ctrl);
                   },
@@ -384,10 +386,11 @@ class _CapturaDeLinea extends StatelessWidget {
 }
 
 class _Tabla extends StatelessWidget {
-  const _Tabla({required this.estado, required this.ctrl});
+  const _Tabla({required this.estado, required this.ctrl, this.puedeCambiarPrecios = false});
 
   final EstadoDeRecepcion estado;
   final dynamic ctrl;
+  final bool puedeCambiarPrecios;
 
   @override
   Widget build(BuildContext context) {
@@ -404,11 +407,21 @@ class _Tabla extends StatelessWidget {
               for (final linea in estado.lineas)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 14),
-                  child: _CapturaDeLinea(
-                    linea: linea,
-                    entrada: estado.entradaDe(linea.id),
-                    ctrl: ctrl,
-                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    _CapturaDeLinea(
+                      linea: linea,
+                      entrada: estado.entradaDe(linea.id),
+                      ctrl: ctrl,
+                    ),
+                    // HU-179 · cómo cambia el margen y, con permiso, el precio nuevo.
+                    if (estado.precios[linea.productoId] != null)
+                      _MargenDeLinea(
+                        linea: linea,
+                        estado: estado,
+                        puedeCambiarPrecio: puedeCambiarPrecios,
+                        alCambiarPrecio: (v) => ctrl.fijarPrecioNuevo(linea.productoId, v),
+                      ),
+                  ]),
                 ),
               _ResumenDeFactura(estado: estado),
             ],
@@ -803,6 +816,102 @@ class _ResumenDeFactura extends StatelessWidget {
           fila('Total', baseNeta + ivaNeto + f.flete, 'total', fuerte: true),
         ]),
       ),
+    );
+  }
+}
+
+/// HU-179 C1 / I20 · El costo anterior (promedio) y el nuevo de esta compra, y el margen sobre la base sin
+/// IVA antes y después. El costo nuevo es una estimación de la pantalla con el descuento global y el flete
+/// repartidos, como lo hace el backend al confirmar. Con `INVENTARIO_PRODUCTO_EDITAR` deja escribir el
+/// precio nuevo con IVA incluido (C2); sin él, solo se ve el margen (C4).
+class _MargenDeLinea extends StatefulWidget {
+  const _MargenDeLinea({
+    required this.linea,
+    required this.estado,
+    required this.puedeCambiarPrecio,
+    required this.alCambiarPrecio,
+  });
+
+  final LineaRecibible linea;
+  final EstadoDeRecepcion estado;
+  final bool puedeCambiarPrecio;
+  final ValueChanged<num?> alCambiarPrecio;
+
+  @override
+  State<_MargenDeLinea> createState() => _MargenDeLineaState();
+}
+
+class _MargenDeLineaState extends State<_MargenDeLinea> {
+  late final TextEditingController _precio = TextEditingController(
+      text: widget.estado.preciosNuevos[widget.linea.productoId]?.round().toString() ?? '');
+
+  @override
+  void dispose() {
+    _precio.dispose();
+    super.dispose();
+  }
+
+  num _netoUnitario(LineaRecibible l) {
+    final e = widget.estado.entradaDe(l.id);
+    return (e.costo ?? l.costoUnitario) * (1 - l.descuentoPct / 100);
+  }
+
+  /// El costo de entrada que va a quedar, repartiendo el descuento global y el flete por valor.
+  num get _costoNuevo {
+    final estado = widget.estado;
+    num base = 0;
+    for (final l in estado.lineasConEntrada) {
+      base += estado.entradaDe(l.id).recibido! * _netoUnitario(l);
+    }
+    final neto = _netoUnitario(widget.linea);
+    if (base <= 0) return neto;
+    final f = estado.factura;
+    final conDescuento = neto * (base - f.descuentoGlobal) / base;
+    return conDescuento + f.flete * neto / base;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final actual = widget.estado.precios[widget.linea.productoId]!;
+    final nuevo = _costoNuevo;
+    final antes = margenSobreBase(actual.base, actual.costoPromedio);
+    final despues = margenSobreBase(actual.base, nuevo);
+    final baja = antes != null && despues != null && despues < antes;
+    final id = widget.linea.productoId;
+    return Container(
+      key: Key('margen-$id'),
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: baja ? RegentaColors.warnSoft : RegentaColors.sunken,
+        borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+      ),
+      child: Wrap(spacing: 16, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+        Text('Costo ${formatearPesos(actual.costoPromedio)} → ${formatearPesos(nuevo)}',
+            key: Key('margen-costo-$id'), style: RegentaType.codigo.copyWith(fontSize: 12)),
+        Text('Margen ${formatearMargen(antes)} → ${formatearMargen(despues)}',
+            key: Key('margen-valor-$id'),
+            style: RegentaType.codigo.copyWith(
+                fontSize: 12, fontWeight: FontWeight.w700, color: baja ? RegentaColors.warn : RegentaColors.ink)),
+        Text('Precio ${formatearPesos(actual.precio)} (base ${formatearPesos(actual.base)})',
+            style: RegentaType.codigo.copyWith(fontSize: 11, color: RegentaColors.muted)),
+        if (widget.puedeCambiarPrecio)
+          SizedBox(
+            width: 190,
+            child: TextField(
+              key: Key('precio-nuevo-$id'),
+              controller: _precio,
+              keyboardType: TextInputType.number,
+              onChanged: (v) => widget.alCambiarPrecio(num.tryParse(v.replaceAll(RegExp(r'[^0-9.]'), ''))),
+              style: RegentaType.codigo.copyWith(fontSize: 13),
+              decoration: const InputDecoration(
+                isDense: true,
+                labelText: 'Precio nuevo (IVA incl.)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+      ]),
     );
   }
 }

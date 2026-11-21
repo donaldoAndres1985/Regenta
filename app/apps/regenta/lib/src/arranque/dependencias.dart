@@ -212,6 +212,13 @@ class DependenciasDeLaApp {
               .contains('INVENTARIO_PRODUCTO_EDITAR') ??
           false,
     ),
+    // HU-179: cambiar el precio al recibir solo con el permiso que trae el token.
+    puedeCambiarPreciosProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('INVENTARIO_PRODUCTO_EDITAR') ??
+          false,
+    ),
     // HU-141: anular movimientos de caja solo con el permiso que trae el token.
     puedeAnularMovimientosDeCajaProvider.overrideWith(
       (ref) =>

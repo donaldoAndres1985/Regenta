@@ -38,6 +38,7 @@ export 'src/recepcion/controlador_de_recepcion.dart';
 export 'src/recepcion/entrada_de_linea.dart';
 export 'src/recepcion/estado_de_recepcion.dart';
 export 'src/recepcion/factura_de_recepcion.dart';
+export 'src/recepcion/precio_actual.dart';
 export 'src/recepcion/proveedores.dart';
 export 'src/ui/formato.dart';
 export 'src/ui/pantalla_compras.dart';
