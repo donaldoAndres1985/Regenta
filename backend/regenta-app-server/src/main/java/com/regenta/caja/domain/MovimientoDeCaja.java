@@ -141,6 +141,37 @@ public class MovimientoDeCaja {
         return m;
     }
 
+    /**
+     * HU-172 · Se anuló en Compras un pago a proveedor que salió de la caja: el efectivo vuelve
+     * ({@code signo +1}). Es una {@code ANULACION} de la salida original, con su motivo, y entra en
+     * {@code sesionDestino}: la misma sesión si seguía abierta, u otra abierta si ya había cerrado.
+     */
+    public static MovimientoDeCaja reversoDePagoAProveedor(MovimientoDeCaja salida, UUID sesionDestino,
+            UUID usuarioId, String motivo, String idempotencyKey) {
+        if (salida.tipo != TipoMovimientoCaja.PAGO_PROVEEDOR) {
+            throw new com.regenta.shared.web.ReglaDeNegocioException(
+                    "Solo se reversa así la salida de un pago a proveedor");
+        }
+        String limpio = motivo == null || motivo.isBlank() ? "Pago a proveedor anulado" : motivo.trim();
+        MovimientoDeCaja m = base(salida.negocioId, sesionDestino, usuarioId, idempotencyKey,
+                recortar("Anulación de pago a proveedor: " + limpio, 200));
+        m.tipo = TipoMovimientoCaja.ANULACION;
+        m.signo = 1;
+        m.metodoPago = MetodoPagoCaja.EFECTIVO;
+        m.monto = salida.monto;
+        m.propina = BigDecimal.ZERO;
+        m.origenTipo = "PAGO_PROVEEDOR";
+        m.origenId = salida.origenId;
+        m.documentoRef = salida.documentoRef;
+        m.anulaA = salida.id;
+        m.motivoAnulacion = recortar(limpio, 200);
+        return m;
+    }
+
+    private static String recortar(String v, int largo) {
+        return v.length() <= largo ? v : v.substring(0, largo);
+    }
+
     public static MovimientoDeCaja manual(UUID negocioId, UUID sesionId, UUID usuarioId,
             TipoMovimientoCaja tipo, String concepto, BigDecimal monto, UUID autorizadoPor,
             String idempotencyKey) {

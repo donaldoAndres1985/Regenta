@@ -137,6 +137,35 @@ class ControladorDeCuentas extends StateNotifier<EstadoDeCuentas> {
     return null;
   }
 
+  /// HU-172 · Los pagos de una cuenta, o `null` si no se pudieron traer.
+  Future<List<PagoDeLaCuenta>?> pagosDe(String cuentaId) async {
+    try {
+      return await _repo.pagosDe(cuentaId);
+    } on ErrorDeApi {
+      return null;
+    }
+  }
+
+  /// HU-172 · Anula el pago y recarga las cuentas. Devuelve `null` si quedó anulado, o el motivo.
+  Future<String?> anularPago(String pagoId, String motivo) async {
+    try {
+      await _repo.anularPago(pagoId, motivo);
+    } on ErrorDeRed {
+      return 'No hay conexión: el pago no se anuló. Intenta de nuevo.';
+    } on SinPermiso {
+      return 'No tienes permiso para anular pagos a proveedores.';
+    } on ErroresDeValidacion catch (fallo) {
+      for (final campo in fallo.porCampo.entries) {
+        if (campo.value.isNotEmpty) return '${campo.key}: ${campo.value.first}';
+      }
+      return fallo.mensaje;
+    } on ErrorDeApi catch (fallo) {
+      return fallo.mensaje;
+    }
+    await cargar();
+    return null;
+  }
+
   /// HU-170 C3 · Devuelve `null` si quedó registrada, o el motivo del rechazo.
   Future<String?> registrarFactura(String cuentaId, String numero, DateTime fecha) async {
     try {

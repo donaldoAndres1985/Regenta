@@ -150,6 +150,23 @@ public class CuentaPorPagar {
     }
 
     /** Criterio 3: vencida = tiene saldo y su vencimiento ya pasó. */
+    /**
+     * HU-172 · Se anuló un pago: lo que abonó vuelve al saldo y el estado se recalcula — si vuelve a
+     * deberse todo, {@code PENDIENTE}; si no, {@code PARCIAL}.
+     */
+    public void revertirPago(BigDecimal monto) {
+        if (estado == EstadoCuentaPorPagar.ANULADA) {
+            throw new ConflictoDeEstadoException("La cuenta está anulada: no se le revierte un pago");
+        }
+        BigDecimal nuevo = saldo.add(monto);
+        if (nuevo.compareTo(this.monto) > 0) {
+            throw new ReglaDeNegocioException("Revertir ese pago dejaría el saldo por encima de la cuenta");
+        }
+        this.saldo = nuevo;
+        this.estado = saldo.compareTo(this.monto) == 0
+                ? EstadoCuentaPorPagar.PENDIENTE : EstadoCuentaPorPagar.PARCIAL;
+    }
+
     public boolean estaVencida(LocalDate hoy) {
         return saldo.signum() > 0 && estado != EstadoCuentaPorPagar.ANULADA
                 && fechaVencimiento.isBefore(hoy);

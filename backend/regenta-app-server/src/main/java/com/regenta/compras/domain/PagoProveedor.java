@@ -53,6 +53,20 @@ public class PagoProveedor {
     @Column(name = "usuario_id", updatable = false)
     private UUID usuarioId;
 
+    /** HU-172 · Cuándo, quién y por qué se anuló; nulos mientras el pago vale. */
+    @Column(name = "anulado_en")
+    private OffsetDateTime anuladoEn;
+
+    @Column(name = "anulado_por")
+    private UUID anuladoPor;
+
+    @Column(name = "motivo_anulacion", length = 200)
+    private String motivoAnulacion;
+
+    /** HU-172 · La sesión de caja que recibe el reverso del efectivo, si el pago salió de la caja. */
+    @Column(name = "sesion_reverso_id")
+    private UUID sesionReversoId;
+
     /** HU-145 · La sesión de caja de la que salió el efectivo; nula si se pagó por fuera. */
     @Column(name = "sesion_caja_id", updatable = false)
     private UUID sesionCajaId;
@@ -88,8 +102,50 @@ public class PagoProveedor {
         return p;
     }
 
+    public UUID getNegocioId() {
+        return negocioId;
+    }
+
     public UUID getProveedorId() {
         return proveedorId;
+    }
+
+    /**
+     * HU-172 · I28: un pago no se edita ni se borra; se anula con motivo. Anular dos veces es un
+     * conflicto (409).
+     */
+    public void anular(UUID usuarioId, String motivo, UUID sesionReverso) {
+        if (estaAnulado()) {
+            throw new com.regenta.shared.web.ConflictoDeEstadoException("Ese pago ya está anulado");
+        }
+        String limpio = limpiar(motivo);
+        if (limpio == null) {
+            throw new ReglaDeNegocioException("La anulación de un pago exige un motivo");
+        }
+        this.anuladoEn = OffsetDateTime.now();
+        this.anuladoPor = usuarioId;
+        this.motivoAnulacion = limpio.length() > 200 ? limpio.substring(0, 200) : limpio;
+        this.sesionReversoId = salioDeLaCaja() ? sesionReverso : null;
+    }
+
+    public boolean estaAnulado() {
+        return anuladoEn != null;
+    }
+
+    public OffsetDateTime getAnuladoEn() {
+        return anuladoEn;
+    }
+
+    public UUID getAnuladoPor() {
+        return anuladoPor;
+    }
+
+    public String getMotivoAnulacion() {
+        return motivoAnulacion;
+    }
+
+    public UUID getSesionReversoId() {
+        return sesionReversoId;
     }
 
     public boolean salioDeLaCaja() {

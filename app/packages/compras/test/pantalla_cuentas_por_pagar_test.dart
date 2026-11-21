@@ -12,9 +12,31 @@ class _RepoFake implements RepositorioDeCuentasPorPagar {
   final List<Map<String, Object?>> pagos = [];
   ErrorDeApi? falla;
   bool cajaAbierta = true;
+  final Map<String, List<PagoDeLaCuenta>> pagosPorCuenta = {};
+  final List<(String, String)> anulados = [];
+  ErrorDeApi? fallaAlAnular;
 
   @override
   Future<bool> tengoCajaAbierta() async => cajaAbierta;
+
+  @override
+  Future<List<PagoDeLaCuenta>> pagosDe(String cuentaId) async => [...?pagosPorCuenta[cuentaId]];
+
+  @override
+  Future<void> anularPago(String pagoId, String motivo) async {
+    if (fallaAlAnular != null) throw fallaAlAnular!;
+    anulados.add((pagoId, motivo));
+    for (final entrada in pagosPorCuenta.entries) {
+      pagosPorCuenta[entrada.key] = [
+        for (final p in entrada.value)
+          p.id == pagoId
+              ? PagoDeLaCuenta(
+                  id: p.id, monto: p.monto, metodo: p.metodo, fecha: p.fecha, desdeLaCaja: p.desdeLaCaja,
+                  anulado: true, motivoAnulacion: motivo)
+              : p,
+      ];
+    }
+  }
 
   @override
   Future<void> pagar({
@@ -283,5 +305,83 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
+  });
+
+  // ------------------------------------------------------------------ HU-172 · anular un pago
+
+  final pagada = CuentaPorPagarVista(
+    id: 'c-p', proveedorId: 'p-1', proveedorNombre: 'Andina', numeroFactura: 'FV-1',
+    monto: 300000, saldo: 0, estado: 'PAGADA', fechaVencimiento: DateTime(2026, 10, 31),
+  );
+  final pagoDeLaCaja = PagoDeLaCuenta(
+    id: 'pg-1', monto: 300000, metodo: 'EFECTIVO', fecha: DateTime(2026, 11, 20), desdeLaCaja: true,
+  );
+
+  Future<_RepoFake> abrirPagos(WidgetTester tester) async {
+    final repo = await _montar(tester, cuentas: [pagada]);
+    repo.pagosPorCuenta['c-p'] = [pagoDeLaCaja];
+    await tester.tap(find.byKey(const Key('cuentas-filtro-todas')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('cuenta-ver-pagos-c-p')));
+    await tester.pumpAndSettle();
+    return repo;
+  }
+
+  testWidgets('HU-172 C1 · Anular un pago con su motivo', (tester) async {
+    final repo = await abrirPagos(tester);
+    expect(find.text('20/11/2026 · Efectivo · de la caja'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('pago-anular-pg-1')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('el efectivo regresa a la caja'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('anular-motivo')), 'Se registró dos veces');
+    await tester.tap(find.byKey(const Key('anular-confirmar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.anulados.single, ('pg-1', 'Se registró dos veces'));
+  });
+
+  testWidgets('HU-172 C2 · El pago anulado sigue visible, tachado y con su motivo', (tester) async {
+    await abrirPagos(tester);
+    await tester.tap(find.byKey(const Key('pago-anular-pg-1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('anular-motivo')), 'Se registró dos veces');
+    await tester.tap(find.byKey(const Key('anular-confirmar')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ANULADO'), findsOneWidget);
+    expect(find.text('Motivo: Se registró dos veces'), findsOneWidget);
+    expect(find.byKey(const Key('pago-anular-pg-1')), findsNothing, reason: 'no se anula dos veces');
+  });
+
+  testWidgets('HU-172 · Sin motivo no se anula', (tester) async {
+    final repo = await abrirPagos(tester);
+    await tester.tap(find.byKey(const Key('pago-anular-pg-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('anular-confirmar')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Escribe por qué se anula.'), findsOneWidget);
+    expect(repo.anulados, isEmpty);
+  });
+
+  testWidgets('HU-172 C4 / C5 · Si el servidor rechaza (sin caja abierta, sin permiso), se ve el motivo',
+      (tester) async {
+    final repo = await abrirPagos(tester);
+    repo.fallaAlAnular = const SinPermiso('Sin permiso');
+    await tester.tap(find.byKey(const Key('pago-anular-pg-1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('anular-motivo')), 'Error');
+    await tester.tap(find.byKey(const Key('anular-confirmar')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No tienes permiso para anular pagos a proveedores.'), findsOneWidget);
+    expect(find.byKey(const Key('pago-anular-pg-1')), findsOneWidget);
+  });
+
+  testWidgets('HU-172 · Una cuenta sin abonos no muestra «Ver pagos»', (tester) async {
+    await _montar(tester, cuentas: [vieja]);
+
+    expect(find.byKey(const Key('cuenta-ver-pagos-c-a')), findsNothing);
   });
 }

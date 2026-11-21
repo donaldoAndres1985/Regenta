@@ -22,6 +22,9 @@ public interface MovimientoDeCajaRepositorio extends JpaRepository<MovimientoDeC
 
     boolean existsByAnulaA(UUID movimientoId);
 
+    /** HU-172 · La salida de un pago a proveedor, por su llave ({@code PAGO_PROVEEDOR:<pagoId>}). */
+    java.util.Optional<MovimientoDeCaja> findByNegocioIdAndIdempotencyKey(UUID negocioId, String idempotencyKey);
+
     /** El efectivo esperado de una sesión: suma firmada de los movimientos en efectivo. */
     @Query("""
             select coalesce(sum(m.monto * m.signo), 0)
