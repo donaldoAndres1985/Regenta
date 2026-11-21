@@ -156,13 +156,19 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [repositorioDeRecepcionesProvider.overrideWithValue(_RepoComprasFake(const []))],
       child: MaterialApp(
-        home: PantallaCompras(onOrdenSeleccionada: (_) {}, onCompraDirecta: () {}, onProveedores: () {}),
+        home: PantallaCompras(
+          onOrdenSeleccionada: (_) {},
+          onCompraDirecta: () {},
+          onProveedores: () {},
+          onCuentasPorPagar: () {},
+        ),
       ),
     ));
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('Compra directa'), findsOneWidget);
     expect(find.byTooltip('Proveedores'), findsOneWidget);
+    expect(find.byTooltip('Cuentas por pagar'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

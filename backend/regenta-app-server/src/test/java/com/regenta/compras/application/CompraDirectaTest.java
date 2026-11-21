@@ -279,11 +279,12 @@ class CompraDirectaTest {
     }
 
     @Test
-    @DisplayName("HU-167 · Sin número de factura no hay compra directa (422)")
-    void sinFactura() {
-        assertThatThrownBy(() -> gestion.crearDirecta(facturaDeReferencia("  ")))
-                .isInstanceOf(ReglaDeNegocioException.class)
-                .hasMessageContaining("número de la factura");
+    @DisplayName("HU-170 · Sin número de factura, la compra a crédito se acepta: llegó con remisión")
+    void sinFacturaACredito() {
+        RecepcionDelNegocio r = gestion.crearDirecta(facturaDeReferencia("  "));
+
+        assertThat(r.facturaProveedor()).isNull();
+        assertThat(r.estado()).isEqualTo("BORRADOR");
     }
 
     @Test

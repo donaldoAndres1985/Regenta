@@ -21,6 +21,7 @@ class PantallaCompras extends ConsumerWidget {
     required this.onOrdenSeleccionada,
     this.onProveedores,
     this.onCompraDirecta,
+    this.onCuentasPorPagar,
   });
 
   final ValueChanged<String> onOrdenSeleccionada;
@@ -30,6 +31,9 @@ class PantallaCompras extends ConsumerWidget {
 
   /// HU-167 · Registra una compra que llegó con su factura, sin orden. Nulo: el botón no aparece.
   final VoidCallback? onCompraDirecta;
+
+  /// HU-170 · Lo que se le debe a los proveedores. Nulo: el atajo no aparece.
+  final VoidCallback? onCuentasPorPagar;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,6 +50,14 @@ class PantallaCompras extends ConsumerWidget {
               icono: Icons.receipt_long_outlined,
               conTexto: conTexto,
               onPressed: onCompraDirecta!,
+            ),
+          if (onCuentasPorPagar != null)
+            _Atajo(
+              clave: const Key('compras-cuentas-por-pagar'),
+              texto: 'Cuentas por pagar',
+              icono: Icons.account_balance_wallet_outlined,
+              conTexto: conTexto,
+              onPressed: onCuentasPorPagar!,
             ),
           if (onProveedores != null)
             _Atajo(

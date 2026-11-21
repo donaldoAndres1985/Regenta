@@ -331,7 +331,8 @@ class _Cabecera extends StatelessWidget {
           ancho: 196,
           hijos: [
             CampoConEtiqueta(
-              etiqueta: 'Nº de factura *',
+              etiqueta: estado.deContado ? 'Nº de factura *' : 'Nº de factura',
+              ayuda: estado.deContado ? null : '¿Llegó con remisión? Déjalo vacío',
               hijo: TextField(
                 key: const Key('compra-factura'),
                 controller: factura,
