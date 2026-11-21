@@ -73,6 +73,32 @@ class CompraDirectaEnLaBaseTest extends PostgresDePrueba {
                 .extracting(Recepcion::getId).containsExactly(r.getId());
     }
 
+    @Test
+    @DisplayName("HU-169 · V11: la recepción guarda contado o crédito; por omisión, crédito; la base no acepta otra cosa")
+    void condicionDePago() {
+        UUID negocio = UUID.randomUUID();
+        comoElNegocio(jdbc, negocio);
+        Proveedor p = proveedores.saveAndFlush(Proveedor.crear(negocio, TipoDocumentoProveedor.NIT, "900999888",
+                "Proveedor X", null, null, null, null, null, null, 0, BigDecimal.ZERO, null, null));
+        Recepcion credito = recepciones.saveAndFlush(
+                Recepcion.crear(negocio, "REC-2", null, p.getId(), UUID.randomUUID(), "FV-2", null, null));
+        Recepcion contado = Recepcion.crear(negocio, "REC-3", null, p.getId(), UUID.randomUUID(), "FV-3", null, null);
+        contado.condicionDePago(com.regenta.compras.domain.CondicionDePago.CONTADO,
+                com.regenta.compras.domain.MetodoDePago.EFECTIVO, true, null);
+        recepciones.saveAndFlush(contado);
+
+        assertThat(jdbc.queryForObject("select condicion_pago from compras.recepciones where id = ?", String.class,
+                credito.getId())).isEqualTo("CREDITO");
+        Map<String, Object> fila = jdbc.queryForMap(
+                "select condicion_pago, metodo_pago, pagar_desde_caja from compras.recepciones where id = ?", contado.getId());
+        assertThat(fila.get("condicion_pago")).isEqualTo("CONTADO");
+        assertThat(fila.get("metodo_pago")).isEqualTo("EFECTIVO");
+        assertThat(fila.get("pagar_desde_caja")).isEqualTo(true);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> jdbc.update(
+                "update compras.recepciones set condicion_pago = 'FIADO' where id = ?", credito.getId()))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
     private static RecepcionLinea linea(UUID negocio, Recepcion r, String nombre, String codigo, String cantidad,
             String costo) {
         return RecepcionLinea.nueva(r.getId(), negocio, new RecepcionLinea.Datos(null, UUID.randomUUID(), nombre,

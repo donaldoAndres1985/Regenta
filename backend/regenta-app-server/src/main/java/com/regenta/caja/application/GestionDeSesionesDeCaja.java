@@ -76,6 +76,23 @@ public class GestionDeSesionesDeCaja {
         return SesionDelNegocio.de(delNegocio(sesionId));
     }
 
+    /**
+     * HU-169 · La sesión de caja que el usuario tiene abierta, si la tiene. Es la que usa Compras
+     * para pagarle a un proveedor de contado con la plata de la caja (HU-145).
+     */
+    @Transactional(readOnly = true)
+    public SesionDelNegocio mia() {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        UUID usuario = ContextoDeNegocio.actual().usuario();
+        if (usuario == null) {
+            throw new NoEncontradoException("No tienes una caja abierta");
+        }
+        return sesiones.findFirstByNegocioIdAndUsuarioAperturaIdAndEstadoOrderByAbiertaEnDesc(
+                        negocioId, usuario, EstadoSesionCaja.ABIERTA)
+                .map(SesionDelNegocio::de)
+                .orElseThrow(() -> new NoEncontradoException("No tienes una caja abierta"));
+    }
+
     /** Criterio 5: el cliente pregunta si la caja tiene una sesión abierta. */
     @Transactional(readOnly = true)
     @RequierePermiso("CAJA_TURNO_VER")

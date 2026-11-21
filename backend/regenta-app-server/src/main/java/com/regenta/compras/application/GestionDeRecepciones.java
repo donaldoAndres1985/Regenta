@@ -16,8 +16,11 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.regenta.caja.api.CajaApi;
+import com.regenta.compras.domain.CondicionDePago;
 import com.regenta.compras.domain.CuentaPorPagar;
 import com.regenta.compras.domain.EstadoRecepcion;
+import com.regenta.compras.domain.MetodoDePago;
 import com.regenta.compras.domain.OrdenCompraLinea;
 import com.regenta.compras.domain.OrdenDeCompra;
 import com.regenta.compras.domain.Proveedor;
@@ -68,6 +71,8 @@ public class GestionDeRecepciones {
     private final RegistroDeEventos eventos;
     private final InventarioApi inventario;
     private final ConfiguracionNegocioApi configuracion;
+    private final GestionDeCuentasPorPagar cuentasPorPagar;
+    private final CajaApi caja;
 
     public GestionDeRecepciones(RecepcionRepositorio recepciones,
             RecepcionLineaRepositorio recepcionLineas, OrdenDeCompraRepositorio ordenes,
@@ -75,8 +80,11 @@ public class GestionDeRecepciones {
             ProveedorRepositorio proveedores, ProveedorProductoRepositorio catalogo,
             AsignadorDeConsecutivos consecutivos, RegistroDeEventos eventos,
             InventarioApi inventario,
-            @Autowired(required = false) ConfiguracionNegocioApi configuracion) {
+            @Autowired(required = false) ConfiguracionNegocioApi configuracion,
+            GestionDeCuentasPorPagar cuentasPorPagar, CajaApi caja) {
         this.configuracion = configuracion;
+        this.cuentasPorPagar = cuentasPorPagar;
+        this.caja = caja;
         this.recepciones = recepciones;
         this.recepcionLineas = recepcionLineas;
         this.ordenes = ordenes;
@@ -180,12 +188,13 @@ public class GestionDeRecepciones {
                 ContextoDeNegocio.actual().usuario(), solicitud.observaciones());
         recepcion.datosDeFactura(solicitud.facturaProveedor(), fechaDe(solicitud),
                 solicitud.flete(), solicitud.descuentoGlobal(), solicitud.observaciones());
+        aplicarCondicionDePago(negocioId, recepcion, solicitud);
 
         List<RecepcionLinea> lineas = lineasDirectas(negocioId, recepcion, solicitud.lineas());
         recepcion.totalizar(lineas, responsableDeIva(negocioId));
         recepciones.save(recepcion);
         recepcionLineas.saveAll(lineas);
-        return RecepcionDelNegocio.de(recepcion, lineas);
+        return RecepcionDelNegocio.de(recepcion, lineas, avisos(negocioId, proveedor, recepcion));
     }
 
     /**
@@ -214,13 +223,15 @@ public class GestionDeRecepciones {
 
         recepcion.datosDeFactura(solicitud.facturaProveedor(), fechaDe(solicitud),
                 solicitud.flete(), solicitud.descuentoGlobal(), solicitud.observaciones());
+        aplicarCondicionDePago(negocioId, recepcion, solicitud);
         List<RecepcionLinea> lineas = lineasDirectas(negocioId, recepcion, solicitud.lineas());
         recepcion.totalizar(lineas, responsableDeIva(negocioId));
         recepcionLineas.deleteAll(recepcionLineas.findByRecepcionId(recepcionId));
         recepcionLineas.flush();
         recepciones.save(recepcion);
         recepcionLineas.saveAll(lineas);
-        return RecepcionDelNegocio.de(recepcion, lineas);
+        Proveedor proveedor = proveedorParaComprar(negocioId, recepcion.getProveedorId());
+        return RecepcionDelNegocio.de(recepcion, lineas, avisos(negocioId, proveedor, recepcion));
     }
 
     @Transactional
@@ -248,12 +259,21 @@ public class GestionDeRecepciones {
             aplicarSobreLaOrden(negocioId, recepcion.getOrdenId(), lineas);
         }
         actualizarCatalogoDelProveedor(negocioId, recepcion.getProveedorId(), lineas);
-        abrirCuentaPorPagarSiHaceFalta(negocioId, recepcion);
+        List<String> avisos = proveedores.findByIdAndNegocioId(recepcion.getProveedorId(), negocioId)
+                .map(p -> avisos(negocioId, p, recepcion)).orElse(List.of());
+        CuentaPorPagar cuenta = abrirCuentaPorPagarSiHaceFalta(negocioId, recepcion);
+        if (cuenta != null && recepcion.esDeContado()) {
+            // I24: de contado la cuenta nace y se paga en la misma transacción; si es efectivo de la
+            // caja, sale de la sesión abierta del usuario y Caja registra la salida (HU-145).
+            cuentasPorPagar.pagar(cuenta, cuenta.getMonto(), recepcion.getMetodoPago(),
+                    recepcion.getReferenciaPago(),
+                    recepcion.isPagarDesdeLaCaja() ? sesionDelUsuario(negocioId) : null);
+        }
 
         eventos.registrar(negocioId, "Recepcion", recepcionId, "recepcion_registrada",
                 payload(negocioId, recepcion, lineas));
 
-        return RecepcionDelNegocio.de(recepcion, lineas);
+        return RecepcionDelNegocio.de(recepcion, lineas, avisos);
     }
 
     private List<RecepcionLinea> lineasDirectas(UUID negocioId, Recepcion recepcion,
@@ -323,6 +343,57 @@ public class GestionDeRecepciones {
         }
     }
 
+    /** HU-169 · Contado o crédito; de contado en efectivo desde la caja exige una caja abierta. */
+    private void aplicarCondicionDePago(UUID negocioId, Recepcion recepcion,
+            SolicitudDeCompraDirecta solicitud) {
+        CondicionDePago condicion = condicionDe(solicitud.condicionPago());
+        MetodoDePago metodo = solicitud.metodoPago() == null || solicitud.metodoPago().isBlank()
+                ? null : GestionDeCuentasPorPagar.metodoDe(solicitud.metodoPago());
+        boolean desdeLaCaja = Boolean.TRUE.equals(solicitud.pagarDesdeLaCaja());
+        recepcion.condicionDePago(condicion, metodo, desdeLaCaja, solicitud.referenciaPago());
+        if (recepcion.isPagarDesdeLaCaja()) {
+            sesionDelUsuario(negocioId);
+        }
+    }
+
+    /** HU-145 C4 · La sesión abierta del usuario; sin ella no se paga con plata de la caja (409). */
+    private UUID sesionDelUsuario(UUID negocioId) {
+        UUID usuario = ContextoDeNegocio.actual().usuario();
+        return caja.sesionAbiertaDe(negocioId, usuario).orElseThrow(() -> new ConflictoDeEstadoException(
+                "No tienes una caja abierta: ábrela o marca que pagaste con dinero de fuera de la caja"));
+    }
+
+    /**
+     * HU-169 C4 / I6 · El cupo solo informa: si la compra a crédito deja la deuda con el proveedor
+     * por encima de su cupo, se avisa y se permite. Se llama antes de guardar la cuenta de esta
+     * compra, así que su total se suma aparte.
+     */
+    private List<String> avisos(UUID negocioId, Proveedor proveedor, Recepcion recepcion) {
+        if (recepcion.esDeContado() || proveedor.getCupoCredito() == null
+                || proveedor.getCupoCredito().signum() <= 0) {
+            return List.of();
+        }
+        BigDecimal deuda = cuentas.saldosAbiertosPorProveedor(negocioId).stream()
+                .filter(f -> proveedor.getId().equals(f[0]))
+                .map(f -> (BigDecimal) f[1])
+                .findFirst().orElse(BigDecimal.ZERO)
+                .add(recepcion.getTotal());
+        return deuda.compareTo(proveedor.getCupoCredito()) > 0
+                ? List.of("Esta compra supera el cupo del proveedor.")
+                : List.of();
+    }
+
+    private static CondicionDePago condicionDe(String texto) {
+        if (texto == null || texto.isBlank()) {
+            return CondicionDePago.CREDITO;
+        }
+        try {
+            return CondicionDePago.valueOf(texto.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException noExiste) {
+            throw new ReglaDeNegocioException("La condición de pago es CONTADO o CREDITO, no " + texto);
+        }
+    }
+
     /** HU-168 · Sin el módulo de usuarios cargado, se asume responsable de IVA (como Ventas). */
     private boolean responsableDeIva(UUID negocioId) {
         return configuracion == null || configuracion.responsableDeIva(negocioId);
@@ -370,9 +441,9 @@ public class GestionDeRecepciones {
         }
     }
 
-    private void abrirCuentaPorPagarSiHaceFalta(UUID negocioId, Recepcion recepcion) {
+    private CuentaPorPagar abrirCuentaPorPagarSiHaceFalta(UUID negocioId, Recepcion recepcion) {
         if (!recepcion.tieneFactura() || recepcion.getTotal().signum() <= 0) {
-            return;
+            return null;
         }
         Proveedor proveedor = proveedores
                 .findByIdAndNegocioId(recepcion.getProveedorId(), negocioId)
@@ -383,7 +454,8 @@ public class GestionDeRecepciones {
         CuentaPorPagar cuenta = CuentaPorPagar.abrirPorRecepcion(negocioId,
                 recepcion.getProveedorId(), recepcion.getId(), recepcion.getFacturaProveedor(),
                 recepcion.getTotal().setScale(2, RoundingMode.HALF_UP), emision,
-                proveedor.getDiasCredito());
+                // I23 / I24: a crédito, con el plazo del proveedor; de contado, vence el mismo día.
+                recepcion.esDeContado() ? 0 : proveedor.getDiasCredito());
         try {
             cuentas.save(cuenta);
             cuentas.flush();
@@ -391,6 +463,7 @@ public class GestionDeRecepciones {
             throw new ConflictoDeEstadoException(
                     "La factura " + recepcion.getFacturaProveedor() + " de este proveedor ya está registrada");
         }
+        return cuenta;
     }
 
     private Recepcion delNegocio(UUID recepcionId) {

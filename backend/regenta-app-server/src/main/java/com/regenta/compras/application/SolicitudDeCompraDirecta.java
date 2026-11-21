@@ -28,7 +28,22 @@ public record SolicitudDeCompraDirecta(
         /** HU-168 · Descuento a pie de factura; se reparte entre las líneas por su valor. */
         @PositiveOrZero BigDecimal descuentoGlobal,
         @Size(max = 2000) String observaciones,
-        @NotEmpty @Valid List<LineaDeCompra> lineas) {
+        @NotEmpty @Valid List<LineaDeCompra> lineas,
+        /** HU-169 · {@code CONTADO} o {@code CREDITO}; si no viene, a crédito. */
+        String condicionPago,
+        /** HU-169 · Con qué se paga una compra de contado: EFECTIVO, TRANSFERENCIA, CHEQUE, TARJETA, OTRO. */
+        String metodoPago,
+        /** HU-169 / HU-145 · De contado en efectivo con la plata de la caja abierta del usuario. */
+        Boolean pagarDesdeLaCaja,
+        @Size(max = 60) String referenciaPago) {
+
+    /** La compra a crédito de HU-167, sin datos de pago. */
+    public SolicitudDeCompraDirecta(UUID proveedorId, UUID bodegaId, String facturaProveedor,
+            LocalDate fechaFactura, BigDecimal flete, BigDecimal descuentoGlobal, String observaciones,
+            List<LineaDeCompra> lineas) {
+        this(proveedorId, bodegaId, facturaProveedor, fechaFactura, flete, descuentoGlobal,
+                observaciones, lineas, null, null, null, null);
+    }
 
     public record LineaDeCompra(
             @NotNull UUID productoId,

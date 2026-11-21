@@ -33,10 +33,13 @@ class ControladorDeCompraDirecta extends StateNotifier<EstadoDeCompraDirecta> {
       final proveedores = (await _repo.proveedoresActivos()).where((p) => p.activo).toList();
       final bodegas = await _repo.bodegas();
       final porDefecto = bodegas.where((b) => b.esDefault).firstOrNull ?? bodegas.firstOrNull;
+      final cajaAbierta = await _repo.tengoCajaAbierta();
       state = state.copiar(
         proveedores: proveedores,
         bodegas: bodegas,
         bodegaId: state.bodegaId ?? porDefecto?.id,
+        cajaAbierta: cajaAbierta,
+        desdeLaCaja: cajaAbierta,
         cargando: false,
       );
     } on ErrorDeRed {
@@ -50,8 +53,18 @@ class ControladorDeCompraDirecta extends StateNotifier<EstadoDeCompraDirecta> {
   void elegirProveedor(String? id) {
     if (id == state.proveedorId) return;
     // Un borrador que quedó de un intento fallido no cambia de proveedor: se empieza otra compra.
+    // HU-169 · Un proveedor sin días de crédito se le compra de contado; con días, a crédito.
+    final proveedor = state.proveedores.where((p) => p.id == id).firstOrNull;
     state = state.copiar(
-        proveedorId: id, lineas: const [], resultados: const [], error: null, borradorId: null);
+      proveedorId: id,
+      lineas: const [],
+      resultados: const [],
+      error: null,
+      borradorId: null,
+      condicion: proveedor != null && proveedor.diasCredito == 0
+          ? CondicionDePago.contado
+          : CondicionDePago.credito,
+    );
   }
 
   void elegirBodega(String? id) {
@@ -61,6 +74,11 @@ class ControladorDeCompraDirecta extends StateNotifier<EstadoDeCompraDirecta> {
   void cambiarFactura(String numero) => state = state.copiar(factura: numero);
   void cambiarFecha(DateTime? fecha) => state = state.copiar(fechaFactura: fecha);
   void cambiarFlete(num flete) => state = state.copiar(flete: flete < 0 ? 0 : flete);
+  void cambiarCondicion(CondicionDePago condicion) => state = state.copiar(condicion: condicion);
+  void cambiarMetodo(MetodoDePagoDeCompra metodo) => state = state.copiar(metodo: metodo);
+  void cambiarDesdeLaCaja(bool desdeLaCaja) => state = state.copiar(desdeLaCaja: desdeLaCaja);
+  void cambiarReferenciaPago(String referencia) => state = state.copiar(referenciaPago: referencia);
+
   void cambiarDescuentoGlobal(num descuento) =>
       state = state.copiar(descuentoGlobal: descuento < 0 ? 0 : descuento);
 
@@ -138,6 +156,8 @@ class ControladorDeCompraDirecta extends StateNotifier<EstadoDeCompraDirecta> {
         proveedores: state.proveedores,
         bodegas: state.bodegas,
         bodegaId: state.bodegaId,
+        cajaAbierta: state.cajaAbierta,
+        desdeLaCaja: state.cajaAbierta,
       );
       return hecha;
     } on ConfirmacionFallida catch (fallo) {

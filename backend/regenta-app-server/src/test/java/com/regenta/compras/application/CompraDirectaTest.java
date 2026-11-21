@@ -67,7 +67,8 @@ class CompraDirectaTest {
     private final InventarioApi inventario = mock(InventarioApi.class);
     private final GestionDeRecepciones gestion = new GestionDeRecepciones(recepciones, recepcionLineas,
             mock(OrdenDeCompraRepositorio.class), mock(OrdenCompraLineaRepositorio.class), cuentas,
-            proveedores, catalogo, consecutivos, eventos, inventario, null);
+            proveedores, catalogo, consecutivos, eventos, inventario, null,
+            mock(GestionDeCuentasPorPagar.class), mock(com.regenta.caja.api.CajaApi.class));
 
     private final UUID negocioId = UUID.randomUUID();
     private final UUID bodegaId = UUID.randomUUID();
@@ -325,7 +326,8 @@ class CompraDirectaTest {
         when(configuracion.responsableDeIva(negocioId)).thenReturn(responsable);
         return new GestionDeRecepciones(recepciones, recepcionLineas, mock(OrdenDeCompraRepositorio.class),
                 mock(OrdenCompraLineaRepositorio.class), cuentas, proveedores, catalogo, consecutivos, eventos,
-                inventario, configuracion);
+                inventario, configuracion, mock(GestionDeCuentasPorPagar.class),
+                mock(com.regenta.caja.api.CajaApi.class));
     }
 
     /** Confirma la compra con [g] y devuelve el costo unitario que se le manda a Inventario por línea. */

@@ -60,10 +60,13 @@ class ProductoParaComprar {
 
 /// Lo que el servidor confirmó: el número de la recepción y lo que quedó debiendo.
 class CompraRegistrada {
-  const CompraRegistrada({required this.numero, required this.total});
+  const CompraRegistrada({required this.numero, required this.total, this.avisos = const []});
 
   final String numero;
   final num total;
+
+  /// HU-169 C4 · Lo que no impidió registrar pero hay que saber (por ejemplo, el cupo superado).
+  final List<String> avisos;
 }
 
 /// Acceso a la compra directa de `compras` (HU-167): se arma en borrador y se confirma.
@@ -93,6 +96,17 @@ class RepositorioDeCompraDirecta {
     return lista.map((e) => ProductoEncontrado.desdeJson((e as Map).cast<String, dynamic>())).toList();
   }
 
+  /// HU-169 / HU-145 · Si el usuario tiene una caja abierta, para ofrecer «Pagar con dinero de la caja».
+  /// Cualquier fallo (sin caja, sin permiso, sin señal) cuenta como que no la tiene.
+  Future<bool> tengoCajaAbierta() async {
+    try {
+      await _http.get<dynamic>('/api/caja/sesiones/mia');
+      return true;
+    } on ErrorDeApi {
+      return false;
+    }
+  }
+
   Future<ProductoParaComprar> paraComprar(String proveedorId, String productoId) async {
     final res = await _http.get<Map<String, dynamic>>(
         '/api/compras/proveedores/$proveedorId/para-comprar/$productoId');
@@ -109,7 +123,11 @@ class RepositorioDeCompraDirecta {
     try {
       final dynamic confirmada = await _http.post<dynamic>('/api/compras/recepciones/$id/confirmacion');
       final mapa = (confirmada as Map).cast<String, dynamic>();
-      return CompraRegistrada(numero: mapa['numero'] as String, total: (mapa['total'] as num?) ?? 0);
+      return CompraRegistrada(
+        numero: mapa['numero'] as String,
+        total: (mapa['total'] as num?) ?? 0,
+        avisos: [for (final a in (mapa['avisos'] as List<dynamic>? ?? const [])) a.toString()],
+      );
     } on ErrorDeApi catch (fallo) {
       throw ConfirmacionFallida(id, fallo);
     }
