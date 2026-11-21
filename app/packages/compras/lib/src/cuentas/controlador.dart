@@ -28,12 +28,25 @@ class EstadoDeCuentas {
     this.filtro = FiltroDeCuentas.abiertas,
     this.cargando = false,
     this.mensaje,
+    this.cajaAbierta = false,
   });
 
   final List<CuentaPorPagarVista> todas;
   final FiltroDeCuentas filtro;
   final bool cargando;
   final String? mensaje;
+  final bool cajaAbierta;
+
+  /// HU-171 · Las cuentas abiertas de un proveedor, de la que vence primero a la última.
+  List<CuentaPorPagarVista> abiertasDe(String proveedorId) =>
+      todas.where((c) => c.proveedorId == proveedorId && c.abierta).toList()
+        ..sort((a, b) => a.fechaVencimiento.compareTo(b.fechaVencimiento));
+
+  /// Los proveedores a los que se les debe algo: id → nombre.
+  Map<String, String> get proveedoresConDeuda => {
+        for (final c in todas)
+          if (c.abierta && c.proveedorId != null) c.proveedorId!: c.proveedorNombre ?? 'Proveedor',
+      };
 
   List<CuentaPorPagarVista> get visibles => todas.where(filtro.admite).toList();
   num get saldoVisible => visibles.fold<num>(0, (s, c) => s + c.saldo);
@@ -44,12 +57,14 @@ class EstadoDeCuentas {
     FiltroDeCuentas? filtro,
     bool? cargando,
     Object? mensaje = _sin,
+    bool? cajaAbierta,
   }) =>
       EstadoDeCuentas(
         todas: todas ?? this.todas,
         filtro: filtro ?? this.filtro,
         cargando: cargando ?? this.cargando,
         mensaje: identical(mensaje, _sin) ? this.mensaje : mensaje as String?,
+        cajaAbierta: cajaAbierta ?? this.cajaAbierta,
       );
 
   static const _sin = Object();
@@ -77,7 +92,9 @@ class ControladorDeCuentas extends StateNotifier<EstadoDeCuentas> {
   Future<void> cargar() async {
     state = state.copiar(cargando: true, mensaje: null);
     try {
-      state = state.copiar(todas: await _repo.listar(), cargando: false);
+      final todas = await _repo.listar();
+      final caja = await _repo.tengoCajaAbierta();
+      state = state.copiar(todas: todas, cajaAbierta: caja, cargando: false);
     } on ErrorDeRed {
       state = state.copiar(cargando: false, mensaje: 'No hay conexión: no se pudieron cargar las cuentas.');
     } on ErrorDeApi catch (fallo) {
@@ -86,6 +103,39 @@ class ControladorDeCuentas extends StateNotifier<EstadoDeCuentas> {
   }
 
   void cambiarFiltro(FiltroDeCuentas filtro) => state = state.copiar(filtro: filtro);
+
+  /// HU-171 · Registra el pago y recarga las cuentas para ver cómo quedaron. Devuelve `null` si
+  /// quedó registrado, o el motivo del rechazo.
+  Future<String?> pagar({
+    required String proveedorId,
+    required num monto,
+    required String metodo,
+    String? referencia,
+    bool desdeLaCaja = false,
+    Map<String, num>? aplicaciones,
+  }) async {
+    try {
+      await _repo.pagar(
+        proveedorId: proveedorId,
+        monto: monto,
+        metodo: metodo,
+        referencia: referencia,
+        desdeLaCaja: desdeLaCaja,
+        aplicaciones: aplicaciones,
+      );
+    } on ErrorDeRed {
+      return 'No hay conexión: el pago no se registró. Intenta de nuevo.';
+    } on ErroresDeValidacion catch (fallo) {
+      for (final campo in fallo.porCampo.entries) {
+        if (campo.value.isNotEmpty) return '${campo.key}: ${campo.value.first}';
+      }
+      return fallo.mensaje;
+    } on ErrorDeApi catch (fallo) {
+      return fallo.mensaje;
+    }
+    await cargar();
+    return null;
+  }
 
   /// HU-170 C3 · Devuelve `null` si quedó registrada, o el motivo del rechazo.
   Future<String?> registrarFactura(String cuentaId, String numero, DateTime fecha) async {

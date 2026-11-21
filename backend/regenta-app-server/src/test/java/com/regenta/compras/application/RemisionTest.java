@@ -65,7 +65,7 @@ class RemisionTest {
     private final InventarioApi inventario = mock(InventarioApi.class);
     private final CajaApi caja = mock(CajaApi.class);
     private final GestionDeCuentasPorPagar cuentasPorPagar = new GestionDeCuentasPorPagar(cuentas, pagos,
-            recepciones, proveedores, caja, eventos);
+            recepciones, proveedores, caja, eventos, mock(com.regenta.compras.infrastructure.AplicacionDePagoRepositorio.class));
     private final GestionDeRecepciones gestion = new GestionDeRecepciones(recepciones, recepcionLineas,
             mock(OrdenDeCompraRepositorio.class), mock(OrdenCompraLineaRepositorio.class), cuentas, proveedores,
             mock(ProveedorProductoRepositorio.class), consecutivos, eventos, inventario, null, cuentasPorPagar, caja);

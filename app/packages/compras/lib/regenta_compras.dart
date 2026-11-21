@@ -10,6 +10,8 @@ export 'src/compra_directa/estado.dart';
 export 'src/compra_directa/pantalla_compra_directa.dart';
 export 'src/cuentas/controlador.dart';
 export 'src/cuentas/datos.dart';
+export 'src/cuentas/dialogo_de_pago.dart';
+export 'src/cuentas/reparto.dart';
 export 'src/cuentas/pantalla_cuentas_por_pagar.dart';
 export 'src/datos/orden_recibible.dart';
 export 'src/datos/orden_resumen_vista.dart';
