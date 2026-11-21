@@ -24,6 +24,8 @@ import com.regenta.shared.tenancy.DatosDelNegocio;
 public class ConsumidorDePagosAProveedor {
 
     static final String EVENTO = "pago_a_proveedor_registrado";
+    /** HU-172 · El pago se anuló: el efectivo vuelve a la caja. */
+    static final String EVENTO_ANULADO = "pago_a_proveedor_anulado";
     private static final String CONSUMIDOR = "caja.ConsumidorDePagosAProveedor";
 
     private final InboxIdempotente inbox;
@@ -39,9 +41,11 @@ public class ConsumidorDePagosAProveedor {
 
     @ApplicationModuleListener
     public void recibir(EventoGenerico evento) {
-        if (evento == null || !EVENTO.equals(evento.tipoEvento())) {
+        if (evento == null
+                || (!EVENTO.equals(evento.tipoEvento()) && !EVENTO_ANULADO.equals(evento.tipoEvento()))) {
             return;
         }
+        String tipo = evento.tipoEvento();
         String cuerpo = serializar(evento.payload());
         Map<String, Object> datos = leer(cuerpo);
         UUID negocioId = evento.negocioId();
@@ -53,7 +57,13 @@ public class ConsumidorDePagosAProveedor {
         }
         final UUID nId = negocioId;
         ContextoDeNegocio.en(contextoDe(nId), () -> inbox.procesarUnaVez(CONSUMIDOR, evento.id(), nId,
-                EVENTO, cuerpo, payload -> movimientos.registrarPagoAProveedor(datos)));
+                tipo, cuerpo, payload -> {
+                    if (EVENTO_ANULADO.equals(tipo)) {
+                        movimientos.reversarPagoAProveedor(datos);
+                    } else {
+                        movimientos.registrarPagoAProveedor(datos);
+                    }
+                }));
     }
 
     private String serializar(Object payload) {

@@ -57,6 +57,40 @@ class CuentaPorPagarVista {
       );
 }
 
+/// HU-172 · Un pago visto desde una cuenta: lo que le abonó, y si se anuló, por qué.
+class PagoDeLaCuenta {
+  const PagoDeLaCuenta({
+    required this.id,
+    required this.monto,
+    required this.metodo,
+    required this.fecha,
+    this.referencia,
+    this.desdeLaCaja = false,
+    this.anulado = false,
+    this.motivoAnulacion,
+  });
+
+  final String id;
+  final num monto;
+  final String metodo;
+  final DateTime fecha;
+  final String? referencia;
+  final bool desdeLaCaja;
+  final bool anulado;
+  final String? motivoAnulacion;
+
+  factory PagoDeLaCuenta.desdeJson(Map<String, dynamic> json) => PagoDeLaCuenta(
+        id: json['id'] as String,
+        monto: (json['monto'] as num?) ?? 0,
+        metodo: (json['metodo'] ?? 'OTRO') as String,
+        fecha: DateTime.parse(json['fecha'] as String),
+        referencia: json['referencia'] as String?,
+        desdeLaCaja: (json['desdeLaCaja'] as bool?) ?? false,
+        anulado: (json['anulado'] as bool?) ?? false,
+        motivoAnulacion: json['motivoAnulacion'] as String?,
+      );
+}
+
 /// Acceso a las cuentas por pagar de `compras`.
 class RepositorioDeCuentasPorPagar {
   RepositorioDeCuentasPorPagar(this._http);
@@ -92,6 +126,19 @@ class RepositorioDeCuentasPorPagar {
             if (e.value > 0) {'cuentaId': e.key, 'monto': e.value},
         ],
     });
+  }
+
+  /// HU-172 · Los pagos de una cuenta, anulados incluidos.
+  Future<List<PagoDeLaCuenta>> pagosDe(String cuentaId) async {
+    final dynamic res = await _http.get<dynamic>('$_base/$cuentaId');
+    final pagos = ((res as Map)['pagos'] as List<dynamic>? ?? const []);
+    return pagos.map((e) => PagoDeLaCuenta.desdeJson((e as Map).cast<String, dynamic>())).toList();
+  }
+
+  /// HU-172 · Anula un pago con su motivo. Si salió de una caja ya cerrada, el reverso va a la caja
+  /// abierta del usuario.
+  Future<void> anularPago(String pagoId, String motivo) async {
+    await _http.post<dynamic>('$_base/pagos/$pagoId/anulacion', datos: {'motivo': motivo.trim()});
   }
 
   /// Si el usuario tiene una caja abierta (para «Pagar con dinero de la caja»).

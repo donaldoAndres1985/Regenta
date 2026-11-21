@@ -171,4 +171,72 @@ class PagoAProveedorEnCajaTest {
                 OffsetDateTime.now()));
         verifyNoInteractions(otro);
     }
+
+    // ------------------------------------------------------------------ HU-172 · el reverso
+
+    private Map<String, Object> anulacion(Map<String, Object> pago, UUID sesionReverso) {
+        Map<String, Object> datos = new LinkedHashMap<>(pago);
+        datos.put("sesion_reverso_id", sesionReverso == null ? null : sesionReverso.toString());
+        datos.put("motivo", "Se registró dos veces");
+        return datos;
+    }
+
+    private void salidaRegistrada(Map<String, Object> pago) {
+        registro.registrarPagoAProveedor(pago);
+        MovimientoDeCaja salida = guardados.get(0);
+        when(movimientos.findByNegocioIdAndIdempotencyKey(negocioId, salida.getIdempotencyKey()))
+                .thenReturn(Optional.of(salida));
+        when(movimientos.existsByAnulaA(salida.getId()))
+                .thenAnswer(i -> guardados.stream().anyMatch(m -> salida.getId().equals(m.getAnulaA())));
+    }
+
+    @Test
+    @DisplayName("HU-172 C3 · Se anula el pago con la caja abierta: entra el efectivo, como anulación de la salida")
+    void reversoEnLaMismaSesion() {
+        Map<String, Object> pago = pago("EFECTIVO", sesion.getId());
+        salidaRegistrada(pago);
+
+        assertThat(registro.reversarPagoAProveedor(anulacion(pago, sesion.getId()))).isTrue();
+
+        MovimientoDeCaja reverso = guardados.get(1);
+        assertThat(reverso.getTipo()).isEqualTo(TipoMovimientoCaja.ANULACION);
+        assertThat(reverso.getSigno()).isEqualTo((short) 1);
+        assertThat(reverso.getMonto()).isEqualByComparingTo("100000");
+        assertThat(reverso.getAnulaA()).isEqualTo(guardados.get(0).getId());
+        assertThat(reverso.getSesionId()).isEqualTo(sesion.getId());
+        assertThat(reverso.aporteEfectivo().add(guardados.get(0).aporteEfectivo())).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("HU-172 C4 · Con la caja original cerrada, el reverso entra a la sesión que eligió Compras")
+    void reversoEnOtraSesion() {
+        Map<String, Object> pago = pago("EFECTIVO", sesion.getId());
+        salidaRegistrada(pago);
+        SesionDeCaja otra = SesionDeCaja.abrir(negocioId, null, UUID.randomUUID(), "CAJA-6", UUID.randomUUID(),
+                BigDecimal.ZERO);
+        when(sesiones.findByIdAndNegocioId(otra.getId(), negocioId)).thenReturn(Optional.of(otra));
+
+        assertThat(registro.reversarPagoAProveedor(anulacion(pago, otra.getId()))).isTrue();
+        assertThat(guardados.get(1).getSesionId()).isEqualTo(otra.getId());
+    }
+
+    @Test
+    @DisplayName("HU-172 · El mismo aviso de anulación dos veces no duplica el reverso")
+    void reversoNoSeDuplica() {
+        Map<String, Object> pago = pago("EFECTIVO", sesion.getId());
+        salidaRegistrada(pago);
+
+        registro.reversarPagoAProveedor(anulacion(pago, sesion.getId()));
+        assertThat(registro.reversarPagoAProveedor(anulacion(pago, sesion.getId()))).isFalse();
+        assertThat(guardados).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("HU-172 · Sin sesión para el reverso (el pago no salió de la caja), la caja no cambia")
+    void sinSesionDeReverso() {
+        Map<String, Object> pago = pago("TRANSFERENCIA", null);
+
+        assertThat(registro.reversarPagoAProveedor(anulacion(pago, null))).isFalse();
+        verify(movimientos, never()).save(any());
+    }
 }

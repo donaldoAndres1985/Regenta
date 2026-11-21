@@ -53,6 +53,7 @@ import com.regenta.shared.web.ReglaDeNegocioException;
 public class GestionDeCuentasPorPagar {
 
     static final String EVENTO_PAGO = "pago_a_proveedor_registrado";
+    static final String EVENTO_ANULACION = "pago_a_proveedor_anulado";
 
     private final CuentaPorPagarRepositorio cuentas;
     private final PagoProveedorRepositorio pagos;
@@ -224,6 +225,80 @@ public class GestionDeCuentasPorPagar {
         PagoProveedor pago = registrarPagoA(proveedor.getId(), solicitud.monto(), metodo,
                 solicitud.referencia(), sesion, abonos);
         return PagoDelNegocio.de(pago, abonos);
+    }
+
+    /**
+     * HU-172 · Anula un pago registrado por error (I28): lo que abonó vuelve al saldo de cada cuenta y
+     * su estado se recalcula; el pago queda visible con motivo, usuario y fecha. Si salió de la caja,
+     * Caja recibe el reverso: en la misma sesión si sigue abierta, o en la abierta que indique el
+     * usuario (o la suya); si no hay ninguna, 409 y no se anula.
+     */
+    @Transactional
+    @RequierePermiso("COMPRAS_PAGO_ANULAR")
+    public PagoDelNegocio anularPago(UUID pagoId, SolicitudDeAnulacionDePago solicitud) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        PagoProveedor pago = pagos.findById(pagoId)
+                .filter(p -> negocioId.equals(p.getNegocioId()))
+                .orElseThrow(() -> new NoEncontradoException("Ese pago no existe"));
+        if (pago.estaAnulado()) {
+            throw new ConflictoDeEstadoException("Ese pago ya está anulado");
+        }
+        UUID sesionReverso = pago.salioDeLaCaja() ? sesionParaElReverso(negocioId, pago, solicitud) : null;
+
+        List<AplicacionDePago> deEstePago = aplicaciones.findByPagoId(pagoId);
+        List<RepartoDePago.Abono> revertidos = new java.util.ArrayList<>();
+        for (AplicacionDePago a : deEstePago) {
+            CuentaPorPagar cuenta = cuentas.findByIdAndNegocioId(a.getCuentaId(), negocioId)
+                    .orElseThrow(() -> new NoEncontradoException("Una cuenta de ese pago no existe"));
+            cuenta.revertirPago(a.getMonto());
+            cuentas.save(cuenta);
+            revertidos.add(new RepartoDePago.Abono(cuenta, a.getMonto()));
+        }
+        pago.anular(ContextoDeNegocio.actual().usuario(), solicitud.motivo(), sesionReverso);
+        pagos.save(pago);
+
+        Map<String, Object> datos = payloadDe(negocioId, pago, revertidos);
+        datos.put("sesion_reverso_id", sesionReverso == null ? null : sesionReverso.toString());
+        datos.put("motivo", pago.getMotivoAnulacion());
+        eventos.registrar(negocioId, "PagoProveedor", pago.getId(), EVENTO_ANULACION, datos);
+        return PagoDelNegocio.de(pago, revertidos);
+    }
+
+    /** HU-172 · Un pago con lo que abonó a cada cuenta, anulado o no. */
+    @Transactional(readOnly = true)
+    @RequierePermiso("COMPRAS_COMPRA_VER")
+    public PagoDelNegocio verPago(UUID pagoId) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        PagoProveedor pago = pagos.findById(pagoId)
+                .filter(p -> negocioId.equals(p.getNegocioId()))
+                .orElseThrow(() -> new NoEncontradoException("Ese pago no existe"));
+        List<RepartoDePago.Abono> abonos = aplicaciones.findByPagoId(pagoId).stream()
+                .map(a -> cuentas.findByIdAndNegocioId(a.getCuentaId(), negocioId)
+                        .map(c -> new RepartoDePago.Abono(c, a.getMonto())).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return PagoDelNegocio.de(pago, abonos);
+    }
+
+    /**
+     * HU-172 C3 / C4 · La sesión que recibe el reverso: la misma si sigue abierta; si ya cerró, la
+     * abierta que indicó el usuario, o la suya.
+     */
+    private UUID sesionParaElReverso(UUID negocioId, PagoProveedor pago, SolicitudDeAnulacionDePago solicitud) {
+        if (caja.sesionAbierta(negocioId, pago.getSesionCajaId())) {
+            return pago.getSesionCajaId();
+        }
+        if (solicitud.sesionCajaId() != null) {
+            if (!caja.sesionAbierta(negocioId, solicitud.sesionCajaId())) {
+                throw new ConflictoDeEstadoException(
+                        "Esa sesión de caja no está abierta: el pago no se anuló");
+            }
+            return solicitud.sesionCajaId();
+        }
+        UUID usuario = ContextoDeNegocio.actual().usuario();
+        return caja.sesionAbiertaDe(negocioId, usuario).orElseThrow(() -> new ConflictoDeEstadoException(
+                "La caja de la que salió el pago ya cerró y no tienes una abierta para devolver el efectivo: "
+                        + "abre tu caja e intenta de nuevo"));
     }
 
     /** Las cuentas del proveedor con saldo, de la más antigua (vence primero) a la más nueva. */

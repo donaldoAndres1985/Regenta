@@ -145,6 +145,43 @@ public class RegistroDeMovimientos {
         }
     }
 
+    /**
+     * HU-172 · Se anuló un pago a proveedor que había salido de la caja: entra el reverso por el mismo
+     * monto en la sesión que eligió Compras (C3, C4). Si la sesión ya no está abierta, si la salida
+     * original no existe o ya se reversó, no se registra nada: el mismo aviso dos veces no duplica.
+     */
+    @Transactional
+    public boolean reversarPagoAProveedor(Map<String, Object> datos) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        UUID pagoId = uuid(datos.get("pago_id"));
+        UUID sesionId = uuid(datos.get("sesion_reverso_id"));
+        if (pagoId == null || sesionId == null) {
+            return false;
+        }
+        SesionDeCaja sesion = sesiones.findByIdAndNegocioId(sesionId, negocioId).orElse(null);
+        if (sesion == null || !sesion.getEstado().estaAbierta()) {
+            log.warn("Reverso del pago a proveedor {} para la sesión {} que ya no está abierta", pagoId, sesionId);
+            return false;
+        }
+        MovimientoDeCaja salida = movimientos
+                .findByNegocioIdAndIdempotencyKey(negocioId, "PAGO_PROVEEDOR:" + pagoId).orElse(null);
+        if (salida == null || movimientos.existsByAnulaA(salida.getId())) {
+            return false;
+        }
+        UUID usuarioEvento = uuid(datos.get("usuario_id"));
+        MovimientoDeCaja reverso = MovimientoDeCaja.reversoDePagoAProveedor(salida, sesionId,
+                usuarioEvento != null ? usuarioEvento : sesion.getUsuarioAperturaId(),
+                texto(datos.get("motivo")), "PAGO_PROVEEDOR:" + pagoId + ":ANULACION");
+        try {
+            movimientos.save(reverso);
+            movimientos.flush();
+            return true;
+        } catch (DataIntegrityViolationException repetido) {
+            log.debug("Reverso del pago a proveedor {} ya registrado: se ignora", pagoId);
+            return false;
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> pagosDe(Map<String, Object> datos) {
         Object crudo = datos.get("pagos");

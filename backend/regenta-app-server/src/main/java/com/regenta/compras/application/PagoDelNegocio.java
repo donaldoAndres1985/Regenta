@@ -17,6 +17,12 @@ public record PagoDelNegocio(
         String referencia,
         LocalDate fecha,
         boolean desdeLaCaja,
+        /** HU-172 · Si se anuló: cuándo, quién, por qué y qué sesión recibió el reverso. */
+        boolean anulado,
+        String motivoAnulacion,
+        UUID anuladoPor,
+        java.time.OffsetDateTime anuladoEn,
+        UUID sesionReversoId,
         List<Aplicada> aplicaciones) {
 
     public record Aplicada(UUID cuentaId, String numeroFactura, BigDecimal monto, BigDecimal saldo,
@@ -25,7 +31,8 @@ public record PagoDelNegocio(
 
     static PagoDelNegocio de(PagoProveedor p, List<RepartoDePago.Abono> abonos) {
         return new PagoDelNegocio(p.getId(), p.getProveedorId(), p.getMonto(), p.getMetodo().name(),
-                p.getReferencia(), p.getFecha(), p.salioDeLaCaja(),
+                p.getReferencia(), p.getFecha(), p.salioDeLaCaja(), p.estaAnulado(),
+                p.getMotivoAnulacion(), p.getAnuladoPor(), p.getAnuladoEn(), p.getSesionReversoId(),
                 abonos.stream().map(a -> new Aplicada(a.cuenta().getId(), a.cuenta().getNumeroFactura(),
                         a.monto(), a.cuenta().getSaldo(), a.cuenta().getEstado().name())).toList());
     }

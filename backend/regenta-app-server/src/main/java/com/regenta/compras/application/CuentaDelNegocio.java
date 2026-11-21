@@ -36,12 +36,18 @@ public record CuentaDelNegocio(
             String metodo,
             String referencia,
             LocalDate fecha,
-            boolean desdeLaCaja) {
+            boolean desdeLaCaja,
+            /** HU-172 C2 · Un pago anulado sigue visible, con motivo, quién y cuándo. */
+            boolean anulado,
+            String motivoAnulacion,
+            UUID anuladoPor,
+            java.time.OffsetDateTime anuladoEn) {
 
         /** HU-171 · {@code montoAplicado} es lo que ese pago abonó a esta cuenta, no el pago entero. */
         static PagoRegistrado de(PagoProveedor p, BigDecimal montoAplicado) {
             return new PagoRegistrado(p.getId(), montoAplicado, p.getMetodo().name(),
-                    p.getReferencia(), p.getFecha(), p.salioDeLaCaja());
+                    p.getReferencia(), p.getFecha(), p.salioDeLaCaja(), p.estaAnulado(),
+                    p.getMotivoAnulacion(), p.getAnuladoPor(), p.getAnuladoEn());
         }
     }
 

@@ -19,6 +19,7 @@ import com.regenta.compras.application.GestionDeCuentasPorPagar;
 import com.regenta.compras.application.SolicitudDeFacturaDeCuenta;
 import com.regenta.compras.application.SolicitudDeFacturaDeRecepcion;
 import com.regenta.compras.application.PagoDelNegocio;
+import com.regenta.compras.application.SolicitudDeAnulacionDePago;
 import com.regenta.compras.application.SolicitudDePago;
 import com.regenta.compras.application.SolicitudDePagoAProveedor;
 
@@ -82,6 +83,23 @@ public class CuentasPorPagarControlador {
     @ApiResponse(responseCode = "422", description = "Más de lo que se debe, reparto que no suma o cuenta de otro proveedor")
     public PagoDelNegocio pagarAProveedor(@Valid @RequestBody SolicitudDePagoAProveedor solicitud) {
         return cuentas.pagarAProveedor(solicitud);
+    }
+
+    @GetMapping("/pagos/{pagoId}")
+    @Operation(summary = "Un pago a proveedor con lo que abonó a cada cuenta, anulado o no")
+    @ApiResponse(responseCode = "404", description = "No existe en este negocio")
+    public PagoDelNegocio verPago(@PathVariable UUID pagoId) {
+        return cuentas.verPago(pagoId);
+    }
+
+    @PostMapping("/pagos/{pagoId}/anulacion")
+    @Operation(summary = "Anula un pago registrado por error (HU-172)",
+            description = "Devuelve los saldos a sus cuentas; si salió de la caja, la caja recibe el reverso.")
+    @ApiResponse(responseCode = "403", description = "Sin el permiso COMPRAS_PAGO_ANULAR")
+    @ApiResponse(responseCode = "409", description = "Ya estaba anulado, o no hay una caja abierta para el reverso")
+    public PagoDelNegocio anularPago(@PathVariable UUID pagoId,
+            @Valid @RequestBody SolicitudDeAnulacionDePago solicitud) {
+        return cuentas.anularPago(pagoId, solicitud);
     }
 
     @PostMapping("/{cuentaId}/pagos")

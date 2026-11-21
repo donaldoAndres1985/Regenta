@@ -9,6 +9,7 @@ import '../ui/formato.dart';
 import 'controlador.dart';
 import 'datos.dart';
 import 'dialogo_de_pago.dart';
+import 'dialogo_de_pagos.dart';
 
 String _fecha(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
@@ -45,6 +46,16 @@ class PantallaCuentasPorPagar extends ConsumerWidget {
     );
     if (hecho && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pago registrado.')));
+    }
+  }
+
+  /// HU-172 · Los pagos de una cuenta, para revisarlos o anular uno.
+  Future<void> _verPagos(BuildContext context, WidgetRef ref, CuentaPorPagarVista cuenta) async {
+    final ctrl = ref.read(controladorDeCuentasProvider.notifier);
+    final anulado = await abrirPagosDeLaCuenta(context, cuenta: cuenta, cargar: ctrl.pagosDe, onAnular: ctrl.anularPago);
+    if (anulado && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pago anulado. Lo que abonó vuelve a deberse.')));
     }
   }
 
@@ -111,6 +122,7 @@ class PantallaCuentasPorPagar extends ConsumerWidget {
             estado: estado,
             onFactura: (c) => unawaited(_registrarFactura(context, ref, c)),
             onPagar: (c) => unawaited(_pagar(context, ref, proveedorId: c.proveedorId)),
+            onVerPagos: (c) => unawaited(_verPagos(context, ref, c)),
           ),
         ),
       ]);
@@ -140,11 +152,12 @@ class PantallaCuentasPorPagar extends ConsumerWidget {
 }
 
 class _Lista extends StatelessWidget {
-  const _Lista({required this.estado, required this.onFactura, required this.onPagar});
+  const _Lista({required this.estado, required this.onFactura, required this.onPagar, required this.onVerPagos});
 
   final EstadoDeCuentas estado;
   final ValueChanged<CuentaPorPagarVista> onFactura;
   final ValueChanged<CuentaPorPagarVista> onPagar;
+  final ValueChanged<CuentaPorPagarVista> onVerPagos;
 
   @override
   Widget build(BuildContext context) {
@@ -176,17 +189,24 @@ class _Lista extends StatelessWidget {
         cuenta: visibles[i],
         onFactura: () => onFactura(visibles[i]),
         onPagar: () => onPagar(visibles[i]),
+        onVerPagos: () => onVerPagos(visibles[i]),
       ),
     );
   }
 }
 
 class _FilaCuenta extends StatelessWidget {
-  const _FilaCuenta({required this.cuenta, required this.onFactura, required this.onPagar});
+  const _FilaCuenta({
+    required this.cuenta,
+    required this.onFactura,
+    required this.onPagar,
+    required this.onVerPagos,
+  });
 
   final CuentaPorPagarVista cuenta;
   final VoidCallback onFactura;
   final VoidCallback onPagar;
+  final VoidCallback onVerPagos;
 
   @override
   Widget build(BuildContext context) {
@@ -238,6 +258,13 @@ class _FilaCuenta extends StatelessWidget {
               key: Key('cuenta-pagar-${c.id}'),
               onPressed: onPagar,
               child: const Text('Pagar'),
+            ),
+          // HU-172 · si ya se le abonó algo (o está pagada), se ven sus pagos y se puede anular uno.
+          if (c.saldo < c.monto)
+            TextButton(
+              key: Key('cuenta-ver-pagos-${c.id}'),
+              onPressed: onVerPagos,
+              child: const Text('Ver pagos'),
             ),
         ]),
       ]),
