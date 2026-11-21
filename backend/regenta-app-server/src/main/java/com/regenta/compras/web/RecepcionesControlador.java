@@ -52,8 +52,13 @@ public class RecepcionesControlador {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Arma en borrador lo que llegó de una orden")
-    @ApiResponse(responseCode = "422", description = "Falta el lote donde el producto lo exige")
+    @Operation(summary = "Arma en borrador lo que llegó de una orden",
+            description = "HU-175 · Con la factura como en la compra directa: número, fecha, flete, "
+                    + "descuento global y contado o crédito.")
+    @ApiResponse(responseCode = "409", description = "La orden está en borrador, anulada o recibida, "
+            + "o la factura ya está registrada para ese proveedor")
+    @ApiResponse(responseCode = "422", description = "Falta el lote donde el producto lo exige, una línea "
+            + "pasa lo pedido más la tolerancia, o de contado falta la factura o el método de pago")
     public RecepcionDelNegocio crear(@Valid @RequestBody SolicitudDeRecepcion solicitud) {
         return recepciones.crear(solicitud);
     }

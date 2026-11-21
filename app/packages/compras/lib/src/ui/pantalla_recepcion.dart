@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/orden_recibible.dart';
+import '../compra_directa/estado.dart';
 import '../escaner/escaner_de_codigos.dart';
+import '../proveedores/ui/piezas.dart';
 import '../recepcion/entrada_de_linea.dart';
 import '../recepcion/estado_de_recepcion.dart';
+import '../recepcion/factura_de_recepcion.dart';
 import '../recepcion/proveedores.dart';
 import 'formato.dart';
 
@@ -395,6 +398,9 @@ class _Tabla extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.all(18),
             children: [
+              // HU-175 C4 · En la web, la factura con que llega: como en la compra directa.
+              _PanelDeFactura(factura: estado.factura, alCambiar: (f) => ctrl.fijarFactura(f)),
+              const SizedBox(height: 16),
               for (final linea in estado.lineas)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 14),
@@ -404,6 +410,7 @@ class _Tabla extends StatelessWidget {
                     ctrl: ctrl,
                   ),
                 ),
+              _ResumenDeFactura(estado: estado),
             ],
           ),
         ),
@@ -564,3 +571,238 @@ InputDecoration _decoracion({required String hint}) => InputDecoration(
         borderSide: const BorderSide(color: RegentaColors.line2),
       ),
     );
+
+/// HU-175 C4 · Número, fecha, flete y descuento de la factura, y si se paga de contado o a crédito.
+class _PanelDeFactura extends StatefulWidget {
+  const _PanelDeFactura({required this.factura, required this.alCambiar});
+
+  final FacturaDeRecepcion factura;
+  final ValueChanged<FacturaDeRecepcion> alCambiar;
+
+  @override
+  State<_PanelDeFactura> createState() => _PanelDeFacturaState();
+}
+
+class _PanelDeFacturaState extends State<_PanelDeFactura> {
+  late final TextEditingController _numero = TextEditingController(text: widget.factura.numero);
+  late final TextEditingController _flete =
+      TextEditingController(text: widget.factura.flete == 0 ? '' : '${widget.factura.flete}');
+  late final TextEditingController _descuento = TextEditingController(
+      text: widget.factura.descuentoGlobal == 0 ? '' : '${widget.factura.descuentoGlobal}');
+
+  @override
+  void dispose() {
+    _numero.dispose();
+    _flete.dispose();
+    _descuento.dispose();
+    super.dispose();
+  }
+
+  static num _valor(String texto) => num.tryParse(texto.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+
+  Future<void> _elegirFecha() async {
+    final hoy = DateTime.now();
+    final f = await showDatePicker(
+      context: context,
+      initialDate: widget.factura.fecha ?? hoy,
+      firstDate: DateTime(hoy.year - 1),
+      lastDate: hoy,
+    );
+    if (f != null) widget.alCambiar(widget.factura.copiar(fecha: f));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = widget.factura;
+    Widget celda(double ancho, Widget hijo) => SizedBox(width: ancho, child: hijo);
+    return Container(
+      key: const Key('recepcion-factura'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: RegentaColors.surface,
+        border: Border.all(color: RegentaColors.line),
+        borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('Factura del proveedor', style: RegentaType.item.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Wrap(spacing: 12, runSpacing: 4, children: [
+            celda(
+                220,
+                CampoConEtiqueta(
+                  etiqueta: f.deContado ? 'N.º factura *' : 'N.º factura (vacío si llegó con remisión)',
+                  hijo: TextField(
+                    key: const Key('recepcion-numero-factura'),
+                    controller: _numero,
+                    onChanged: (v) => widget.alCambiar(f.copiar(numero: v)),
+                    style: estiloDeCampo,
+                    decoration: decoracionDeCampo(hint: 'FE-88213'),
+                  ),
+                )),
+            celda(
+                160,
+                CampoConEtiqueta(
+                  etiqueta: 'Fecha',
+                  hijo: OutlinedButton.icon(
+                    key: const Key('recepcion-fecha-factura'),
+                    onPressed: _elegirFecha,
+                    style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(44), alignment: Alignment.centerLeft),
+                    icon: const Icon(Icons.event, size: 18),
+                    label: Text(f.fecha == null ? 'Hoy' : f.fecha!.toIso8601String().substring(0, 10)),
+                  ),
+                )),
+            celda(
+                140,
+                CampoConEtiqueta(
+                  etiqueta: 'Flete',
+                  hijo: TextField(
+                    key: const Key('recepcion-flete'),
+                    controller: _flete,
+                    keyboardType: TextInputType.number,
+                    onChanged: (v) => widget.alCambiar(f.copiar(flete: _valor(v))),
+                    style: estiloDeCampo,
+                    decoration: decoracionDeCampo(hint: '0'),
+                  ),
+                )),
+            celda(
+                160,
+                CampoConEtiqueta(
+                  etiqueta: 'Descuento global',
+                  hijo: TextField(
+                    key: const Key('recepcion-descuento-global'),
+                    controller: _descuento,
+                    keyboardType: TextInputType.number,
+                    onChanged: (v) => widget.alCambiar(f.copiar(descuentoGlobal: _valor(v))),
+                    style: estiloDeCampo,
+                    decoration: decoracionDeCampo(hint: '0'),
+                  ),
+                )),
+          ]),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SegmentedButton<CondicionDePago>(
+              key: const Key('recepcion-condicion'),
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: CondicionDePago.credito, label: Text('A crédito'), icon: Icon(Icons.schedule)),
+                ButtonSegment(
+                    value: CondicionDePago.contado, label: Text('De contado'), icon: Icon(Icons.payments_outlined)),
+              ],
+              selected: {f.condicion},
+              onSelectionChanged: (s) => widget.alCambiar(f.copiar(condicion: s.first)),
+            ),
+          ),
+          if (f.deContado) ...[
+            const SizedBox(height: 8),
+            Wrap(spacing: 12, crossAxisAlignment: WrapCrossAlignment.end, children: [
+              celda(
+                  200,
+                  CampoConEtiqueta(
+                    etiqueta: 'Pagado con',
+                    hijo: DropdownButtonFormField<MetodoDePagoDeCompra>(
+                      key: const Key('recepcion-metodo'),
+                      initialValue: f.metodo,
+                      isExpanded: true,
+                      decoration: decoracionDeCampo(),
+                      items: [
+                        for (final m in MetodoDePagoDeCompra.values)
+                          DropdownMenuItem(value: m, child: Text(m.etiqueta)),
+                      ],
+                      onChanged: (m) {
+                        if (m != null) widget.alCambiar(f.copiar(metodo: m));
+                      },
+                    ),
+                  )),
+              if (f.metodo != MetodoDePagoDeCompra.efectivo)
+                celda(
+                    220,
+                    CampoConEtiqueta(
+                      etiqueta: 'Referencia',
+                      hijo: TextField(
+                        key: const Key('recepcion-referencia-pago'),
+                        onChanged: (v) => widget.alCambiar(f.copiar(referencia: v)),
+                        style: estiloDeCampo,
+                        decoration: decoracionDeCampo(hint: 'N.º de transferencia o cheque'),
+                      ),
+                    ))
+              else
+                celda(
+                    300,
+                    CheckboxListTile(
+                      key: const Key('recepcion-desde-la-caja'),
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: f.desdeLaCaja,
+                      onChanged: (v) => widget.alCambiar(f.copiar(desdeLaCaja: v ?? false)),
+                      title: const Text('Pagar con dinero de la caja'),
+                    )),
+            ]),
+          ] else
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('Nace una cuenta por pagar con el plazo del proveedor.',
+                  style: RegentaType.cuerpo.copyWith(fontSize: 12.5, color: RegentaColors.ink2)),
+            ),
+          if (f.problema != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(f.problema!,
+                  key: const Key('recepcion-factura-problema'),
+                  style: RegentaType.cuerpo.copyWith(fontSize: 12.5, color: RegentaColors.warn)),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// HU-175 · Lo que suma lo recibido, con el descuento global repartido, el IVA y el flete.
+class _ResumenDeFactura extends StatelessWidget {
+  const _ResumenDeFactura({required this.estado});
+
+  final EstadoDeRecepcion estado;
+
+  @override
+  Widget build(BuildContext context) {
+    num base = 0;
+    num iva = 0;
+    for (final l in estado.lineasConEntrada) {
+      final e = estado.entradaDe(l.id);
+      final b = e.recibido! * (e.costo ?? l.costoUnitario) * (1 - l.descuentoPct / 100);
+      base += b;
+      iva += b * l.impuestoPct / 100;
+    }
+    final f = estado.factura;
+    final proporcion = base == 0 ? 0 : (base - f.descuentoGlobal) / base;
+    final baseNeta = base - f.descuentoGlobal;
+    final ivaNeto = iva * proporcion;
+    Widget fila(String etiqueta, num valor, String clave, {bool fuerte = false}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(children: [
+            Expanded(
+                child: Text(etiqueta,
+                    style: RegentaType.cuerpo.copyWith(fontWeight: fuerte ? FontWeight.w800 : FontWeight.w500))),
+            Text(formatearPesos(valor),
+                key: Key('recepcion-$clave'),
+                style: RegentaType.codigo.copyWith(fontWeight: fuerte ? FontWeight.w800 : FontWeight.w600)),
+          ]),
+        );
+    return Align(
+      alignment: Alignment.centerRight,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340),
+        child: Column(children: [
+          fila('Subtotal', base, 'subtotal'),
+          if (f.descuentoGlobal > 0) fila('Descuento global', -f.descuentoGlobal, 'descuento'),
+          fila('IVA', ivaNeto, 'iva'),
+          if (f.flete > 0) fila('Flete', f.flete, 'flete-total'),
+          fila('Total', baseNeta + ivaNeto + f.flete, 'total', fuerte: true),
+        ]),
+      ),
+    );
+  }
+}

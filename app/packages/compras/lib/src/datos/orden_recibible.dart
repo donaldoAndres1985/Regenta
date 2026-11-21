@@ -41,6 +41,8 @@ class LineaRecibible {
     required this.costoUnitario,
     this.codigo,
     this.exigeLote = false,
+    this.descuentoPct = 0,
+    this.impuestoPct = 0,
   });
 
   final String id;
@@ -60,6 +62,10 @@ class LineaRecibible {
   /// orden, viaja en el JSON como `exige_lote`.
   final bool exigeLote;
 
+  /// HU-175 · Para el resumen de la factura.
+  final num descuentoPct;
+  final num impuestoPct;
+
   /// Lo que todavía falta por recibir de esta línea.
   num get faltante {
     final f = cantidadPedida - cantidadRecibida;
@@ -76,5 +82,7 @@ class LineaRecibible {
         costoUnitario: (json['costoUnitario'] ?? 0) as num,
         codigo: json['codigo'] as String?,
         exigeLote: (json['exigeLote'] ?? json['exige_lote'] ?? false) as bool,
+        descuentoPct: (json['descuentoPct'] ?? 0) as num,
+        impuestoPct: (json['impuestoPct'] ?? 0) as num,
       );
 }

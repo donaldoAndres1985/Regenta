@@ -119,7 +119,12 @@ public class GestionDeRecepciones {
         return RecepcionDelNegocio.de(r, recepcionLineas.findByRecepcionId(recepcionId));
     }
 
-    /** HU-048 · Una recepción en borrador contra una orden aprobada, enviada o parcial. */
+    /**
+     * HU-048 / HU-175 · Una recepción en borrador contra una orden aprobada, enviada o parcial. La
+     * factura se toma como en la compra directa (C4): número único por proveedor, fecha, flete,
+     * descuento global y contado o crédito. Lo que pase de lo pedido más la tolerancia se rechaza
+     * entero desde ya (C5), sin esperar a confirmar.
+     */
     @Transactional
     @RequierePermiso("COMPRAS_COMPRA_CREAR")
     public RecepcionDelNegocio crear(SolicitudDeRecepcion solicitud) {
@@ -128,6 +133,9 @@ public class GestionDeRecepciones {
         OrdenDeCompra orden = ordenes.findByIdAndNegocioId(solicitud.ordenId(), negocioId)
                 .orElseThrow(() -> new NoEncontradoException("Esa orden no existe"));
         orden.exigirRecibible();
+        boolean deContado = condicionDe(solicitud.condicionPago()) == CondicionDePago.CONTADO;
+        exigirFacturaNoRegistrada(negocioId, orden.getProveedorId(), solicitud.facturaProveedor(), null,
+                deContado);
 
         Map<UUID, OrdenCompraLinea> lineasOrden = ordenLineas
                 .findByOrdenIdOrderByLinea(orden.getId()).stream()
@@ -139,12 +147,22 @@ public class GestionDeRecepciones {
         Recepcion recepcion = Recepcion.crear(negocioId, numero, orden.getId(),
                 orden.getProveedorId(), bodega, solicitud.facturaProveedor(),
                 ContextoDeNegocio.actual().usuario(), solicitud.observaciones());
+        recepcion.datosDeFactura(solicitud.facturaProveedor(),
+                solicitud.fechaFactura() == null ? LocalDate.now() : solicitud.fechaFactura(),
+                solicitud.flete(), solicitud.descuentoGlobal(), solicitud.observaciones());
+        aplicarCondicionDePago(negocioId, recepcion, solicitud.condicionPago(), solicitud.metodoPago(),
+                solicitud.pagarDesdeLaCaja(), solicitud.referenciaPago());
+        BigDecimal tolerancia = configuracionDeCompras.deNegocio(negocioId).getToleranciaRecepcionPct();
 
         // HU-165 · lo que exige cada producto lo dice el catálogo, no el cliente (I16).
         Map<UUID, ReglaDeLote> reglas = inventario.reglasDeLote(negocioId,
                 lineasOrden.values().stream().map(OrdenCompraLinea::getProductoId).toList());
+        // HU-175 · La tarifa (gravado, exento, excluido) sale del catálogo, como en la compra directa.
+        Map<UUID, ProductoParaComprar> productos = inventario.paraComprar(negocioId,
+                lineasOrden.values().stream().map(OrdenCompraLinea::getProductoId).toList());
         LocalDate hoy = LocalDate.now();
 
+        Map<UUID, BigDecimal> porLinea = new LinkedHashMap<>();
         List<RecepcionLinea> lineas = new ArrayList<>();
         for (SolicitudDeRecepcion.LineaDeRecepcion l : solicitud.lineas()) {
             OrdenCompraLinea ol = lineasOrden.get(l.ordenLineaId());
@@ -157,10 +175,16 @@ public class GestionDeRecepciones {
                 throw new NoEncontradoException("El producto de la línea " + ol.getLinea()
                         + " no existe en el catálogo");
             }
+            porLinea.merge(ol.getId(), l.cantidad(), BigDecimal::add);
+            ol.exigirDentroDeLaTolerancia(porLinea.get(ol.getId()), tolerancia);
             BigDecimal costo = l.costoUnitario() != null ? l.costoUnitario() : ol.getCostoUnitario();
+            ProductoParaComprar producto = productos.get(ol.getProductoId());
+            String codigo = catalogo.findByProveedorIdAndProductoId(orden.getProveedorId(),
+                    ol.getProductoId()).map(ProveedorProducto::getCodigoProveedor).orElse(null);
             lineas.add(RecepcionLinea.nueva(recepcion.getId(), negocioId, new RecepcionLinea.Datos(
-                    ol.getId(), ol.getProductoId(), ol.getNombreSnapshot(), null, l.cantidad(),
-                    costo, ol.getDescuentoPct(), null, ol.getImpuestoPct(), regla.manejaLotes(),
+                    ol.getId(), ol.getProductoId(), ol.getNombreSnapshot(), codigo, l.cantidad(),
+                    costo, ol.getDescuentoPct(), producto == null ? null : producto.tarifaIva(),
+                    ol.getImpuestoPct(), regla.manejaLotes(),
                     regla.perecedero(), l.codigoLote(), l.fechaVencimiento(),
                     l.registroSanitario()), hoy));
         }
@@ -168,7 +192,9 @@ public class GestionDeRecepciones {
 
         recepciones.save(recepcion);
         recepcionLineas.saveAll(lineas);
-        return RecepcionDelNegocio.de(recepcion, lineas);
+        return proveedores.findByIdAndNegocioId(orden.getProveedorId(), negocioId)
+                .map(p -> RecepcionDelNegocio.de(recepcion, lineas, avisos(negocioId, p, recepcion)))
+                .orElseGet(() -> RecepcionDelNegocio.de(recepcion, lineas));
     }
 
     /**
@@ -250,9 +276,10 @@ public class GestionDeRecepciones {
         }
         if (recepcion.esCompraDirecta()) {
             proveedorParaComprar(negocioId, recepcion.getProveedorId());
-            exigirFacturaNoRegistrada(negocioId, recepcion.getProveedorId(),
-                    recepcion.getFacturaProveedor(), recepcionId, recepcion.esDeContado());
         }
+        // HU-175 C4 · la factura es única por proveedor también cuando llega contra una orden.
+        exigirFacturaNoRegistrada(negocioId, recepcion.getProveedorId(),
+                recepcion.getFacturaProveedor(), recepcionId, recepcion.esDeContado());
         recepcion.confirmar();
 
         List<RecepcionLinea> lineas = recepcionLineas.findByRecepcionId(recepcionId);
@@ -358,11 +385,17 @@ public class GestionDeRecepciones {
     /** HU-169 · Contado o crédito; de contado en efectivo desde la caja exige una caja abierta. */
     private void aplicarCondicionDePago(UUID negocioId, Recepcion recepcion,
             SolicitudDeCompraDirecta solicitud) {
-        CondicionDePago condicion = condicionDe(solicitud.condicionPago());
-        MetodoDePago metodo = solicitud.metodoPago() == null || solicitud.metodoPago().isBlank()
-                ? null : GestionDeCuentasPorPagar.metodoDe(solicitud.metodoPago());
-        boolean desdeLaCaja = Boolean.TRUE.equals(solicitud.pagarDesdeLaCaja());
-        recepcion.condicionDePago(condicion, metodo, desdeLaCaja, solicitud.referenciaPago());
+        aplicarCondicionDePago(negocioId, recepcion, solicitud.condicionPago(), solicitud.metodoPago(),
+                solicitud.pagarDesdeLaCaja(), solicitud.referenciaPago());
+    }
+
+    private void aplicarCondicionDePago(UUID negocioId, Recepcion recepcion, String condicionPago,
+            String metodoPago, Boolean pagarDesdeLaCaja, String referenciaPago) {
+        CondicionDePago condicion = condicionDe(condicionPago);
+        MetodoDePago metodo = metodoPago == null || metodoPago.isBlank()
+                ? null : GestionDeCuentasPorPagar.metodoDe(metodoPago);
+        boolean desdeLaCaja = Boolean.TRUE.equals(pagarDesdeLaCaja);
+        recepcion.condicionDePago(condicion, metodo, desdeLaCaja, referenciaPago);
         if (recepcion.isPagarDesdeLaCaja()) {
             sesionDelUsuario(negocioId);
         }
