@@ -75,6 +75,23 @@ public class Recepcion {
     @Column(nullable = false)
     private BigDecimal flete = BigDecimal.ZERO;
 
+    /** HU-169 · Contado o crédito (I23, I24). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "condicion_pago", nullable = false, length = 10)
+    private CondicionDePago condicionPago = CondicionDePago.CREDITO;
+
+    /** HU-169 · Con qué se paga una compra de contado. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "metodo_pago", length = 20)
+    private MetodoDePago metodoPago;
+
+    /** HU-169 / HU-145 · De contado en efectivo con la plata de la caja abierta del usuario. */
+    @Column(name = "pagar_desde_caja", nullable = false)
+    private boolean pagarDesdeLaCaja;
+
+    @Column(name = "referencia_pago", length = 60)
+    private String referenciaPago;
+
     /** HU-168 · Descuento a pie de factura; se reparte entre las líneas por su valor. */
     @Column(name = "descuento_global", nullable = false)
     private BigDecimal descuentoGlobal = BigDecimal.ZERO;
@@ -170,6 +187,32 @@ public class Recepcion {
         this.fechaFactura = fecha;
         this.flete = flete == null ? BigDecimal.ZERO : flete;
         this.observaciones = limpiar(observaciones);
+    }
+
+    /**
+     * HU-169 · Cómo se paga la factura. A crédito no lleva método. De contado el método es
+     * obligatorio, y solo el efectivo puede salir de la caja (I24, I29).
+     */
+    public void condicionDePago(CondicionDePago condicion, MetodoDePago metodo,
+            boolean desdeLaCaja, String referencia) {
+        exigirBorrador();
+        CondicionDePago c = condicion == null ? CondicionDePago.CREDITO : condicion;
+        if (c == CondicionDePago.CONTADO && metodo == null) {
+            throw new com.regenta.shared.web.ReglaDeNegocioException(
+                    "Indica con qué se pagó la compra de contado");
+        }
+        if (c == CondicionDePago.CONTADO && desdeLaCaja && metodo != MetodoDePago.EFECTIVO) {
+            throw new com.regenta.shared.web.ReglaDeNegocioException(
+                    "Solo un pago en efectivo sale de la caja");
+        }
+        this.condicionPago = c;
+        this.metodoPago = c == CondicionDePago.CONTADO ? metodo : null;
+        this.pagarDesdeLaCaja = c == CondicionDePago.CONTADO && desdeLaCaja;
+        this.referenciaPago = c == CondicionDePago.CONTADO ? limpiar(referencia) : null;
+    }
+
+    public boolean esDeContado() {
+        return condicionPago == CondicionDePago.CONTADO;
     }
 
     /** I17: una recepción confirmada o anulada no se edita (409). */
@@ -275,5 +318,21 @@ public class Recepcion {
 
     public BigDecimal getDescuentoGlobal() {
         return descuentoGlobal;
+    }
+
+    public CondicionDePago getCondicionPago() {
+        return condicionPago;
+    }
+
+    public MetodoDePago getMetodoPago() {
+        return metodoPago;
+    }
+
+    public boolean isPagarDesdeLaCaja() {
+        return pagarDesdeLaCaja;
+    }
+
+    public String getReferenciaPago() {
+        return referenciaPago;
     }
 }

@@ -82,6 +82,22 @@ class LineaEnEdicion {
 
 String _fecha(DateTime d) => d.toIso8601String().substring(0, 10);
 
+/// HU-169 · Cómo se paga la factura.
+enum CondicionDePago { credito, contado }
+
+/// HU-169 · Con qué se paga una compra de contado (los mismos que acepta el backend).
+enum MetodoDePagoDeCompra {
+  efectivo('EFECTIVO', 'Efectivo'),
+  transferencia('TRANSFERENCIA', 'Transferencia'),
+  cheque('CHEQUE', 'Cheque'),
+  tarjeta('TARJETA', 'Tarjeta');
+
+  const MetodoDePagoDeCompra(this.codigo, this.etiqueta);
+
+  final String codigo;
+  final String etiqueta;
+}
+
 /// El estado de la pantalla de compra directa (HU-167). Inmutable.
 class EstadoDeCompraDirecta {
   const EstadoDeCompraDirecta({
@@ -100,6 +116,11 @@ class EstadoDeCompraDirecta {
     this.guardando = false,
     this.error,
     this.borradorId,
+    this.condicion = CondicionDePago.credito,
+    this.metodo = MetodoDePagoDeCompra.efectivo,
+    this.desdeLaCaja = false,
+    this.referenciaPago = '',
+    this.cajaAbierta = false,
   });
 
   final List<ProveedorDelNegocio> proveedores;
@@ -121,6 +142,20 @@ class EstadoDeCompraDirecta {
 
   /// Si la confirmación falló, el borrador que quedó en el servidor: el reintento lo corrige.
   final String? borradorId;
+
+  /// HU-169 · Contado o crédito, y si es de contado, con qué y si sale de la caja.
+  final CondicionDePago condicion;
+  final MetodoDePagoDeCompra metodo;
+  final bool desdeLaCaja;
+  final String referenciaPago;
+
+  /// Si el usuario tiene una caja abierta: solo entonces se puede pagar con la plata de la caja.
+  final bool cajaAbierta;
+
+  bool get deContado => condicion == CondicionDePago.contado;
+
+  /// HU-145 C8 · «Pagar con dinero de la caja» solo aplica al efectivo de contado.
+  bool get puedePagarDesdeLaCaja => deContado && metodo == MetodoDePagoDeCompra.efectivo;
 
   ProveedorDelNegocio? get proveedor =>
       proveedores.where((p) => p.id == proveedorId).firstOrNull;
@@ -164,6 +199,10 @@ class EstadoDeCompraDirecta {
         'flete': flete,
         'descuentoGlobal': descuentoGlobal,
         'lineas': [for (final l in lineas) l.aJson()],
+        'condicionPago': deContado ? 'CONTADO' : 'CREDITO',
+        if (deContado) 'metodoPago': metodo.codigo,
+        if (deContado) 'pagarDesdeLaCaja': puedePagarDesdeLaCaja && desdeLaCaja,
+        if (deContado && referenciaPago.trim().isNotEmpty) 'referenciaPago': referenciaPago.trim(),
       };
 
   EstadoDeCompraDirecta copiar({
@@ -182,6 +221,11 @@ class EstadoDeCompraDirecta {
     bool? guardando,
     Object? error = _sin,
     Object? borradorId = _sin,
+    CondicionDePago? condicion,
+    MetodoDePagoDeCompra? metodo,
+    bool? desdeLaCaja,
+    String? referenciaPago,
+    bool? cajaAbierta,
   }) =>
       EstadoDeCompraDirecta(
         proveedores: proveedores ?? this.proveedores,
@@ -199,6 +243,11 @@ class EstadoDeCompraDirecta {
         guardando: guardando ?? this.guardando,
         error: identical(error, _sin) ? this.error : error as String?,
         borradorId: identical(borradorId, _sin) ? this.borradorId : borradorId as String?,
+        condicion: condicion ?? this.condicion,
+        metodo: metodo ?? this.metodo,
+        desdeLaCaja: desdeLaCaja ?? this.desdeLaCaja,
+        referenciaPago: referenciaPago ?? this.referenciaPago,
+        cajaAbierta: cajaAbierta ?? this.cajaAbierta,
       );
 
   static const _sin = Object();

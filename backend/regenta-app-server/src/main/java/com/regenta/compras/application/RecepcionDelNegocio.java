@@ -30,6 +30,12 @@ public record RecepcionDelNegocio(
         BigDecimal flete,
         BigDecimal total,
         String observaciones,
+        /** HU-169 · CONTADO o CREDITO, y con qué se pagó si fue de contado. */
+        String condicionPago,
+        String metodoPago,
+        boolean pagarDesdeLaCaja,
+        /** HU-169 C4 · Avisos que no impiden registrar (por ejemplo, que se supera el cupo). */
+        List<String> avisos,
         List<LineaRecibida> lineas) {
 
     public record LineaRecibida(
@@ -60,10 +66,15 @@ public record RecepcionDelNegocio(
     }
 
     static RecepcionDelNegocio de(Recepcion r, List<RecepcionLinea> lineas) {
+        return de(r, lineas, List.of());
+    }
+
+    static RecepcionDelNegocio de(Recepcion r, List<RecepcionLinea> lineas, List<String> avisos) {
         return new RecepcionDelNegocio(r.getId(), r.getNumero(), r.getOrdenId(),
                 r.esCompraDirecta(), r.getProveedorId(), r.getBodegaId(), r.getEstado().name(),
                 r.getFecha(), r.getFacturaProveedor(), r.getFechaFactura(), r.getSubtotal(),
                 r.getDescuentoGlobal(), r.getImpuestoTotal(), r.getFlete(), r.getTotal(), r.getObservaciones(),
-                lineas.stream().map(LineaRecibida::de).toList());
+                r.getCondicionPago().name(), r.getMetodoPago() == null ? null : r.getMetodoPago().name(),
+                r.isPagarDesdeLaCaja(), avisos, lineas.stream().map(LineaRecibida::de).toList());
     }
 }

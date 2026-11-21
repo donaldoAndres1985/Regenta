@@ -47,7 +47,7 @@ class _PantallaCompraDirectaState extends ConsumerState<PantallaCompraDirecta> {
       SnackBar(
         content: Text(
           'Compra ${hecha.numero} registrada por ${formatearPesos(hecha.total)}. '
-          'El inventario ya la tiene.',
+          'El inventario ya la tiene.${hecha.avisos.isEmpty ? '' : ' ${hecha.avisos.join(' ')}'}',
         ),
       ),
     );
@@ -158,6 +158,8 @@ class _PantallaCompraDirectaState extends ConsumerState<PantallaCompraDirecta> {
                             ),
                           ),
                           const SizedBox(height: 12),
+                          _Tarjeta(titulo: 'Pago', hijo: _Pago(estado: estado)),
+                          const SizedBox(height: 12),
                           _Totales(estado: estado),
                           const SizedBox(height: 12),
                           if (estado.error != null)
@@ -214,13 +216,18 @@ class _Tarjeta extends StatelessWidget {
         border: Border.all(color: RegentaColors.line),
         borderRadius: BorderRadius.circular(RegentaSpacing.radius),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(titulo.toUpperCase(), style: RegentaType.etiqueta.copyWith(fontSize: 10)),
-          const SizedBox(height: 10),
-          hijo,
-        ],
+      // Capa de Material propia: lo que se toca adentro (casillas, listas) muestra su efecto
+      // sobre la tarjeta, no debajo de su fondo.
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(titulo.toUpperCase(), style: RegentaType.etiqueta.copyWith(fontSize: 10)),
+            const SizedBox(height: 10),
+            hijo,
+          ],
+        ),
       ),
     );
   }
@@ -695,5 +702,83 @@ class _Totales extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// HU-169 · Crédito o contado. De contado: con qué se pagó y, si es efectivo, si sale de la caja
+/// abierta del usuario (HU-145 C8).
+class _Pago extends ConsumerWidget {
+  const _Pago({required this.estado});
+
+  final EstadoDeCompraDirecta estado;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ctrl = ref.read(controladorDeCompraDirectaProvider.notifier);
+    final proveedor = estado.proveedor;
+    final plazo = proveedor == null || proveedor.diasCredito == 0
+        ? 'Vence el mismo día de la factura'
+        : 'Vence a ${proveedor.diasCredito} días de la factura';
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      SegmentedButton<CondicionDePago>(
+        key: const Key('compra-condicion'),
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(value: CondicionDePago.credito, label: Text('A crédito'), icon: Icon(Icons.schedule)),
+          ButtonSegment(value: CondicionDePago.contado, label: Text('De contado'), icon: Icon(Icons.payments_outlined)),
+        ],
+        selected: {estado.condicion},
+        onSelectionChanged: (s) => ctrl.cambiarCondicion(s.first),
+      ),
+      const SizedBox(height: 10),
+      if (!estado.deContado)
+        Text('Nace una cuenta por pagar. $plazo.',
+            key: const Key('compra-plazo'),
+            style: RegentaType.cuerpo.copyWith(fontSize: 12.5, color: RegentaColors.ink2))
+      else ...[
+        _Celdas(ancho: 230, hijos: [
+          CampoConEtiqueta(
+            etiqueta: 'Pagado con',
+            hijo: DropdownButtonFormField<MetodoDePagoDeCompra>(
+              key: const Key('compra-metodo'),
+              initialValue: estado.metodo,
+              isExpanded: true,
+              decoration: decoracionDeCampo(),
+              items: [
+                for (final m in MetodoDePagoDeCompra.values) DropdownMenuItem(value: m, child: Text(m.etiqueta)),
+              ],
+              onChanged: (m) {
+                if (m != null) ctrl.cambiarMetodo(m);
+              },
+            ),
+          ),
+          if (estado.metodo != MetodoDePagoDeCompra.efectivo)
+            CampoConEtiqueta(
+              etiqueta: 'Referencia',
+              hijo: TextField(
+                key: const Key('compra-referencia-pago'),
+                onChanged: ctrl.cambiarReferenciaPago,
+                style: estiloDeCampo,
+                decoration: decoracionDeCampo(hint: 'Nº de transferencia o cheque'),
+              ),
+            ),
+        ]),
+        if (estado.puedePagarDesdeLaCaja)
+          CheckboxListTile(
+            key: const Key('compra-desde-la-caja'),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            value: estado.cajaAbierta && estado.desdeLaCaja,
+            onChanged: estado.cajaAbierta ? (v) => ctrl.cambiarDesdeLaCaja(v ?? false) : null,
+            title: const Text('Pagar con dinero de la caja'),
+            subtitle: Text(
+              estado.cajaAbierta
+                  ? 'La salida queda registrada sola en tu caja abierta.'
+                  : 'No tienes una caja abierta: se registra como pagado con dinero de fuera de la caja.',
+              style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.muted),
+            ),
+          ),
+      ],
+    ]);
   }
 }

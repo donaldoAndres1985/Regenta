@@ -10,6 +10,8 @@ class _RepoFake implements RepositorioDeCompraDirecta {
   final List<String?> borradores = [];
   ErrorDeApi? fallaAlCrear;
   ErrorDeApi? fallaAlConfirmar;
+  bool cajaAbierta = true;
+  List<String> avisos = const [];
 
   static const andina = ProveedorDelNegocio(
       id: 'p-1', numeroDocumento: '900123456', razonSocial: 'Distribuidora Andina SAS', diasCredito: 30);
@@ -39,6 +41,9 @@ class _RepoFake implements RepositorioDeCompraDirecta {
       ];
 
   @override
+  Future<bool> tengoCajaAbierta() async => cajaAbierta;
+
+  @override
   Future<ProductoParaComprar> paraComprar(String proveedorId, String productoId) async =>
       productos[productoId]!;
 
@@ -52,14 +57,15 @@ class _RepoFake implements RepositorioDeCompraDirecta {
       fallaAlConfirmar = null;
       throw ConfirmacionFallida('rec-borrador', causa);
     }
-    return const CompraRegistrada(numero: 'REC-7', total: 248000);
+    return CompraRegistrada(numero: 'REC-7', total: 248000, avisos: avisos);
   }
 }
 
-Future<_RepoFake> _montar(WidgetTester tester, {Size tamano = const Size(1440, 1400)}) async {
+Future<_RepoFake> _montar(WidgetTester tester,
+    {Size tamano = const Size(1440, 1600), bool cajaAbierta = true}) async {
   await tester.binding.setSurfaceSize(tamano);
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  final repo = _RepoFake();
+  final repo = _RepoFake()..cajaAbierta = cajaAbierta;
   await tester.pumpWidget(ProviderScope(
     overrides: [repositorioDeCompraDirectaProvider.overrideWithValue(repo)],
     child: const MaterialApp(home: PantallaCompraDirecta()),
@@ -243,5 +249,97 @@ void main() {
     await tester.tap(find.byKey(const Key('compra-registrar')));
     await tester.pumpAndSettle();
     expect(repo.enviadas.single['descuentoGlobal'], 4000);
+  });
+
+  // ------------------------------------------------------------------ HU-169 · contado o crédito
+
+  Future<void> deContado(WidgetTester tester) async {
+    await tester.tap(find.text('De contado'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('HU-169 C1 · Con un proveedor de 30 días la compra va a crédito y dice cuándo vence', (tester) async {
+    final repo = await _montar(tester);
+    await _facturaDeReferencia(tester);
+
+    expect(find.text('Nace una cuenta por pagar. Vence a 30 días de la factura.'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('compra-registrar')));
+    await tester.pumpAndSettle();
+
+    final enviada = repo.enviadas.single;
+    expect(enviada['condicionPago'], 'CREDITO');
+    expect(enviada.containsKey('metodoPago'), isFalse);
+  });
+
+  testWidgets('HU-169 C2 / HU-145 C8 · De contado en efectivo con la caja abierta: «Pagar con dinero de la caja»',
+      (tester) async {
+    final repo = await _montar(tester);
+    await _facturaDeReferencia(tester);
+    await deContado(tester);
+
+    final casilla = tester.widget<CheckboxListTile>(find.byKey(const Key('compra-desde-la-caja')));
+    expect(casilla.value, isTrue, reason: 'con la caja abierta, el efectivo sale de ella por omisión');
+    await tester.tap(find.byKey(const Key('compra-registrar')));
+    await tester.pumpAndSettle();
+
+    final enviada = repo.enviadas.single;
+    expect(enviada['condicionPago'], 'CONTADO');
+    expect(enviada['metodoPago'], 'EFECTIVO');
+    expect(enviada['pagarDesdeLaCaja'], isTrue);
+  });
+
+  testWidgets('HU-169 C3 · De contado por transferencia: sin casilla de caja y con referencia', (tester) async {
+    final repo = await _montar(tester);
+    await _facturaDeReferencia(tester);
+    await deContado(tester);
+    await tester.tap(find.byKey(const Key('compra-metodo')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Transferencia').last);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('compra-desde-la-caja')), findsNothing);
+    await tester.enterText(find.byKey(const Key('compra-referencia-pago')), 'TRX-55');
+    await tester.tap(find.byKey(const Key('compra-registrar')));
+    await tester.pumpAndSettle();
+
+    final enviada = repo.enviadas.single;
+    expect(enviada['metodoPago'], 'TRANSFERENCIA');
+    expect(enviada['pagarDesdeLaCaja'], isFalse);
+    expect(enviada['referenciaPago'], 'TRX-55');
+  });
+
+  testWidgets('HU-145 C3 · Sin caja abierta, el efectivo de contado se registra como pagado por fuera', (tester) async {
+    final repo = await _montar(tester, cajaAbierta: false);
+    await _facturaDeReferencia(tester);
+    await deContado(tester);
+
+    final casilla = tester.widget<CheckboxListTile>(find.byKey(const Key('compra-desde-la-caja')));
+    expect(casilla.onChanged, isNull);
+    expect(find.textContaining('No tienes una caja abierta'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('compra-registrar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.enviadas.single['pagarDesdeLaCaja'], isFalse);
+  });
+
+  testWidgets('HU-169 C4 · Si la compra supera el cupo, se avisa y queda registrada', (tester) async {
+    final repo = await _montar(tester);
+    repo.avisos = const ['Esta compra supera el cupo del proveedor.'];
+    await _facturaDeReferencia(tester);
+
+    await tester.tap(find.byKey(const Key('compra-registrar')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Compra REC-7 registrada'), findsOneWidget);
+    expect(find.textContaining('Esta compra supera el cupo del proveedor.'), findsOneWidget);
+  });
+
+  testWidgets('HU-169 · En el celular la sección de pago cabe sin desbordarse', (tester) async {
+    await _montar(tester, tamano: const Size(390, 2800));
+    await _facturaDeReferencia(tester);
+    await deContado(tester);
+
+    expect(find.byKey(const Key('compra-desde-la-caja')), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

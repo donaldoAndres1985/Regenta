@@ -53,7 +53,8 @@ class RecepcionConReglaDelCatalogoTest {
             recepcionLineas, ordenes, ordenLineas, mock(CuentaPorPagarRepositorio.class),
             mock(ProveedorRepositorio.class),
             mock(com.regenta.compras.infrastructure.ProveedorProductoRepositorio.class),
-            consecutivos, mock(RegistroDeEventos.class), inventario, null);
+            consecutivos, mock(RegistroDeEventos.class), inventario, null,
+            mock(GestionDeCuentasPorPagar.class), mock(com.regenta.caja.api.CajaApi.class));
 
     private final UUID negocioId = UUID.randomUUID();
     private final UUID productoId = UUID.randomUUID();

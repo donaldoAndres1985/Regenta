@@ -60,6 +60,13 @@ public class SesionesDeCajaControlador {
         return sesiones.activaDe(cajaId);
     }
 
+    @GetMapping("/mia")
+    @Operation(summary = "La sesión de caja que tiene abierta el usuario, si la tiene")
+    @ApiResponse(responseCode = "404", description = "El usuario no tiene una caja abierta")
+    public SesionDelNegocio mia() {
+        return sesiones.mia();
+    }
+
     @GetMapping("/{sesionId}")
     @Operation(summary = "Una sesión de caja con su arqueo")
     public SesionDelNegocio ver(@PathVariable UUID sesionId) {
