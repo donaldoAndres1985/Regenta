@@ -1,5 +1,6 @@
 import '../datos/orden_recibible.dart';
 import 'entrada_de_linea.dart';
+import 'factura_de_recepcion.dart';
 
 /// El estado de la pantalla de recepción móvil: la orden, lo capturado por
 /// línea, en qué línea está el foco, y el resultado del registro.
@@ -13,6 +14,7 @@ class EstadoDeRecepcion {
     this.mensaje,
     this.numeroRecepcion,
     this.encolada = false,
+    this.factura = const FacturaDeRecepcion(),
   });
 
   final OrdenRecibible? orden;
@@ -29,6 +31,9 @@ class EstadoDeRecepcion {
 
   /// La recepción se guardó sin señal y subirá después (criterio 4).
   final bool encolada;
+
+  /// HU-175 · La factura con que llega (número, flete, contado o crédito).
+  final FacturaDeRecepcion factura;
 
   List<LineaRecibible> get lineas => orden?.lineas ?? const [];
 
@@ -54,7 +59,7 @@ class EstadoDeRecepcion {
       final p = entradaDe(l.id).problema(l);
       if (p != null) return p;
     }
-    return null;
+    return factura.problema;
   }
 
   bool get puedeConfirmar =>
@@ -69,6 +74,7 @@ class EstadoDeRecepcion {
     Object? mensaje = _sinCambio,
     Object? numeroRecepcion = _sinCambio,
     bool? encolada,
+    FacturaDeRecepcion? factura,
   }) =>
       EstadoDeRecepcion(
         orden: orden == _sinCambio ? this.orden : orden as OrdenRecibible?,
@@ -81,6 +87,7 @@ class EstadoDeRecepcion {
             ? this.numeroRecepcion
             : numeroRecepcion as String?,
         encolada: encolada ?? this.encolada,
+        factura: factura ?? this.factura,
       );
 
   static const _sinCambio = Object();

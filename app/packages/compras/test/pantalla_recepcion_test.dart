@@ -8,6 +8,7 @@ class _RepoFake implements RepositorioDeRecepciones {
 
   bool sinRed;
   final List<List<LineaParaRecibir>> registradas = [];
+  final List<FacturaDeRecepcion?> facturas = [];
 
   OrdenRecibible orden = OrdenRecibible(
     id: 'oc-1',
@@ -52,9 +53,11 @@ class _RepoFake implements RepositorioDeRecepciones {
     required String ordenId,
     required String bodegaId,
     String? facturaProveedor,
+    FacturaDeRecepcion? factura,
     required List<LineaParaRecibir> lineas,
   }) async {
     registradas.add(lineas);
+    facturas.add(factura);
     if (sinRed) return const ResultadoDeRecepcion.encolada();
     return const ResultadoDeRecepcion.confirmada('REC-1');
   }
@@ -216,5 +219,83 @@ void main() {
     final boton = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Confirmar recepción'));
     expect(boton.onPressed, isNull);
+  });
+
+  group('HU-175 · Recibir contra orden desde la web', () {
+    _RepoFake soloGasa() => _RepoFake()
+      ..orden = const OrdenRecibible(
+        id: 'oc-1',
+        numero: 'OC-0231',
+        proveedorId: 'prov-1',
+        bodegaId: 'bod-1',
+        estado: 'ENVIADA',
+        lineas: [
+          LineaRecibible(
+            id: 'l2', linea: 1, productoId: 'p-gas', nombre: 'Gasa estéril 10x10', cantidadPedida: 200,
+            cantidadRecibida: 0, costoUnitario: 1150, codigo: 'GAS-01', impuestoPct: 19,
+          ),
+        ],
+      );
+
+    testWidgets('C4 · La factura se registra como en la compra directa: número, flete y de contado desde la caja',
+        (tester) async {
+      final repo = soloGasa();
+      await _montar(tester, repo, size: const Size(1280, 1000));
+
+      await tester.enterText(find.byKey(const Key('recepcion-numero-factura')), 'FV-100');
+      await tester.enterText(find.byKey(const Key('recepcion-flete')), '10000');
+      await tester.enterText(find.byKey(const Key('campo-recibido')), '200');
+      await tester.tap(find.text('De contado'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('recepcion-desde-la-caja')));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<Text>(find.byKey(const Key('recepcion-subtotal'))).data, '\$230.000');
+      expect(tester.widget<Text>(find.byKey(const Key('recepcion-iva'))).data, '\$43.700');
+      expect(tester.widget<Text>(find.byKey(const Key('recepcion-total'))).data, '\$283.700');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar recepción'));
+      await tester.pumpAndSettle();
+
+      expect(repo.facturas.single!.aJson(), {
+        'facturaProveedor': 'FV-100',
+        'flete': 10000,
+        'condicionPago': 'CONTADO',
+        'metodoPago': 'EFECTIVO',
+        'pagarDesdeLaCaja': true,
+      });
+    });
+
+    testWidgets('C4 · A crédito y sin número (llegó con remisión) se puede confirmar', (tester) async {
+      final repo = soloGasa();
+      await _montar(tester, repo, size: const Size(1280, 1000));
+
+      await tester.enterText(find.byKey(const Key('campo-recibido')), '60');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar recepción'));
+      await tester.pumpAndSettle();
+
+      expect(repo.facturas.single!.aJson(), {'condicionPago': 'CREDITO'});
+      expect(repo.registradas.single.single.cantidad, 60);
+    });
+
+    testWidgets('C4 · De contado sin número de factura no deja confirmar y lo dice', (tester) async {
+      await _montar(tester, soloGasa(), size: const Size(1280, 1000));
+
+      await tester.enterText(find.byKey(const Key('campo-recibido')), '60');
+      await tester.tap(find.text('De contado'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('recepcion-factura-problema')), findsOneWidget);
+      final boton = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Confirmar recepción'));
+      expect(boton.onPressed, isNull);
+    });
+
+    testWidgets('En el celular la factura no ocupa la pantalla: se recibe línea por línea', (tester) async {
+      await _montar(tester, soloGasa());
+
+      expect(find.byKey(const Key('recepcion-factura')), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

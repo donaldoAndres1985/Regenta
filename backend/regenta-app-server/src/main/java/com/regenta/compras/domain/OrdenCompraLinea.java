@@ -135,6 +135,15 @@ public class OrdenCompraLinea {
         if (cantidad == null || cantidad.signum() <= 0) {
             throw new ReglaDeNegocioException("La cantidad recibida debe ser mayor que cero");
         }
+        exigirDentroDeLaTolerancia(cantidad, toleranciaPct);
+        this.cantidadRecibida = cantidadRecibida.add(cantidad);
+    }
+
+    /**
+     * HU-175 C5 · Si recibir {@code cantidad} más lo ya recibido pasa lo pedido con la tolerancia, 422.
+     * No cambia nada: sirve para rechazar la recepción entera antes de guardarla.
+     */
+    public void exigirDentroDeLaTolerancia(BigDecimal cantidad, BigDecimal toleranciaPct) {
         BigDecimal acumulada = cantidadRecibida.add(cantidad);
         BigDecimal tope = topeConTolerancia(toleranciaPct);
         if (acumulada.compareTo(tope) > 0) {
@@ -143,7 +152,6 @@ public class OrdenCompraLinea {
                     + toleranciaPct.stripTrailingZeros().toPlainString() + " % es "
                     + tope.stripTrailingZeros().toPlainString());
         }
-        this.cantidadRecibida = acumulada;
     }
 
     /** Recibida al menos toda la cantidad pedida (sin exigir la tolerancia). */

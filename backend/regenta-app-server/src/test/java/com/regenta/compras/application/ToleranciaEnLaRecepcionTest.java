@@ -118,12 +118,11 @@ class ToleranciaEnLaRecepcionTest {
     }
 
     @Test
-    @DisplayName("HU-173 C4 · Con tolerancia 0 %, confirmar 101 de 100 pedidas se rechaza")
+    @DisplayName("HU-173 C4 · Con tolerancia 0 %, recibir 101 de 100 pedidas se rechaza")
     void ceroPorCiento() {
         tolerancia("0");
-        UUID recepcion = recibir("101");
 
-        assertThatThrownBy(() -> gestion.confirmar(recepcion, null))
+        assertThatThrownBy(() -> recibir("101"))
                 .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessageContaining("tolerancia de 0 %");
     }
@@ -143,9 +142,8 @@ class ToleranciaEnLaRecepcionTest {
     @DisplayName("HU-173 C1 · Sin configuración guardada, la tolerancia es 5 %: 105 sí, 106 no")
     void porOmisionCincoPorCiento() {
         when(configuraciones.findById(negocioId)).thenReturn(Optional.empty());
-        UUID recepcion = recibir("106");
 
-        assertThatThrownBy(() -> gestion.confirmar(recepcion, null))
+        assertThatThrownBy(() -> recibir("106"))
                 .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessageContaining("tolerancia de 5 %");
     }

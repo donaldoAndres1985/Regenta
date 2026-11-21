@@ -2,6 +2,7 @@ import 'package:regenta_core/regenta_core.dart';
 
 import 'orden_recibible.dart';
 import 'orden_resumen_vista.dart';
+import '../recepcion/factura_de_recepcion.dart';
 
 /// Una línea que se va a mandar al backend al registrar la recepción.
 class LineaParaRecibir {
@@ -74,6 +75,7 @@ class RepositorioDeRecepciones {
     required String ordenId,
     required String bodegaId,
     String? facturaProveedor,
+    FacturaDeRecepcion? factura,
     required List<LineaParaRecibir> lineas,
   }) async {
     final creada = await _http.post<Map<String, dynamic>>(
@@ -84,6 +86,7 @@ class RepositorioDeRecepciones {
         'bodegaId': bodegaId,
         if (facturaProveedor != null && facturaProveedor.isNotEmpty)
           'facturaProveedor': facturaProveedor,
+        ...?factura?.aJson(),
         'lineas': [for (final l in lineas) l.aJson()],
       },
     );

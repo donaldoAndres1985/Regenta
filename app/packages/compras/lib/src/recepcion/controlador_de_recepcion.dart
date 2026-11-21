@@ -4,6 +4,7 @@ import 'package:regenta_core/regenta_core.dart';
 import '../datos/repositorio_de_recepciones.dart';
 import 'entrada_de_linea.dart';
 import 'estado_de_recepcion.dart';
+import 'factura_de_recepcion.dart';
 
 /// La recepción móvil de una orden (HU-051). Carga la orden, deja capturar por
 /// línea lo recibido —y el lote donde la categoría lo exige (criterio 2)—,
@@ -71,6 +72,10 @@ class ControladorDeRecepcion extends StateNotifier<EstadoDeRecepcion> {
     state = state.copiar(entradas: entradas, mensaje: null);
   }
 
+  /// HU-175 · Los datos de la factura del proveedor.
+  void fijarFactura(FacturaDeRecepcion factura) =>
+      state = state.copiar(factura: factura, mensaje: null);
+
   Future<void> confirmar() async {
     final orden = state.orden;
     if (orden == null || !state.puedeConfirmar) {
@@ -94,6 +99,7 @@ class ControladorDeRecepcion extends StateNotifier<EstadoDeRecepcion> {
       final resultado = await _repo.registrar(
         ordenId: orden.id,
         bodegaId: orden.bodegaId,
+        factura: state.factura,
         lineas: lineas,
       );
       if (resultado.encolada) {
