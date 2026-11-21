@@ -36,6 +36,14 @@ public record OrdenDelNegocio(
         /** HU-173 · Confirmada, esperando que alguien con permiso la apruebe. */
         boolean esperaAprobacion,
         String observaciones,
+        /** HU-176 · Quién, cuándo y por qué se anuló; nulos si no. */
+        UUID anuladaPor,
+        OffsetDateTime anuladaEn,
+        String motivoAnulacion,
+        /** HU-176 · Quién, cuándo y por qué se cerró con faltante; nulos si no. */
+        UUID cerradaPor,
+        OffsetDateTime cerradaEn,
+        String motivoCierre,
         List<LineaDeOrden> lineas) {
 
     public record LineaDeOrden(
@@ -71,7 +79,8 @@ public record OrdenDelNegocio(
                 o.getBodegaDestinoId(), o.getEstado().name(), o.getFechaEmision(), o.getFechaEsperada(),
                 o.getSubtotal(), o.getDescuentoTotal(), o.getImpuestoTotal(), o.getFlete(), o.getTotal(),
                 o.getAprobadoPor(), o.getAprobadoEn(), o.isAprobacionAutomatica(), o.esperaAprobacion(),
-                o.getObservaciones(),
+                o.getObservaciones(), o.getAnuladaPor(), o.getAnuladaEn(), o.getMotivoAnulacion(),
+                o.getCerradaPor(), o.getCerradaEn(), o.getMotivoCierre(),
                 lineas.stream().map(l -> LineaDeOrden.de(l, codigosDelProveedor.get(l.getProductoId()))).toList());
     }
 }

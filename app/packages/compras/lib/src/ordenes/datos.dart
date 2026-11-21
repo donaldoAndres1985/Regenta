@@ -73,6 +73,10 @@ class OrdenDeCompraVista {
     this.observaciones,
     this.aprobacionAutomatica = false,
     this.esperaAprobacion = false,
+    this.motivoAnulacion,
+    this.anuladaEn,
+    this.motivoCierre,
+    this.cerradaEn,
     this.lineas = const [],
   });
 
@@ -91,6 +95,12 @@ class OrdenDeCompraVista {
   final String? observaciones;
   final bool aprobacionAutomatica;
   final bool esperaAprobacion;
+
+  /// HU-176 · Por qué y cuándo se anuló o se cerró con faltante.
+  final String? motivoAnulacion;
+  final DateTime? anuladaEn;
+  final String? motivoCierre;
+  final DateTime? cerradaEn;
   final List<LineaDeOrdenVista> lineas;
 
   String get estadoVisible => esperaAprobacion ? 'Por aprobar' : (estadosDeOrden[estado] ?? estado);
@@ -99,6 +109,14 @@ class OrdenDeCompraVista {
 
   /// Se le puede mandar al proveedor y recibir: ya está aprobada y no se cerró.
   bool get enCurso => estado == 'APROBADA' || estado == 'ENVIADA' || estado == 'PARCIAL';
+
+  /// HU-176 C1 · Se anula mientras no haya recibido nada.
+  bool get anulable =>
+      (estado == 'BORRADOR' || estado == 'APROBADA' || estado == 'ENVIADA') &&
+      lineas.every((l) => l.cantidadRecibida == 0);
+
+  /// HU-176 C3 · Llegó en parte: se cierra con lo que faltó.
+  bool get cerrable => estado == 'PARCIAL';
 
   static DateTime? _fecha(Object? v) => v == null ? null : DateTime.tryParse(v as String);
 
@@ -118,6 +136,10 @@ class OrdenDeCompraVista {
         observaciones: j['observaciones'] as String?,
         aprobacionAutomatica: (j['aprobacionAutomatica'] as bool?) ?? false,
         esperaAprobacion: (j['esperaAprobacion'] as bool?) ?? false,
+        motivoAnulacion: j['motivoAnulacion'] as String?,
+        anuladaEn: _fecha(j['anuladaEn']),
+        motivoCierre: j['motivoCierre'] as String?,
+        cerradaEn: _fecha(j['cerradaEn']),
         lineas: [
           for (final l in (j['lineas'] as List<dynamic>? ?? const []))
             LineaDeOrdenVista.desdeJson((l as Map).cast<String, dynamic>()),
@@ -156,6 +178,14 @@ class RepositorioDeOrdenes {
 
   /// HU-174 C4 · Marca la orden como enviada al proveedor.
   Future<OrdenDeCompraVista> enviar(String id) async => _leer(await _http.post<dynamic>('$_base/$id/envio'));
+
+  /// HU-176 · Anular una orden que no va (sin mercancía recibida).
+  Future<OrdenDeCompraVista> anular(String id, String motivo) async =>
+      _leer(await _http.post<dynamic>('$_base/$id/anulacion', datos: {'motivo': motivo}));
+
+  /// HU-176 · Cerrar con faltante una orden recibida en parte.
+  Future<OrdenDeCompraVista> cerrar(String id, String motivo) async =>
+      _leer(await _http.post<dynamic>('$_base/$id/cierre', datos: {'motivo': motivo}));
 
   /// HU-174 C4 · El PDF de la orden para el proveedor.
   Future<List<int>> pdf(String id) => _http.bytes('GET', '$_base/$id/pdf');

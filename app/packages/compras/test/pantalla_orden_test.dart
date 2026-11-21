@@ -159,6 +159,68 @@ void main() {
     expect(linea.containsKey('impuestoPct'), isFalse, reason: 'la tarifa la decide el backend');
   });
 
+  group('HU-176 · Anular o cerrar con faltante', () {
+    const sinRecibir = LineaDeOrdenVista(
+      productoId: 'cem', nombre: 'Cemento gris 50 kg', cantidadPedida: 100, cantidadRecibida: 0, faltante: 100,
+      costoUnitario: 30000, impuestoPct: 19, total: 3570000,
+    );
+
+    testWidgets('C1 · Una orden enviada sin recepciones se anula con motivo', (tester) async {
+      final (repo, _) = await _detalle(tester, orden('a', 'OC-1', 'ENVIADA', lineas: const [sinRecibir]));
+      expect(find.byKey(const Key('detalle-cerrar')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('detalle-anular')));
+      await tester.pumpAndSettle();
+      final confirmar = find.byKey(const Key('motivo-confirmar'));
+      expect(tester.widget<FilledButton>(confirmar).onPressed, isNull, reason: 'sin motivo no se anula');
+      await tester.enterText(find.byKey(const Key('motivo-fin')), 'El proveedor no tiene');
+      await tester.pump();
+      await tester.tap(confirmar);
+      await tester.pumpAndSettle();
+
+      expect(repo.motivos, ['El proveedor no tiene']);
+      expect(find.text('ANULADA'), findsOneWidget);
+      expect(find.textContaining('El proveedor no tiene'), findsOneWidget);
+      expect(find.byKey(const Key('detalle-anular')), findsNothing);
+      expect(find.byKey(const Key('detalle-recibir')), findsNothing);
+    });
+
+    testWidgets('C2 · Con mercancía recibida no se ofrece anular; C3 · se cierra con faltante y el faltante sigue',
+        (tester) async {
+      final (repo, _) = await _detalle(tester, orden('a', 'OC-1', 'PARCIAL', lineas: const [_cemento]),
+          onRecibir: (_) {});
+      expect(find.byKey(const Key('detalle-anular')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('detalle-cerrar')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('motivo-fin')), 'El resto no llegará');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('motivo-confirmar')));
+      await tester.pumpAndSettle();
+
+      expect(repo.motivos, ['El resto no llegará']);
+      expect(find.text('CERRADA'), findsOneWidget);
+      expect(find.text('faltan 40'), findsOneWidget);
+      expect(find.byKey(const Key('detalle-recibir')), findsNothing);
+      expect(find.byKey(const Key('detalle-cerrar')), findsNothing);
+    });
+
+    testWidgets('C4 · Sin permiso, se avisa y la orden no cambia', (tester) async {
+      final (repo, _) = await _detalle(tester, orden('a', 'OC-1', 'PARCIAL', lineas: const [_cemento]));
+      repo.falla = const SinPermiso('Sin permiso');
+
+      await tester.tap(find.byKey(const Key('detalle-cerrar')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('motivo-fin')), 'No llega');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('motivo-confirmar')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No tienes permiso para hacer esto con la orden.'), findsOneWidget);
+      expect(find.text('PARCIAL'), findsOneWidget);
+    });
+  });
+
   testWidgets('HU-174 · En el celular el detalle cabe sin desbordarse', (tester) async {
     await _detalle(tester, orden('a', 'OC-1', 'APROBADA', lineas: const [_cemento]), tamano: const Size(390, 844));
 

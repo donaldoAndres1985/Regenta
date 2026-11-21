@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.regenta.compras.application.FinDeOrdenesDeCompra;
 import com.regenta.compras.application.GestionDeOrdenesDeCompra;
 import com.regenta.compras.application.OrdenDelNegocio;
+import com.regenta.compras.application.SolicitudDeFinDeOrden;
 import com.regenta.compras.application.SolicitudDeOrden;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,9 +33,11 @@ import jakarta.validation.Valid;
 public class OrdenesDeCompraControlador {
 
     private final GestionDeOrdenesDeCompra ordenes;
+    private final FinDeOrdenesDeCompra fin;
 
-    public OrdenesDeCompraControlador(GestionDeOrdenesDeCompra ordenes) {
+    public OrdenesDeCompraControlador(GestionDeOrdenesDeCompra ordenes, FinDeOrdenesDeCompra fin) {
         this.ordenes = ordenes;
+        this.fin = fin;
     }
 
     @GetMapping
@@ -97,5 +101,28 @@ public class OrdenesDeCompraControlador {
     @ApiResponse(responseCode = "409", description = "La orden no estÃ¡ aprobada")
     public OrdenDelNegocio enviar(@PathVariable UUID ordenId) {
         return ordenes.enviar(ordenId);
+    }
+
+    @PostMapping("/{ordenId}/anulacion")
+    @Operation(summary = "Anula una orden que no va (HU-176)",
+            description = "Con motivo; queda quién y cuándo. Solo si no ha recibido mercancía.")
+    @ApiResponse(responseCode = "403", description = "Sin el permiso COMPRAS_COMPRA_ANULAR")
+    @ApiResponse(responseCode = "409", description = "Ya recibió mercancía (se cierra con faltante) "
+            + "o ya está anulada, cerrada o recibida")
+    @ApiResponse(responseCode = "422", description = "Falta el motivo")
+    public OrdenDelNegocio anular(@PathVariable UUID ordenId,
+            @Valid @RequestBody SolicitudDeFinDeOrden solicitud) {
+        return fin.anular(ordenId, solicitud);
+    }
+
+    @PostMapping("/{ordenId}/cierre")
+    @Operation(summary = "Cierra con faltante una orden recibida en parte (HU-176)",
+            description = "Con motivo; no admite más recepciones y lo que faltó sigue en sus líneas.")
+    @ApiResponse(responseCode = "403", description = "Sin el permiso COMPRAS_COMPRA_ANULAR")
+    @ApiResponse(responseCode = "409", description = "La orden no está PARCIAL")
+    @ApiResponse(responseCode = "422", description = "Falta el motivo")
+    public OrdenDelNegocio cerrar(@PathVariable UUID ordenId,
+            @Valid @RequestBody SolicitudDeFinDeOrden solicitud) {
+        return fin.cerrar(ordenId, solicitud);
     }
 }
