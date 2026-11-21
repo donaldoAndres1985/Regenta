@@ -120,8 +120,10 @@ public class OrdenCompraLinea {
     }
 
     /** El máximo que se puede recibir de esta línea: lo pedido + 5% de tolerancia. */
-    public BigDecimal topeConTolerancia() {
-        return cantidadPedida.multiply(new BigDecimal("1.05"));
+    /** HU-173 · I15: lo pedido más la tolerancia del negocio (0 % = no se acepta exceso). */
+    public BigDecimal topeConTolerancia(BigDecimal toleranciaPct) {
+        BigDecimal pct = toleranciaPct == null ? BigDecimal.ZERO : toleranciaPct;
+        return cantidadPedida.multiply(BigDecimal.ONE.add(pct.movePointLeft(2)));
     }
 
     /**
@@ -129,14 +131,17 @@ public class OrdenCompraLinea {
      * pedido más el 5% se rechaza — 422 (criterio 4); el CHECK
      * {@code ck_recibida_oc} lo vuelve a cortar en la base.
      */
-    public void recibir(BigDecimal cantidad) {
+    public void recibir(BigDecimal cantidad, BigDecimal toleranciaPct) {
         if (cantidad == null || cantidad.signum() <= 0) {
             throw new ReglaDeNegocioException("La cantidad recibida debe ser mayor que cero");
         }
         BigDecimal acumulada = cantidadRecibida.add(cantidad);
-        if (acumulada.compareTo(topeConTolerancia()) > 0) {
-            throw new ReglaDeNegocioException("La línea " + linea + " recibe " + acumulada
-                    + " y lo pedido con tolerancia es " + topeConTolerancia());
+        BigDecimal tope = topeConTolerancia(toleranciaPct);
+        if (acumulada.compareTo(tope) > 0) {
+            throw new ReglaDeNegocioException("La línea " + linea + " recibe "
+                    + acumulada.stripTrailingZeros().toPlainString() + " y lo pedido con la tolerancia de "
+                    + toleranciaPct.stripTrailingZeros().toPlainString() + " % es "
+                    + tope.stripTrailingZeros().toPlainString());
         }
         this.cantidadRecibida = acumulada;
     }

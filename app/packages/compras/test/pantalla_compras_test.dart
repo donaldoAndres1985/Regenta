@@ -161,6 +161,7 @@ void main() {
           onCompraDirecta: () {},
           onProveedores: () {},
           onCuentasPorPagar: () {},
+          onConfiguracion: () {},
         ),
       ),
     ));
@@ -169,6 +170,7 @@ void main() {
     expect(find.byTooltip('Compra directa'), findsOneWidget);
     expect(find.byTooltip('Proveedores'), findsOneWidget);
     expect(find.byTooltip('Cuentas por pagar'), findsOneWidget);
+    expect(find.byTooltip('Configuración de compras'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

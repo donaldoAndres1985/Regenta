@@ -64,6 +64,14 @@ public class OrdenesDeCompraControlador {
         return ordenes.editarLineas(ordenId, lineas);
     }
 
+    @PostMapping("/{ordenId}/confirmacion")
+    @Operation(summary = "Confirma la orden (HU-173): se aprueba sola si el negocio no exige aprobación "
+            + "para ese monto; si la exige, queda esperando aprobación")
+    @ApiResponse(responseCode = "409", description = "La orden no está en borrador o no tiene líneas")
+    public OrdenDelNegocio confirmar(@PathVariable UUID ordenId) {
+        return ordenes.confirmar(ordenId);
+    }
+
     @PostMapping("/{ordenId}/aprobacion")
     @Operation(summary = "Aprueba la orden: queda quiÃ©n aprobÃ³ y cuÃ¡ndo")
     @ApiResponse(responseCode = "403", description = "Falta COMPRAS_COMPRA_APROBAR")

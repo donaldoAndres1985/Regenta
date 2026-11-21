@@ -8,6 +8,7 @@ export 'src/compra_directa/controlador.dart';
 export 'src/compra_directa/datos.dart';
 export 'src/compra_directa/estado.dart';
 export 'src/compra_directa/pantalla_compra_directa.dart';
+export 'src/configuracion/configuracion_de_compras.dart';
 export 'src/cuentas/controlador.dart';
 export 'src/cuentas/datos.dart';
 export 'src/cuentas/dialogo_de_pago.dart';

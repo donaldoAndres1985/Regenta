@@ -25,6 +25,10 @@ public record OrdenDelNegocio(
         BigDecimal total,
         UUID aprobadoPor,
         OffsetDateTime aprobadoEn,
+        /** HU-173 · Se aprobó sola al confirmarla. */
+        boolean aprobacionAutomatica,
+        /** HU-173 · Confirmada, esperando que alguien con permiso la apruebe. */
+        boolean esperaAprobacion,
         String observaciones,
         List<LineaDeOrden> lineas) {
 
@@ -55,7 +59,7 @@ public record OrdenDelNegocio(
                 o.getBodegaDestinoId(), o.getEstado().name(), o.getFechaEmision(),
                 o.getFechaEsperada(), o.getSubtotal(), o.getDescuentoTotal(),
                 o.getImpuestoTotal(), o.getFlete(), o.getTotal(), o.getAprobadoPor(),
-                o.getAprobadoEn(), o.getObservaciones(),
+                o.getAprobadoEn(), o.isAprobacionAutomatica(), o.esperaAprobacion(), o.getObservaciones(),
                 lineas.stream().map(LineaDeOrden::de).toList());
     }
 }
