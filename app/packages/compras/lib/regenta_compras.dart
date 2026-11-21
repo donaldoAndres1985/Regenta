@@ -7,6 +7,7 @@ import 'package:regenta_core/regenta_core.dart';
 export 'src/compra_directa/controlador.dart';
 export 'src/compra_directa/datos.dart';
 export 'src/compra_directa/estado.dart';
+export 'src/compra_directa/producto_nuevo.dart';
 export 'src/compra_directa/pantalla_compra_directa.dart';
 export 'src/configuracion/configuracion_de_compras.dart';
 export 'src/cuentas/controlador.dart';

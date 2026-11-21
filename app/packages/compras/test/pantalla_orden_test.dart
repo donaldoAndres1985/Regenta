@@ -28,6 +28,16 @@ class _CatalogosFake implements RepositorioDeCompraDirecta {
   Future<bool> tengoCajaAbierta() async => false;
 
   @override
+  Future<List<OpcionDeCatalogo>> categorias() async => const [];
+
+  @override
+  Future<List<OpcionDeCatalogo>> unidades() async => const [];
+
+  @override
+  Future<ProductoParaComprar> crearProducto(String proveedorId, Map<String, dynamic> datos) =>
+      throw UnimplementedError();
+
+  @override
   Future<CompraRegistrada> registrar(Map<String, dynamic> solicitud, {String? borradorId}) => throw UnimplementedError();
 }
 

@@ -212,6 +212,13 @@ class DependenciasDeLaApp {
               .contains('INVENTARIO_PRODUCTO_EDITAR') ??
           false,
     ),
+    // HU-180: crear un producto desde la recepción solo con el permiso que trae el token.
+    puedeCrearProductosProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('INVENTARIO_PRODUCTO_CREAR') ??
+          false,
+    ),
     // HU-179: cambiar el precio al recibir solo con el permiso que trae el token.
     puedeCambiarPreciosProvider.overrideWith(
       (ref) =>

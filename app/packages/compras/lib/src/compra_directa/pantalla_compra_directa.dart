@@ -8,7 +8,9 @@ import '../proveedores/datos/producto_del_proveedor.dart';
 import '../proveedores/ui/piezas.dart';
 import '../ui/formato.dart';
 import 'controlador.dart';
+import 'datos.dart';
 import 'estado.dart';
+import 'producto_nuevo.dart';
 
 /// Compra directa (HU-167): la mercancía llegó con la factura del proveedor y se registra de una,
 /// sin orden. Proveedor, bodega y factura arriba; los productos con su costo, descuento, IVA y lote;
@@ -51,6 +53,28 @@ class _PantallaCompraDirectaState extends ConsumerState<PantallaCompraDirecta> {
         ),
       ),
     );
+  }
+
+  /// HU-180 · Crea el producto que no existe y lo agrega a la factura (C1, C3).
+  Future<void> _crearProducto(EstadoDeCompraDirecta estado) async {
+    final creado = await showDialog<ProductoParaComprar>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520, maxHeight: 760),
+          child: FormularioDeProductoNuevo(
+            proveedorId: estado.proveedorId!,
+            termino: estado.sinResultados ?? '',
+            repo: ref.read(repositorioDeCompraDirectaProvider),
+          ),
+        ),
+      ),
+    );
+    if (creado == null || !mounted) return;
+    _buscador.clear();
+    ref.read(controladorDeCompraDirectaProvider.notifier).agregarCreado(creado);
   }
 
   Future<void> _elegirFecha(DateTime? actual) async {
@@ -127,6 +151,24 @@ class _PantallaCompraDirectaState extends ConsumerState<PantallaCompraDirecta> {
                                   buscando: estado.buscando,
                                   onBuscar: () => unawaited(ctrl.buscar(_buscador.text)),
                                 ),
+                                // HU-180 · El código no existe: se ofrece crearlo, o se explica quién puede.
+                                if (estado.sinResultados != null && estado.proveedorId != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: ref.watch(puedeCrearProductosProvider)
+                                        ? Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: OutlinedButton.icon(
+                                              key: const Key('compra-crear-producto'),
+                                              onPressed: () => unawaited(_crearProducto(estado)),
+                                              icon: const Icon(Icons.add_box_outlined, size: 18),
+                                              label: const Text('Crear producto'),
+                                            ),
+                                          )
+                                        : Text(mensajeSinPermisoDeCrear,
+                                            key: const Key('compra-sin-permiso-de-crear'),
+                                            style: RegentaType.cuerpo.copyWith(color: RegentaColors.warn)),
+                                  ),
                                 if (estado.resultados.isNotEmpty)
                                   _Resultados(
                                     estado: estado,
