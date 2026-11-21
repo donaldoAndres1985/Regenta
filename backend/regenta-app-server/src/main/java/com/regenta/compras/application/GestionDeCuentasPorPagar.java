@@ -25,6 +25,7 @@ import com.regenta.compras.domain.Proveedor;
 import com.regenta.compras.domain.Recepcion;
 import com.regenta.compras.infrastructure.AplicacionDePagoRepositorio;
 import com.regenta.compras.infrastructure.CuentaPorPagarRepositorio;
+import com.regenta.compras.infrastructure.NotaCreditoRepositorio;
 import com.regenta.compras.infrastructure.PagoProveedorRepositorio;
 import com.regenta.compras.infrastructure.ProveedorRepositorio;
 import com.regenta.compras.infrastructure.RecepcionRepositorio;
@@ -62,11 +63,22 @@ public class GestionDeCuentasPorPagar {
     private final CajaApi caja;
     private final RegistroDeEventos eventos;
     private final AplicacionDePagoRepositorio aplicaciones;
+    /** HU-171 C5 / HU-178 · El saldo a favor con cada proveedor. Nulo: no se ofrece usarlo. */
+    private final NotaCreditoRepositorio notas;
 
     public GestionDeCuentasPorPagar(CuentaPorPagarRepositorio cuentas,
             PagoProveedorRepositorio pagos, RecepcionRepositorio recepciones,
             ProveedorRepositorio proveedores, CajaApi caja, RegistroDeEventos eventos,
             AplicacionDePagoRepositorio aplicaciones) {
+        this(cuentas, pagos, recepciones, proveedores, caja, eventos, aplicaciones, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public GestionDeCuentasPorPagar(CuentaPorPagarRepositorio cuentas,
+            PagoProveedorRepositorio pagos, RecepcionRepositorio recepciones,
+            ProveedorRepositorio proveedores, CajaApi caja, RegistroDeEventos eventos,
+            AplicacionDePagoRepositorio aplicaciones, NotaCreditoRepositorio notas) {
+        this.notas = notas;
         this.aplicaciones = aplicaciones;
         this.cuentas = cuentas;
         this.pagos = pagos;
@@ -191,7 +203,7 @@ public class GestionDeCuentasPorPagar {
     PagoProveedor pagar(CuentaPorPagar cuenta, BigDecimal monto, MetodoDePago metodo,
             String referencia, UUID sesionCajaId) {
         return registrarPagoA(cuenta.getProveedorId(), monto, metodo, referencia, sesionCajaId,
-                List.of(new RepartoDePago.Abono(cuenta, monto)));
+                List.of(new RepartoDePago.Abono(cuenta, monto)), BigDecimal.ZERO);
     }
 
     /**
@@ -214,7 +226,14 @@ public class GestionDeCuentasPorPagar {
                 indicado.merge(a.cuentaId(), a.monto(), BigDecimal::add);
             }
         }
-        List<RepartoDePago.Abono> abonos = RepartoDePago.repartir(solicitud.monto(), abiertas, indicado);
+        // HU-171 C5 · Con saldo a favor, se reparte el monto más lo que se use de él, sin pasar la deuda.
+        BigDecimal usado = BigDecimal.ZERO;
+        if (Boolean.TRUE.equals(solicitud.usarSaldoAFavor()) && notas != null) {
+            BigDecimal deuda = abiertas.stream().map(CuentaPorPagar::getSaldo).reduce(BigDecimal.ZERO, BigDecimal::add);
+            usado = notas.saldoAFavorDe(negocioId, proveedor.getId())
+                    .min(deuda.subtract(solicitud.monto())).max(BigDecimal.ZERO);
+        }
+        List<RepartoDePago.Abono> abonos = RepartoDePago.repartir(solicitud.monto().add(usado), abiertas, indicado);
         MetodoDePago metodo = metodoDe(solicitud.metodo());
         UUID sesion = null;
         if (metodo == MetodoDePago.EFECTIVO && Boolean.TRUE.equals(solicitud.pagarDesdeLaCaja())) {
@@ -223,7 +242,8 @@ public class GestionDeCuentasPorPagar {
                     "No tienes una caja abierta: ábrela o marca que pagaste con dinero de fuera de la caja"));
         }
         PagoProveedor pago = registrarPagoA(proveedor.getId(), solicitud.monto(), metodo,
-                solicitud.referencia(), sesion, abonos);
+                solicitud.referencia(), sesion, abonos, usado);
+        consumirSaldoAFavor(negocioId, proveedor.getId(), usado);
         return PagoDelNegocio.de(pago, abonos);
     }
 
@@ -256,6 +276,7 @@ public class GestionDeCuentasPorPagar {
         }
         pago.anular(ContextoDeNegocio.actual().usuario(), solicitud.motivo(), sesionReverso);
         pagos.save(pago);
+        devolverSaldoAFavor(negocioId, pago.getProveedorId(), pago.getSaldoAFavorUsado());
 
         Map<String, Object> datos = payloadDe(negocioId, pago, revertidos);
         datos.put("sesion_reverso_id", sesionReverso == null ? null : sesionReverso.toString());
@@ -312,7 +333,7 @@ public class GestionDeCuentasPorPagar {
     }
 
     private PagoProveedor registrarPagoA(UUID proveedorId, BigDecimal monto, MetodoDePago metodo,
-            String referencia, UUID sesionCajaId, List<RepartoDePago.Abono> abonos) {
+            String referencia, UUID sesionCajaId, List<RepartoDePago.Abono> abonos, BigDecimal saldoAFavorUsado) {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         UUID sesion = metodo == MetodoDePago.EFECTIVO ? sesionCajaId : null;
         if (sesion != null && !caja.sesionAbierta(negocioId, sesion)) {
@@ -326,6 +347,7 @@ public class GestionDeCuentasPorPagar {
         UUID unaSolaCuenta = abonos.size() == 1 ? abonos.get(0).cuenta().getId() : null;
         PagoProveedor pago = PagoProveedor.registrar(negocioId, proveedorId, unaSolaCuenta, monto, metodo,
                 referencia, ContextoDeNegocio.actual().usuario(), sesion);
+        pago.usoSaldoAFavor(saldoAFavorUsado);
         pagos.save(pago);
         aplicaciones.saveAll(abonos.stream()
                 .map(a -> AplicacionDePago.de(negocioId, pago.getId(), a.cuenta().getId(), a.monto()))
@@ -333,6 +355,42 @@ public class GestionDeCuentasPorPagar {
         eventos.registrar(negocioId, "PagoProveedor", pago.getId(), EVENTO_PAGO,
                 payloadDe(negocioId, pago, abonos));
         return pago;
+    }
+
+    /** HU-171 C5 · Gasta el saldo a favor de las notas más antiguas primero. */
+    private void consumirSaldoAFavor(UUID negocioId, UUID proveedorId, BigDecimal usado) {
+        if (notas == null || usado.signum() <= 0) {
+            return;
+        }
+        BigDecimal falta = usado;
+        for (var nota : notas.findByNegocioIdAndProveedorIdOrderByCreadoEnAsc(negocioId, proveedorId)) {
+            if (falta.signum() <= 0) {
+                break;
+            }
+            BigDecimal gastado = nota.usar(falta);
+            if (gastado.signum() > 0) {
+                falta = falta.subtract(gastado);
+                notas.save(nota);
+            }
+        }
+    }
+
+    /** HU-172 · Se anuló un pago que usó saldo a favor: vuelve a las notas. */
+    private void devolverSaldoAFavor(UUID negocioId, UUID proveedorId, BigDecimal usado) {
+        if (notas == null || usado == null || usado.signum() <= 0) {
+            return;
+        }
+        BigDecimal falta = usado;
+        for (var nota : notas.findByNegocioIdAndProveedorIdOrderByCreadoEnAsc(negocioId, proveedorId)) {
+            if (falta.signum() <= 0) {
+                break;
+            }
+            BigDecimal recuperado = nota.recuperar(falta);
+            if (recuperado.signum() > 0) {
+                falta = falta.subtract(recuperado);
+                notas.save(nota);
+            }
+        }
     }
 
     private void completarFactura(CuentaPorPagar cuenta, String numero, LocalDate fecha) {

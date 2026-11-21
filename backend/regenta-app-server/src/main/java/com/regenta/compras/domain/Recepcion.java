@@ -89,6 +89,10 @@ public class Recepcion {
     @Column(name = "pagar_desde_caja", nullable = false)
     private boolean pagarDesdeLaCaja;
 
+    /** HU-178 · Si ya se le devolvió algo al proveedor: entonces no se anula (HU-177). */
+    @Column(name = "con_devoluciones", nullable = false)
+    private boolean conDevoluciones;
+
     @Column(name = "referencia_pago", length = 60)
     private String referenciaPago;
 
@@ -255,6 +259,7 @@ public class Recepcion {
         if (estado != EstadoRecepcion.CONFIRMADA) {
             throw new ConflictoDeEstadoException("Se anula una recepción confirmada; esta está " + estado);
         }
+        exigirSinDevoluciones();
         String limpio = motivo == null ? "" : motivo.trim();
         if (limpio.isEmpty()) {
             throw new com.regenta.shared.web.ReglaDeNegocioException(
@@ -264,6 +269,27 @@ public class Recepcion {
         this.anuladaPor = usuario;
         this.anuladaEn = java.time.OffsetDateTime.now();
         this.estado = EstadoRecepcion.ANULADA;
+    }
+
+    /** HU-177 / HU-178 · Con devoluciones, la recepción ya no se anula (409). */
+    public void exigirSinDevoluciones() {
+        if (conDevoluciones) {
+            throw new ConflictoDeEstadoException(
+                    "Esta recepción tiene devoluciones al proveedor: ya no se anula");
+        }
+    }
+
+    /** HU-178 · Solo de una recepción confirmada se devuelve mercancía (409). */
+    public void registrarDevolucion() {
+        if (estado != EstadoRecepcion.CONFIRMADA) {
+            throw new ConflictoDeEstadoException(
+                    "Se devuelve mercancía de una recepción confirmada; esta está " + estado);
+        }
+        this.conDevoluciones = true;
+    }
+
+    public boolean isConDevoluciones() {
+        return conDevoluciones;
     }
 
     public UUID getAnuladaPor() {

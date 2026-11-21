@@ -269,6 +269,9 @@ class DependenciasDeLaApp {
     repositorioDeOrdenesProvider.overrideWithValue(
       RepositorioDeOrdenes(http),
     ),
+    repositorioDeDevolucionesProvider.overrideWithValue(
+      RepositorioDeDevoluciones(http),
+    ),
 
     // Facturación
     repositorioDeFacturasProvider.overrideWithValue(

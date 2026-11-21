@@ -181,6 +181,24 @@ public class CuentaPorPagar {
         this.estado = EstadoCuentaPorPagar.ANULADA;
     }
 
+    /**
+     * HU-178 C2 · Una nota crédito por una devolución baja el saldo hasta donde alcance; devuelve lo que
+     * rebajó (lo demás queda a favor). Saldada queda {@code PAGADA}. Una cuenta anulada no se rebaja.
+     */
+    public BigDecimal aplicarNotaCredito(BigDecimal valor) {
+        if (estado == EstadoCuentaPorPagar.ANULADA || valor == null || valor.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal aplicado = valor.min(saldo);
+        this.saldo = saldo.subtract(aplicado);
+        if (saldo.signum() == 0) {
+            this.estado = EstadoCuentaPorPagar.PAGADA;
+        } else if (aplicado.signum() > 0) {
+            this.estado = EstadoCuentaPorPagar.PARCIAL;
+        }
+        return aplicado;
+    }
+
     public boolean estaVencida(LocalDate hoy) {
         return saldo.signum() > 0 && estado != EstadoCuentaPorPagar.ANULADA
                 && fechaVencimiento.isBefore(hoy);

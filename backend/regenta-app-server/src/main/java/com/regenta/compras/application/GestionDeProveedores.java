@@ -14,6 +14,7 @@ import com.regenta.compras.domain.Proveedor;
 import com.regenta.compras.domain.ProveedorProducto;
 import com.regenta.compras.domain.TipoDocumentoProveedor;
 import com.regenta.compras.infrastructure.CuentaPorPagarRepositorio;
+import com.regenta.compras.infrastructure.NotaCreditoRepositorio;
 import com.regenta.compras.infrastructure.ProveedorProductoRepositorio;
 import com.regenta.compras.infrastructure.ProveedorRepositorio;
 import com.regenta.inventario.api.InventarioApi;
@@ -47,10 +48,20 @@ public class GestionDeProveedores {
     private final ProveedorProductoRepositorio catalogo;
     private final CuentaPorPagarRepositorio cuentas;
     private final InventarioApi inventario;
+    /** HU-178 · Para la deuda neta (I5) y el saldo a favor. Nulo: sin saldo a favor. */
+    private final NotaCreditoRepositorio notas;
 
     public GestionDeProveedores(ProveedorRepositorio proveedores,
             ProveedorProductoRepositorio catalogo, CuentaPorPagarRepositorio cuentas,
             InventarioApi inventario) {
+        this(proveedores, catalogo, cuentas, inventario, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public GestionDeProveedores(ProveedorRepositorio proveedores,
+            ProveedorProductoRepositorio catalogo, CuentaPorPagarRepositorio cuentas,
+            InventarioApi inventario, NotaCreditoRepositorio notas) {
+        this.notas = notas;
         this.proveedores = proveedores;
         this.catalogo = catalogo;
         this.cuentas = cuentas;
@@ -62,6 +73,7 @@ public class GestionDeProveedores {
     public List<ProveedorDelNegocio> listar(Estado estado) {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         Map<UUID, BigDecimal> deudas = deudasDelNegocio(negocioId);
+        Map<UUID, BigDecimal> favor = saldosAFavor(negocioId);
         Estado filtro = estado == null ? Estado.ACTIVOS : estado;
         return proveedores.findByNegocioIdOrderByRazonSocialAsc(negocioId).stream()
                 .filter(p -> switch (filtro) {
@@ -69,7 +81,8 @@ public class GestionDeProveedores {
                     case INACTIVOS -> !p.isActivo();
                     case TODOS -> true;
                 })
-                .map(p -> ProveedorDelNegocio.de(p, deudas.getOrDefault(p.getId(), BigDecimal.ZERO)))
+                .map(p -> ProveedorDelNegocio.de(p, deudas.getOrDefault(p.getId(), BigDecimal.ZERO),
+                        favor.getOrDefault(p.getId(), BigDecimal.ZERO)))
                 .toList();
     }
 
@@ -231,13 +244,22 @@ public class GestionDeProveedores {
     private ProveedorDelNegocio conDeuda(Proveedor proveedor) {
         BigDecimal deuda = deudasDelNegocio(proveedor.getNegocioId())
                 .getOrDefault(proveedor.getId(), BigDecimal.ZERO);
-        return ProveedorDelNegocio.de(proveedor, deuda);
+        return ProveedorDelNegocio.de(proveedor, deuda,
+                saldosAFavor(proveedor.getNegocioId()).getOrDefault(proveedor.getId(), BigDecimal.ZERO));
     }
 
-    /**
-     * I5: saldos abiertos menos saldo a favor. El saldo a favor nace con las devoluciones a
-     * proveedor (HU-178); hasta entonces es cero.
-     */
+    /** HU-178 · El saldo a favor de cada proveedor, por las notas crédito sin usar. */
+    private Map<UUID, BigDecimal> saldosAFavor(UUID negocioId) {
+        Map<UUID, BigDecimal> favor = new HashMap<>();
+        if (notas != null) {
+            for (Object[] fila : notas.saldosAFavorPorProveedor(negocioId)) {
+                favor.put((UUID) fila[0], (BigDecimal) fila[1]);
+            }
+        }
+        return favor;
+    }
+
+    /** I5: los saldos abiertos; {@link ProveedorDelNegocio} les resta el saldo a favor. */
     private Map<UUID, BigDecimal> deudasDelNegocio(UUID negocioId) {
         Map<UUID, BigDecimal> deudas = new HashMap<>();
         for (Object[] fila : cuentas.saldosAbiertosPorProveedor(negocioId)) {

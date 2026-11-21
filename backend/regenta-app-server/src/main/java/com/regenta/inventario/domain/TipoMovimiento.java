@@ -17,6 +17,8 @@ public enum TipoMovimiento {
     SALIDA_DETALLE(-1),
     /** HU-177 · Anular una recepción saca lo que entró, del mismo lote. */
     SALIDA_ANULACION_COMPRA(-1),
+    /** HU-178 · Lo que se le devuelve al proveedor, del lote elegido. */
+    SALIDA_DEVOLUCION(-1),
     RESERVA(0),
     LIBERACION_RESERVA(0);
 
