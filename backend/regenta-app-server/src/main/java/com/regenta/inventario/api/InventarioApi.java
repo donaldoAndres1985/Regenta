@@ -43,4 +43,10 @@ public interface InventarioApi {
 
     /** HU-167 · Si la bodega existe, es del negocio y está activa. */
     boolean bodegaActiva(UUID negocioId, UUID bodegaId);
+
+    /**
+     * HU-177 C3 · Si alcanza para sacar esto de la bodega (lo disponible, y del lote cuando se indica).
+     * Devuelve qué falta, una frase por producto o lote; vacía si alcanza todo.
+     */
+    List<String> faltantesParaSacar(UUID negocioId, UUID bodegaId, Collection<SalidaPrevista> salidas);
 }

@@ -256,6 +256,18 @@ public class OrdenDeCompra {
      * las líneas llegaron completas queda {@code RECIBIDA}; si llegó algo pero
      * falta, {@code PARCIAL} y admite otra recepción.
      */
+    /**
+     * HU-177 C1 · Se anuló una de sus recepciones: si todavía le queda algo recibido, PARCIAL; si no,
+     * vuelve a ENVIADA, esperando la mercancía. Cerrada o anulada no cambia.
+     */
+    public void registrarAnulacionDeRecepcion(List<OrdenCompraLinea> lineas) {
+        if (estado != EstadoOrdenCompra.PARCIAL && estado != EstadoOrdenCompra.RECIBIDA) {
+            return;
+        }
+        boolean algoRecibido = lineas.stream().anyMatch(OrdenCompraLinea::tieneRecepcion);
+        this.estado = algoRecibido ? EstadoOrdenCompra.PARCIAL : EstadoOrdenCompra.ENVIADA;
+    }
+
     public void registrarAvanceDeRecepcion(List<OrdenCompraLinea> lineas) {
         exigirRecibible();
         boolean todasCompletas = lineas.stream().allMatch(OrdenCompraLinea::estaCompleta);

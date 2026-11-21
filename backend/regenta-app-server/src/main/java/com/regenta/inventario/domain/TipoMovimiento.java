@@ -15,6 +15,8 @@ public enum TipoMovimiento {
     SALIDA_CONSUMO(-1),
     /** HU-162: unidades que salen del producto que se abre al detallar. */
     SALIDA_DETALLE(-1),
+    /** HU-177 · Anular una recepción saca lo que entró, del mismo lote. */
+    SALIDA_ANULACION_COMPRA(-1),
     RESERVA(0),
     LIBERACION_RESERVA(0);
 

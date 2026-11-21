@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.compras.application.GestionDeRecepciones;
 import com.regenta.compras.application.RecepcionDelNegocio;
+import com.regenta.compras.application.SolicitudDeAnulacionDeRecepcion;
 import com.regenta.compras.application.SolicitudDeCompraDirecta;
 import com.regenta.compras.application.SolicitudDeConfirmacionDeRecepcion;
 import com.regenta.compras.application.SolicitudDeRecepcion;
@@ -91,5 +92,19 @@ public class RecepcionesControlador {
     public RecepcionDelNegocio confirmar(@PathVariable UUID recepcionId,
             @RequestBody(required = false) SolicitudDeConfirmacionDeRecepcion solicitud) {
         return recepciones.confirmar(recepcionId, solicitud);
+    }
+
+    @PostMapping("/{recepcionId}/anulacion")
+    @Operation(summary = "Anula una recepción confirmada mal registrada (HU-177)",
+            description = "Con motivo. La cuenta por pagar queda ANULADA, la orden recupera el faltante e "
+                    + "Inventario saca lo que entró, del mismo lote (evento recepcion_anulada). La "
+                    + "recepción sigue visible con quién, cuándo y por qué.")
+    @ApiResponse(responseCode = "403", description = "Sin el permiso COMPRAS_COMPRA_ANULAR")
+    @ApiResponse(responseCode = "409", description = "No está confirmada, su cuenta tiene abonos («Primero "
+            + "anula los pagos de esta factura.») o ya salió parte de la mercancía")
+    @ApiResponse(responseCode = "422", description = "Falta el motivo")
+    public RecepcionDelNegocio anular(@PathVariable UUID recepcionId,
+            @Valid @RequestBody SolicitudDeAnulacionDeRecepcion solicitud) {
+        return recepciones.anular(recepcionId, solicitud);
     }
 }

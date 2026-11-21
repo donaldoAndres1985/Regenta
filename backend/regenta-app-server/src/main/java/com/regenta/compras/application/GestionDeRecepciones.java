@@ -38,6 +38,7 @@ import com.regenta.compras.infrastructure.RecepcionRepositorio;
 import com.regenta.inventario.api.InventarioApi;
 import com.regenta.inventario.api.ProductoParaComprar;
 import com.regenta.inventario.api.ReglaDeLote;
+import com.regenta.inventario.api.SalidaPrevista;
 import com.regenta.shared.events.RegistroDeEventos;
 import com.regenta.shared.security.RequierePermiso;
 import com.regenta.shared.tenancy.ContextoDeNegocio;
@@ -306,6 +307,69 @@ public class GestionDeRecepciones {
                 payload(negocioId, recepcion, lineas));
 
         return RecepcionDelNegocio.de(recepcion, lineas, avisos);
+    }
+
+    /**
+     * HU-177 · Anula una recepción confirmada como si no hubiera pasado (I19): su cuenta queda
+     * ANULADA, la orden recupera el faltante y Inventario saca lo que entró, del mismo lote
+     * ({@code recepcion_anulada}). Con un abono a la cuenta (C2) o si ya salió parte de la mercancía
+     * (C3) responde 409 y no cambia nada.
+     */
+    @Transactional
+    @RequierePermiso("COMPRAS_COMPRA_ANULAR")
+    public RecepcionDelNegocio anular(UUID recepcionId, SolicitudDeAnulacionDeRecepcion solicitud) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        Recepcion recepcion = delNegocio(recepcionId);
+        if (recepcion.getEstado() != EstadoRecepcion.CONFIRMADA) {
+            throw new ConflictoDeEstadoException(
+                    "Se anula una recepción confirmada; esta está " + recepcion.getEstado());
+        }
+        List<CuentaPorPagar> suyas = cuentas.findByNegocioIdAndRecepcionId(negocioId, recepcionId);
+        for (CuentaPorPagar c : suyas) {
+            if (c.getEstado() != com.regenta.compras.domain.EstadoCuentaPorPagar.ANULADA
+                    && c.getSaldo().compareTo(c.getMonto()) < 0) {
+                throw new ConflictoDeEstadoException("Primero anula los pagos de esta factura.");
+            }
+        }
+        List<RecepcionLinea> lineas = recepcionLineas.findByRecepcionId(recepcionId);
+        List<String> faltan = inventario.faltantesParaSacar(negocioId, recepcion.getBodegaId(), lineas.stream()
+                .map(l -> new SalidaPrevista(l.getProductoId(), l.getCantidad(), l.getCodigoLote()))
+                .toList());
+        if (!faltan.isEmpty()) {
+            throw new ConflictoDeEstadoException("Ya salió parte de lo que se recibió: "
+                    + String.join("; ", faltan) + ". Registra una devolución al proveedor en su lugar.");
+        }
+
+        recepcion.anular(ContextoDeNegocio.actual().usuario(), solicitud.motivo());
+        recepciones.save(recepcion);
+        for (CuentaPorPagar c : suyas) {
+            c.anularPorRecepcion();
+            cuentas.save(c);
+        }
+        if (recepcion.getOrdenId() != null) {
+            revertirSobreLaOrden(negocioId, recepcion.getOrdenId(), lineas);
+        }
+
+        Map<String, Object> datos = payload(negocioId, recepcion, lineas);
+        datos.put("motivo", recepcion.getMotivoAnulacion());
+        eventos.registrar(negocioId, "Recepcion", recepcionId, "recepcion_anulada", datos);
+        return RecepcionDelNegocio.de(recepcion, lineas);
+    }
+
+    private void revertirSobreLaOrden(UUID negocioId, UUID ordenId, List<RecepcionLinea> lineas) {
+        Map<UUID, OrdenCompraLinea> lineasOrden = ordenLineas.findByOrdenIdOrderByLinea(ordenId)
+                .stream().collect(Collectors.toMap(OrdenCompraLinea::getId, Function.identity()));
+        for (RecepcionLinea l : lineas) {
+            OrdenCompraLinea ol = lineasOrden.get(l.getOrdenLineaId());
+            if (ol != null) {
+                ol.revertirRecepcion(l.getCantidad());
+                ordenLineas.save(ol);
+            }
+        }
+        ordenes.findByIdAndNegocioId(ordenId, negocioId).ifPresent(o -> {
+            o.registrarAnulacionDeRecepcion(new ArrayList<>(lineasOrden.values()));
+            ordenes.save(o);
+        });
     }
 
     private List<RecepcionLinea> lineasDirectas(UUID negocioId, Recepcion recepcion,
