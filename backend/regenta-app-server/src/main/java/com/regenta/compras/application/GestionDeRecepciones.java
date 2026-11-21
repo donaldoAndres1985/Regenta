@@ -73,6 +73,7 @@ public class GestionDeRecepciones {
     private final ConfiguracionNegocioApi configuracion;
     private final GestionDeCuentasPorPagar cuentasPorPagar;
     private final CajaApi caja;
+    private final GestionDeConfiguracionDeCompras configuracionDeCompras;
 
     public GestionDeRecepciones(RecepcionRepositorio recepciones,
             RecepcionLineaRepositorio recepcionLineas, OrdenDeCompraRepositorio ordenes,
@@ -81,7 +82,9 @@ public class GestionDeRecepciones {
             AsignadorDeConsecutivos consecutivos, RegistroDeEventos eventos,
             InventarioApi inventario,
             @Autowired(required = false) ConfiguracionNegocioApi configuracion,
-            GestionDeCuentasPorPagar cuentasPorPagar, CajaApi caja) {
+            GestionDeCuentasPorPagar cuentasPorPagar, CajaApi caja,
+            GestionDeConfiguracionDeCompras configuracionDeCompras) {
+        this.configuracionDeCompras = configuracionDeCompras;
         this.configuracion = configuracion;
         this.cuentasPorPagar = cuentasPorPagar;
         this.caja = caja;
@@ -413,6 +416,7 @@ public class GestionDeRecepciones {
     }
 
     private void aplicarSobreLaOrden(UUID negocioId, UUID ordenId, List<RecepcionLinea> lineas) {
+        BigDecimal tolerancia = configuracionDeCompras.deNegocio(negocioId).getToleranciaRecepcionPct();
         Map<UUID, OrdenCompraLinea> lineasOrden = ordenLineas.findByOrdenIdOrderByLinea(ordenId)
                 .stream().collect(Collectors.toMap(OrdenCompraLinea::getId, Function.identity()));
 
@@ -421,7 +425,7 @@ public class GestionDeRecepciones {
             if (ol == null) {
                 continue;
             }
-            ol.recibir(l.getCantidad()); // HU-048 C4: 422 si pasa lo pedido + 5 %
+            ol.recibir(l.getCantidad(), tolerancia); // HU-173 C4: 422 si pasa lo pedido + la tolerancia
             ordenLineas.save(ol);
         }
 

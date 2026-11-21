@@ -94,6 +94,14 @@ public class OrdenDeCompra {
     @Column(name = "aprobado_en")
     private OffsetDateTime aprobadoEn;
 
+    /** HU-173 · Se aprobó sola al confirmarla: el negocio no exige aprobación para este monto. */
+    @Column(name = "aprobacion_automatica", nullable = false)
+    private boolean aprobacionAutomatica;
+
+    /** HU-173 · Cuándo se confirmó una orden que espera aprobación; nulo mientras se arma. */
+    @Column(name = "confirmada_en")
+    private OffsetDateTime confirmadaEn;
+
     @Column(columnDefinition = "text")
     private String observaciones;
 
@@ -143,6 +151,8 @@ public class OrdenDeCompra {
             throw new ConflictoDeEstadoException(
                     "No se editan las líneas de una orden en estado " + estado);
         }
+        // HU-173 · Si se cambia lo que esperaba aprobación, hay que volver a confirmarla.
+        this.confirmadaEn = null;
     }
 
     /** Vuelve a totalizar la cabecera a partir de las líneas ya calculadas. */
@@ -163,6 +173,42 @@ public class OrdenDeCompra {
     }
 
     /** Criterio 1: deja registrado quién aprobó y cuándo. */
+    /**
+     * HU-173 · I9: se terminó de armar la orden. Si no necesita aprobación, queda {@code APROBADA}
+     * sola, a nombre de quien la confirmó; si la necesita, sigue en borrador esperando aprobación.
+     */
+    public void confirmar(UUID usuarioId, boolean tieneLineas, boolean requiereAprobacion) {
+        if (estado != EstadoOrdenCompra.BORRADOR) {
+            throw new ConflictoDeEstadoException(
+                    "Solo se confirma una orden en borrador; esta está " + estado);
+        }
+        if (!tieneLineas) {
+            throw new ConflictoDeEstadoException("No se confirma una orden sin líneas");
+        }
+        if (requiereAprobacion) {
+            this.confirmadaEn = OffsetDateTime.now();
+            return;
+        }
+        this.estado = EstadoOrdenCompra.APROBADA;
+        this.aprobadoPor = usuarioId;
+        this.aprobadoEn = OffsetDateTime.now();
+        this.aprobacionAutomatica = true;
+        this.confirmadaEn = this.aprobadoEn;
+    }
+
+    /** HU-173 · Confirmada pero sin aprobar todavía. */
+    public boolean esperaAprobacion() {
+        return estado == EstadoOrdenCompra.BORRADOR && confirmadaEn != null;
+    }
+
+    public boolean isAprobacionAutomatica() {
+        return aprobacionAutomatica;
+    }
+
+    public OffsetDateTime getConfirmadaEn() {
+        return confirmadaEn;
+    }
+
     public void aprobar(UUID usuarioId, boolean tieneLineas) {
         if (estado != EstadoOrdenCompra.BORRADOR) {
             throw new ConflictoDeEstadoException(

@@ -22,6 +22,7 @@ class PantallaCompras extends ConsumerWidget {
     this.onProveedores,
     this.onCompraDirecta,
     this.onCuentasPorPagar,
+    this.onConfiguracion,
   });
 
   final ValueChanged<String> onOrdenSeleccionada;
@@ -34,6 +35,9 @@ class PantallaCompras extends ConsumerWidget {
 
   /// HU-170 · Lo que se le debe a los proveedores. Nulo: el atajo no aparece.
   final VoidCallback? onCuentasPorPagar;
+
+  /// HU-173 · Aprobación de órdenes y tolerancia al recibir. Nulo: el atajo no aparece.
+  final VoidCallback? onConfiguracion;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -66,6 +70,13 @@ class PantallaCompras extends ConsumerWidget {
               icono: Icons.store_mall_directory_outlined,
               conTexto: conTexto,
               onPressed: onProveedores!,
+            ),
+          if (onConfiguracion != null)
+            IconButton(
+              key: const Key('compras-configuracion'),
+              tooltip: 'Configuración de compras',
+              icon: const Icon(Icons.tune, color: RegentaColors.ink),
+              onPressed: onConfiguracion,
             ),
           IconButton(
             tooltip: 'Nueva Orden',

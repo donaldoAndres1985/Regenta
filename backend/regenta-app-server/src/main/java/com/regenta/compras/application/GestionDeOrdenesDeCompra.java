@@ -43,11 +43,13 @@ public class GestionDeOrdenesDeCompra {
     private final ProveedorProductoRepositorio catalogo;
     private final AsignadorDeConsecutivos consecutivos;
     private final RegistroDeEventos eventos;
+    private final GestionDeConfiguracionDeCompras configuracion;
 
     public GestionDeOrdenesDeCompra(OrdenDeCompraRepositorio ordenes,
             OrdenCompraLineaRepositorio lineasRepo, ProveedorRepositorio proveedores,
             ProveedorProductoRepositorio catalogo, AsignadorDeConsecutivos consecutivos,
-            RegistroDeEventos eventos) {
+            RegistroDeEventos eventos, GestionDeConfiguracionDeCompras configuracion) {
+        this.configuracion = configuracion;
         this.ordenes = ordenes;
         this.lineasRepo = lineasRepo;
         this.proveedores = proveedores;
@@ -129,6 +131,26 @@ public class GestionDeOrdenesDeCompra {
 
         eventos.registrar(negocioId, "OrdenDeCompra", orden.getId(), "orden_compra_aprobada",
                 payloadAprobada(negocioId, orden));
+        return OrdenDelNegocio.de(orden, lineasRepo.findByOrdenIdOrderByLinea(ordenId));
+    }
+
+    /**
+     * HU-173 C2 / C3 · Se terminó de armar la orden. Si el negocio no exige aprobación —o la orden
+     * queda por debajo del monto mínimo— se aprueba sola a nombre de quien la confirma; si no, queda
+     * esperando que alguien con permiso la apruebe.
+     */
+    @Transactional
+    @RequierePermiso("COMPRAS_COMPRA_CREAR")
+    public OrdenDelNegocio confirmar(UUID ordenId) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        OrdenDeCompra orden = delNegocio(ordenId);
+        boolean requiere = configuracion.deNegocio(negocioId).requiereAprobacion(orden.getTotal());
+        orden.confirmar(ContextoDeNegocio.actual().usuario(), lineasRepo.existsByOrdenId(ordenId), requiere);
+        ordenes.save(orden);
+        if (orden.isAprobacionAutomatica()) {
+            eventos.registrar(negocioId, "OrdenDeCompra", orden.getId(), "orden_compra_aprobada",
+                    payloadAprobada(negocioId, orden));
+        }
         return OrdenDelNegocio.de(orden, lineasRepo.findByOrdenIdOrderByLinea(ordenId));
     }
 

@@ -68,7 +68,7 @@ class RemisionTest {
             recepciones, proveedores, caja, eventos, mock(com.regenta.compras.infrastructure.AplicacionDePagoRepositorio.class));
     private final GestionDeRecepciones gestion = new GestionDeRecepciones(recepciones, recepcionLineas,
             mock(OrdenDeCompraRepositorio.class), mock(OrdenCompraLineaRepositorio.class), cuentas, proveedores,
-            mock(ProveedorProductoRepositorio.class), consecutivos, eventos, inventario, null, cuentasPorPagar, caja);
+            mock(ProveedorProductoRepositorio.class), consecutivos, eventos, inventario, null, cuentasPorPagar, caja, new GestionDeConfiguracionDeCompras(mock(com.regenta.compras.infrastructure.ConfiguracionDeComprasRepositorio.class)));
 
     private final UUID negocioId = UUID.randomUUID();
     private final UUID bodegaId = UUID.randomUUID();

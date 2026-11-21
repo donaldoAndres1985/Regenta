@@ -120,6 +120,9 @@ final List<RutaProtegida> rutasDeLaApp = [
           onCuentasPorPagar: () {
             unawaited(Navigator.of(context).pushNamed('/compras/cuentas-por-pagar'));
           },
+          onConfiguracion: () {
+            unawaited(Navigator.of(context).pushNamed('/compras/configuracion'));
+          },
         );
       }
       // HU-166 · `/compras/proveedores` cae en el mismo `:id` que una orden.
@@ -128,6 +131,8 @@ final List<RutaProtegida> rutasDeLaApp = [
       if (id == 'compra-directa') return const PantallaCompraDirecta();
       // HU-170 · lo que se debe a los proveedores y las compras que esperan factura.
       if (id == 'cuentas-por-pagar') return const PantallaCuentasPorPagar();
+      // HU-173 · si las órdenes necesitan aprobación y la tolerancia al recibir.
+      if (id == 'configuracion') return const PantallaConfiguracionDeCompras();
       return PantallaRecepcion(ordenId: id);
     },
   ),
