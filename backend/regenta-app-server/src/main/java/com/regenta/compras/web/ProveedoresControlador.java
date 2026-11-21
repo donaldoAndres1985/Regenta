@@ -21,6 +21,7 @@ import com.regenta.compras.application.ProductoParaComprarDelProveedor;
 import com.regenta.compras.application.ProveedorDeProducto;
 import com.regenta.compras.application.ProveedorDelNegocio;
 import com.regenta.compras.application.SolicitudDeProductoDeProveedor;
+import com.regenta.compras.application.SolicitudDeProductoNuevo;
 import com.regenta.compras.application.SolicitudDeProveedor;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -120,5 +121,19 @@ public class ProveedoresControlador {
     @Operation(summary = "Los proveedores de un producto, con el preferido primero")
     public List<ProveedorDeProducto> deProducto(@PathVariable UUID productoId) {
         return proveedores.proveedoresDe(productoId);
+    }
+
+    @PostMapping("/{proveedorId}/productos-nuevos")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Crea un producto que llega por primera vez, sin salir de la recepción (HU-180)",
+            description = "Lo da de alta en Inventario con sus reglas de siempre y lo deja en el catálogo del "
+                    + "proveedor con su código y su costo. Devuelve lo necesario para agregar la línea.")
+    @ApiResponse(responseCode = "403", description = "Sin el permiso INVENTARIO_PRODUCTO_CREAR")
+    @ApiResponse(responseCode = "409", description = "Ya hay un producto con ese SKU o código de barras")
+    @ApiResponse(responseCode = "422", description = "Falta el SKU, el nombre, la categoría, la unidad o la "
+            + "tarifa de IVA, con los mismos mensajes de Inventario")
+    public ProductoParaComprarDelProveedor crearProductoNuevo(@PathVariable UUID proveedorId,
+            @Valid @RequestBody SolicitudDeProductoNuevo solicitud) {
+        return proveedores.crearProductoNuevo(proveedorId, solicitud);
     }
 }

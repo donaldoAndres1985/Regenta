@@ -6,6 +6,10 @@ import 'datos.dart';
 import 'estado.dart';
 
 /// La app lo sobrescribe con un [RepositorioDeCompraDirecta] real; los tests, con un doble.
+/// HU-180 C4 · Si quien recibe puede crear productos (`INVENTARIO_PRODUCTO_CREAR`). La app lo cablea desde
+/// los permisos del token; el backend lo vuelve a validar (403).
+final puedeCrearProductosProvider = Provider<bool>((ref) => false);
+
 final repositorioDeCompraDirectaProvider = Provider<RepositorioDeCompraDirecta>((ref) {
   throw UnimplementedError(
     'Sobrescribe repositorioDeCompraDirectaProvider al montar el ProviderScope.',
@@ -91,12 +95,13 @@ class ControladorDeCompraDirecta extends StateNotifier<EstadoDeCompraDirecta> {
       state = state.copiar(error: 'Escribe al menos tres letras del nombre, el SKU o el código.');
       return;
     }
-    state = state.copiar(buscando: true, error: null);
+    state = state.copiar(buscando: true, error: null, sinResultados: null);
     try {
       final encontrados = await _repo.buscarProductos(termino);
       state = state.copiar(
         buscando: false,
         resultados: encontrados,
+        sinResultados: encontrados.isEmpty ? termino.trim() : null,
         error: encontrados.isEmpty ? 'No hay productos con «${termino.trim()}».' : null,
       );
     } on ErrorDeApi catch (fallo) {
@@ -129,6 +134,19 @@ class ControladorDeCompraDirecta extends StateNotifier<EstadoDeCompraDirecta> {
     } on ErrorDeApi catch (fallo) {
       state = state.copiar(error: _motivo(fallo));
     }
+  }
+
+  /// HU-180 C3 · El producto recién creado entra a la factura con su costo y su código del proveedor.
+  void agregarCreado(ProductoParaComprar producto) {
+    state = state.copiar(
+      resultados: const [],
+      sinResultados: null,
+      error: null,
+      lineas: [
+        ...state.lineas,
+        LineaEnEdicion(producto: producto, costo: producto.costoSugerido, codigoProveedor: producto.codigoProveedor),
+      ],
+    );
   }
 
   void editarLinea(int i, LineaEnEdicion linea) {

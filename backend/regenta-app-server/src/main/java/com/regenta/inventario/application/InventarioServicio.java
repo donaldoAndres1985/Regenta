@@ -113,4 +113,25 @@ public class InventarioServicio implements InventarioApi {
     public void cambiarPrecioDeVenta(UUID negocioId, UUID productoId, BigDecimal precioConIva) {
         precios.cambiarPrecioDeVenta(negocioId, productoId, precioConIva);
     }
+
+    /**
+     * HU-180 · Pasa por {@link GestionDeProductos#crear}, el mismo camino de la ficha: su permiso, sus
+     * duplicados de SKU y código de barras y su tarifa obligatoria.
+     */
+    @Override
+    @Transactional
+    public UUID crearProducto(UUID negocioId, com.regenta.inventario.api.ProductoNuevo nuevo) {
+        com.regenta.inventario.domain.TarifaIva tarifa = null;
+        if (nuevo.tarifaIva() != null && !nuevo.tarifaIva().isBlank()) {
+            try {
+                tarifa = com.regenta.inventario.domain.TarifaIva.valueOf(nuevo.tarifaIva().trim());
+            } catch (IllegalArgumentException noExiste) {
+                throw new com.regenta.shared.web.ReglaDeNegocioException(
+                        "La tarifa de IVA es IVA_19, IVA_5, EXENTO o EXCLUIDO, no " + nuevo.tarifaIva());
+            }
+        }
+        return productos.crear(new SolicitudDeProducto(nuevo.sku(), nuevo.codigoBarras(), nuevo.nombre(), null,
+                nuevo.categoriaId(), nuevo.unidadMedidaId(), null, null, nuevo.precioVenta(), tarifa, null, null,
+                null, nuevo.manejaLotes(), false, nuevo.perecedero(), false, null)).id();
+    }
 }
