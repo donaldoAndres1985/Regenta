@@ -4,16 +4,22 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import com.regenta.compras.domain.OrdenCompraLinea;
 import com.regenta.compras.domain.OrdenDeCompra;
 
-/** Una orden de compra con sus lÃ­neas y el avance de recepciÃ³n (HU-047 criterio 4). */
+/**
+ * Una orden de compra con sus líneas y el avance de recepción (HU-047 C4, HU-173, HU-174): de cada
+ * línea, lo pedido, lo recibido y lo que falta, con el código con que la vende el proveedor.
+ */
 public record OrdenDelNegocio(
         UUID id,
         String numero,
         UUID proveedorId,
+        /** HU-174 · Para el listado, sin otra consulta. */
+        String proveedorNombre,
         UUID bodegaDestinoId,
         String estado,
         LocalDate fechaEmision,
@@ -37,6 +43,8 @@ public record OrdenDelNegocio(
             int linea,
             UUID productoId,
             String nombre,
+            /** HU-174 · Con qué código lo vende el proveedor (de su catálogo), si se sabe. */
+            String codigoProveedor,
             BigDecimal cantidadPedida,
             BigDecimal cantidadRecibida,
             BigDecimal faltante,
@@ -46,20 +54,24 @@ public record OrdenDelNegocio(
             BigDecimal subtotal,
             BigDecimal total) {
 
-        static LineaDeOrden de(OrdenCompraLinea l) {
+        static LineaDeOrden de(OrdenCompraLinea l, String codigoProveedor) {
             return new LineaDeOrden(l.getId(), l.getLinea(), l.getProductoId(), l.getNombreSnapshot(),
-                    l.getCantidadPedida(), l.getCantidadRecibida(), l.faltante(),
-                    l.getCostoUnitario(), l.getDescuentoPct(), l.getImpuestoPct(),
-                    l.getSubtotal(), l.getTotal());
+                    codigoProveedor, l.getCantidadPedida(), l.getCantidadRecibida(), l.faltante(),
+                    l.getCostoUnitario(), l.getDescuentoPct(), l.getImpuestoPct(), l.getSubtotal(), l.getTotal());
         }
     }
 
     static OrdenDelNegocio de(OrdenDeCompra o, List<OrdenCompraLinea> lineas) {
-        return new OrdenDelNegocio(o.getId(), o.getNumero(), o.getProveedorId(),
-                o.getBodegaDestinoId(), o.getEstado().name(), o.getFechaEmision(),
-                o.getFechaEsperada(), o.getSubtotal(), o.getDescuentoTotal(),
-                o.getImpuestoTotal(), o.getFlete(), o.getTotal(), o.getAprobadoPor(),
-                o.getAprobadoEn(), o.isAprobacionAutomatica(), o.esperaAprobacion(), o.getObservaciones(),
-                lineas.stream().map(LineaDeOrden::de).toList());
+        return de(o, lineas, null, Map.of());
+    }
+
+    static OrdenDelNegocio de(OrdenDeCompra o, List<OrdenCompraLinea> lineas, String proveedorNombre,
+            Map<UUID, String> codigosDelProveedor) {
+        return new OrdenDelNegocio(o.getId(), o.getNumero(), o.getProveedorId(), proveedorNombre,
+                o.getBodegaDestinoId(), o.getEstado().name(), o.getFechaEmision(), o.getFechaEsperada(),
+                o.getSubtotal(), o.getDescuentoTotal(), o.getImpuestoTotal(), o.getFlete(), o.getTotal(),
+                o.getAprobadoPor(), o.getAprobadoEn(), o.isAprobacionAutomatica(), o.esperaAprobacion(),
+                o.getObservaciones(),
+                lineas.stream().map(l -> LineaDeOrden.de(l, codigosDelProveedor.get(l.getProductoId()))).toList());
     }
 }

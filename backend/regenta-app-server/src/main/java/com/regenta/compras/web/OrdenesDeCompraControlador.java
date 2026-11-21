@@ -80,6 +80,18 @@ public class OrdenesDeCompraControlador {
         return ordenes.aprobar(ordenId);
     }
 
+    @GetMapping(value = "/{ordenId}/pdf", produces = "application/pdf")
+    @Operation(summary = "El PDF de la orden para mandárselo al proveedor (HU-174)")
+    @ApiResponse(responseCode = "409", description = "La orden no está aprobada")
+    public org.springframework.http.ResponseEntity<byte[]> pdf(@PathVariable UUID ordenId) {
+        byte[] pdf = ordenes.pdf(ordenId);
+        return org.springframework.http.ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"orden-de-compra.pdf\"")
+                .body(pdf);
+    }
+
     @PostMapping("/{ordenId}/envio")
     @Operation(summary = "Marca la orden como enviada al proveedor")
     @ApiResponse(responseCode = "409", description = "La orden no estÃ¡ aprobada")

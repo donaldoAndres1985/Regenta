@@ -26,10 +26,12 @@ public record SolicitudDeOrden(
 
     public record LineaDeSolicitud(
             @NotNull UUID productoId,
-            @NotNull String nombre,
+            /** Ya no se usa: el nombre sale del catálogo de Inventario (HU-174). */
+            String nombre,
             @NotNull BigDecimal cantidad,
             @PositiveOrZero BigDecimal costoUnitario,
             @PositiveOrZero BigDecimal descuentoPct,
+            /** Ya no se usa: la tarifa de IVA la decide el catálogo (I8, HU-174 C2). */
             @PositiveOrZero BigDecimal impuestoPct) {
     }
 }
