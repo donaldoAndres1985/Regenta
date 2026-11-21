@@ -1,171 +1,78 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:regenta_compras/regenta_compras.dart';
 import 'package:regenta_core/regenta_core.dart';
 
-class _RepoComprasFake implements RepositorioDeRecepciones {
-  _RepoComprasFake(this._ordenes);
-
-  final List<OrdenResumenVista> _ordenes;
-
-  @override
-  Future<List<OrdenResumenVista>> listarOrdenes() async => _ordenes;
-
-  @override
-  Future<OrdenRecibible> verOrden(String ordenId) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<ResultadoDeRecepcion> registrar({
-    required String ordenId,
-    required String bodegaId,
-    String? facturaProveedor,
-    required List<LineaParaRecibir> lineas,
-  }) {
-    throw UnimplementedError();
-  }
-}
+import 'ayudas_de_ordenes.dart';
 
 void main() {
   testWidgets('Encabezado E1-E5 · en web, el encabezado común sin ícono; en móvil, la barra', (tester) async {
-    Future<void> montar(Size tamano) async {
-      await tester.binding.setSurfaceSize(tamano);
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      await tester.pumpWidget(ProviderScope(
-        overrides: [repositorioDeRecepcionesProvider.overrideWithValue(_RepoComprasFake(const []))],
-        child: MaterialApp(home: PantallaCompras(onOrdenSeleccionada: (_) {})),
-      ));
-      await tester.pumpAndSettle();
-    }
-
-    await montar(const Size(1440, 900));
+    await montarCompras(tester, const []);
     final encabezado = find.byType(EncabezadoDeSeccion);
     expect(encabezado, findsOneWidget);
-    expect(find.descendant(of: encabezado, matching: find.byIcon(Icons.local_shipping_outlined)), findsNothing);
     expect(find.descendant(of: encabezado, matching: find.text('Órdenes de Compra')), findsOneWidget);
-    expect(find.descendant(of: encabezado, matching: find.byTooltip('Nueva Orden')), findsOneWidget);
 
-    await montar(const Size(390, 844));
+    await montarCompras(tester, const [], tamano: const Size(390, 844));
     expect(find.byType(EncabezadoDeSeccion), findsNothing);
     expect(find.byType(AppBar), findsOneWidget);
   });
 
-  testWidgets('Muestra la lista de órdenes de compra con sus datos',
+  testWidgets('HU-174 C1 · El listado muestra número, proveedor, estado, fecha esperada y total, sin «Generar Orden Demo»',
       (tester) async {
-    final fakeOrdenes = [
-      const OrdenResumenVista(
-        id: 'oc-1',
-        numero: 'OC-001',
-        estado: 'APROBADA',
-        total: 540000,
-        fechaEmision: '2026-11-08',
-      ),
-      const OrdenResumenVista(
-        id: 'oc-2',
-        numero: 'OC-002',
-        estado: 'RECIBIDA',
-        total: 120000,
-        fechaEmision: '2026-11-07',
-      ),
-    ];
+    await montarCompras(tester, [orden('a', 'OC-1', 'APROBADA', total: 3570000)]);
 
-    String? ordenSeleccionada;
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          repositorioDeRecepcionesProvider.overrideWithValue(_RepoComprasFake(fakeOrdenes)),
-        ],
-        child: MaterialApp(
-          home: PantallaCompras(
-            onOrdenSeleccionada: (id) => ordenSeleccionada = id,
-          ),
-        ),
-      ),
-    );
-
-    await tester.pumpAndSettle();
-
-    expect(find.text('OC-001'), findsOneWidget);
-    expect(find.text('OC-002'), findsOneWidget);
+    expect(find.text('OC-1 · Andina'), findsOneWidget);
     expect(find.text('APROBADA'), findsOneWidget);
-    expect(find.text('RECIBIDA'), findsOneWidget);
-
-    await tester.tap(find.text('Recibir').first);
-    expect(ordenSeleccionada, equals('oc-1'));
+    expect(find.text('para el 01/12'), findsOneWidget);
+    expect(find.text('\$3.570.000'), findsOneWidget);
+    expect(find.text('Generar Orden Demo'), findsNothing);
   });
 
-  testWidgets('Muestra mensaje cuando no hay órdenes de compra',
-      (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          repositorioDeRecepcionesProvider.overrideWithValue(_RepoComprasFake(const [])),
-        ],
-        child: MaterialApp(
-          home: PantallaCompras(
-            onOrdenSeleccionada: (_) {},
-          ),
-        ),
-      ),
-    );
+  testWidgets('HU-174 C1 · Se filtra por estado y por proveedor', (tester) async {
+    await montarCompras(tester, [
+      orden('a', 'OC-1', 'APROBADA'),
+      orden('b', 'OC-2', 'BORRADOR', espera: true),
+      orden('c', 'OC-3', 'RECIBIDA', proveedorId: 'p-2', proveedor: 'Pinturas'),
+    ]);
 
+    await tester.tap(find.byKey(const Key('ordenes-filtro-porAprobar')));
     await tester.pumpAndSettle();
+    expect(find.text('OC-2 · Andina'), findsOneWidget);
+    expect(find.text('OC-1 · Andina'), findsNothing);
 
-    expect(find.text('No hay órdenes de compra registradas.'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('ordenes-filtro-todas')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('ordenes-filtro-proveedor')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pinturas').last);
+    await tester.pumpAndSettle();
+    expect(find.text('OC-3 · Pinturas'), findsOneWidget);
+    expect(find.text('OC-1 · Andina'), findsNothing);
   });
 
-  testWidgets('HU-166 · El botón Proveedores abre el listado de proveedores', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    var abiertos = 0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [repositorioDeRecepcionesProvider.overrideWithValue(_RepoComprasFake(const []))],
-      child: MaterialApp(
-        home: PantallaCompras(onOrdenSeleccionada: (_) {}, onProveedores: () => abiertos++),
-      ),
-    ));
-    await tester.pumpAndSettle();
+  testWidgets('Sin órdenes, lo dice', (tester) async {
+    await montarCompras(tester, const []);
+
+    expect(find.text('Todavía no hay órdenes de compra.'), findsOneWidget);
+  });
+
+  testWidgets('HU-166 / HU-167 · Los atajos abren proveedores y compra directa', (tester) async {
+    var proveedores = 0;
+    var directa = 0;
+    await montarCompras(tester, const [], onProveedores: () => proveedores++, onCompraDirecta: () => directa++);
 
     await tester.tap(find.byKey(const Key('compras-proveedores')));
-    expect(abiertos, 1);
-  });
-
-  testWidgets('HU-167 · El botón Compra directa abre la compra directa', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    var abiertas = 0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [repositorioDeRecepcionesProvider.overrideWithValue(_RepoComprasFake(const []))],
-      child: MaterialApp(
-        home: PantallaCompras(onOrdenSeleccionada: (_) {}, onCompraDirecta: () => abiertas++),
-      ),
-    ));
-    await tester.pumpAndSettle();
-
     await tester.tap(find.byKey(const Key('compras-compra-directa')));
-    expect(abiertas, 1);
-    expect(find.text('Compra directa'), findsOneWidget);
+    expect(proveedores, 1);
+    expect(directa, 1);
   });
 
   testWidgets('HU-167 · En el celular los atajos son solo íconos y la barra no se desborda', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(390, 844));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(ProviderScope(
-      overrides: [repositorioDeRecepcionesProvider.overrideWithValue(_RepoComprasFake(const []))],
-      child: MaterialApp(
-        home: PantallaCompras(
-          onOrdenSeleccionada: (_) {},
-          onCompraDirecta: () {},
-          onProveedores: () {},
-          onCuentasPorPagar: () {},
-          onConfiguracion: () {},
-        ),
-      ),
-    ));
-    await tester.pumpAndSettle();
+    await montarCompras(tester, [orden('a', 'OC-1', 'APROBADA')],
+        tamano: const Size(390, 844),
+        onCompraDirecta: () {},
+        onProveedores: () {},
+        onCuentasPorPagar: () {},
+        onConfiguracion: () {});
 
     expect(find.byTooltip('Compra directa'), findsOneWidget);
     expect(find.byTooltip('Proveedores'), findsOneWidget);

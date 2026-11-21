@@ -7,9 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.regenta.compras.domain.EstadoOrdenCompra;
 import com.regenta.compras.domain.OrdenCompraLinea;
 import com.regenta.compras.domain.OrdenDeCompra;
 import com.regenta.compras.domain.ProveedorProducto;
@@ -18,7 +20,11 @@ import com.regenta.compras.infrastructure.OrdenCompraLineaRepositorio;
 import com.regenta.compras.infrastructure.OrdenDeCompraRepositorio;
 import com.regenta.compras.infrastructure.ProveedorProductoRepositorio;
 import com.regenta.compras.infrastructure.ProveedorRepositorio;
+import com.regenta.inventario.api.InventarioApi;
+import com.regenta.inventario.api.ProductoParaComprar;
+import com.regenta.shared.web.ConflictoDeEstadoException;
 import com.regenta.shared.web.NoEncontradoException;
+import com.regenta.usuarios.api.ConfiguracionNegocioApi;
 import com.regenta.shared.web.ReglaDeNegocioException;
 import com.regenta.shared.events.RegistroDeEventos;
 import com.regenta.shared.tenancy.ContextoDeNegocio;
@@ -44,12 +50,17 @@ public class GestionDeOrdenesDeCompra {
     private final AsignadorDeConsecutivos consecutivos;
     private final RegistroDeEventos eventos;
     private final GestionDeConfiguracionDeCompras configuracion;
+    private final InventarioApi inventario;
+    private final ConfiguracionNegocioApi negocio;
 
     public GestionDeOrdenesDeCompra(OrdenDeCompraRepositorio ordenes,
             OrdenCompraLineaRepositorio lineasRepo, ProveedorRepositorio proveedores,
             ProveedorProductoRepositorio catalogo, AsignadorDeConsecutivos consecutivos,
-            RegistroDeEventos eventos, GestionDeConfiguracionDeCompras configuracion) {
+            RegistroDeEventos eventos, GestionDeConfiguracionDeCompras configuracion,
+            InventarioApi inventario, @Autowired(required = false) ConfiguracionNegocioApi negocio) {
         this.configuracion = configuracion;
+        this.inventario = inventario;
+        this.negocio = negocio;
         this.ordenes = ordenes;
         this.lineasRepo = lineasRepo;
         this.proveedores = proveedores;
@@ -64,7 +75,7 @@ public class GestionDeOrdenesDeCompra {
         return ordenes.findByNegocioIdOrderByFechaEmisionDescCreadoEnDesc(
                         ContextoDeNegocio.negocioActual())
                 .stream()
-                .map(o -> OrdenDelNegocio.de(o, lineasRepo.findByOrdenIdOrderByLinea(o.getId())))
+                .map(o -> vista(o, lineasRepo.findByOrdenIdOrderByLinea(o.getId())))
                 .toList();
     }
 
@@ -72,7 +83,7 @@ public class GestionDeOrdenesDeCompra {
     @RequierePermiso("COMPRAS_COMPRA_VER")
     public OrdenDelNegocio ver(UUID ordenId) {
         OrdenDeCompra orden = delNegocio(ordenId);
-        return OrdenDelNegocio.de(orden, lineasRepo.findByOrdenIdOrderByLinea(ordenId));
+        return vista(orden, lineasRepo.findByOrdenIdOrderByLinea(ordenId));
     }
 
     @Transactional
@@ -96,7 +107,7 @@ public class GestionDeOrdenesDeCompra {
 
         ordenes.save(orden);
         lineasRepo.saveAll(lineas);
-        return OrdenDelNegocio.de(orden, lineas);
+        return vista(orden, lineas);
     }
 
     /** Criterio 3: si la orden no estÃ¡ en borrador, esto revienta con 409. */
@@ -117,7 +128,7 @@ public class GestionDeOrdenesDeCompra {
 
         ordenes.save(orden);
         lineasRepo.saveAll(lineas);
-        return OrdenDelNegocio.de(orden, lineas);
+        return vista(orden, lineas);
     }
 
     /** Criterios 1 y 2. */
@@ -131,7 +142,7 @@ public class GestionDeOrdenesDeCompra {
 
         eventos.registrar(negocioId, "OrdenDeCompra", orden.getId(), "orden_compra_aprobada",
                 payloadAprobada(negocioId, orden));
-        return OrdenDelNegocio.de(orden, lineasRepo.findByOrdenIdOrderByLinea(ordenId));
+        return vista(orden, lineasRepo.findByOrdenIdOrderByLinea(ordenId));
     }
 
     /**
@@ -151,7 +162,7 @@ public class GestionDeOrdenesDeCompra {
             eventos.registrar(negocioId, "OrdenDeCompra", orden.getId(), "orden_compra_aprobada",
                     payloadAprobada(negocioId, orden));
         }
-        return OrdenDelNegocio.de(orden, lineasRepo.findByOrdenIdOrderByLinea(ordenId));
+        return vista(orden, lineasRepo.findByOrdenIdOrderByLinea(ordenId));
     }
 
     @Transactional
@@ -160,17 +171,28 @@ public class GestionDeOrdenesDeCompra {
         OrdenDeCompra orden = delNegocio(ordenId);
         orden.enviar();
         ordenes.save(orden);
-        return OrdenDelNegocio.de(orden, lineasRepo.findByOrdenIdOrderByLinea(ordenId));
+        return vista(orden, lineasRepo.findByOrdenIdOrderByLinea(ordenId));
     }
 
     private List<OrdenCompraLinea> construirLineas(OrdenDeCompra orden, UUID negocioId,
             UUID proveedorId, List<SolicitudDeOrden.LineaDeSolicitud> solicitadas) {
         List<OrdenCompraLinea> lineas = new ArrayList<>();
         int n = 1;
+        // HU-174 C2 / I8: el nombre y la tarifa de IVA los dice el catálogo, no quien arma la orden.
+        java.util.Map<UUID, ProductoParaComprar> productos = inventario.paraComprar(negocioId,
+                solicitadas.stream().map(SolicitudDeOrden.LineaDeSolicitud::productoId).toList());
         for (SolicitudDeOrden.LineaDeSolicitud l : solicitadas) {
+            ProductoParaComprar p = productos.get(l.productoId());
+            if (p == null) {
+                throw new NoEncontradoException("Ese producto no existe en el catálogo");
+            }
+            if (!p.activo()) {
+                throw new ReglaDeNegocioException("El producto «" + p.nombre()
+                        + "» está desactivado: reactívalo en Inventario para pedirlo");
+            }
             lineas.add(OrdenCompraLinea.nueva(orden.getId(), negocioId, n++, l.productoId(),
-                    l.nombre().trim(), l.cantidad(), costoDe(proveedorId, l),
-                    l.descuentoPct(), l.impuestoPct()));
+                    p.nombre(), l.cantidad(), costoDe(proveedorId, l),
+                    l.descuentoPct(), p.impuestoPct()));
         }
         return lineas;
     }
@@ -183,8 +205,50 @@ public class GestionDeOrdenesDeCompra {
         return catalogo.findByProveedorIdAndProductoId(proveedorId, l.productoId())
                 .map(ProveedorProducto::getCostoUltimo)
                 .orElseThrow(() -> new ReglaDeNegocioException(
-                        "La lÃ­nea del producto " + l.productoId()
+                        "La línea del producto " + l.productoId()
                                 + " no trae costo y el proveedor no tiene uno registrado"));
+    }
+
+    /**
+     * HU-174 C4 · El PDF de la orden para el proveedor. Solo de una orden aprobada (o ya enviada o en
+     * recepción): un borrador todavía puede cambiar.
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("COMPRAS_COMPRA_VER")
+    public byte[] pdf(UUID ordenId) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        OrdenDeCompra orden = delNegocio(ordenId);
+        if (orden.getEstado() == EstadoOrdenCompra.BORRADOR || orden.getEstado() == EstadoOrdenCompra.ANULADA) {
+            throw new ConflictoDeEstadoException("Una orden " + orden.getEstado()
+                    + " no se le manda al proveedor: primero tiene que estar aprobada");
+        }
+        var proveedor = proveedores.findByIdAndNegocioId(orden.getProveedorId(), negocioId).orElse(null);
+        OrdenDelNegocio vista = vista(orden, lineasRepo.findByOrdenIdOrderByLinea(ordenId));
+        return new DocumentoDeOrdenDeCompra().generar(negocio == null ? null : negocio.datosTicket(negocioId), vista,
+                proveedor == null ? null : proveedor.getRazonSocial(),
+                proveedor == null ? null : proveedor.getNumeroDocumento(),
+                proveedor == null ? null : unir(proveedor.getContactoNombre(), proveedor.getTelefono()));
+    }
+
+    /** HU-174 · La orden con el nombre del proveedor y el código con que vende cada producto. */
+    private OrdenDelNegocio vista(OrdenDeCompra orden, List<OrdenCompraLinea> lineas) {
+        UUID negocioId = orden.getNegocioId();
+        String nombre = proveedores.findByIdAndNegocioId(orden.getProveedorId(), negocioId)
+                .map(p -> p.getNombreComercial() != null ? p.getNombreComercial() : p.getRazonSocial())
+                .orElse(null);
+        Map<UUID, String> codigos = new java.util.HashMap<>();
+        for (ProveedorProducto pp : catalogo.findByProveedorId(orden.getProveedorId())) {
+            if (pp.getCodigoProveedor() != null) {
+                codigos.put(pp.getProductoId(), pp.getCodigoProveedor());
+            }
+        }
+        return OrdenDelNegocio.de(orden, lineas, nombre, codigos);
+    }
+
+    private static String unir(String a, String b) {
+        String x = a == null ? "" : a.trim();
+        String y = b == null ? "" : b.trim();
+        return x.isEmpty() ? (y.isEmpty() ? null : y) : (y.isEmpty() ? x : x + " · " + y);
     }
 
     private OrdenDeCompra delNegocio(UUID ordenId) {

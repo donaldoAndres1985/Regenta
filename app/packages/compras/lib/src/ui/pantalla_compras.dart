@@ -1,21 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
-import '../datos/orden_resumen_vista.dart';
-import '../recepcion/proveedores.dart';
+import '../ordenes/datos.dart';
+import '../ordenes/formulario_de_orden.dart';
+import '../ordenes/pantalla_orden.dart';
+import '../proveedores/ui/piezas.dart';
 import 'formato.dart';
 
-final listaOrdenesComprasProvider =
-    FutureProvider.autoDispose<List<OrdenResumenVista>>((ref) {
-  final repo = ref.watch(repositorioDeRecepcionesProvider);
-  return repo.listarOrdenes();
-});
-
-final ordenesCreadasLocalProvider =
-    StateProvider<List<OrdenResumenVista>>((ref) => []);
-
-class PantallaCompras extends ConsumerWidget {
+/// Las órdenes de compra del negocio (HU-174 C1): número, proveedor, estado, fecha esperada y total,
+/// con filtros por estado y por proveedor. Tocar una abre su detalle; «Nueva orden» la arma.
+class PantallaCompras extends ConsumerStatefulWidget {
   const PantallaCompras({
     super.key,
     required this.onOrdenSeleccionada,
@@ -25,6 +22,7 @@ class PantallaCompras extends ConsumerWidget {
     this.onConfiguracion,
   });
 
+  /// Recibir la mercancía de una orden (abre la recepción).
   final ValueChanged<String> onOrdenSeleccionada;
 
   /// HU-166 · Abre el listado de proveedores. Nulo: el botón no aparece.
@@ -40,361 +38,269 @@ class PantallaCompras extends ConsumerWidget {
   final VoidCallback? onConfiguracion;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ordenesAsync = ref.watch(listaOrdenesComprasProvider);
-    final locales = ref.watch(ordenesCreadasLocalProvider);
+  ConsumerState<PantallaCompras> createState() => _PantallaComprasState();
+}
+
+/// Los filtros de estado del listado.
+enum FiltroDeOrdenes {
+  todas('Todas'),
+  borradores('Borradores'),
+  porAprobar('Por aprobar'),
+  enCurso('En curso'),
+  cerradas('Cerradas');
+
+  const FiltroDeOrdenes(this.etiqueta);
+
+  final String etiqueta;
+
+  bool admite(OrdenDeCompraVista o) => switch (this) {
+        FiltroDeOrdenes.todas => true,
+        FiltroDeOrdenes.borradores => o.estado == 'BORRADOR' && !o.esperaAprobacion,
+        FiltroDeOrdenes.porAprobar => o.esperaAprobacion,
+        FiltroDeOrdenes.enCurso => o.enCurso,
+        FiltroDeOrdenes.cerradas => o.estado == 'RECIBIDA' || o.estado == 'CERRADA' || o.estado == 'ANULADA',
+      };
+}
+
+class _PantallaComprasState extends ConsumerState<PantallaCompras> {
+  List<OrdenDeCompraVista>? _ordenes;
+  String? _error;
+  FiltroDeOrdenes _filtro = FiltroDeOrdenes.todas;
+  String? _proveedor;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_cargar());
+  }
+
+  Future<void> _cargar() async {
+    setState(() => _error = null);
+    try {
+      final ordenes = await ref.read(repositorioDeOrdenesProvider).listar();
+      if (mounted) setState(() => _ordenes = ordenes);
+    } on ErrorDeApi catch (fallo) {
+      if (!mounted) return;
+      setState(() {
+        _ordenes ??= const [];
+        _error = fallo is ErrorDeRed ? 'No hay conexión: no se pudieron cargar las órdenes.' : fallo.mensaje;
+      });
+    }
+  }
+
+  Future<void> _abrir(String ordenId) async {
+    await Navigator.of(context).push<void>(MaterialPageRoute(
+      builder: (_) => PantallaOrdenDeCompra(ordenId: ordenId, onRecibir: widget.onOrdenSeleccionada),
+    ));
+    if (mounted) unawaited(_cargar());
+  }
+
+  Future<void> _nueva() async {
+    final creada = await Navigator.of(context).push<OrdenDeCompraVista>(
+      MaterialPageRoute(builder: (_) => const FormularioDeOrden()),
+    );
+    if (!mounted) return;
+    unawaited(_cargar());
+    if (creada != null) unawaited(_abrir(creada.id));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final todas = _ordenes ?? const <OrdenDeCompraVista>[];
+    final proveedores = <String, String>{
+      for (final o in todas) o.proveedorId: o.proveedorNombre ?? 'Proveedor',
+    };
+    final visibles = todas
+        .where((o) => _filtro.admite(o) && (_proveedor == null || o.proveedorId == _proveedor))
+        .toList();
 
     // En web van con texto; en el celular, solo el ícono (con su nombre al dejarlo presionado),
     // para que quepan en la barra.
     List<Widget> acciones({required bool conTexto}) => <Widget>[
-          if (onCompraDirecta != null)
+          if (widget.onCompraDirecta != null)
             _Atajo(
               clave: const Key('compras-compra-directa'),
               texto: 'Compra directa',
               icono: Icons.receipt_long_outlined,
               conTexto: conTexto,
-              onPressed: onCompraDirecta!,
+              onPressed: widget.onCompraDirecta!,
             ),
-          if (onCuentasPorPagar != null)
+          if (widget.onCuentasPorPagar != null)
             _Atajo(
               clave: const Key('compras-cuentas-por-pagar'),
               texto: 'Cuentas por pagar',
               icono: Icons.account_balance_wallet_outlined,
               conTexto: conTexto,
-              onPressed: onCuentasPorPagar!,
+              onPressed: widget.onCuentasPorPagar!,
             ),
-          if (onProveedores != null)
+          if (widget.onProveedores != null)
             _Atajo(
               clave: const Key('compras-proveedores'),
               texto: 'Proveedores',
               icono: Icons.store_mall_directory_outlined,
               conTexto: conTexto,
-              onPressed: onProveedores!,
+              onPressed: widget.onProveedores!,
             ),
-          if (onConfiguracion != null)
+          if (widget.onConfiguracion != null)
             IconButton(
               key: const Key('compras-configuracion'),
               tooltip: 'Configuración de compras',
               icon: const Icon(Icons.tune, color: RegentaColors.ink),
-              onPressed: onConfiguracion,
+              onPressed: widget.onConfiguracion,
             ),
-          IconButton(
-            tooltip: 'Nueva Orden',
-            icon: const Icon(Icons.add, color: RegentaColors.accent),
-            onPressed: () => _abrirDialogoNuevaOrden(context, ref),
-          ),
           IconButton(
             tooltip: 'Refrescar',
             icon: const Icon(Icons.refresh, color: RegentaColors.ink),
-            onPressed: () {
-              ref.invalidate(listaOrdenesComprasProvider);
-            },
+            onPressed: () => unawaited(_cargar()),
           ),
         ];
-    return LayoutBuilder(builder: (context, afuera) => Scaffold(
-      backgroundColor: RegentaColors.paper,
-      // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
-      appBar: afuera.maxWidth >= kBreakpointEscritorio
-          ? EncabezadoDeSeccion(
-              subtitulo: 'Pedidos a proveedores y recepción de mercancía',
-              titulo: 'Órdenes de Compra',
-              acciones: acciones(conTexto: true),
-            )
-          : AppBar(
-              backgroundColor: RegentaColors.surface,
-              surfaceTintColor: RegentaColors.surface,
-              elevation: 0,
-              shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
-              title: Row(
-                children: [
-                  const Icon(Icons.local_shipping, color: RegentaColors.ink, size: 22),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Órdenes de Compra',
-                      overflow: TextOverflow.ellipsis,
-                      style: RegentaType.seccion.copyWith(
-                        fontSize: 18,
-                        color: RegentaColors.ink,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [...acciones(conTexto: false), const SizedBox(width: 8)],
-            ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _abrirDialogoNuevaOrden(context, ref),
-        backgroundColor: RegentaColors.accent,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Nueva Orden'),
-      ),
-      body: ordenesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, size: 48, color: RegentaColors.crit),
-                const SizedBox(height: 16),
-                Text(
-                  'No se pudieron cargar las órdenes de compra: $err',
-                  textAlign: TextAlign.center,
-                  style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    ref.invalidate(listaOrdenesComprasProvider);
-                  },
-                  child: const Text('Reintentar'),
-                ),
-              ],
-            ),
-          ),
-        ),
-        data: (remotas) {
-          final ordenes = [...locales, ...remotas];
-          if (ordenes.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: const BoxDecoration(
-                        color: RegentaColors.sunken,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.local_shipping_outlined, size: 48, color: RegentaColors.accent),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No hay órdenes de compra registradas.',
-                      style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Gestiona los pedidos de abastecimiento a tus proveedores y recibe mercancía en bodega.',
-                      textAlign: TextAlign.center,
-                      style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
-                    ),
-                    const SizedBox(height: 20),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.center,
-                      children: [
-                        FilledButton.icon(
-                          style: FilledButton.styleFrom(backgroundColor: RegentaColors.accent),
-                          onPressed: () => _abrirDialogoNuevaOrden(context, ref),
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Crear Orden de Compra'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () => _crearOrdenDemo(ref),
-                          icon: const Icon(Icons.bolt, size: 18),
-                          label: const Text('Generar Orden Demo'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
 
-          return ListView.separated(
-            padding: EdgeInsets.fromLTRB(16, afuera.maxWidth >= kBreakpointEscritorio ? 0 : 16, 16, 16),
-            itemCount: ordenes.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
-            itemBuilder: (context, i) {
-              final oc = ordenes[i];
-              final badgeColor = _colorEstado(oc.estado);
-
-              return Card(
+    return LayoutBuilder(builder: (context, afuera) {
+      final escritorio = afuera.maxWidth >= kBreakpointEscritorio;
+      return Scaffold(
+        backgroundColor: RegentaColors.paper,
+        // Encabezado común en web (design/comportamiento/Encabezado.md); en móvil, la barra.
+        appBar: escritorio
+            ? EncabezadoDeSeccion(
+                subtitulo: 'Pedidos a proveedores y recepción de mercancía',
+                titulo: 'Órdenes de Compra',
+                acciones: acciones(conTexto: true),
+              )
+            : AppBar(
+                backgroundColor: RegentaColors.surface,
+                surfaceTintColor: RegentaColors.surface,
                 elevation: 0,
-                color: RegentaColors.surface,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(8)),
-                  side: BorderSide(color: RegentaColors.line),
+                shape: const Border(bottom: BorderSide(color: RegentaColors.line)),
+                title: Text('Órdenes de Compra',
+                    overflow: TextOverflow.ellipsis,
+                    style: RegentaType.seccion.copyWith(fontSize: 16, color: RegentaColors.ink)),
+                actions: [...acciones(conTexto: false), const SizedBox(width: 8)],
+              ),
+        floatingActionButton: FloatingActionButton.extended(
+          key: const Key('compras-nueva-orden'),
+          onPressed: () => unawaited(_nueva()),
+          backgroundColor: RegentaColors.accent,
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.add),
+          label: const Text('Nueva orden'),
+        ),
+        body: Column(children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            decoration: const BoxDecoration(
+              color: RegentaColors.surface,
+              border: Border(bottom: BorderSide(color: RegentaColors.line)),
+            ),
+            child: Wrap(spacing: 10, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  for (final f in FiltroDeOrdenes.values) ...[
+                    ChoiceChip(
+                      key: Key('ordenes-filtro-${f.name}'),
+                      label: Text(f.etiqueta),
+                      selected: _filtro == f,
+                      onSelected: (_) => setState(() => _filtro = f),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                ]),
+              ),
+              SizedBox(
+                width: 260,
+                child: DropdownButtonFormField<String?>(
+                  key: const Key('ordenes-filtro-proveedor'),
+                  initialValue: _proveedor,
+                  isExpanded: true,
+                  decoration: decoracionDeCampo(),
+                  items: [
+                    const DropdownMenuItem<String?>(value: null, child: Text('Todos los proveedores')),
+                    for (final e in proveedores.entries)
+                      DropdownMenuItem<String?>(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis)),
+                  ],
+                  onChanged: (v) => setState(() => _proveedor = v),
                 ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  leading: CircleAvatar(
-                    backgroundColor: badgeColor.withValues(alpha: 0.15),
-                    child: Icon(Icons.receipt, color: badgeColor, size: 20),
-                  ),
-                  title: Row(
-                    children: [
-                      Text(
-                        oc.numero.isEmpty ? 'Orden sin número' : oc.numero,
-                        style: RegentaType.cuerpo.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: badgeColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
-                        ),
+              ),
+            ]),
+          ),
+          if (_error != null)
+            Padding(padding: const EdgeInsets.fromLTRB(14, 10, 14, 0), child: AvisoDeError(_error!)),
+          Expanded(
+            child: _ordenes == null
+                ? const Center(child: CircularProgressIndicator())
+                : visibles.isEmpty
+                    ? Center(
                         child: Text(
-                          oc.estado.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: badgeColor,
-                          ),
+                          todas.isEmpty ? 'Todavía no hay órdenes de compra.' : 'Ninguna orden con estos filtros.',
+                          key: const Key('ordenes-vacio'),
+                          style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2),
                         ),
+                      )
+                    : ListView.builder(
+                        key: const Key('ordenes-lista'),
+                        padding: const EdgeInsets.fromLTRB(14, 6, 14, 90),
+                        itemCount: visibles.length,
+                        itemBuilder: (context, i) => _FilaOrden(orden: visibles[i], onTap: () => _abrir(visibles[i].id)),
                       ),
-                    ],
-                  ),
-                  subtitle: Text(
-                    oc.observaciones ?? (oc.fechaEmision != null ? 'Fecha: ${oc.fechaEmision}' : 'Sin observaciones'),
-                    style: RegentaType.cuerpo.copyWith(fontSize: 12, color: RegentaColors.muted),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        formatearPesos(oc.total),
-                        style: RegentaType.cuerpo.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: RegentaColors.ink,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      FilledButton.tonal(
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        onPressed: () => onOrdenSeleccionada(oc.id),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.move_to_inbox, size: 16),
-                            SizedBox(width: 4),
-                            Text('Recibir'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  onTap: () => onOrdenSeleccionada(oc.id),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    ));
-  }
-
-  Color _colorEstado(String estado) {
-    switch (estado.toUpperCase()) {
-      case 'RECIBIDA':
-        return RegentaColors.ok;
-      case 'CANCELADA':
-        return RegentaColors.crit;
-      case 'APROBADA':
-      case 'PARCIAL':
-        return RegentaColors.accent;
-      default:
-        return RegentaColors.warn;
-    }
+          ),
+        ]),
+      );
+    });
   }
 }
 
-  void _crearOrdenDemo(WidgetRef ref) {
-    final nueva = OrdenResumenVista(
-      id: 'demo-oc-${DateTime.now().millisecondsSinceEpoch}',
-      numero: 'OC-2026-${(DateTime.now().millisecondsSinceEpoch % 900) + 100}',
-      estado: 'APROBADA',
-      total: 850000,
-      fechaEmision: DateTime.now().toIso8601String().substring(0, 10),
-      observaciones: 'Distribuidora Central S.A.S. - 15 items recibibles',
-    );
-    ref.read(ordenesCreadasLocalProvider.notifier).update((prev) => [nueva, ...prev]);
-  }
+class _FilaOrden extends StatelessWidget {
+  const _FilaOrden({required this.orden, required this.onTap});
 
-  Future<void> _abrirDialogoNuevaOrden(BuildContext context, WidgetRef ref) async {
-    final numCtrl = TextEditingController(text: 'OC-2026-${(DateTime.now().millisecondsSinceEpoch % 900) + 100}');
-    final provCtrl = TextEditingController(text: 'Distribuidora Andina S.A.');
-    final totalCtrl = TextEditingController(text: '650000');
+  final OrdenDeCompraVista orden;
+  final VoidCallback onTap;
 
-    await showDialog<void>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: Text('Nueva Orden de Compra', style: RegentaType.seccion.copyWith(color: RegentaColors.ink)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: provCtrl,
-                style: const TextStyle(color: RegentaColors.ink),
-                decoration: const InputDecoration(labelText: 'Proveedor *'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: numCtrl,
-                style: const TextStyle(color: RegentaColors.ink),
-                decoration: const InputDecoration(labelText: 'Número de orden *'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: totalCtrl,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: RegentaColors.ink),
-                decoration: const InputDecoration(labelText: 'Total estimado (\$ COP) *'),
-              ),
-            ],
+  @override
+  Widget build(BuildContext context) {
+    final o = orden;
+    final fecha = o.fechaEsperada == null
+        ? 'sin fecha'
+        : 'para el ${o.fechaEsperada!.day.toString().padLeft(2, '0')}/${o.fechaEsperada!.month.toString().padLeft(2, '0')}';
+    return InkWell(
+      key: Key('orden-fila-${o.id}'),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: RegentaColors.line))),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${o.numero} · ${o.proveedorNombre ?? 'Proveedor'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: RegentaType.item.copyWith(color: RegentaColors.inkFuerte, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Row(children: [
+                ChipDeEstado(
+                  texto: o.estadoVisible,
+                  fondo: o.esperaAprobacion ? RegentaColors.warnSoft : RegentaColors.sunken,
+                  tinta: o.esperaAprobacion ? RegentaColors.warn : RegentaColors.ink2,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(fecha,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: RegentaType.codigo.copyWith(fontSize: 10.5, color: RegentaColors.muted)),
+                ),
+              ]),
+            ]),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: RegentaColors.accent),
-            onPressed: () {
-              final prov = provCtrl.text.trim();
-              final num = numCtrl.text.trim();
-              final total = double.tryParse(totalCtrl.text.trim()) ?? 0;
-              if (prov.isEmpty || num.isEmpty) return;
-              Navigator.of(dialogCtx).pop();
-
-              final nueva = OrdenResumenVista(
-                id: 'local-${DateTime.now().millisecondsSinceEpoch}',
-                numero: num,
-                estado: 'APROBADA',
-                total: total,
-                fechaEmision: DateTime.now().toIso8601String().substring(0, 10),
-                observaciones: prov,
-              );
-              ref.read(ordenesCreadasLocalProvider.notifier).update((prev) => [nueva, ...prev]);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Orden de compra $num registrada con éxito.')),
-              );
-            },
-            child: const Text('Crear Orden'),
-          ),
-        ],
+          Text(formatearPesos(o.total),
+              style: RegentaType.codigo.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: RegentaColors.ink)),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right, color: RegentaColors.faint),
+        ]),
       ),
     );
   }
+}
 
 /// Un atajo de la barra de Compras: con texto en web, solo ícono en el celular.
 class _Atajo extends StatelessWidget {
@@ -415,12 +321,7 @@ class _Atajo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!conTexto) {
-      return IconButton(
-        key: clave,
-        tooltip: texto,
-        onPressed: onPressed,
-        icon: Icon(icono, color: RegentaColors.ink),
-      );
+      return IconButton(key: clave, tooltip: texto, onPressed: onPressed, icon: Icon(icono, color: RegentaColors.ink));
     }
     return TextButton.icon(
       key: clave,

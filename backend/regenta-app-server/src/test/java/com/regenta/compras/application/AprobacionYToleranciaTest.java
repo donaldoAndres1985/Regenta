@@ -46,7 +46,8 @@ class AprobacionYToleranciaTest {
     private final GestionDeConfiguracionDeCompras configuracion = new GestionDeConfiguracionDeCompras(configuraciones);
     private final GestionDeOrdenesDeCompra gestion = new GestionDeOrdenesDeCompra(ordenes, lineas,
             mock(ProveedorRepositorio.class), mock(ProveedorProductoRepositorio.class),
-            mock(AsignadorDeConsecutivos.class), eventos, configuracion);
+            mock(AsignadorDeConsecutivos.class), eventos, configuracion,
+            mock(com.regenta.inventario.api.InventarioApi.class), null);
 
     private final UUID negocioId = UUID.randomUUID();
     private final UUID usuarioId = UUID.randomUUID();
