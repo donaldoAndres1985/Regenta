@@ -38,22 +38,23 @@ public record CuentaDelNegocio(
             LocalDate fecha,
             boolean desdeLaCaja) {
 
-        static PagoRegistrado de(PagoProveedor p) {
-            return new PagoRegistrado(p.getId(), p.getMonto(), p.getMetodo().name(),
+        /** HU-171 · {@code montoAplicado} es lo que ese pago abonó a esta cuenta, no el pago entero. */
+        static PagoRegistrado de(PagoProveedor p, BigDecimal montoAplicado) {
+            return new PagoRegistrado(p.getId(), montoAplicado, p.getMetodo().name(),
                     p.getReferencia(), p.getFecha(), p.salioDeLaCaja());
         }
     }
 
-    static CuentaDelNegocio de(CuentaPorPagar c, LocalDate hoy, List<PagoProveedor> pagos) {
+    static CuentaDelNegocio de(CuentaPorPagar c, LocalDate hoy, List<PagoRegistrado> pagos) {
         return de(c, hoy, pagos, null, null);
     }
 
-    static CuentaDelNegocio de(CuentaPorPagar c, LocalDate hoy, List<PagoProveedor> pagos,
+    static CuentaDelNegocio de(CuentaPorPagar c, LocalDate hoy, List<PagoRegistrado> pagos,
             String proveedorNombre, String recepcionNumero) {
         return new CuentaDelNegocio(c.getId(), c.getProveedorId(), proveedorNombre,
                 c.getRecepcionId(), recepcionNumero, c.getNumeroFactura(), c.enEsperaDeFactura(),
                 c.getMonto(), c.getSaldo(), c.getFechaEmision(), c.getFechaVencimiento(),
                 c.getEstado().name(), c.estaVencida(hoy), c.diasDeMora(hoy),
-                pagos.stream().map(PagoRegistrado::de).toList());
+                pagos);
     }
 }

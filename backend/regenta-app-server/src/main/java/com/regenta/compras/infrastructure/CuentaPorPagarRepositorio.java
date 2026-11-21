@@ -19,6 +19,10 @@ public interface CuentaPorPagarRepositorio extends JpaRepository<CuentaPorPagar,
     /** Criterio 3: por antigÃ¼edad = vencimiento mÃ¡s viejo primero. */
     List<CuentaPorPagar> findByNegocioIdOrderByFechaVencimientoAscFechaEmisionAsc(UUID negocioId);
 
+    /** HU-171 · Las cuentas de un proveedor, la que vence primero al principio. */
+    List<CuentaPorPagar> findByNegocioIdAndProveedorIdOrderByFechaVencimientoAscFechaEmisionAsc(
+            UUID negocioId, UUID proveedorId);
+
     boolean existsByNegocioIdAndProveedorIdAndNumeroFactura(UUID negocioId, UUID proveedorId,
             String numeroFactura);
 

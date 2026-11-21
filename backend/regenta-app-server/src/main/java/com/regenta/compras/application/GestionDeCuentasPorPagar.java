@@ -14,12 +14,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.regenta.caja.api.CajaApi;
+import com.regenta.compras.domain.AplicacionDePago;
 import com.regenta.compras.domain.CuentaPorPagar;
+import com.regenta.compras.domain.EstadoCuentaPorPagar;
+import com.regenta.compras.domain.RepartoDePago;
 import com.regenta.compras.domain.EstadoRecepcion;
 import com.regenta.compras.domain.MetodoDePago;
 import com.regenta.compras.domain.PagoProveedor;
 import com.regenta.compras.domain.Proveedor;
 import com.regenta.compras.domain.Recepcion;
+import com.regenta.compras.infrastructure.AplicacionDePagoRepositorio;
 import com.regenta.compras.infrastructure.CuentaPorPagarRepositorio;
 import com.regenta.compras.infrastructure.PagoProveedorRepositorio;
 import com.regenta.compras.infrastructure.ProveedorRepositorio;
@@ -56,10 +60,13 @@ public class GestionDeCuentasPorPagar {
     private final ProveedorRepositorio proveedores;
     private final CajaApi caja;
     private final RegistroDeEventos eventos;
+    private final AplicacionDePagoRepositorio aplicaciones;
 
     public GestionDeCuentasPorPagar(CuentaPorPagarRepositorio cuentas,
             PagoProveedorRepositorio pagos, RecepcionRepositorio recepciones,
-            ProveedorRepositorio proveedores, CajaApi caja, RegistroDeEventos eventos) {
+            ProveedorRepositorio proveedores, CajaApi caja, RegistroDeEventos eventos,
+            AplicacionDePagoRepositorio aplicaciones) {
+        this.aplicaciones = aplicaciones;
         this.cuentas = cuentas;
         this.pagos = pagos;
         this.recepciones = recepciones;
@@ -170,8 +177,7 @@ public class GestionDeCuentasPorPagar {
         CuentaPorPagar cuenta = delNegocio(cuentaId);
         pagar(cuenta, solicitud.monto(), metodoDe(solicitud.metodo()), solicitud.referencia(),
                 solicitud.sesionCajaId());
-        return CuentaDelNegocio.de(cuenta, LocalDate.now(),
-                pagos.findByCuentaIdOrderByFechaAsc(cuentaId));
+        return vista(cuenta);
     }
 
     /**
@@ -183,19 +189,74 @@ public class GestionDeCuentasPorPagar {
      */
     PagoProveedor pagar(CuentaPorPagar cuenta, BigDecimal monto, MetodoDePago metodo,
             String referencia, UUID sesionCajaId) {
+        return registrarPagoA(cuenta.getProveedorId(), monto, metodo, referencia, sesionCajaId,
+                List.of(new RepartoDePago.Abono(cuenta, monto)));
+    }
+
+    /**
+     * HU-171 · Un pago a un proveedor que se reparte entre sus cuentas abiertas: por omisión de la más
+     * antigua a la más nueva, o como lo indique el usuario. Nunca más de lo que se debe; una cuenta de
+     * otro proveedor en el reparto es 422. En efectivo con la plata de la caja sale de la sesión
+     * abierta del usuario (sin ella, 409).
+     */
+    @Transactional
+    @RequierePermiso("COMPRAS_COMPRA_CREAR")
+    public PagoDelNegocio pagarAProveedor(SolicitudDePagoAProveedor solicitud) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        Proveedor proveedor = proveedores.findByIdAndNegocioId(solicitud.proveedorId(), negocioId)
+                .orElseThrow(() -> new NoEncontradoException("Ese proveedor no existe"));
+        List<CuentaPorPagar> abiertas = abiertasDe(negocioId, proveedor.getId());
+        Map<UUID, BigDecimal> indicado = null;
+        if (solicitud.aplicaciones() != null && !solicitud.aplicaciones().isEmpty()) {
+            indicado = new LinkedHashMap<>();
+            for (SolicitudDePagoAProveedor.Aplicacion a : solicitud.aplicaciones()) {
+                indicado.merge(a.cuentaId(), a.monto(), BigDecimal::add);
+            }
+        }
+        List<RepartoDePago.Abono> abonos = RepartoDePago.repartir(solicitud.monto(), abiertas, indicado);
+        MetodoDePago metodo = metodoDe(solicitud.metodo());
+        UUID sesion = null;
+        if (metodo == MetodoDePago.EFECTIVO && Boolean.TRUE.equals(solicitud.pagarDesdeLaCaja())) {
+            UUID usuario = ContextoDeNegocio.actual().usuario();
+            sesion = caja.sesionAbiertaDe(negocioId, usuario).orElseThrow(() -> new ConflictoDeEstadoException(
+                    "No tienes una caja abierta: ábrela o marca que pagaste con dinero de fuera de la caja"));
+        }
+        PagoProveedor pago = registrarPagoA(proveedor.getId(), solicitud.monto(), metodo,
+                solicitud.referencia(), sesion, abonos);
+        return PagoDelNegocio.de(pago, abonos);
+    }
+
+    /** Las cuentas del proveedor con saldo, de la más antigua (vence primero) a la más nueva. */
+    private List<CuentaPorPagar> abiertasDe(UUID negocioId, UUID proveedorId) {
+        return cuentas.findByNegocioIdAndProveedorIdOrderByFechaVencimientoAscFechaEmisionAsc(negocioId,
+                        proveedorId).stream()
+                .filter(c -> c.getSaldo().signum() > 0)
+                .filter(c -> c.getEstado() != EstadoCuentaPorPagar.PAGADA
+                        && c.getEstado() != EstadoCuentaPorPagar.ANULADA)
+                .toList();
+    }
+
+    private PagoProveedor registrarPagoA(UUID proveedorId, BigDecimal monto, MetodoDePago metodo,
+            String referencia, UUID sesionCajaId, List<RepartoDePago.Abono> abonos) {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         UUID sesion = metodo == MetodoDePago.EFECTIVO ? sesionCajaId : null;
         if (sesion != null && !caja.sesionAbierta(negocioId, sesion)) {
             throw new ConflictoDeEstadoException(
                     "Esa sesión de caja no está abierta: el pago no se registró");
         }
-        cuenta.registrarPago(monto);
-        PagoProveedor pago = PagoProveedor.registrar(negocioId, cuenta.getId(), monto, metodo,
+        for (RepartoDePago.Abono abono : abonos) {
+            abono.cuenta().registrarPago(abono.monto());
+            cuentas.save(abono.cuenta());
+        }
+        UUID unaSolaCuenta = abonos.size() == 1 ? abonos.get(0).cuenta().getId() : null;
+        PagoProveedor pago = PagoProveedor.registrar(negocioId, proveedorId, unaSolaCuenta, monto, metodo,
                 referencia, ContextoDeNegocio.actual().usuario(), sesion);
-        cuentas.save(cuenta);
         pagos.save(pago);
+        aplicaciones.saveAll(abonos.stream()
+                .map(a -> AplicacionDePago.de(negocioId, pago.getId(), a.cuenta().getId(), a.monto()))
+                .toList());
         eventos.registrar(negocioId, "PagoProveedor", pago.getId(), EVENTO_PAGO,
-                payloadDe(negocioId, cuenta, pago));
+                payloadDe(negocioId, pago, abonos));
         return pago;
     }
 
@@ -234,8 +295,16 @@ public class GestionDeCuentasPorPagar {
         String recepcion = cuenta.getRecepcionId() == null ? null
                 : recepciones.findByIdAndNegocioId(cuenta.getRecepcionId(), negocioId)
                         .map(Recepcion::getNumero).orElse(null);
-        return CuentaDelNegocio.de(cuenta, LocalDate.now(),
-                pagos.findByCuentaIdOrderByFechaAsc(cuenta.getId()), proveedor, recepcion);
+        List<AplicacionDePago> deLaCuenta = aplicaciones.findByCuentaId(cuenta.getId());
+        Map<UUID, PagoProveedor> porId = new java.util.HashMap<>();
+        pagos.findAllById(deLaCuenta.stream().map(AplicacionDePago::getPagoId).distinct().toList())
+                .forEach(p -> porId.put(p.getId(), p));
+        List<CuentaDelNegocio.PagoRegistrado> registrados = deLaCuenta.stream()
+                .filter(a -> porId.containsKey(a.getPagoId()))
+                .map(a -> CuentaDelNegocio.PagoRegistrado.de(porId.get(a.getPagoId()), a.getMonto()))
+                .sorted(java.util.Comparator.comparing(CuentaDelNegocio.PagoRegistrado::fecha))
+                .toList();
+        return CuentaDelNegocio.de(cuenta, LocalDate.now(), registrados, proveedor, recepcion);
     }
 
     private Map<UUID, String> nombresDeProveedores(List<CuentaPorPagar> filas) {
@@ -253,21 +322,44 @@ public class GestionDeCuentasPorPagar {
         return numeros;
     }
 
+    private static String documentoDe(List<RepartoDePago.Abono> abonos) {
+        if (abonos.isEmpty()) {
+            return null;
+        }
+        String primera = abonos.get(0).cuenta().getNumeroFactura();
+        String texto = primera == null ? "Remisión" : primera;
+        if (abonos.size() > 1) {
+            texto = texto + " y " + (abonos.size() - 1) + " más";
+        }
+        return texto.length() > 40 ? texto.substring(0, 40) : texto;
+    }
+
     private static String nombreDe(Proveedor p) {
         return p.getNombreComercial() != null ? p.getNombreComercial() : p.getRazonSocial();
     }
 
-    private Map<String, Object> payloadDe(UUID negocioId, CuentaPorPagar cuenta, PagoProveedor pago) {
-        String proveedor = proveedores.findByIdAndNegocioId(cuenta.getProveedorId(), negocioId)
+    private Map<String, Object> payloadDe(UUID negocioId, PagoProveedor pago,
+            List<RepartoDePago.Abono> abonos) {
+        String proveedor = proveedores.findByIdAndNegocioId(pago.getProveedorId(), negocioId)
                 .map(GestionDeCuentasPorPagar::nombreDe)
                 .orElse(null);
         Map<String, Object> datos = new LinkedHashMap<>();
         datos.put("negocio_id", negocioId.toString());
         datos.put("pago_id", pago.getId().toString());
-        datos.put("cuenta_id", cuenta.getId().toString());
-        datos.put("proveedor_id", cuenta.getProveedorId().toString());
+        datos.put("cuenta_id", abonos.size() == 1 ? abonos.get(0).cuenta().getId().toString() : null);
+        datos.put("proveedor_id", pago.getProveedorId().toString());
         datos.put("proveedor_nombre", proveedor);
-        datos.put("numero_factura", cuenta.getNumeroFactura());
+        // El documento que verá la caja: la factura, o la primera y cuántas más (hasta 40 caracteres).
+        datos.put("numero_factura", documentoDe(abonos));
+        List<Map<String, Object>> partes = new java.util.ArrayList<>();
+        for (RepartoDePago.Abono a : abonos) {
+            Map<String, Object> parte = new LinkedHashMap<>();
+            parte.put("cuenta_id", a.cuenta().getId().toString());
+            parte.put("numero_factura", a.cuenta().getNumeroFactura());
+            parte.put("monto", a.monto());
+            partes.add(parte);
+        }
+        datos.put("aplicaciones", partes);
         datos.put("monto", pago.getMonto());
         datos.put("metodo", pago.getMetodo().name());
         datos.put("sesion_caja_id", pago.getSesionCajaId() == null ? null : pago.getSesionCajaId().toString());

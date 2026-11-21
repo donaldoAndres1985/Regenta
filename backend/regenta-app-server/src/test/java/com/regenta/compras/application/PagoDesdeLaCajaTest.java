@@ -46,7 +46,7 @@ class PagoDesdeLaCajaTest {
     private final CajaApi caja = mock(CajaApi.class);
     private final RegistroDeEventos eventos = mock(RegistroDeEventos.class);
     private final GestionDeCuentasPorPagar gestion = new GestionDeCuentasPorPagar(cuentas, pagos,
-            mock(RecepcionRepositorio.class), proveedores, caja, eventos);
+            mock(RecepcionRepositorio.class), proveedores, caja, eventos, mock(com.regenta.compras.infrastructure.AplicacionDePagoRepositorio.class));
 
     private final UUID negocioId = UUID.randomUUID();
     private final UUID sesion = UUID.randomUUID();

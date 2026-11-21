@@ -16,7 +16,11 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/** Un pago hecho a un proveedor contra una cuenta por pagar (HU-049). */
+/**
+ * Un pago hecho a un proveedor (HU-049, HU-145, HU-171). Puede abonar a varias de sus cuentas: lo que
+ * abonó a cada una está en {@link AplicacionDePago}. {@code cuentaId} solo se llena cuando abonó a una
+ * sola cuenta.
+ */
 @Entity
 @Table(name = "pagos_proveedor", schema = "compras")
 public class PagoProveedor {
@@ -27,7 +31,10 @@ public class PagoProveedor {
     @Column(name = "negocio_id", nullable = false, updatable = false)
     private UUID negocioId;
 
-    @Column(name = "cuenta_id", nullable = false, updatable = false)
+    @Column(name = "proveedor_id", nullable = false, updatable = false)
+    private UUID proveedorId;
+
+    @Column(name = "cuenta_id", updatable = false)
     private UUID cuentaId;
 
     @Column(nullable = false, updatable = false)
@@ -57,23 +64,20 @@ public class PagoProveedor {
     protected PagoProveedor() {
     }
 
-    public static PagoProveedor registrar(UUID negocioId, UUID cuentaId, BigDecimal monto,
-            MetodoDePago metodo, String referencia, UUID usuarioId) {
-        return registrar(negocioId, cuentaId, monto, metodo, referencia, usuarioId, null);
-    }
-
     /**
      * HU-145 · Solo un pago en efectivo puede salir de una sesión de caja; con otro método la sesión
-     * no se guarda (la caja no cambia).
+     * no se guarda (la caja no cambia). {@code cuentaId} es nulo si el pago abona a varias cuentas.
      */
-    public static PagoProveedor registrar(UUID negocioId, UUID cuentaId, BigDecimal monto,
-            MetodoDePago metodo, String referencia, UUID usuarioId, UUID sesionCajaId) {
+    public static PagoProveedor registrar(UUID negocioId, UUID proveedorId, UUID cuentaId,
+            BigDecimal monto, MetodoDePago metodo, String referencia, UUID usuarioId,
+            UUID sesionCajaId) {
         if (monto == null || monto.signum() <= 0) {
             throw new ReglaDeNegocioException("El pago debe ser mayor que cero");
         }
         PagoProveedor p = new PagoProveedor();
         p.id = UUID.randomUUID();
         p.negocioId = negocioId;
+        p.proveedorId = proveedorId;
         p.cuentaId = cuentaId;
         p.monto = monto;
         p.metodo = metodo == null ? MetodoDePago.OTRO : metodo;
@@ -82,6 +86,10 @@ public class PagoProveedor {
         p.usuarioId = usuarioId;
         p.sesionCajaId = p.metodo == MetodoDePago.EFECTIVO ? sesionCajaId : null;
         return p;
+    }
+
+    public UUID getProveedorId() {
+        return proveedorId;
     }
 
     public boolean salioDeLaCaja() {

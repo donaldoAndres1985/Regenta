@@ -8,6 +8,7 @@ import '../proveedores/ui/piezas.dart';
 import '../ui/formato.dart';
 import 'controlador.dart';
 import 'datos.dart';
+import 'dialogo_de_pago.dart';
 
 String _fecha(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
@@ -33,6 +34,20 @@ class PantallaCuentasPorPagar extends ConsumerWidget {
     }
   }
 
+  /// HU-171 · Pagar a un proveedor, repartiendo entre sus facturas.
+  Future<void> _pagar(BuildContext context, WidgetRef ref, {String? proveedorId}) async {
+    final ctrl = ref.read(controladorDeCuentasProvider.notifier);
+    final hecho = await abrirDialogoDePago(
+      context,
+      estado: ref.read(controladorDeCuentasProvider),
+      proveedorId: proveedorId,
+      onPagar: ctrl.pagar,
+    );
+    if (hecho && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pago registrado.')));
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final estado = ref.watch(controladorDeCuentasProvider);
@@ -44,6 +59,12 @@ class PantallaCuentasPorPagar extends ConsumerWidget {
           tooltip: 'Actualizar',
           onPressed: estado.cargando ? null : ctrl.cargar,
           icon: const Icon(Icons.refresh, size: 20, color: RegentaColors.ink2),
+        ),
+        FilledButton.icon(
+          key: const Key('cuentas-pagar'),
+          onPressed: estado.proveedoresConDeuda.isEmpty ? null : () => unawaited(_pagar(context, ref)),
+          icon: const Icon(Icons.payments_outlined, size: 18),
+          label: Text(escritorio ? 'Pagar a proveedor' : 'Pagar'),
         ),
       ];
       final cuerpo = Column(children: [
@@ -85,7 +106,13 @@ class PantallaCuentasPorPagar extends ConsumerWidget {
                 style: RegentaType.codigo.copyWith(fontSize: 11, color: RegentaColors.ink2)),
           ]),
         ),
-        Expanded(child: _Lista(estado: estado, onFactura: (c) => unawaited(_registrarFactura(context, ref, c)))),
+        Expanded(
+          child: _Lista(
+            estado: estado,
+            onFactura: (c) => unawaited(_registrarFactura(context, ref, c)),
+            onPagar: (c) => unawaited(_pagar(context, ref, proveedorId: c.proveedorId)),
+          ),
+        ),
       ]);
       return Scaffold(
         backgroundColor: RegentaColors.paper,
@@ -113,10 +140,11 @@ class PantallaCuentasPorPagar extends ConsumerWidget {
 }
 
 class _Lista extends StatelessWidget {
-  const _Lista({required this.estado, required this.onFactura});
+  const _Lista({required this.estado, required this.onFactura, required this.onPagar});
 
   final EstadoDeCuentas estado;
   final ValueChanged<CuentaPorPagarVista> onFactura;
+  final ValueChanged<CuentaPorPagarVista> onPagar;
 
   @override
   Widget build(BuildContext context) {
@@ -144,16 +172,21 @@ class _Lista extends StatelessWidget {
       key: const Key('cuentas-lista'),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       itemCount: visibles.length,
-      itemBuilder: (context, i) => _FilaCuenta(cuenta: visibles[i], onFactura: () => onFactura(visibles[i])),
+      itemBuilder: (context, i) => _FilaCuenta(
+        cuenta: visibles[i],
+        onFactura: () => onFactura(visibles[i]),
+        onPagar: () => onPagar(visibles[i]),
+      ),
     );
   }
 }
 
 class _FilaCuenta extends StatelessWidget {
-  const _FilaCuenta({required this.cuenta, required this.onFactura});
+  const _FilaCuenta({required this.cuenta, required this.onFactura, required this.onPagar});
 
   final CuentaPorPagarVista cuenta;
   final VoidCallback onFactura;
+  final VoidCallback onPagar;
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +232,12 @@ class _FilaCuenta extends StatelessWidget {
               key: Key('cuenta-registrar-factura-${c.id}'),
               onPressed: onFactura,
               child: const Text('Registrar factura'),
+            ),
+          if (c.abierta && c.proveedorId != null)
+            TextButton(
+              key: Key('cuenta-pagar-${c.id}'),
+              onPressed: onPagar,
+              child: const Text('Pagar'),
             ),
         ]),
       ]),

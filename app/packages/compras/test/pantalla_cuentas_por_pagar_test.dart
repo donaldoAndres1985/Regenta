@@ -9,7 +9,31 @@ class _RepoFake implements RepositorioDeCuentasPorPagar {
 
   List<CuentaPorPagarVista> cuentas;
   final List<(String, String, DateTime)> facturas = [];
+  final List<Map<String, Object?>> pagos = [];
   ErrorDeApi? falla;
+  bool cajaAbierta = true;
+
+  @override
+  Future<bool> tengoCajaAbierta() async => cajaAbierta;
+
+  @override
+  Future<void> pagar({
+    required String proveedorId,
+    required num monto,
+    required String metodo,
+    String? referencia,
+    bool desdeLaCaja = false,
+    Map<String, num>? aplicaciones,
+  }) async {
+    if (falla != null) throw falla!;
+    pagos.add({
+      'proveedorId': proveedorId,
+      'monto': monto,
+      'metodo': metodo,
+      'desdeLaCaja': desdeLaCaja,
+      'aplicaciones': aplicaciones,
+    });
+  }
 
   @override
   Future<List<CuentaPorPagarVista>> listar() async => cuentas;
@@ -53,10 +77,11 @@ final _conFactura = CuentaPorPagarVista(
   diasDeMora: 19,
 );
 
-Future<_RepoFake> _montar(WidgetTester tester, {Size tamano = const Size(1440, 900)}) async {
+Future<_RepoFake> _montar(WidgetTester tester,
+    {Size tamano = const Size(1440, 900), List<CuentaPorPagarVista>? cuentas}) async {
   await tester.binding.setSurfaceSize(tamano);
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  final repo = _RepoFake([_remision, _conFactura]);
+  final repo = _RepoFake(cuentas ?? [_remision, _conFactura]);
   await tester.pumpWidget(ProviderScope(
     overrides: [repositorioDeCuentasPorPagarProvider.overrideWithValue(repo)],
     child: const MaterialApp(home: PantallaCuentasPorPagar()),
@@ -133,6 +158,130 @@ void main() {
     await _montar(tester, tamano: const Size(390, 844));
 
     expect(find.byKey(const Key('cuentas-lista')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  // ------------------------------------------------------------- HU-171 · un pago a varias facturas
+
+  final vieja = CuentaPorPagarVista(
+    id: 'c-a', proveedorId: 'p-1', proveedorNombre: 'Andina', numeroFactura: 'FV-1',
+    monto: 300000, saldo: 300000, fechaVencimiento: DateTime(2026, 10, 31),
+  );
+  final nueva = CuentaPorPagarVista(
+    id: 'c-b', proveedorId: 'p-1', proveedorNombre: 'Andina', numeroFactura: 'FV-2',
+    monto: 500000, saldo: 500000, fechaVencimiento: DateTime(2026, 12, 1),
+  );
+
+  test('HU-171 C1 · El reparto por omisión va de la más antigua a la más nueva', () {
+    expect(repartirPorAntiguedad(400000, [vieja, nueva]), {'c-a': 300000, 'c-b': 100000});
+    expect(repartirPorAntiguedad(200000, [vieja, nueva]), {'c-a': 200000});
+  });
+
+  Future<_RepoFake> abrirPago(WidgetTester tester, {bool cajaAbierta = true, Size? tamano}) async {
+    final repo = await _montar(tester, cuentas: [nueva, vieja], tamano: tamano ?? const Size(1440, 1000));
+    repo.cajaAbierta = cajaAbierta;
+    await tester.tap(find.byKey(const Key('cuentas-pagar')));
+    await tester.pumpAndSettle();
+    return repo;
+  }
+
+  testWidgets('HU-171 C1 · 400.000 sin tocar el reparto: 300.000 a la más antigua y 100.000 a la otra',
+      (tester) async {
+    final repo = await abrirPago(tester);
+    await tester.enterText(find.byKey(const Key('pago-monto')), '400000');
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Text>(find.byKey(const Key('pago-reparto-c-a'))).data, '\$300.000');
+    expect(tester.widget<Text>(find.byKey(const Key('pago-reparto-c-b'))).data, '\$100.000');
+    await tester.tap(find.byKey(const Key('pago-registrar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.pagos.single['monto'], 400000);
+    expect(repo.pagos.single['proveedorId'], 'p-1');
+    expect(repo.pagos.single['aplicaciones'], isNull, reason: 'sin reparto a mano lo reparte el backend');
+    expect(find.text('Pago registrado.'), findsOneWidget);
+  });
+
+  testWidgets('HU-171 C2 · Repartido a mano: todo a la segunda factura', (tester) async {
+    final repo = await abrirPago(tester);
+    await tester.enterText(find.byKey(const Key('pago-monto')), '400000');
+    await tester.tap(find.byKey(const Key('pago-a-mano')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('pago-aplicar-c-a')), '0');
+    await tester.enterText(find.byKey(const Key('pago-aplicar-c-b')), '400000');
+    await tester.tap(find.byKey(const Key('pago-registrar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.pagos.single['aplicaciones'], {'c-a': 0, 'c-b': 400000});
+  });
+
+  testWidgets('HU-171 C3 · Más de lo que se debe no se deja registrar', (tester) async {
+    final repo = await abrirPago(tester);
+    await tester.enterText(find.byKey(const Key('pago-monto')), '900000');
+    await tester.tap(find.byKey(const Key('pago-registrar')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No se paga más de lo que se debe: le debes \$800.000.'), findsOneWidget);
+    expect(repo.pagos, isEmpty);
+  });
+
+  testWidgets('HU-171 · Un reparto a mano que no suma el pago no se deja registrar', (tester) async {
+    final repo = await abrirPago(tester);
+    await tester.enterText(find.byKey(const Key('pago-monto')), '400000');
+    await tester.tap(find.byKey(const Key('pago-a-mano')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('pago-aplicar-c-b')), '50000');
+    await tester.tap(find.byKey(const Key('pago-registrar')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('El reparto suma'), findsOneWidget);
+    expect(repo.pagos, isEmpty);
+  });
+
+  testWidgets('HU-171 / HU-145 · En efectivo con la caja abierta, sale de la caja', (tester) async {
+    final repo = await abrirPago(tester);
+    await tester.enterText(find.byKey(const Key('pago-monto')), '300000');
+    await tester.tap(find.byKey(const Key('pago-metodo')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Efectivo').last);
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<CheckboxListTile>(find.byKey(const Key('pago-desde-la-caja'))).value, isTrue);
+    await tester.tap(find.byKey(const Key('pago-registrar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.pagos.single['metodo'], 'EFECTIVO');
+    expect(repo.pagos.single['desdeLaCaja'], isTrue);
+  });
+
+  testWidgets('HU-171 C6 · Si el servidor rechaza el pago, el motivo se ve y el diálogo sigue abierto',
+      (tester) async {
+    final repo = await abrirPago(tester);
+    repo.falla = const RecursoDuplicado('No tienes una caja abierta');
+    await tester.enterText(find.byKey(const Key('pago-monto')), '100000');
+    await tester.tap(find.byKey(const Key('pago-registrar')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No tienes una caja abierta'), findsOneWidget);
+    expect(find.byKey(const Key('pago-monto')), findsOneWidget);
+  });
+
+  testWidgets('HU-171 · Pagar desde una fila deja elegido a su proveedor', (tester) async {
+    await _montar(tester, cuentas: [nueva, vieja]);
+    await tester.tap(find.byKey(const Key('cuenta-pagar-c-a')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Le debes \$800.000'), findsOneWidget);
+    expect(find.byKey(const Key('pago-cuenta-c-a')), findsOneWidget);
+    expect(find.byKey(const Key('pago-cuenta-c-b')), findsOneWidget);
+  });
+
+  testWidgets('HU-171 · En el celular el diálogo de pago cabe sin desbordarse', (tester) async {
+    await abrirPago(tester, tamano: const Size(390, 844));
+    await tester.enterText(find.byKey(const Key('pago-monto')), '400000');
+    await tester.tap(find.byKey(const Key('pago-a-mano')));
+    await tester.pumpAndSettle();
+
     expect(tester.takeException(), isNull);
   });
 }

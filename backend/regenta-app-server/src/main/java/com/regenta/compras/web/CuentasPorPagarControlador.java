@@ -18,7 +18,9 @@ import com.regenta.compras.application.CuentaDelNegocio;
 import com.regenta.compras.application.GestionDeCuentasPorPagar;
 import com.regenta.compras.application.SolicitudDeFacturaDeCuenta;
 import com.regenta.compras.application.SolicitudDeFacturaDeRecepcion;
+import com.regenta.compras.application.PagoDelNegocio;
 import com.regenta.compras.application.SolicitudDePago;
+import com.regenta.compras.application.SolicitudDePagoAProveedor;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -70,6 +72,16 @@ public class CuentasPorPagarControlador {
     public CuentaDelNegocio registrarFacturaDeCuenta(@PathVariable UUID cuentaId,
             @Valid @RequestBody SolicitudDeFacturaDeCuenta solicitud) {
         return cuentas.registrarFacturaDeCuenta(cuentaId, solicitud);
+    }
+
+    @PostMapping("/pagos")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Un pago a un proveedor que abona a varias de sus facturas (HU-171)",
+            description = "Sin `aplicaciones`, se reparte de la factura más antigua a la más nueva.")
+    @ApiResponse(responseCode = "409", description = "Se pidió pagar desde la caja y el usuario no tiene una abierta")
+    @ApiResponse(responseCode = "422", description = "Más de lo que se debe, reparto que no suma o cuenta de otro proveedor")
+    public PagoDelNegocio pagarAProveedor(@Valid @RequestBody SolicitudDePagoAProveedor solicitud) {
+        return cuentas.pagarAProveedor(solicitud);
     }
 
     @PostMapping("/{cuentaId}/pagos")

@@ -133,7 +133,7 @@ public class RegistroDeMovimientos {
         String concepto = "Pago a proveedor" + (proveedor == null ? "" : " " + proveedor);
         MovimientoDeCaja mov = MovimientoDeCaja.pagoAProveedor(negocioId, sesionId,
                 usuarioEvento != null ? usuarioEvento : sesion.getUsuarioAperturaId(), pagoId,
-                texto(datos.get("numero_factura")),
+                recortar(texto(datos.get("numero_factura")), 40),
                 concepto.length() > 200 ? concepto.substring(0, 200) : concepto, monto, idem);
         try {
             movimientos.save(mov);
@@ -195,6 +195,10 @@ public class RegistroDeMovimientos {
         } catch (NumberFormatException noEsNumero) {
             return null;
         }
+    }
+
+    private static String recortar(String v, int largo) {
+        return v == null || v.length() <= largo ? v : v.substring(0, largo);
     }
 
     private static String texto(Object v) {
