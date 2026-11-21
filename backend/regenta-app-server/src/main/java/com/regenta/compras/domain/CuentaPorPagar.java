@@ -41,7 +41,8 @@ public class CuentaPorPagar {
     @Column(name = "recepcion_id", updatable = false)
     private UUID recepcionId;
 
-    @Column(name = "numero_factura", nullable = false, length = 40, updatable = false)
+    /** Nulo mientras la cuenta está en espera de factura: llegó con remisión (HU-170). */
+    @Column(name = "numero_factura", length = 40)
     private String numeroFactura;
 
     @Column(nullable = false)
@@ -50,7 +51,7 @@ public class CuentaPorPagar {
     @Column(nullable = false)
     private BigDecimal saldo;
 
-    @Column(name = "fecha_emision", nullable = false, updatable = false)
+    @Column(name = "fecha_emision", nullable = false)
     private LocalDate fechaEmision;
 
     @Column(name = "fecha_vencimiento", nullable = false)
@@ -87,6 +88,43 @@ public class CuentaPorPagar {
         c.fechaVencimiento = fechaEmision.plusDays(Math.max(0, diasCredito));
         c.estado = EstadoCuentaPorPagar.PENDIENTE;
         return c;
+    }
+
+    /**
+     * HU-170 · La mercancía llegó con remisión: la cuenta nace sin número de factura, «en espera de
+     * factura», con un vencimiento provisional desde la fecha de recepción. Ya se le puede abonar.
+     */
+    public static CuentaPorPagar abrirEnEsperaDeFactura(UUID negocioId, UUID proveedorId,
+            UUID recepcionId, BigDecimal monto, LocalDate fechaRecepcion, int diasCredito) {
+        return abrirPorRecepcion(negocioId, proveedorId, recepcionId, null, monto, fechaRecepcion,
+                diasCredito);
+    }
+
+    public boolean enEsperaDeFactura() {
+        return numeroFactura == null;
+    }
+
+    /**
+     * HU-170 C3 · Llegó la factura: se registra su número y su fecha, se quita la marca y el
+     * vencimiento se recalcula desde la fecha de la factura. Solo una cuenta en espera (409).
+     */
+    public void registrarFactura(String numero, LocalDate fecha, int diasCredito) {
+        if (!enEsperaDeFactura()) {
+            throw new ConflictoDeEstadoException(
+                    "Esta cuenta ya tiene la factura " + numeroFactura + " registrada");
+        }
+        if (estado == EstadoCuentaPorPagar.ANULADA) {
+            throw new ConflictoDeEstadoException("La cuenta está anulada");
+        }
+        if (numero == null || numero.isBlank()) {
+            throw new ReglaDeNegocioException("Indica el número de la factura del proveedor");
+        }
+        if (fecha == null) {
+            throw new ReglaDeNegocioException("Indica la fecha de la factura del proveedor");
+        }
+        this.numeroFactura = numero.trim();
+        this.fechaEmision = fecha;
+        this.fechaVencimiento = fecha.plusDays(Math.max(0, diasCredito));
     }
 
     /**

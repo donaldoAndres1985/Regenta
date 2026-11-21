@@ -180,7 +180,8 @@ public class GestionDeRecepciones {
         if (!inventario.bodegaActiva(negocioId, solicitud.bodegaId())) {
             throw new NoEncontradoException("Esa bodega no existe o está inactiva");
         }
-        exigirFacturaNoRegistrada(negocioId, proveedor.getId(), solicitud.facturaProveedor(), null);
+        exigirFacturaNoRegistrada(negocioId, proveedor.getId(), solicitud.facturaProveedor(), null,
+                condicionDe(solicitud.condicionPago()) == CondicionDePago.CONTADO);
 
         String numero = "REC-" + consecutivos.siguiente(negocioId, TIPO_CONSECUTIVO);
         Recepcion recepcion = Recepcion.crear(negocioId, numero, null, proveedor.getId(),
@@ -219,7 +220,8 @@ public class GestionDeRecepciones {
         }
         proveedorParaComprar(negocioId, recepcion.getProveedorId());
         exigirFacturaNoRegistrada(negocioId, recepcion.getProveedorId(),
-                solicitud.facturaProveedor(), recepcionId);
+                solicitud.facturaProveedor(), recepcionId,
+                condicionDe(solicitud.condicionPago()) == CondicionDePago.CONTADO);
 
         recepcion.datosDeFactura(solicitud.facturaProveedor(), fechaDe(solicitud),
                 solicitud.flete(), solicitud.descuentoGlobal(), solicitud.observaciones());
@@ -246,7 +248,7 @@ public class GestionDeRecepciones {
         if (recepcion.esCompraDirecta()) {
             proveedorParaComprar(negocioId, recepcion.getProveedorId());
             exigirFacturaNoRegistrada(negocioId, recepcion.getProveedorId(),
-                    recepcion.getFacturaProveedor(), recepcionId);
+                    recepcion.getFacturaProveedor(), recepcionId, recepcion.esDeContado());
         }
         recepcion.confirmar();
 
@@ -323,11 +325,18 @@ public class GestionDeRecepciones {
         return proveedor;
     }
 
-    /** C6 / I22: el número de factura es único por proveedor (409). */
+    /**
+     * C6 / I22: el número de factura es único por proveedor (409). HU-170: sin número, la compra a
+     * crédito llegó con remisión y se acepta; de contado se exige (422).
+     */
     private void exigirFacturaNoRegistrada(UUID negocioId, UUID proveedorId, String factura,
-            UUID salvoRecepcion) {
+            UUID salvoRecepcion, boolean exigida) {
         if (factura == null || factura.isBlank()) {
-            throw new ReglaDeNegocioException("Indica el número de la factura del proveedor");
+            if (exigida) {
+                throw new ReglaDeNegocioException(
+                        "Una compra de contado necesita el número de la factura del proveedor");
+            }
+            return;
         }
         String numero = factura.trim();
         boolean enCuentas = cuentas.existsByNegocioIdAndProveedorIdAndNumeroFactura(negocioId,
@@ -442,8 +451,11 @@ public class GestionDeRecepciones {
     }
 
     private CuentaPorPagar abrirCuentaPorPagarSiHaceFalta(UUID negocioId, Recepcion recepcion) {
-        if (!recepcion.tieneFactura() || recepcion.getTotal().signum() <= 0) {
+        if (recepcion.getTotal().signum() <= 0) {
             return null;
+        }
+        if (!recepcion.tieneFactura()) {
+            return abrirEnEsperaDeFactura(negocioId, recepcion);
         }
         Proveedor proveedor = proveedores
                 .findByIdAndNegocioId(recepcion.getProveedorId(), negocioId)
@@ -463,6 +475,26 @@ public class GestionDeRecepciones {
             throw new ConflictoDeEstadoException(
                     "La factura " + recepcion.getFacturaProveedor() + " de este proveedor ya está registrada");
         }
+        return cuenta;
+    }
+
+    /**
+     * HU-170 C1 · Llegó con remisión: la cuenta nace sin número, en espera de factura, con un
+     * vencimiento provisional desde hoy. Se completa al registrar la factura.
+     */
+    private CuentaPorPagar abrirEnEsperaDeFactura(UUID negocioId, Recepcion recepcion) {
+        if (recepcion.esDeContado()) {
+            throw new ReglaDeNegocioException(
+                    "Una compra de contado necesita el número de la factura del proveedor");
+        }
+        Proveedor proveedor = proveedores
+                .findByIdAndNegocioId(recepcion.getProveedorId(), negocioId)
+                .orElseThrow(() -> new NoEncontradoException("Ese proveedor no existe"));
+        CuentaPorPagar cuenta = CuentaPorPagar.abrirEnEsperaDeFactura(negocioId,
+                recepcion.getProveedorId(), recepcion.getId(),
+                recepcion.getTotal().setScale(2, RoundingMode.HALF_UP), LocalDate.now(),
+                proveedor.getDiasCredito());
+        cuentas.save(cuenta);
         return cuenta;
     }
 

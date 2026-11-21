@@ -244,6 +244,20 @@ public class Recepcion {
         }
     }
 
+    /**
+     * HU-170 · Llegó la factura de una recepción que vino con remisión. A diferencia de
+     * {@link #datosDeFactura}, vale aunque la recepción ya esté confirmada: solo completa el número
+     * y la fecha, no cambia lo recibido.
+     */
+    public void facturaRecibida(String numero, LocalDate fecha) {
+        if (tieneFactura()) {
+            throw new ConflictoDeEstadoException(
+                    "Esta recepción ya tiene la factura " + facturaProveedor + " registrada");
+        }
+        this.facturaProveedor = limpiar(numero);
+        this.fechaFactura = fecha;
+    }
+
     public boolean tieneFactura() {
         return facturaProveedor != null && !facturaProveedor.isBlank();
     }

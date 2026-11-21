@@ -342,4 +342,33 @@ void main() {
     expect(find.byKey(const Key('compra-desde-la-caja')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  // ------------------------------------------------------------------ HU-170 · remisión
+
+  testWidgets('HU-170 C1 · A crédito sin número de factura se registra: llegó con remisión', (tester) async {
+    final repo = await _montar(tester);
+    await _facturaDeReferencia(tester);
+    await tester.enterText(find.byKey(const Key('compra-factura')), '');
+    await tester.pumpAndSettle();
+
+    expect(find.text('¿Llegó con remisión? Déjalo vacío'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('compra-registrar')));
+    await tester.pumpAndSettle();
+
+    expect(repo.enviadas.single.containsKey('facturaProveedor'), isFalse);
+    expect(repo.enviadas.single['condicionPago'], 'CREDITO');
+  });
+
+  testWidgets('HU-170 C2 · De contado sin número de factura no se deja registrar', (tester) async {
+    final repo = await _montar(tester);
+    await _facturaDeReferencia(tester);
+    await tester.enterText(find.byKey(const Key('compra-factura')), '');
+    await tester.tap(find.text('De contado'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('compra-registrar')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Una compra de contado necesita el número de la factura del proveedor.'), findsOneWidget);
+    expect(repo.enviadas, isEmpty);
+  });
 }

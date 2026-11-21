@@ -68,24 +68,49 @@ public class GestionDeCuentasPorPagar {
         this.eventos = eventos;
     }
 
+    public List<CuentaDelNegocio> listar(boolean soloVencidas) {
+        return listar(soloVencidas, false);
+    }
+
+    /**
+     * Por antigüedad (vencimiento más viejo primero). HU-170 C4: {@code soloEnEsperaDeFactura} deja
+     * solo las que llegaron con remisión, con el número de su recepción.
+     */
     @Transactional(readOnly = true)
     @RequierePermiso("COMPRAS_COMPRA_VER")
-    public List<CuentaDelNegocio> listar(boolean soloVencidas) {
+    public List<CuentaDelNegocio> listar(boolean soloVencidas, boolean soloEnEsperaDeFactura) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
         LocalDate hoy = LocalDate.now();
-        return cuentas.findByNegocioIdOrderByFechaVencimientoAscFechaEmisionAsc(
-                        ContextoDeNegocio.negocioActual())
-                .stream()
+        List<CuentaPorPagar> filas = cuentas
+                .findByNegocioIdOrderByFechaVencimientoAscFechaEmisionAsc(negocioId).stream()
                 .filter(c -> !soloVencidas || c.estaVencida(hoy))
-                .map(c -> CuentaDelNegocio.de(c, hoy, List.of()))
+                .filter(c -> !soloEnEsperaDeFactura || c.enEsperaDeFactura())
+                .toList();
+        Map<UUID, String> nombres = nombresDeProveedores(filas);
+        Map<UUID, String> numeros = numerosDeRecepciones(filas);
+        return filas.stream()
+                .map(c -> CuentaDelNegocio.de(c, hoy, List.of(), nombres.get(c.getProveedorId()),
+                        c.getRecepcionId() == null ? null : numeros.get(c.getRecepcionId())))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     @RequierePermiso("COMPRAS_COMPRA_VER")
     public CuentaDelNegocio ver(UUID cuentaId) {
+        return vista(delNegocio(cuentaId));
+    }
+
+    /**
+     * HU-170 C3 · Llegó la factura de una cuenta en espera: se quita la marca y el vencimiento se
+     * recalcula desde la fecha de la factura con los días de crédito del proveedor. El número no se
+     * repite para el mismo proveedor (409).
+     */
+    @Transactional
+    @RequierePermiso("COMPRAS_COMPRA_CREAR")
+    public CuentaDelNegocio registrarFacturaDeCuenta(UUID cuentaId, SolicitudDeFacturaDeCuenta solicitud) {
         CuentaPorPagar cuenta = delNegocio(cuentaId);
-        return CuentaDelNegocio.de(cuenta, LocalDate.now(),
-                pagos.findByCuentaIdOrderByFechaAsc(cuentaId));
+        completarFactura(cuenta, solicitud.numeroFactura(), solicitud.fechaFactura());
+        return vista(cuenta);
     }
 
     /** HU-049 C1: la factura del proveedor sobre una recepción confirmada abre la cuenta. */
@@ -100,8 +125,15 @@ public class GestionDeCuentasPorPagar {
         if (recepcion.getEstado() != EstadoRecepcion.CONFIRMADA) {
             throw new ConflictoDeEstadoException("La recepción todavía no está confirmada");
         }
-        if (!cuentas.findByNegocioIdAndRecepcionId(negocioId, recepcion.getId()).isEmpty()) {
-            throw new ConflictoDeEstadoException("Esa recepción ya tiene una cuenta por pagar");
+        List<CuentaPorPagar> existentes = cuentas.findByNegocioIdAndRecepcionId(negocioId, recepcion.getId());
+        if (!existentes.isEmpty()) {
+            // HU-170 · Si llegó con remisión, su cuenta espera esta factura: se completa.
+            CuentaPorPagar enEspera = existentes.stream().filter(CuentaPorPagar::enEsperaDeFactura)
+                    .findFirst()
+                    .orElseThrow(() -> new ConflictoDeEstadoException("Esa recepción ya tiene una cuenta por pagar"));
+            completarFactura(enEspera, numeroFactura,
+                    solicitud.fechaFactura() == null ? LocalDate.now() : solicitud.fechaFactura());
+            return vista(enEspera);
         }
         if (recepcion.getTotal().signum() <= 0) {
             throw new ReglaDeNegocioException("La recepción no tiene monto para facturar");
@@ -167,9 +199,67 @@ public class GestionDeCuentasPorPagar {
         return pago;
     }
 
+    private void completarFactura(CuentaPorPagar cuenta, String numero, LocalDate fecha) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        String limpio = numero == null ? "" : numero.trim();
+        if (!limpio.isEmpty() && cuentas.existsByNegocioIdAndProveedorIdAndNumeroFactura(
+                negocioId, cuenta.getProveedorId(), limpio)) {
+            throw new RecursoDuplicadoException(
+                    "Ya hay una cuenta con la factura " + limpio + " de ese proveedor");
+        }
+        Proveedor proveedor = proveedores.findByIdAndNegocioId(cuenta.getProveedorId(), negocioId)
+                .orElseThrow(() -> new NoEncontradoException("Ese proveedor no existe"));
+        cuenta.registrarFactura(limpio, fecha, proveedor.getDiasCredito());
+        if (cuenta.getRecepcionId() != null) {
+            recepciones.findByIdAndNegocioId(cuenta.getRecepcionId(), negocioId).ifPresent(r -> {
+                if (!r.tieneFactura()) {
+                    r.facturaRecibida(limpio, fecha);
+                    recepciones.save(r);
+                }
+            });
+        }
+        try {
+            cuentas.save(cuenta);
+            cuentas.flush();
+        } catch (DataIntegrityViolationException duplicada) {
+            throw new RecursoDuplicadoException(
+                    "Ya hay una cuenta con la factura " + limpio + " de ese proveedor");
+        }
+    }
+
+    private CuentaDelNegocio vista(CuentaPorPagar cuenta) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        String proveedor = proveedores.findByIdAndNegocioId(cuenta.getProveedorId(), negocioId)
+                .map(GestionDeCuentasPorPagar::nombreDe).orElse(null);
+        String recepcion = cuenta.getRecepcionId() == null ? null
+                : recepciones.findByIdAndNegocioId(cuenta.getRecepcionId(), negocioId)
+                        .map(Recepcion::getNumero).orElse(null);
+        return CuentaDelNegocio.de(cuenta, LocalDate.now(),
+                pagos.findByCuentaIdOrderByFechaAsc(cuenta.getId()), proveedor, recepcion);
+    }
+
+    private Map<UUID, String> nombresDeProveedores(List<CuentaPorPagar> filas) {
+        Map<UUID, String> nombres = new java.util.HashMap<>();
+        proveedores.findAllById(filas.stream().map(CuentaPorPagar::getProveedorId).distinct().toList())
+                .forEach(p -> nombres.put(p.getId(), nombreDe(p)));
+        return nombres;
+    }
+
+    private Map<UUID, String> numerosDeRecepciones(List<CuentaPorPagar> filas) {
+        Map<UUID, String> numeros = new java.util.HashMap<>();
+        recepciones.findAllById(filas.stream().map(CuentaPorPagar::getRecepcionId)
+                        .filter(java.util.Objects::nonNull).distinct().toList())
+                .forEach(r -> numeros.put(r.getId(), r.getNumero()));
+        return numeros;
+    }
+
+    private static String nombreDe(Proveedor p) {
+        return p.getNombreComercial() != null ? p.getNombreComercial() : p.getRazonSocial();
+    }
+
     private Map<String, Object> payloadDe(UUID negocioId, CuentaPorPagar cuenta, PagoProveedor pago) {
         String proveedor = proveedores.findByIdAndNegocioId(cuenta.getProveedorId(), negocioId)
-                .map(p -> p.getNombreComercial() != null ? p.getNombreComercial() : p.getRazonSocial())
+                .map(GestionDeCuentasPorPagar::nombreDe)
                 .orElse(null);
         Map<String, Object> datos = new LinkedHashMap<>();
         datos.put("negocio_id", negocioId.toString());

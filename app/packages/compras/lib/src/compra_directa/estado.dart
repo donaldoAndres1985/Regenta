@@ -181,7 +181,10 @@ class EstadoDeCompraDirecta {
   String? get falta {
     if (proveedorId == null) return 'Elige el proveedor.';
     if (bodegaId == null) return 'Elige la bodega a la que entra la mercancía.';
-    if (factura.trim().isEmpty) return 'Escribe el número de la factura del proveedor.';
+    // HU-170 · A crédito puede llegar con remisión: la factura se registra después.
+    if (deContado && factura.trim().isEmpty) {
+      return 'Una compra de contado necesita el número de la factura del proveedor.';
+    }
     if (lineas.isEmpty) return 'Agrega al menos un producto.';
     if (descuentoGlobal > base) return 'El descuento global no puede ser mayor que el valor de la factura.';
     for (final l in lineas) {
@@ -194,7 +197,7 @@ class EstadoDeCompraDirecta {
   Map<String, dynamic> aJson() => {
         'proveedorId': proveedorId,
         'bodegaId': bodegaId,
-        'facturaProveedor': factura.trim(),
+        if (factura.trim().isNotEmpty) 'facturaProveedor': factura.trim(),
         if (fechaFactura != null) 'fechaFactura': _fecha(fechaFactura!),
         'flete': flete,
         'descuentoGlobal': descuentoGlobal,
