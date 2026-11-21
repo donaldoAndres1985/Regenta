@@ -82,6 +82,10 @@ public class RecepcionLinea {
     @Column(name = "registro_sanitario", length = 60)
     private String registroSanitario;
 
+    /** HU-179 · El precio de venta (IVA incluido) que se fijó al confirmar; nulo si no cambió. */
+    @Column(name = "precio_venta_nuevo")
+    private BigDecimal precioVentaNuevo;
+
     protected RecepcionLinea() {
     }
 
@@ -262,6 +266,14 @@ public class RecepcionLinea {
 
     public LocalDate getFechaVencimiento() {
         return fechaVencimiento;
+    }
+
+    public void fijarPrecioVentaNuevo(BigDecimal precio) {
+        this.precioVentaNuevo = precio;
+    }
+
+    public BigDecimal getPrecioVentaNuevo() {
+        return precioVentaNuevo;
     }
 
     public String getRegistroSanitario() {

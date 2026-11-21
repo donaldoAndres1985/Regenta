@@ -35,6 +35,7 @@ import com.regenta.compras.infrastructure.ProveedorProductoRepositorio;
 import com.regenta.compras.infrastructure.ProveedorRepositorio;
 import com.regenta.compras.infrastructure.RecepcionLineaRepositorio;
 import com.regenta.compras.infrastructure.RecepcionRepositorio;
+import com.regenta.inventario.api.CostoYPrecio;
 import com.regenta.inventario.api.InventarioApi;
 import com.regenta.inventario.api.ProductoParaComprar;
 import com.regenta.inventario.api.ReglaDeLote;
@@ -276,12 +277,50 @@ public class GestionDeRecepciones {
         return RecepcionDelNegocio.de(recepcion, lineas, avisos(negocioId, proveedor, recepcion));
     }
 
+    /**
+     * HU-179 C1 · El margen de cada línea: costo anterior y nuevo, precio y base, y el margen sobre la
+     * base antes y después. Sirve en borrador (para decidir el precio) y confirmada.
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("COMPRAS_COMPRA_VER")
+    public List<MargenDeLinea> margenes(UUID recepcionId) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        Recepcion recepcion = delNegocio(recepcionId);
+        List<RecepcionLinea> lineas = recepcionLineas.findByRecepcionId(recepcionId);
+        Map<UUID, CostoYPrecio> actuales = inventario.costosYPrecios(negocioId, recepcion.getBodegaId(),
+                lineas.stream().map(RecepcionLinea::getProductoId).distinct().toList());
+        List<MargenDeLinea> margenes = new ArrayList<>();
+        for (RecepcionLinea l : lineas) {
+            CostoYPrecio actual = actuales.get(l.getProductoId());
+            BigDecimal nuevo = l.getCostoEntrada() != null ? l.getCostoEntrada() : l.costoNeto();
+            BigDecimal anterior = actual == null ? null : actual.costoPromedio();
+            BigDecimal base = actual == null ? null : actual.base();
+            margenes.add(new MargenDeLinea(l.getId(), l.getProductoId(), l.getNombre(), anterior, nuevo,
+                    actual == null ? null : actual.precio(), base, MargenDeLinea.margen(base, anterior),
+                    MargenDeLinea.margen(base, nuevo), anterior == null || anterior.compareTo(nuevo) != 0,
+                    l.getPrecioVentaNuevo()));
+        }
+        return margenes;
+    }
+
+    /**
+     * HU-179 · El costo y el precio actuales de unos productos en una bodega, para ver el margen antes de
+     * armar la recepción.
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("COMPRAS_COMPRA_VER")
+    public List<CostoYPrecio> preciosActuales(UUID bodegaId, List<UUID> productoIds) {
+        return List.copyOf(inventario.costosYPrecios(ContextoDeNegocio.negocioActual(), bodegaId,
+                productoIds == null ? List.of() : productoIds).values());
+    }
+
     @Transactional
     @RequierePermiso("COMPRAS_COMPRA_CREAR")
     public RecepcionDelNegocio confirmar(UUID recepcionId,
             SolicitudDeConfirmacionDeRecepcion solicitud) {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         Recepcion recepcion = delNegocio(recepcionId);
+        Map<UUID, BigDecimal> preciosNuevos = preciosNuevosDe(solicitud, recepcionId);
         if (solicitud != null) {
             recepcion.registrarFactura(solicitud.facturaProveedor());
         }
@@ -300,6 +339,15 @@ public class GestionDeRecepciones {
 
         if (recepcion.getOrdenId() != null) {
             aplicarSobreLaOrden(negocioId, recepcion.getOrdenId(), lineas);
+        }
+        // HU-179 C2 / C3 · Solo cambia el precio de los productos que traen uno nuevo.
+        for (Map.Entry<UUID, BigDecimal> p : preciosNuevos.entrySet()) {
+            lineas.stream().filter(l -> l.getProductoId().equals(p.getKey()))
+                    .forEach(l -> l.fijarPrecioVentaNuevo(p.getValue()));
+            inventario.cambiarPrecioDeVenta(negocioId, p.getKey(), p.getValue());
+        }
+        if (!preciosNuevos.isEmpty()) {
+            recepcionLineas.saveAll(lineas);
         }
         actualizarCatalogoDelProveedor(negocioId, recepcion.getProveedorId(), lineas);
         List<String> avisos = proveedores.findByIdAndNegocioId(recepcion.getProveedorId(), negocioId)
@@ -381,6 +429,32 @@ public class GestionDeRecepciones {
             o.registrarAnulacionDeRecepcion(new ArrayList<>(lineasOrden.values()));
             ordenes.save(o);
         });
+    }
+
+    /**
+     * HU-179 C4 · Un precio nuevo exige {@code INVENTARIO_PRODUCTO_EDITAR} (403) y debe ser de un producto
+     * de la recepción (422). Se valida antes de cambiar nada.
+     */
+    private Map<UUID, BigDecimal> preciosNuevosDe(SolicitudDeConfirmacionDeRecepcion solicitud, UUID recepcionId) {
+        if (solicitud == null || solicitud.preciosNuevos() == null || solicitud.preciosNuevos().isEmpty()) {
+            return Map.of();
+        }
+        if (!ContextoDeNegocio.actual().puede("INVENTARIO_PRODUCTO_EDITAR")) {
+            throw new com.regenta.shared.web.SinPermisoException("INVENTARIO_PRODUCTO_EDITAR");
+        }
+        java.util.Set<UUID> suyos = recepcionLineas.findByRecepcionId(recepcionId).stream()
+                .map(RecepcionLinea::getProductoId).collect(Collectors.toSet());
+        Map<UUID, BigDecimal> precios = new LinkedHashMap<>();
+        for (SolicitudDeConfirmacionDeRecepcion.PrecioNuevo p : solicitud.preciosNuevos()) {
+            if (!suyos.contains(p.productoId())) {
+                throw new ReglaDeNegocioException("Ese producto no llegó en esta recepción: su precio no se cambia aquí");
+            }
+            if (p.precioVenta() == null || p.precioVenta().signum() <= 0) {
+                throw new ReglaDeNegocioException("El precio de venta nuevo debe ser mayor que cero");
+            }
+            precios.put(p.productoId(), p.precioVenta());
+        }
+        return precios;
     }
 
     private List<RecepcionLinea> lineasDirectas(UUID negocioId, Recepcion recepcion,

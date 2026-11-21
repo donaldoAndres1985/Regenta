@@ -17,6 +17,10 @@ final repositorioDeRecepcionesProvider = Provider<RepositorioDeRecepciones>((ref
 final escanerDeRecepcionProvider =
     Provider<EscanerDeCodigos>((ref) => const EscanerMobileScanner());
 
+/// HU-179 C4 · Si quien recibe puede cambiar precios (`INVENTARIO_PRODUCTO_EDITAR`). La app lo cablea
+/// desde los permisos del token; el backend lo vuelve a validar (403).
+final puedeCambiarPreciosProvider = Provider<bool>((ref) => false);
+
 final controladorDeRecepcionProvider =
     StateNotifierProvider<ControladorDeRecepcion, EstadoDeRecepcion>(
   (ref) => ControladorDeRecepcion(ref.watch(repositorioDeRecepcionesProvider)),

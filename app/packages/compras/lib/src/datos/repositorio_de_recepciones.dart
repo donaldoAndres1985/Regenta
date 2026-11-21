@@ -3,6 +3,7 @@ import 'package:regenta_core/regenta_core.dart';
 import 'orden_recibible.dart';
 import 'orden_resumen_vista.dart';
 import '../recepcion/factura_de_recepcion.dart';
+import '../recepcion/precio_actual.dart';
 
 /// Una línea que se va a mandar al backend al registrar la recepción.
 class LineaParaRecibir {
@@ -61,6 +62,19 @@ class RepositorioDeRecepciones {
         .toList();
   }
 
+  /// HU-179 · El costo promedio y el precio de los productos en la bodega, para mostrar el margen.
+  Future<Map<String, PrecioActual>> preciosActuales(String bodegaId, Iterable<String> productoIds) async {
+    final ids = productoIds.toSet();
+    if (ids.isEmpty) return const {};
+    final consulta = [for (final id in ids) 'productoId=${Uri.encodeComponent(id)}'].join('&');
+    final res = await _http.get<List<dynamic>>(
+        '/api/compras/recepciones/precios-actuales?bodegaId=${Uri.encodeComponent(bodegaId)}&$consulta');
+    return {
+      for (final e in res)
+        (e as Map)['productoId'] as String: PrecioActual.desdeJson(e.cast<String, dynamic>()),
+    };
+  }
+
   Future<OrdenRecibible> verOrden(String ordenId) async {
     final cuerpo = await _http.get<Map<String, dynamic>>(
       '/api/compras/ordenes/${Uri.encodeComponent(ordenId)}',
@@ -77,6 +91,7 @@ class RepositorioDeRecepciones {
     String? facturaProveedor,
     FacturaDeRecepcion? factura,
     required List<LineaParaRecibir> lineas,
+    Map<String, num> preciosNuevos = const {},
   }) async {
     final creada = await _http.post<Map<String, dynamic>>(
       '/api/compras/recepciones',
@@ -98,6 +113,14 @@ class RepositorioDeRecepciones {
     final confirmada = await _http.post<Map<String, dynamic>>(
       '/api/compras/recepciones/$id/confirmacion',
       encolable: true,
+      // HU-179 · el precio de venta nuevo (IVA incluido) de lo que llegó; sin él, no cambia.
+      datos: preciosNuevos.isEmpty
+          ? null
+          : {
+              'preciosNuevos': [
+                for (final e in preciosNuevos.entries) {'productoId': e.key, 'precioVenta': e.value},
+              ],
+            },
     );
     if (confirmada is Encolado) {
       return const ResultadoDeRecepcion.encolada();

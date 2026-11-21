@@ -260,6 +260,11 @@ public class Producto {
         this.atributos = atributos == null ? new LinkedHashMap<>() : new LinkedHashMap<>(atributos);
     }
 
+    /** HU-179 · El precio nuevo decidido al recibir, con IVA incluido (I2). */
+    public void cambiarPrecioDeVenta(BigDecimal precioConIva) {
+        this.precioVenta = precioConIva;
+    }
+
     public void tocar(UUID usuarioId) {
         this.actualizadoPor = usuarioId;
     }

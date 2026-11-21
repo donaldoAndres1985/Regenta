@@ -165,7 +165,7 @@ class DevolucionAProveedorTest {
 
     private void conPermisos(String... permisos) {
         ContextoDeNegocio.establecer(new DatosDelNegocio(negocioId, usuarioId, "PROFESIONAL", "VENTA_DIRECTA",
-                Set.of(permisos), Set.of("COMPRAS"), Set.of(), Set.of()));
+                Set.of(), Set.of("COMPRAS"), Set.of(permisos), Set.of()));
     }
 
     /** Recibe la factura de referencia y la confirma, a crédito o de contado por transferencia. */
@@ -314,5 +314,8 @@ class DevolucionAProveedorTest {
         GestionDeDevolucionesAProveedor conGuardia = fabrica.getProxy();
         assertThatThrownBy(() -> conGuardia.registrar(devolverA("1"))).isInstanceOf(SinPermisoException.class);
         verify(devolucionesRepo, never()).save(any(DevolucionAProveedor.class));
+
+        conPermisos("COMPRAS_DEVOLUCION_REGISTRAR");
+        assertThat(conGuardia.registrar(devolverA("1")).valorNota()).isEqualByComparingTo("11900");
     }
 }

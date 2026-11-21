@@ -15,11 +15,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.regenta.compras.application.GestionDeRecepciones;
+import com.regenta.compras.application.MargenDeLinea;
 import com.regenta.compras.application.RecepcionDelNegocio;
 import com.regenta.compras.application.SolicitudDeAnulacionDeRecepcion;
 import com.regenta.compras.application.SolicitudDeCompraDirecta;
 import com.regenta.compras.application.SolicitudDeConfirmacionDeRecepcion;
 import com.regenta.compras.application.SolicitudDeRecepcion;
+import com.regenta.inventario.api.CostoYPrecio;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -49,6 +51,23 @@ public class RecepcionesControlador {
     @ApiResponse(responseCode = "404", description = "No existe en este negocio")
     public RecepcionDelNegocio ver(@PathVariable UUID recepcionId) {
         return recepciones.ver(recepcionId);
+    }
+
+    @GetMapping("/{recepcionId}/margenes")
+    @Operation(summary = "El margen de cada línea con el costo nuevo (HU-179)",
+            description = "Costo anterior (promedio en la bodega) y nuevo (de entrada), precio de venta con IVA, "
+                    + "su base y el margen sobre la base antes y después.")
+    @ApiResponse(responseCode = "404", description = "No existe en este negocio")
+    public List<MargenDeLinea> margenes(@PathVariable UUID recepcionId) {
+        return recepciones.margenes(recepcionId);
+    }
+
+    @GetMapping("/precios-actuales")
+    @Operation(summary = "Costo promedio y precio de unos productos en una bodega (HU-179)",
+            description = "Para ver el margen mientras se arma la recepción.")
+    public List<CostoYPrecio> preciosActuales(@RequestParam UUID bodegaId,
+            @RequestParam(name = "productoId", required = false) List<UUID> productoIds) {
+        return recepciones.preciosActuales(bodegaId, productoIds);
     }
 
     @PostMapping
@@ -88,7 +107,10 @@ public class RecepcionesControlador {
     @Operation(summary = "Confirma la recepción: sube inventario, actualiza el catálogo del "
             + "proveedor, avanza la orden y abre la cuenta por pagar")
     @ApiResponse(responseCode = "409", description = "Ya no está en borrador, o la factura ya está registrada")
-    @ApiResponse(responseCode = "422", description = "La cantidad recibida supera lo pedido + 5 %")
+    @ApiResponse(responseCode = "403", description = "HU-179 · Trae precios nuevos sin el permiso "
+            + "INVENTARIO_PRODUCTO_EDITAR")
+    @ApiResponse(responseCode = "422", description = "La cantidad recibida supera lo pedido más la tolerancia, "
+            + "o un precio nuevo es de un producto que no llegó")
     public RecepcionDelNegocio confirmar(@PathVariable UUID recepcionId,
             @RequestBody(required = false) SolicitudDeConfirmacionDeRecepcion solicitud) {
         return recepciones.confirmar(recepcionId, solicitud);

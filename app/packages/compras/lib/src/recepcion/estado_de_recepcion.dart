@@ -1,6 +1,7 @@
 import '../datos/orden_recibible.dart';
 import 'entrada_de_linea.dart';
 import 'factura_de_recepcion.dart';
+import 'precio_actual.dart';
 
 /// El estado de la pantalla de recepción móvil: la orden, lo capturado por
 /// línea, en qué línea está el foco, y el resultado del registro.
@@ -15,6 +16,8 @@ class EstadoDeRecepcion {
     this.numeroRecepcion,
     this.encolada = false,
     this.factura = const FacturaDeRecepcion(),
+    this.precios = const {},
+    this.preciosNuevos = const {},
   });
 
   final OrdenRecibible? orden;
@@ -34,6 +37,12 @@ class EstadoDeRecepcion {
 
   /// HU-175 · La factura con que llega (número, flete, contado o crédito).
   final FacturaDeRecepcion factura;
+
+  /// HU-179 · Costo y precio actuales por producto (productoId → precio actual).
+  final Map<String, PrecioActual> precios;
+
+  /// HU-179 · El precio de venta nuevo que se escribió (productoId → precio con IVA).
+  final Map<String, num> preciosNuevos;
 
   List<LineaRecibible> get lineas => orden?.lineas ?? const [];
 
@@ -75,6 +84,8 @@ class EstadoDeRecepcion {
     Object? numeroRecepcion = _sinCambio,
     bool? encolada,
     FacturaDeRecepcion? factura,
+    Map<String, PrecioActual>? precios,
+    Map<String, num>? preciosNuevos,
   }) =>
       EstadoDeRecepcion(
         orden: orden == _sinCambio ? this.orden : orden as OrdenRecibible?,
@@ -88,6 +99,8 @@ class EstadoDeRecepcion {
             : numeroRecepcion as String?,
         encolada: encolada ?? this.encolada,
         factura: factura ?? this.factura,
+        precios: precios ?? this.precios,
+        preciosNuevos: preciosNuevos ?? this.preciosNuevos,
       );
 
   static const _sinCambio = Object();

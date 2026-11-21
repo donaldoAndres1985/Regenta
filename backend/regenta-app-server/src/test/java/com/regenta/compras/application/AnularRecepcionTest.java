@@ -142,7 +142,7 @@ class AnularRecepcionTest {
 
     private void conPermisos(String... permisos) {
         ContextoDeNegocio.establecer(new DatosDelNegocio(negocioId, usuarioId, "PROFESIONAL", "VENTA_DIRECTA",
-                Set.of(permisos), Set.of("COMPRAS"), Set.of(), Set.of()));
+                Set.of(), Set.of("COMPRAS"), Set.of(permisos), Set.of()));
     }
 
     private SolicitudDeRecepcion.LineaDeRecepcion de(OrdenCompraLinea l, String cantidad, String lote) {
@@ -280,5 +280,9 @@ class AnularRecepcionTest {
         assertThatThrownBy(() -> conGuardia.anular(recepcion.getId(), new SolicitudDeAnulacionDeRecepcion("Error")))
                 .isInstanceOf(SinPermisoException.class);
         assertThat(recepcion.getEstado()).isEqualTo(EstadoRecepcion.CONFIRMADA);
+
+        conPermisos("COMPRAS_COMPRA_ANULAR");
+        conGuardia.anular(recepcion.getId(), new SolicitudDeAnulacionDeRecepcion("Error"));
+        assertThat(recepcion.getEstado()).isEqualTo(EstadoRecepcion.ANULADA);
     }
 }

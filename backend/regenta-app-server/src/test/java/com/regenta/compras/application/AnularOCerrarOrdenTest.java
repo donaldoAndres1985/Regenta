@@ -73,7 +73,7 @@ class AnularOCerrarOrdenTest {
 
     private void conPermisos(String... permisos) {
         ContextoDeNegocio.establecer(new DatosDelNegocio(negocioId, usuarioId, "PROFESIONAL", "VENTA_DIRECTA",
-                Set.of(permisos), Set.of("COMPRAS"), Set.of(), Set.of()));
+                Set.of(), Set.of("COMPRAS"), Set.of(permisos), Set.of()));
     }
 
     private void llevarA(String estado) {
@@ -205,5 +205,9 @@ class AnularOCerrarOrdenTest {
         assertThatThrownBy(() -> conGuardia.cerrar(orden.getId(), new SolicitudDeFinDeOrden("No llega")))
                 .isInstanceOf(SinPermisoException.class);
         assertThat(orden.getEstado()).isEqualTo(EstadoOrdenCompra.PARCIAL);
+
+        conPermisos("COMPRAS_COMPRA_ANULAR");
+        conGuardia.cerrar(orden.getId(), new SolicitudDeFinDeOrden("No llega"));
+        assertThat(orden.getEstado()).isEqualTo(EstadoOrdenCompra.CERRADA);
     }
 }

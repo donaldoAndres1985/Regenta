@@ -9,6 +9,11 @@ class _RepoFake implements RepositorioDeRecepciones {
   bool sinRed;
   final List<List<LineaParaRecibir>> registradas = [];
   final List<FacturaDeRecepcion?> facturas = [];
+  final List<Map<String, num>> preciosEnviados = [];
+  Map<String, PrecioActual> precios = const {};
+
+  @override
+  Future<Map<String, PrecioActual>> preciosActuales(String bodegaId, Iterable<String> productoIds) async => precios;
 
   OrdenRecibible orden = OrdenRecibible(
     id: 'oc-1',
@@ -55,8 +60,10 @@ class _RepoFake implements RepositorioDeRecepciones {
     String? facturaProveedor,
     FacturaDeRecepcion? factura,
     required List<LineaParaRecibir> lineas,
+    Map<String, num> preciosNuevos = const {},
   }) async {
     registradas.add(lineas);
+    preciosEnviados.add(preciosNuevos);
     facturas.add(factura);
     if (sinRed) return const ResultadoDeRecepcion.encolada();
     return const ResultadoDeRecepcion.confirmada('REC-1');
@@ -76,6 +83,7 @@ Future<void> _montar(
   _RepoFake repo, {
   Size size = const Size(390, 900),
   void Function(String)? onRegistrada,
+  bool puedeCambiarPrecios = false,
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -83,6 +91,7 @@ Future<void> _montar(
     overrides: [
       repositorioDeRecepcionesProvider.overrideWithValue(repo),
       escanerDeRecepcionProvider.overrideWithValue(_EscanerFake()),
+      puedeCambiarPreciosProvider.overrideWithValue(puedeCambiarPrecios),
     ],
     child: MaterialApp(
       home: PantallaRecepcion(ordenId: 'oc-1', onRegistrada: onRegistrada),
@@ -296,6 +305,78 @@ void main() {
 
       expect(find.byKey(const Key('recepcion-factura')), findsNothing);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('HU-179 · Precio de venta al recibir', () {
+    // A 10 × $10.000 y B 5 × $20.000 con flete $10.000: A entra a $10.500.
+    _RepoFake referencia() => _RepoFake()
+      ..orden = const OrdenRecibible(
+        id: 'oc-1',
+        numero: 'OC-1',
+        proveedorId: 'prov-1',
+        bodegaId: 'bod-1',
+        estado: 'ENVIADA',
+        lineas: [
+          LineaRecibible(id: 'la', linea: 1, productoId: 'a', nombre: 'Acetaminofén', cantidadPedida: 10,
+              cantidadRecibida: 0, costoUnitario: 10000, impuestoPct: 19),
+          LineaRecibible(id: 'lb', linea: 2, productoId: 'b', nombre: 'Ibuprofeno', cantidadPedida: 5,
+              cantidadRecibida: 0, costoUnitario: 20000, impuestoPct: 19),
+        ],
+      )
+      ..precios = const {
+        'a': PrecioActual(productoId: 'a', costoPromedio: 9000, precio: 14280, base: 12000),
+      };
+
+    Future<_RepoFake> recibirTodo(WidgetTester tester, {bool puede = true}) async {
+      final repo = referencia();
+      await _montar(tester, repo, size: const Size(1280, 1400), puedeCambiarPrecios: puede);
+      await tester.enterText(find.byKey(const Key('campo-recibido')).first, '10');
+      await tester.enterText(find.byKey(const Key('campo-recibido')).last, '5');
+      await tester.enterText(find.byKey(const Key('recepcion-flete')), '10000');
+      await tester.pumpAndSettle();
+      return repo;
+    }
+
+    testWidgets('C1 · Costo 9.000 → 10.500 y margen 25,0 % → 12,5 % sobre la base', (tester) async {
+      await recibirTodo(tester);
+
+      expect(tester.widget<Text>(find.byKey(const Key('margen-costo-a'))).data, 'Costo \$9.000 → \$10.500');
+      expect(tester.widget<Text>(find.byKey(const Key('margen-valor-a'))).data, 'Margen 25,0 % → 12,5 %');
+      expect(find.byKey(const Key('margen-b')), findsNothing, reason: 'sin precio conocido no hay margen');
+    });
+
+    testWidgets('C2 · Con precio nuevo 15.470, se envía al confirmar', (tester) async {
+      final repo = await recibirTodo(tester);
+
+      await tester.enterText(find.byKey(const Key('precio-nuevo-a')), '15470');
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar recepción'));
+      await tester.pumpAndSettle();
+
+      expect(repo.preciosEnviados.single, {'a': 15470});
+    });
+
+    testWidgets('C3 · Sin precio nuevo no se envía ninguno', (tester) async {
+      final repo = await recibirTodo(tester);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar recepción'));
+      await tester.pumpAndSettle();
+
+      expect(repo.preciosEnviados.single, isEmpty);
+    });
+
+    testWidgets('C4 · Sin INVENTARIO_PRODUCTO_EDITAR se ve el margen pero no el campo de precio', (tester) async {
+      await recibirTodo(tester, puede: false);
+
+      expect(find.byKey(const Key('margen-valor-a')), findsOneWidget);
+      expect(find.byKey(const Key('precio-nuevo-a')), findsNothing);
+    });
+
+    test('C1 · El margen se mide sobre la base sin IVA', () {
+      expect(formatearMargen(margenSobreBase(12000, 9000)), '25,0 %');
+      expect(formatearMargen(margenSobreBase(12000, 10500)), '12,5 %');
+      expect(margenSobreBase(0, 1), isNull);
     });
   });
 }
