@@ -105,6 +105,26 @@ public class OrdenDeCompra {
     @Column(columnDefinition = "text")
     private String observaciones;
 
+    /** HU-176 · Quién, cuándo y por qué se anuló. */
+    @Column(name = "anulada_por")
+    private UUID anuladaPor;
+
+    @Column(name = "anulada_en")
+    private OffsetDateTime anuladaEn;
+
+    @Column(name = "motivo_anulacion", length = 200)
+    private String motivoAnulacion;
+
+    /** HU-176 · Quién, cuándo y por qué se cerró con faltante. */
+    @Column(name = "cerrada_por")
+    private UUID cerradaPor;
+
+    @Column(name = "cerrada_en")
+    private OffsetDateTime cerradaEn;
+
+    @Column(name = "motivo_cierre", length = 200)
+    private String motivoCierre;
+
     @CreationTimestamp
     @Column(name = "creado_en", nullable = false, updatable = false)
     private OffsetDateTime creadoEn;
@@ -240,6 +260,75 @@ public class OrdenDeCompra {
         exigirRecibible();
         boolean todasCompletas = lineas.stream().allMatch(OrdenCompraLinea::estaCompleta);
         this.estado = todasCompletas ? EstadoOrdenCompra.RECIBIDA : EstadoOrdenCompra.PARCIAL;
+    }
+
+    /**
+     * HU-176 C1 / C2 · Anular una orden que no va: en borrador, aprobada o enviada, y sin mercancía
+     * recibida. Con algo recibido no se anula (409): se cierra con faltante.
+     */
+    public void anular(UUID usuarioId, String motivo, boolean tieneRecepcionesConfirmadas) {
+        if (estado == EstadoOrdenCompra.ANULADA || estado == EstadoOrdenCompra.CERRADA
+                || estado == EstadoOrdenCompra.RECIBIDA) {
+            throw new ConflictoDeEstadoException("La orden " + numero + " ya está " + estado
+                    + ": no se anula");
+        }
+        if (estado == EstadoOrdenCompra.PARCIAL || tieneRecepcionesConfirmadas) {
+            throw new ConflictoDeEstadoException("La orden " + numero
+                    + " ya recibió mercancía: no se anula, se cierra con faltante");
+        }
+        this.motivoAnulacion = motivoExigido(motivo, "La anulación de una orden exige un motivo");
+        this.anuladaPor = usuarioId;
+        this.anuladaEn = OffsetDateTime.now();
+        this.estado = EstadoOrdenCompra.ANULADA;
+    }
+
+    /**
+     * HU-176 C3 · Cerrar una orden que llegó incompleta: no admite más recepciones y el faltante
+     * queda en sus líneas.
+     */
+    public void cerrar(UUID usuarioId, String motivo) {
+        if (estado != EstadoOrdenCompra.PARCIAL) {
+            throw new ConflictoDeEstadoException("Se cierra con faltante una orden recibida en parte; la "
+                    + numero + " está " + estado
+                    + (estado == EstadoOrdenCompra.APROBADA || estado == EstadoOrdenCompra.ENVIADA
+                            || estado == EstadoOrdenCompra.BORRADOR ? ": si no va, anúlala" : ""));
+        }
+        this.motivoCierre = motivoExigido(motivo, "El cierre de una orden exige un motivo");
+        this.cerradaPor = usuarioId;
+        this.cerradaEn = OffsetDateTime.now();
+        this.estado = EstadoOrdenCompra.CERRADA;
+    }
+
+    private static String motivoExigido(String motivo, String siFalta) {
+        String limpio = motivo == null ? "" : motivo.trim();
+        if (limpio.isEmpty()) {
+            throw new com.regenta.shared.web.ReglaDeNegocioException(siFalta);
+        }
+        return limpio.length() > 200 ? limpio.substring(0, 200) : limpio;
+    }
+
+    public UUID getAnuladaPor() {
+        return anuladaPor;
+    }
+
+    public OffsetDateTime getAnuladaEn() {
+        return anuladaEn;
+    }
+
+    public String getMotivoAnulacion() {
+        return motivoAnulacion;
+    }
+
+    public UUID getCerradaPor() {
+        return cerradaPor;
+    }
+
+    public OffsetDateTime getCerradaEn() {
+        return cerradaEn;
+    }
+
+    public String getMotivoCierre() {
+        return motivoCierre;
     }
 
     /** Enviar al proveedor: solo después de aprobada. */

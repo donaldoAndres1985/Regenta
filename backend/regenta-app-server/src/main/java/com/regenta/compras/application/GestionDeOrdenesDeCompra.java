@@ -231,6 +231,11 @@ public class GestionDeOrdenesDeCompra {
     }
 
     /** HU-174 · La orden con el nombre del proveedor y el código con que vende cada producto. */
+    /** HU-176 · La vista de una orden ya cargada, con su proveedor y los códigos de su catálogo. */
+    public OrdenDelNegocio vistaDe(OrdenDeCompra orden) {
+        return vista(orden, lineasRepo.findByOrdenIdOrderByLinea(orden.getId()));
+    }
+
     private OrdenDelNegocio vista(OrdenDeCompra orden, List<OrdenCompraLinea> lineas) {
         UUID negocioId = orden.getNegocioId();
         String nombre = proveedores.findByIdAndNegocioId(orden.getProveedorId(), negocioId)

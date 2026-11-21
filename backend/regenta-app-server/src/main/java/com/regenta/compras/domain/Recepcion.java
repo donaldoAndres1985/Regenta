@@ -228,6 +228,15 @@ public class Recepcion {
     }
 
     /** BORRADOR → CONFIRMADA. Confirmar dos veces es un conflicto de estado. */
+    /**
+     * HU-176 · Una recepción que se estaba armando y ya no va, porque su orden se anuló o se cerró.
+     * Solo en borrador: lo confirmado no se descarta.
+     */
+    public void descartar() {
+        exigirBorrador();
+        this.estado = EstadoRecepcion.ANULADA;
+    }
+
     public void confirmar() {
         if (estado != EstadoRecepcion.BORRADOR) {
             throw new ConflictoDeEstadoException(

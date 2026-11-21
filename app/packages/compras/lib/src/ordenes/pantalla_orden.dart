@@ -87,6 +87,26 @@ class _PantallaOrdenDeCompraState extends ConsumerState<PantallaOrdenDeCompra> {
         ));
       });
 
+  /// HU-176 · Pide el motivo y anula la orden o la cierra con faltante.
+  Future<void> _terminar({required bool cerrar}) async {
+    final o = _orden!;
+    final motivo = await showDialog<String>(
+      context: context,
+      builder: (_) => _DialogoDeMotivo(
+        titulo: cerrar ? 'Cerrar ${o.numero} con faltante' : 'Anular ${o.numero}',
+        explicacion: cerrar
+            ? 'La orden no recibirá más mercancía. Lo que faltó queda a la vista en sus líneas.'
+            : 'La orden queda anulada y no se le podrá recibir nada.',
+        accion: cerrar ? 'Cerrar orden' : 'Anular orden',
+      ),
+    );
+    if (motivo == null || !mounted) return;
+    await _hacer(
+      () => cerrar ? _repo.cerrar(o.id, motivo) : _repo.anular(o.id, motivo),
+      aviso: cerrar ? 'La orden ${o.numero} quedó cerrada.' : 'La orden ${o.numero} quedó anulada.',
+    );
+  }
+
   /// HU-174 C4 · El PDF sale por «Compartir» (WhatsApp, correo…) y la orden pasa a ENVIADA.
   Future<void> _enviarAlProveedor() async {
     final o = _orden!;
@@ -138,6 +158,7 @@ class _PantallaOrdenDeCompraState extends ConsumerState<PantallaOrdenDeCompra> {
                   constraints: const BoxConstraints(maxWidth: 900),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     _cabecera(o),
+                    if (o.motivoAnulacion != null || o.motivoCierre != null) _fin(o),
                     const SizedBox(height: 12),
                     for (final l in o.lineas) _linea(l),
                     const SizedBox(height: 12),
@@ -170,6 +191,24 @@ class _PantallaOrdenDeCompraState extends ConsumerState<PantallaOrdenDeCompra> {
             '${o.aprobacionAutomatica ? ' · aprobada sola' : ''}',
             style: RegentaType.codigo.copyWith(fontSize: 11, color: RegentaColors.muted)),
       ]);
+
+  Widget _fin(OrdenDeCompraVista o) {
+    final anulada = o.motivoAnulacion != null;
+    return Container(
+      key: const Key('detalle-fin'),
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: RegentaColors.sunken,
+        borderRadius: BorderRadius.circular(RegentaSpacing.radius),
+      ),
+      child: Text(
+        '${anulada ? 'Anulada' : 'Cerrada con faltante'} el ${_fecha(anulada ? o.anuladaEn : o.cerradaEn)}: '
+        '${anulada ? o.motivoAnulacion : o.motivoCierre}',
+        style: RegentaType.cuerpo.copyWith(fontSize: 12.5, color: RegentaColors.ink2),
+      ),
+    );
+  }
 
   Widget _linea(LineaDeOrdenVista l) {
     final falta = l.faltante > 0;
@@ -246,6 +285,65 @@ class _PantallaOrdenDeCompraState extends ConsumerState<PantallaOrdenDeCompra> {
       if (o.enCurso && widget.onRecibir != null)
         boton('detalle-recibir', 'Recibir mercancía', Icons.inventory_outlined, () => widget.onRecibir!(o.id),
             principal: o.estado != 'APROBADA'),
+      if (o.cerrable)
+        boton('detalle-cerrar', 'Cerrar con faltante', Icons.lock_outline, () => unawaited(_terminar(cerrar: true))),
+      if (o.anulable)
+        boton('detalle-anular', 'Anular orden', Icons.block, () => unawaited(_terminar(cerrar: false))),
     ];
+  }
+}
+
+/// HU-176 · El motivo es obligatorio para anular o cerrar.
+class _DialogoDeMotivo extends StatefulWidget {
+  const _DialogoDeMotivo({required this.titulo, required this.explicacion, required this.accion});
+
+  final String titulo;
+  final String explicacion;
+  final String accion;
+
+  @override
+  State<_DialogoDeMotivo> createState() => _DialogoDeMotivoState();
+}
+
+class _DialogoDeMotivoState extends State<_DialogoDeMotivo> {
+  final TextEditingController _motivo = TextEditingController();
+
+  @override
+  void dispose() {
+    _motivo.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final listo = _motivo.text.trim().isNotEmpty;
+    return AlertDialog(
+      title: Text(widget.titulo, style: RegentaType.seccion),
+      content: SizedBox(
+        width: 420,
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(widget.explicacion, style: RegentaType.cuerpo.copyWith(color: RegentaColors.ink2)),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('motivo-fin'),
+            controller: _motivo,
+            autofocus: true,
+            maxLength: 200,
+            maxLines: 2,
+            onChanged: (_) => setState(() {}),
+            style: estiloDeCampo,
+            decoration: decoracionDeCampo(hint: 'Motivo (obligatorio)'),
+          ),
+        ]),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Volver')),
+        FilledButton(
+          key: const Key('motivo-confirmar'),
+          onPressed: listo ? () => Navigator.of(context).pop(_motivo.text.trim()) : null,
+          child: Text(widget.accion),
+        ),
+      ],
+    );
   }
 }

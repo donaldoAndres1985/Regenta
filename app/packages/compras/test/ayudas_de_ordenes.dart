@@ -69,6 +69,30 @@ class RepoOrdenesFake implements RepositorioDeOrdenes {
     return _guardar(_con(await ver(id), estado: 'ENVIADA'));
   }
 
+  final List<String> motivos = [];
+
+  @override
+  Future<OrdenDeCompraVista> anular(String id, String motivo) async {
+    if (falla != null) throw falla!;
+    motivos.add(motivo);
+    final o = await ver(id);
+    return _guardar(OrdenDeCompraVista(
+      id: o.id, numero: o.numero, proveedorId: o.proveedorId, proveedorNombre: o.proveedorNombre,
+      estado: 'ANULADA', total: o.total, lineas: o.lineas, motivoAnulacion: motivo, anuladaEn: DateTime(2026, 11, 21),
+    ));
+  }
+
+  @override
+  Future<OrdenDeCompraVista> cerrar(String id, String motivo) async {
+    if (falla != null) throw falla!;
+    motivos.add(motivo);
+    final o = await ver(id);
+    return _guardar(OrdenDeCompraVista(
+      id: o.id, numero: o.numero, proveedorId: o.proveedorId, proveedorNombre: o.proveedorNombre,
+      estado: 'CERRADA', total: o.total, lineas: o.lineas, motivoCierre: motivo, cerradaEn: DateTime(2026, 11, 21),
+    ));
+  }
+
   @override
   Future<List<int>> pdf(String id) async {
     pdfsPedidos.add(id);
