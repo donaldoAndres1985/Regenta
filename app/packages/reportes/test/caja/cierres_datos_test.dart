@@ -80,6 +80,10 @@ class _Backend implements HttpClientAdapter {
         ],
         'total': 30000.0,
       };
+    } else if (ruta.endsWith('/pdf')) {
+      return ResponseBody.fromBytes(const [37, 80, 68, 70], 200, headers: {
+        Headers.contentTypeHeader: ['application/pdf'],
+      });
     } else if (ruta == '/api/caja/reportes/movimientos/m-2') {
       cuerpo = {
         'id': 'm-2',
@@ -159,6 +163,19 @@ void main() {
     expect(m.movimientos.single.tipoNombre, 'Venta');
     expect(m.movimientos.single.documento, 'V-1');
     expect(m.total, 30000);
+  });
+
+  test('HU-144 · Los PDF de un cierre y de un rango se piden con su tipo y sus filtros', () async {
+    expect(await repo.pdfDeCierre('s-12', detallado: true), [37, 80, 68, 70]);
+    expect(backend.pedidos.last.path, '/api/caja/reportes/cierres/s-12/pdf');
+    expect(backend.pedidos.last.queryParameters, {'tipo': 'detallado'});
+
+    await repo.pdfDeCierre('s-12');
+    expect(backend.pedidos.last.queryParameters, {'tipo': 'general'});
+
+    await repo.pdfDeCierres(desde: DateTime(2026, 11, 1), hasta: DateTime(2026, 11, 23), cajeroId: 'ana');
+    expect(backend.pedidos.last.path, '/api/caja/reportes/cierres/pdf');
+    expect(backend.pedidos.last.queryParameters, {'desde': '2026-11-01', 'hasta': '2026-11-23', 'cajeroId': 'ana'});
   });
 
   test('C4 / C5 · El detalle con la venta y todos los métodos del cobro', () async {

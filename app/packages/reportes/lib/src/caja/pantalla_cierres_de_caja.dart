@@ -12,7 +12,8 @@ String _motivo(ErrorDeApi fallo, String que) {
   return fallo.mensaje;
 }
 
-PreferredSizeWidget _barra(String titulo) => AppBar(
+PreferredSizeWidget _barra(String titulo, {List<Widget> acciones = const []}) => AppBar(
+      actions: [...acciones, if (acciones.isNotEmpty) const SizedBox(width: 8)],
       backgroundColor: RegentaColors.surface,
       surfaceTintColor: RegentaColors.surface,
       elevation: 0,
@@ -24,6 +25,29 @@ PreferredSizeWidget _barra(String titulo) => AppBar(
 TextStyle get _titulo => RegentaType.item.copyWith(color: RegentaColors.inkFuerte, fontWeight: FontWeight.w700);
 
 TextStyle get _detalle => RegentaType.codigo.copyWith(fontSize: 11, color: RegentaColors.muted);
+
+/// HU-144 · Descarga un PDF y lo guarda; avisa si no se pudo. `bajando` marca el botón ocupado.
+Future<void> _descargarPdf(BuildContext context, WidgetRef ref, String nombre, Future<List<int>> Function() pedir,
+    ValueChanged<bool> bajando) async {
+  final guardar = ref.read(guardarPdfDeCajaProvider);
+  if (guardar == null) return;
+  bajando(true);
+  try {
+    await guardar(nombre, await pedir());
+  } on ErrorDeApi catch (fallo) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(_motivo(fallo, 'el PDF no se descargó'))));
+    }
+  } finally {
+    bajando(false);
+  }
+}
+
+Widget _ocupado() => const Padding(
+      padding: EdgeInsets.all(12),
+      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+    );
 
 Widget _aviso(String texto, Key clave) => Padding(
       padding: const EdgeInsets.all(24),
@@ -68,9 +92,21 @@ class _PantallaCierresDeCajaState extends ConsumerState<PantallaCierresDeCaja> {
   int _total = 0;
   bool _hayMas = false;
   bool _cargando = false;
+  bool _bajando = false;
   String? _error;
 
   RepositorioDeCierresDeCaja get _repo => ref.read(repositorioDeCierresDeCajaProvider);
+
+  /// HU-144 C3 · Los cierres del rango (y del cajero, si se eligió) en PDF.
+  Future<void> _pdf() => _descargarPdf(
+        context,
+        ref,
+        'cierres-de-caja-${fechaIso(_desde)}-a-${fechaIso(_hasta)}.pdf',
+        () => _repo.pdfDeCierres(desde: _desde, hasta: _hasta, cajeroId: _cajeroId),
+        (v) {
+          if (mounted) setState(() => _bajando = v);
+        },
+      );
 
   @override
   void initState() {
@@ -142,7 +178,17 @@ class _PantallaCierresDeCajaState extends ConsumerState<PantallaCierresDeCaja> {
     final otro = !_esRango(0) && !_esRango(7) && !_esRango(30);
     return Scaffold(
       backgroundColor: RegentaColors.paper,
-      appBar: _barra('Cierres de caja'),
+      appBar: _barra('Cierres de caja', acciones: [
+        if (ref.watch(guardarPdfDeCajaProvider) != null)
+          _bajando
+              ? _ocupado()
+              : IconButton(
+                  key: const Key('cierres-pdf'),
+                  tooltip: 'Descargar en PDF',
+                  icon: const Icon(Icons.picture_as_pdf_outlined, color: RegentaColors.ink),
+                  onPressed: () => unawaited(_pdf()),
+                ),
+      ]),
       body: Column(children: [
         Container(
           width: double.infinity,
@@ -285,11 +331,26 @@ class _PantallaDetalleDeCierreState extends ConsumerState<PantallaDetalleDeCierr
   ResumenDeCierreVista? _resumen;
   MovimientosDeCierreVista? _movimientos;
   String? _error;
+  bool _bajando = false;
 
   @override
   void initState() {
     super.initState();
     unawaited(_cargar());
+  }
+
+  /// HU-144 C1 / C2 · El informe del cierre: general, o detallado con todos los movimientos.
+  Future<void> _pdf(bool detallado) {
+    final numero = _resumen?.cierre.numero.toLowerCase() ?? 'caja';
+    return _descargarPdf(
+      context,
+      ref,
+      'cierre-$numero-${detallado ? 'detallado' : 'general'}.pdf',
+      () => ref.read(repositorioDeCierresDeCajaProvider).pdfDeCierre(widget.sesionId, detallado: detallado),
+      (v) {
+        if (mounted) setState(() => _bajando = v);
+      },
+    );
   }
 
   Future<void> _cargar() async {
@@ -313,7 +374,30 @@ class _PantallaDetalleDeCierreState extends ConsumerState<PantallaDetalleDeCierr
     final r = _resumen;
     return Scaffold(
       backgroundColor: RegentaColors.paper,
-      appBar: _barra(r == null ? 'Cierre de caja' : 'Cierre ${r.cierre.numero}'),
+      appBar: _barra(r == null ? 'Cierre de caja' : 'Cierre ${r.cierre.numero}', acciones: [
+        if (r != null && ref.watch(guardarPdfDeCajaProvider) != null)
+          _bajando
+              ? _ocupado()
+              : PopupMenuButton<bool>(
+                  key: const Key('cierre-pdf'),
+                  tooltip: 'Descargar en PDF',
+                  icon: const Icon(Icons.picture_as_pdf_outlined, color: RegentaColors.ink),
+                  onSelected: (detallado) => unawaited(_pdf(detallado)),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      key: Key('cierre-pdf-general'),
+                      value: false,
+                      child: ListTile(
+                          title: Text('Informe general'), subtitle: Text('Resumen y arqueo por método')),
+                    ),
+                    PopupMenuItem(
+                      key: Key('cierre-pdf-detallado'),
+                      value: true,
+                      child: ListTile(title: Text('Informe detallado'), subtitle: Text('Con todos los movimientos')),
+                    ),
+                  ],
+                ),
+      ]),
       body: _error != null
           ? Column(children: [_avisoDeError(_error!)])
           : r == null
