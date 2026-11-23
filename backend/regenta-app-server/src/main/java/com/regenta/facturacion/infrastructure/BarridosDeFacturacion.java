@@ -23,6 +23,17 @@ public class BarridosDeFacturacion {
                 documentos::subirPendientes);
     }
 
+    /** HU-116 C3: una vez al día, los certificados a menos de 30 días de vencer se avisan por Alertas. */
+    @Bean
+    public Barrido barridoDeCertificadosPorVencer(
+            com.regenta.facturacion.application.GestionDeFirmaYTransmision firma) {
+        return new Barrido("certificados-por-vencer", """
+                SELECT DISTINCT negocio_id FROM facturacion.certificados
+                 WHERE estado = 'ACTIVO' AND vigente_hasta <= current_date + 30
+                """, Set.of("FACTURACION"), Set.of("FACTURACION_RESOLUCION_VER"), Duration.ofDays(1),
+                firma::revisarCertificadosPorVencer);
+    }
+
     /** HU-122 C4: la factura que no salió por correo se reintenta con espera creciente. */
     @Bean
     public Barrido barridoDeCorreosDeFactura(CorreosDeFactura correos) {

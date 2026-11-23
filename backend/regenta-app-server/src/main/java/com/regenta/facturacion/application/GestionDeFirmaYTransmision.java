@@ -81,9 +81,11 @@ public class GestionDeFirmaYTransmision {
         if (factura.estaFirmada()) {
             return;
         }
+        // HU-116: el certificado sale cifrado de la bóveda, se abre solo para firmar (C1, C2).
         Certificado certificado = certificadoVigente(factura.getNegocioId());
-        byte[] p12 = boveda.leer(certificado.getReferenciaKms());
-        FirmadorDeXml.FirmaDeFactura firma = firmador.firmar(factura, p12);
+        CertificadoDeFirma abierto = CertificadoDeFirma.desdeSobre(
+                boveda.leer(factura.getNegocioId(), certificado.getReferenciaKms()));
+        FirmadorDeXml.FirmaDeFactura firma = firmador.firmar(factura, abierto);
         String url = almacen.guardar(factura.getNegocioId(),
                 factura.getNumeroCompleto() + ".xml", firma.xmlFirmado(), "application/xml");
         factura.firmar(firma.cufe(), url);
@@ -204,6 +206,7 @@ public class GestionDeFirmaYTransmision {
             p.put("certificado_id", c.getId().toString());
             p.put("alias", c.getAlias());
             p.put("vigente_hasta", c.getVigenteHasta().toString());
+            p.put("dias_para_vencer", java.time.temporal.ChronoUnit.DAYS.between(hoy, c.getVigenteHasta()));
             eventos.registrar(negocioId, "certificado", c.getId(), "certificado_por_vencer", p);
         }
         return porVencer.size();
@@ -217,9 +220,22 @@ public class GestionDeFirmaYTransmision {
             throw new RecursoDuplicadoException(
                     "Ya hay un certificado con el alias " + solicitud.alias());
         }
-        Certificado c = Certificado.registrar(negocioId, solicitud.alias(), solicitud.emisor(),
-                solicitud.numeroSerie(), solicitud.vigenteDesde(), solicitud.vigenteHasta(),
-                solicitud.referenciaKms());
+        // HU-116 C1: se abre el .p12 para validarlo y leer sus datos; el archivo y su clave van
+        // cifrados a la bóveda y a la base solo llega la referencia.
+        byte[] p12;
+        try {
+            p12 = java.util.Base64.getMimeDecoder().decode(solicitud.p12Base64());
+        } catch (IllegalArgumentException noEsBase64) {
+            throw new ReglaDeNegocioException("El archivo del certificado no viene en base64");
+        }
+        CertificadoDeFirma abierto = CertificadoDeFirma.abrir(p12, solicitud.clave());
+        if (abierto.vigenteHasta().isBefore(LocalDate.now())) {
+            throw new ReglaDeNegocioException("Ese certificado venció el " + abierto.vigenteHasta());
+        }
+        String referencia = boveda.guardar(negocioId, "certificado-" + solicitud.alias(),
+                CertificadoDeFirma.sobre(p12, solicitud.clave()));
+        Certificado c = Certificado.registrar(negocioId, solicitud.alias(), abierto.emisor(),
+                abierto.numeroSerie(), abierto.vigenteDesde(), abierto.vigenteHasta(), referencia);
         certificados.save(c);
         return CertificadoDelNegocio.de(c, LocalDate.now());
     }

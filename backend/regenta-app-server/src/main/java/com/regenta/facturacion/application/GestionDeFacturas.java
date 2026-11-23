@@ -44,11 +44,14 @@ public class GestionDeFacturas {
     private final RegistroDeEventos eventos;
     private final AdquirienteGenerico adquirienteGenerico;
     private final EmisorDeNegocios emisores;
+    private final CertificadosVigentes certificados;
 
     public GestionDeFacturas(FacturaRepositorio facturas, FacturaLineaRepositorio lineas,
             FacturaImpuestoRepositorio impuestos, AsignadorDeConsecutivos asignador,
             TransmisionesLog transmisiones, CorreosDeFactura correos, RegistroDeEventos eventos,
-            AdquirienteGenerico adquirienteGenerico, EmisorDeNegocios emisores) {
+            AdquirienteGenerico adquirienteGenerico, EmisorDeNegocios emisores,
+            CertificadosVigentes certificados) {
+        this.certificados = certificados;
         this.facturas = facturas;
         this.lineas = lineas;
         this.impuestos = impuestos;
@@ -107,6 +110,9 @@ public class GestionDeFacturas {
         // en una factura que no salió es un hueco en la numeración, y ese hueco
         // hay que explicárselo a la DIAN.
         Map<String, Object> emisor = emisores.snapshotDe(negocioId);
+        // HU-116 C4: sin certificado vigente la factura no se podría firmar; se rechaza antes de
+        // gastar un consecutivo.
+        certificados.exigir(negocioId);
 
         var consecutivo = asignador.asignar(TipoDocumento.FACTURA_VENTA, s.sucursalId());
 
