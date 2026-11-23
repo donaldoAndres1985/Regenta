@@ -15,7 +15,6 @@ import com.regenta.shared.events.RegistroDeEventos;
 import com.regenta.shared.tenancy.ContextoDeNegocio;
 import com.regenta.shared.security.RequierePermiso;
 import com.regenta.facturacion.domain.EstadoFactura;
-import com.regenta.facturacion.domain.EventoDeTransmision;
 import com.regenta.facturacion.domain.Factura;
 import com.regenta.facturacion.domain.OrigenDeFactura;
 import com.regenta.facturacion.domain.TipoDocumento;
@@ -41,21 +40,21 @@ public class GestionDeFacturas {
     private final FacturaImpuestoRepositorio impuestos;
     private final AsignadorDeConsecutivos asignador;
     private final TransmisionesLog transmisiones;
-    private final EnviadorDeCorreo correo;
+    private final CorreosDeFactura correos;
     private final RegistroDeEventos eventos;
     private final AdquirienteGenerico adquirienteGenerico;
     private final EmisorDeNegocios emisores;
 
     public GestionDeFacturas(FacturaRepositorio facturas, FacturaLineaRepositorio lineas,
             FacturaImpuestoRepositorio impuestos, AsignadorDeConsecutivos asignador,
-            TransmisionesLog transmisiones, EnviadorDeCorreo correo, RegistroDeEventos eventos,
+            TransmisionesLog transmisiones, CorreosDeFactura correos, RegistroDeEventos eventos,
             AdquirienteGenerico adquirienteGenerico, EmisorDeNegocios emisores) {
         this.facturas = facturas;
         this.lineas = lineas;
         this.impuestos = impuestos;
         this.asignador = asignador;
         this.transmisiones = transmisiones;
-        this.correo = correo;
+        this.correos = correos;
         this.eventos = eventos;
         this.adquirienteGenerico = adquirienteGenerico;
         this.emisores = emisores;
@@ -157,9 +156,13 @@ public class GestionDeFacturas {
     }
 
     /**
-     * HU-058 criterio 2: manda la factura al cliente por correo con el PDF y el
-     * XML adjuntos. Solo una factura aceptada se envía. Sin correo se usa el del
-     * snapshot del cliente. Queda registrado en {@code transmisiones}.
+     * HU-058 criterio 2: manda la factura al cliente por correo, con el XML firmado
+     * adjunto. Solo una factura aceptada se envía. Sin correo se usa el del
+     * snapshot del cliente.
+     *
+     * <p>HU-122: sale por el correo común; si el proveedor no responde, queda en cola
+     * y se reintenta ({@code enviado = false}): nunca bloquea (C4). Lo enviado queda en
+     * {@code transmisiones} con el identificador del proveedor (C1).
      */
     @Transactional
     @RequierePermiso("FACTURACION_FACTURA_VER")
@@ -176,35 +179,16 @@ public class GestionDeFacturas {
         if (destinatario == null) {
             throw new ReglaDeNegocioException("No hay un correo para enviar la factura");
         }
-        List<String> adjuntos = new java.util.ArrayList<>();
-        if (factura.getXmlUrl() != null) {
-            adjuntos.add(factura.getXmlUrl());
-        }
-        adjuntos.add("pdf:" + factura.getNumeroCompleto());   // el PDF se genera al vuelo
-
-        correo.enviar(negocioId, factura.getNumeroCompleto(), destinatario, adjuntos);
-        transmisiones.registrar(negocioId, facturaId, EventoDeTransmision.EMAIL_CLIENTE, destinatario,
-                null, null, null, null, "Factura enviada al cliente", null);
-        eventos.registrar(negocioId, "factura", facturaId, "factura_enviada_al_cliente",
-                envioPayload(negocioId, factura, destinatario, adjuntos));
-        return new ResultadoDeEnvio(true, destinatario, adjuntos);
+        List<String> adjuntos = factura.getXmlUrl() == null ? List.of()
+                : List.of(factura.getNumeroCompleto() + ".xml");
+        boolean enviado = correos.encolarYEnviar(factura, destinatario);
+        return new ResultadoDeEnvio(enviado, destinatario, adjuntos);
     }
 
     private static String correoDelSnapshot(Factura f) {
         Map<String, Object> c = f.getClienteSnapshot();
         Object correo = c == null ? null : c.getOrDefault("email", c.get("correo"));
         return correo == null ? null : correo.toString();
-    }
-
-    private static Map<String, Object> envioPayload(UUID negocioId, Factura f, String destinatario,
-            List<String> adjuntos) {
-        Map<String, Object> p = new LinkedHashMap<>();
-        p.put("negocio_id", negocioId.toString());
-        p.put("factura_id", f.getId().toString());
-        p.put("numero_completo", f.getNumeroCompleto());
-        p.put("destinatario", destinatario);
-        p.put("adjuntos", adjuntos);
-        return p;
     }
 
     private static Map<String, Object> emitida(UUID negocioId, Factura f) {

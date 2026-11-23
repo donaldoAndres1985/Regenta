@@ -45,12 +45,12 @@ public class DespachoDeEntregas {
     private final DispositivoPushRepositorio dispositivos;
     private final PreferenciaNotificacionRepositorio preferencias;
     private final PasarelaDePush push;
-    private final PasarelaDeCorreo correo;
+    private final com.regenta.shared.correo.CorreoSaliente correo;
 
     public DespachoDeEntregas(EntregaRepositorio entregas, AlertaRepositorio alertas,
             DispositivoPushRepositorio dispositivos,
             PreferenciaNotificacionRepositorio preferencias, PasarelaDePush push,
-            PasarelaDeCorreo correo) {
+            com.regenta.shared.correo.CorreoSaliente correo) {
         this.entregas = entregas;
         this.alertas = alertas;
         this.dispositivos = dispositivos;
@@ -154,12 +154,14 @@ public class DespachoDeEntregas {
             e.marcarFallida("No hay correo del usuario para la entrega");
             return;
         }
-        PasarelaDeCorreo.ResultadoDeCorreo r = correo.enviar(e.getDestino(), alerta.getTitulo(),
-                alerta.getMensaje());
-        if (r.exito()) {
-            e.marcarEnviada(r.proveedorId());
+        // HU-122: por el correo común. C1: queda el identificador del proveedor; C2: un rebote o
+        // rechazo deja el motivo y entra en el reintento de la entrega (hasta FALLIDA).
+        var r = correo.enviar(new com.regenta.shared.correo.CorreoSaliente.Correo(alerta.getNegocioId(),
+                e.getDestino(), alerta.getTitulo(), alerta.getMensaje()));
+        if (r.enviado()) {
+            e.marcarEnviada(r.idProveedor());
         } else {
-            e.marcarFallida(r.error() == null ? "Fallo el envío de correo" : r.error());
+            e.marcarFallida(r.motivo() == null ? "Fallo el envío de correo" : r.motivo());
         }
     }
 

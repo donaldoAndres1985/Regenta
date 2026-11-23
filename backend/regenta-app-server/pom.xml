@@ -40,6 +40,11 @@
       <artifactId>url-connection-client</artifactId>
       <version>${awssdk.version}</version>
     </dependency>
+    <!-- HU-122: el correo saliente real, por SMTP (cualquier proveedor). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
     <!-- Spring Boot Web & Security -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -150,6 +155,13 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- HU-122: un servidor SMTP de mentira para las pruebas. -->
+    <dependency>
+      <groupId>com.icegreen</groupId>
+      <artifactId>greenmail-junit5</artifactId>
+      <version>2.1.3</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
