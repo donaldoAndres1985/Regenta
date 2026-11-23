@@ -14,5 +14,7 @@ public record EjecucionDeReporte(
         String error,
         int intentos,
         OffsetDateTime iniciadoEn,
-        OffsetDateTime finalizadoEn) {
+        OffsetDateTime finalizadoEn,
+        /** HU-121 C5: se generó bien y su archivo ya se borró por retención (no es un fallo). */
+        boolean archivoExpirado) {
 }

@@ -380,6 +380,10 @@ El backend de Regenta está preparado para desplegarse en **Railway** con un sol
 | `JWT_SECRETO` | *(secreto HS256 de al menos 32 bytes)* |
 | `JWT_EMISOR` | *(opcional, por defecto `regenta`)* |
 | `CORS_ORIGINS` | `https://regenta.pages.dev,https://*.regenta.pages.dev` |
+| `ALMACEN_TIPO` | `s3` (HU-121: facturas y reportes en un almacén de objetos) |
+| `ALMACEN_S3_ENDPOINT` | Cloudflare R2: `https://<cuenta>.r2.cloudflarestorage.com` |
+| `ALMACEN_S3_BUCKET` | *(bucket privado, p. ej. `regenta-documentos`)* |
+| `ALMACEN_S3_ACCESS_KEY` / `ALMACEN_S3_SECRET_KEY` | *(token de API de R2 con acceso al bucket)* |
 
 `PORT` lo inyecta Railway.
 

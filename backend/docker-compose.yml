@@ -26,6 +26,20 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # HU-121: almacen de documentos S3 para desarrollo (en produccion, Cloudflare R2).
+  # S3Mock habla la API de S3 y guarda en el volumen; no valida credenciales.
+  s3:
+    image: adobe/s3mock:5.2.3
+    environment:
+      initialBuckets: regenta-documentos
+      root: /data
+      retainFilesOnExit: "true"
+    ports:
+      - "9090:9090"
+    volumes:
+      - regenta_s3_data:/data
+    restart: unless-stopped
+
   rabbitmq:
     image: rabbitmq:3.13-management
     environment:
@@ -441,3 +455,4 @@ services:
 volumes:
   regenta_postgres_data:
   regenta_rabbitmq_data:
+  regenta_s3_data:

@@ -117,7 +117,7 @@ public class GestionDeFirmaYTransmision {
                     factura.getIntentosEnvio());
         }
 
-        byte[] xml = almacen.leer(factura.getXmlUrl());
+        byte[] xml = almacen.leer(negocioId, factura.getXmlUrl());
         factura.registrarIntentoDeEnvio();
 
         try {

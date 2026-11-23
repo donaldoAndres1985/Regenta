@@ -36,9 +36,11 @@ public class GestionDeExportaciones {
     private final CatalogoDeReportes catalogo;
     private final ExportadorDeReportes exportador;
     private final GeneradorDeExportaciones generador;
+    private final ArchivosDeReporte archivos;
 
     public GestionDeExportaciones(JdbcTemplate jdbc, CatalogoDeReportes catalogo,
-            ExportadorDeReportes exportador, GeneradorDeExportaciones generador) {
+            ExportadorDeReportes exportador, GeneradorDeExportaciones generador, ArchivosDeReporte archivos) {
+        this.archivos = archivos;
         this.jdbc = jdbc;
         this.catalogo = catalogo;
         this.exportador = exportador;
@@ -116,17 +118,8 @@ public class GestionDeExportaciones {
     @Transactional(readOnly = true)
     @RequierePermiso("REPORTES_REPORTE_VER")
     public ArchivoDeReporte archivo(UUID ejecucionId) {
-        return jdbc.query("""
-                SELECT nombre, tipo_mime, contenido FROM reportes.archivos_reporte
-                 WHERE ejecucion_id = ? AND negocio_id = ?
-                """,
-                rs -> {
-                    if (!rs.next()) {
-                        throw new NoEncontradoException("Esa exportación todavía no tiene archivo");
-                    }
-                    return new ArchivoDeReporte(rs.getString(1), rs.getString(2), rs.getBytes(3));
-                },
-                ejecucionId, ContextoDeNegocio.negocioActual());
+        // HU-121 C2: del almacén, con la sesión del negocio dueño; 410 si ya expiró (C5).
+        return archivos.leer(ejecucionId);
     }
 
     private static String parametros(LocalDate desde, LocalDate hasta) {
@@ -141,7 +134,9 @@ public class GestionDeExportaciones {
             SELECT e.id, e.codigo, e.formato, e.estado, e.filas, e.error, e.intentos,
                    e.iniciado_en, e.finalizado_en,
                    (SELECT a.nombre FROM reportes.archivos_reporte a WHERE a.ejecucion_id = e.id)
-                       AS archivo_nombre
+                       AS archivo_nombre,
+                   EXISTS (SELECT 1 FROM reportes.archivos_reporte a
+                            WHERE a.ejecucion_id = e.id AND a.expirado_en IS NOT NULL) AS archivo_expirado
               FROM reportes.ejecuciones_reporte e
             """;
 
@@ -150,6 +145,6 @@ public class GestionDeExportaciones {
                 rs.getString("formato"), rs.getString("estado"), (Integer) rs.getObject("filas"),
                 rs.getString("archivo_nombre"), rs.getString("error"), rs.getInt("intentos"),
                 rs.getObject("iniciado_en", OffsetDateTime.class),
-                rs.getObject("finalizado_en", OffsetDateTime.class));
+                rs.getObject("finalizado_en", OffsetDateTime.class), rs.getBoolean("archivo_expirado"));
     }
 }
