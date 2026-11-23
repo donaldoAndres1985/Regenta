@@ -96,6 +96,13 @@ de ejemplo ("Ferretería Central").
 | `JWT_SECRETO` | secreto HS256 (mínimo 32 bytes) | uno de desarrollo; **cambiarlo en producción** |
 | `JWT_EMISOR` | `iss` esperado | `regenta` |
 | `CORS_ORIGINS` | orígenes permitidos | `https://regenta.pages.dev`, `https://*.regenta.pages.dev`, `localhost` |
+| `ALMACEN_TIPO` | `s3` para el almacén de documentos y archivos (HU-121); sin él, en memoria (se pierde al reiniciar) | `memoria` |
+| `ALMACEN_S3_ENDPOINT` | endpoint S3 (MinIO, Cloudflare R2: `https://<cuenta>.r2.cloudflarestorage.com`); vacío para AWS | — |
+| `ALMACEN_S3_REGION` | región del bucket (`auto` en R2) | `auto` |
+| `ALMACEN_S3_BUCKET` | bucket **privado** de documentos | `regenta-documentos` |
+| `ALMACEN_S3_ACCESS_KEY` / `ALMACEN_S3_SECRET_KEY` | credenciales del almacén (solo por entorno) | — |
+| `ALMACEN_S3_CREAR_BUCKET` | crear el bucket al arrancar si no existe (útil con MinIO local) | `false` |
+| `REPORTES_RETENCION_ARCHIVOS` | cuánto vive un reporte exportado antes de borrarse solo | `30d` |
 
 ## Compilar y probar
 

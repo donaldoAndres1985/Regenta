@@ -14,7 +14,32 @@
   <name>regenta-app-server</name>
   <description>Monolito modular de Regenta con Spring Modulith</description>
 
+  <properties>
+    <awssdk.version>2.31.68</awssdk.version>
+  </properties>
+
   <dependencies>
+    <!-- HU-121: documentos y archivos en un almacén de objetos S3 (MinIO, Cloudflare R2, AWS S3). -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>${awssdk.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>apache-client</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>url-connection-client</artifactId>
+      <version>${awssdk.version}</version>
+    </dependency>
     <!-- Spring Boot Web & Security -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -125,6 +150,12 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- HU-121: el almacén de objetos se prueba contra un MinIO de verdad. -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>minio</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

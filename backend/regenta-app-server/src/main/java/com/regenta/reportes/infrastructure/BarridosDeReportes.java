@@ -34,6 +34,23 @@ public class BarridosDeReportes {
                 """, Set.of("REPORTES"), PERMISOS, Duration.ofMinutes(1), programaciones::barrer);
     }
 
+    /** HU-121 C4: los archivos que quedaron en la base (antes del almacén) se suben a él. */
+    @Bean
+    public Barrido barridoDeArchivosAlAlmacen(com.regenta.reportes.application.ArchivosDeReporte archivos) {
+        return new Barrido("archivos-a-almacen", """
+                SELECT DISTINCT negocio_id FROM reportes.archivos_reporte WHERE contenido IS NOT NULL
+                """, Set.of("REPORTES"), PERMISOS, Duration.ofMinutes(5), archivos::subirLosDeLaBase);
+    }
+
+    /** HU-121 C5: los archivos que pasaron su retención se borran y quedan como expirados. */
+    @Bean
+    public Barrido barridoDeArchivosExpirados(com.regenta.reportes.application.ArchivosDeReporte archivos) {
+        return new Barrido("archivos-expirados", """
+                SELECT DISTINCT negocio_id FROM reportes.archivos_reporte
+                 WHERE url IS NOT NULL AND expirado_en IS NULL AND expira_en <= now()
+                """, Set.of("REPORTES"), PERMISOS, Duration.ofHours(1), archivos::borrarVencidos);
+    }
+
     /** HU-100 criterios 3 y 4: lo pedido se genera, y lo que falló se reintenta a su hora. */
     @Bean
     public Barrido barridoDeExportacionesPendientes(GestionDeExportaciones exportaciones) {

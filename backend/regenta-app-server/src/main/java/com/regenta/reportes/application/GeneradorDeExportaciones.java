@@ -44,9 +44,12 @@ public class GeneradorDeExportaciones {
     private final ExportadorDeReportes exportador;
     private final RegistroDeEventos eventos;
     private final PasarelaDeCorreo correo;
+    private final ArchivosDeReporte archivos;
 
     public GeneradorDeExportaciones(JdbcTemplate jdbc, CatalogoDeReportes catalogo,
-            ExportadorDeReportes exportador, RegistroDeEventos eventos, PasarelaDeCorreo correo) {
+            ExportadorDeReportes exportador, RegistroDeEventos eventos, PasarelaDeCorreo correo,
+            ArchivosDeReporte archivos) {
+        this.archivos = archivos;
         this.jdbc = jdbc;
         this.catalogo = catalogo;
         this.exportador = exportador;
@@ -101,15 +104,8 @@ public class GeneradorDeExportaciones {
             byte[] contenido = exportador.generar(formato, reporte.nombre(), reporte.columnas(), filas);
             String nombre = exportador.nombreDeArchivo(reporte.nombre(), formato);
 
-            jdbc.update("""
-                    INSERT INTO reportes.archivos_reporte (ejecucion_id, negocio_id, nombre, tipo_mime,
-                        bytes, contenido)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT (ejecucion_id) DO UPDATE SET nombre = EXCLUDED.nombre,
-                        tipo_mime = EXCLUDED.tipo_mime, bytes = EXCLUDED.bytes,
-                        contenido = EXCLUDED.contenido, creado_en = now()
-                    """,
-                    id, negocioId, nombre, exportador.tipoMime(formato), contenido.length, contenido);
+            // HU-121 C1: el archivo va al almacén de objetos; en la base solo su URL.
+            archivos.guardar(negocioId, id, nombre, exportador.tipoMime(formato), contenido);
 
             jdbc.update("""
                     UPDATE reportes.ejecuciones_reporte
