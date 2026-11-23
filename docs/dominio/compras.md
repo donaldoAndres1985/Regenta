@@ -247,7 +247,7 @@ de confirmar (decisión 18).
 | `COMPRAS_DEVOLUCION_REGISTRAR` | Devoluciones a proveedor | **Nuevo** |
 | `COMPRAS_CXP_VER` | Ver cuentas por pagar y deuda por proveedor | **Nuevo** |
 | `COMPRAS_PAGO_REGISTRAR` / `_ANULAR` | Registrar y anular pagos | **Nuevo** |
-| `COMPRAS_INFORME_VER` | Informes de compras | **Nuevo** |
+| `COMPRAS_INFORME_VER` | Informes de compras | Existe (usuarios V18, HU-183) |
 | `COMPRAS_CONFIGURAR` | Aprobación y tolerancia | **Nuevo** |
 
 Por defecto todos van a **Administrador** y **Gerente**. `COMPRAS_RECEPCION_REGISTRAR` también
@@ -257,6 +257,11 @@ al rol de bodega; `COMPRAS_PAGO_REGISTRAR` también a Cajero, para pagar en efec
 
 - Compras por proveedor, por producto y por periodo (base, IVA, total; directas vs con orden).
 - Historial de costos de un producto: costo de entrada por recepción y proveedor.
+- **Construidos en HU-183** (`/api/compras/informes`): `por-proveedor`, `por-producto` e
+  `historial-de-costos`, y cada uno en PDF o XLSX con `/{informe}/archivo`. Cuentan solo las
+  recepciones confirmadas; las devoluciones del periodo restan por el valor de su nota crédito. La
+  base es la de la factura ya rebajado el descuento global y el total lleva el flete. El periodo va
+  por días completos en hora de Colombia; sin fechas, el mes en curso.
 - Cuentas por pagar por antigüedad: al día, 1-30, 31-60, 61-90 y más de 90 días de mora, por
   proveedor.
 - Órdenes pendientes por recibir y faltantes de órdenes cerradas.

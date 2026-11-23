@@ -14,6 +14,7 @@ import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.regenta.shared.archivos.ExportadorDeReportes;
 import com.regenta.shared.web.NoEncontradoException;
 import com.regenta.shared.web.ReglaDeNegocioException;
 import com.regenta.shared.tenancy.ContextoDeNegocio;

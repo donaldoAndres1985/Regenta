@@ -25,6 +25,8 @@ export 'src/ordenes/pantalla_orden.dart';
 export 'src/datos/orden_resumen_vista.dart';
 export 'src/datos/repositorio_de_recepciones.dart';
 export 'src/escaner/escaner_de_codigos.dart';
+export 'src/informes/datos.dart';
+export 'src/informes/pantalla_informes_de_compras.dart';
 export 'src/escaner/escaner_mobile_scanner.dart';
 export 'src/proveedores/datos/producto_del_proveedor.dart';
 export 'src/proveedores/datos/proveedor_del_negocio.dart';

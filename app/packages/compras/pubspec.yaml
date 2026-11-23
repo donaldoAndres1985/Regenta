@@ -15,6 +15,8 @@ dependencies:
   flutter_riverpod: ^2.6.1
   mobile_scanner: ^5.2.3
   printing: ^5.15.1
+  # HU-183: guardar los informes en PDF o Excel.
+  file_picker: ^8.1.2
 
 dev_dependencies:
   flutter_test:

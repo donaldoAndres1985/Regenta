@@ -8,6 +8,8 @@ import '../devoluciones/pantalla_recepciones.dart';
 import '../ordenes/datos.dart';
 import '../ordenes/formulario_de_orden.dart';
 import '../ordenes/pantalla_orden.dart';
+import '../informes/datos.dart';
+import '../informes/pantalla_informes_de_compras.dart';
 import '../proveedores/ui/piezas.dart';
 import '../recepcion/pantalla_recepciones_por_enviar.dart';
 import '../recepcion/recepciones_por_enviar.dart';
@@ -160,6 +162,16 @@ class _PantallaComprasState extends ConsumerState<PantallaCompras> {
             onPressed: () => unawaited(Navigator.of(context)
                 .push<void>(MaterialPageRoute(builder: (_) => const PantallaRecepciones()))),
           ),
+          // HU-183 · Cuánto se compra, a quién y cómo cambian los costos.
+          if (ref.watch(puedeVerInformesDeComprasProvider))
+            _Atajo(
+              clave: const Key('compras-informes'),
+              texto: 'Informes',
+              icono: Icons.insights_outlined,
+              conTexto: conTexto,
+              onPressed: () => unawaited(Navigator.of(context)
+                  .push<void>(MaterialPageRoute(builder: (_) => const PantallaInformesDeCompras()))),
+            ),
           if (widget.onCuentasPorPagar != null)
             _Atajo(
               clave: const Key('compras-cuentas-por-pagar'),

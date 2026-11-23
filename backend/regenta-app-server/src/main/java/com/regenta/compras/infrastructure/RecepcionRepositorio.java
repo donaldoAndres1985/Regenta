@@ -22,4 +22,9 @@ public interface RecepcionRepositorio extends JpaRepository<Recepcion, UUID> {
     /** HU-167 · Las recepciones de un proveedor con ese número de factura (C6: no se repite). */
     List<Recepcion> findByNegocioIdAndProveedorIdAndFacturaProveedor(UUID negocioId,
             UUID proveedorId, String facturaProveedor);
+
+    /** HU-183 · Las recepciones en un estado dentro de un periodo [desde, hasta). */
+    List<Recepcion> findByNegocioIdAndEstadoAndFechaGreaterThanEqualAndFechaLessThan(UUID negocioId,
+            com.regenta.compras.domain.EstadoRecepcion estado, java.time.OffsetDateTime desde,
+            java.time.OffsetDateTime hasta);
 }
