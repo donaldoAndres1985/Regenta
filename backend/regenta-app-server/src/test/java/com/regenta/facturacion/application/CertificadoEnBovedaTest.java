@@ -52,9 +52,11 @@ class CertificadoEnBovedaTest {
     private final FacturaRepositorio facturas = mock(FacturaRepositorio.class);
     private final AlmacenDeDocumentos documentos = mock(AlmacenDeDocumentos.class);
     private final BovedaCifrada boveda = new BovedaCifrada(new AlmacenEnMemoria(), llave());
+    private final DocumentosAFirmar aFirmar = mock(DocumentosAFirmar.class);
     private final GestionDeFirmaYTransmision firma = new GestionDeFirmaYTransmision(facturas, certificados,
-            mock(TransmisionesLog.class), new FirmadorXadesEpes(), documentos, mock(ClienteDeLaDian.class), boveda,
-            mock(GestionDeContingencia.class), mock(RegistroDeEventos.class));
+            mock(TransmisionesLog.class), new FirmadorXadesEpes(FacturaDePrueba.parametros("", "2", "")), documentos,
+            mock(ClienteDeLaDian.class), boveda, mock(GestionDeContingencia.class), mock(RegistroDeEventos.class),
+            aFirmar);
     private final List<Certificado> guardados = new ArrayList<>();
 
     @AfterEach
@@ -147,6 +149,9 @@ class CertificadoEnBovedaTest {
         when(f.getFechaEmision()).thenReturn(OffsetDateTime.now());
         when(f.getMoneda()).thenReturn("COP");
         when(facturas.findByIdAndNegocioId(id, negocio)).thenReturn(Optional.of(f));
+        // El XML sale de una factura de prueba completa; la simulada es la que cambia de estado.
+        when(aFirmar.de(f)).thenReturn(FacturaDePrueba.documento(negocio));
+        when(aFirmar.nombreDeArchivo(f)).thenReturn("0900373076000260000001");
         return f;
     }
 

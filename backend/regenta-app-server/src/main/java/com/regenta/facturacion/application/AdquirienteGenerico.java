@@ -21,10 +21,10 @@ import org.springframework.stereotype.Component;
  * corregirlo— tiene que ser un cambio de configuración, no un despliegue con
  * migración.
  *
- * <p><b>Sin confirmar:</b> la cantidad de doses del número. Aquí van doce, que
- * es lo que trae el anexo técnico de factura electrónica; los nueve son los del
- * mundo POS y de los sistemas anteriores. Confirmar contra el anexo vigente
- * antes de la primera emisión real.
+ * <p><b>Confirmado (HU-117):</b> «consumidor final» y el número «222222222222»
+ * —doce doses—, como lo manda la Resolución DIAN 000165 de 2023, art. 11,
+ * numeral 3.3 (vigente con la modificación de la Resolución 000202 de 2025), con
+ * cédula (tipo 13) y responsabilidad R-99-PN.
  */
 @Component
 public class AdquirienteGenerico {

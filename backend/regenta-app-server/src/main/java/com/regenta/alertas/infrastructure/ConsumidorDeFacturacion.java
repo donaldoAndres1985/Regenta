@@ -15,7 +15,10 @@ import com.regenta.shared.events.InboxIdempotente;
 import com.regenta.shared.tenancy.ContextoDeNegocio;
 import com.regenta.shared.tenancy.DatosDelNegocio;
 
-/** HU-116 C3 · {@code certificado_por_vencer} de Facturación → alerta {@code CERTIFICADO_POR_VENCER}. */
+/**
+ * De Facturación a Alertas: {@code certificado_por_vencer} → {@code CERTIFICADO_POR_VENCER} (HU-116 C3) y
+ * {@code factura_rechazada} → {@code FACTURA_RECHAZADA} (HU-117 C2).
+ */
 @Component
 public class ConsumidorDeFacturacion {
 
@@ -31,7 +34,8 @@ public class ConsumidorDeFacturacion {
 
     @ApplicationModuleListener
     public void recibir(EventoGenerico evento) {
-        if (evento == null || !"certificado_por_vencer".equals(evento.tipoEvento())) {
+        if (evento == null || !("certificado_por_vencer".equals(evento.tipoEvento())
+                || "factura_rechazada".equals(evento.tipoEvento()))) {
             return;
         }
         String cuerpo = serializar(evento.payload());
@@ -43,7 +47,13 @@ public class ConsumidorDeFacturacion {
         UUID negocioId = UUID.fromString(negocio.toString());
         ContextoDeNegocio.en(new DatosDelNegocio(negocioId, null, "", "", Set.of(), Set.of("ALERTAS"), Set.of(),
                 Set.of()), () -> inbox.procesarUnaVez("alertas.ConsumidorDeFacturacion", evento.id(), negocioId,
-                        evento.tipoEvento(), cuerpo, payload -> vigilancia.alCertificadoPorVencer(datos)));
+                        evento.tipoEvento(), cuerpo, payload -> {
+                            if ("factura_rechazada".equals(evento.tipoEvento())) {
+                                vigilancia.alFacturaRechazada(datos);
+                            } else {
+                                vigilancia.alCertificadoPorVencer(datos);
+                            }
+                        }));
     }
 
     private String serializar(Object payload) {

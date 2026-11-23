@@ -2,15 +2,11 @@ package com.regenta.facturacion.infrastructure;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.cert.X509Certificate;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
@@ -44,7 +40,9 @@ import org.w3c.dom.NodeList;
 
 import com.regenta.facturacion.application.CertificadoDeFirma;
 import com.regenta.facturacion.application.FirmadorDeXml;
-import com.regenta.facturacion.domain.Factura;
+import com.regenta.facturacion.application.DocumentoAFirmar;
+import com.regenta.facturacion.application.ParametrosDeLaDian;
+import com.regenta.shared.web.ReglaDeNegocioException;
 
 /**
  * HU-116 C2 · Firma la factura con XAdES-EPES, como lo pide la DIAN: firma XML (RSA-SHA256,
@@ -53,18 +51,14 @@ import com.regenta.facturacion.domain.Factura;
  * propiedades firmadas la hora de firma, el certificado firmante (su resumen y emisor/serie), la
  * política de firma de la DIAN con su hash y el rol {@code supplier}.
  *
- * <p>Usa la API XML Digital Signature de Java, sin librerías aparte. El XML de la factura es mínimo
- * (UBL 2.1 con número, CUFE, fecha y total): el UBL completo y el CUFE oficial, que necesita la
- * clave técnica de la resolución, son de HU-117.
+ * <p>Usa la API XML Digital Signature de Java, sin librerías aparte. El XML y el CUFE oficial los arma
+ * {@link FacturaUblDian} (HU-117).
  */
 @Component
 public class FirmadorXadesEpes implements FirmadorDeXml {
 
     static final String DS = XMLSignature.XMLNS;
     static final String XADES = "http://uri.etsi.org/01903/v1.3.2#";
-    static final String UBL = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2";
-    static final String CBC = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";
-    static final String CAC = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2";
     static final String EXT = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2";
     /** La política de firma de la DIAN (v2) y su hash SHA-256, como los publica la DIAN. */
     static final String POLITICA = "https://facturaelectronica.dian.gov.co/politicadefirma/v2/politicadefirmav2.pdf";
@@ -72,50 +66,24 @@ public class FirmadorXadesEpes implements FirmadorDeXml {
     static final String RSA_SHA256 = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
     static final String TIPO_SIGNED_PROPERTIES = "http://uri.etsi.org/01903#SignedProperties";
 
+    private final ParametrosDeLaDian parametros;
+
+    public FirmadorXadesEpes(ParametrosDeLaDian parametros) {
+        this.parametros = parametros;
+    }
+
     @Override
-    public FirmaDeFactura firmar(Factura factura, CertificadoDeFirma certificado) {
+    public FirmaDeFactura firmar(DocumentoAFirmar documento, CertificadoDeFirma certificado) {
         try {
-            String cufe = cufe(factura, certificado.certificado());
-            Document doc = factura(factura, cufe);
-            firmar(doc, certificado, OffsetDateTime.now(ZoneOffset.UTC));
-            return new FirmaDeFactura(cufe, bytes(doc));
+            FacturaUblDian.Construida ubl = FacturaUblDian.construir(documento, parametros);
+            firmar(ubl.documento(), certificado, OffsetDateTime.now(FacturaUblDian.COLOMBIA));
+            return new FirmaDeFactura(ubl.cufe(), bytes(ubl.documento()));
+        } catch (ReglaDeNegocioException datoQueFalta) {
+            throw datoQueFalta;
         } catch (Exception fallo) {
-            throw new IllegalStateException("No se pudo firmar la factura " + factura.getNumeroCompleto(), fallo);
+            throw new IllegalStateException(
+                    "No se pudo firmar la factura " + documento.factura().getNumeroCompleto(), fallo);
         }
-    }
-
-    /** CUFE provisional (SHA-384 de los datos clave, 96 hex como el real): el oficial es de HU-117. */
-    private static String cufe(Factura f, X509Certificate cert) throws Exception {
-        String semilla = f.getNumeroCompleto() + "|" + f.getTotal() + "|" + f.getFechaEmision() + "|"
-                + cert.getSerialNumber();
-        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-384")
-                .digest(semilla.getBytes(StandardCharsets.UTF_8)));
-    }
-
-    private static Document factura(Factura f, String cufe) throws Exception {
-        Document doc = constructor().newDocument();
-        Element invoice = doc.createElementNS(UBL, "Invoice");
-        // Declarado en el DOM: si lo agregara el serializador al escribir, lo firmado no sería lo guardado.
-        invoice.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns", UBL);
-        invoice.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:cbc", CBC);
-        invoice.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:cac", CAC);
-        invoice.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:ext", EXT);
-        doc.appendChild(invoice);
-        Element extensiones = hijo(doc, invoice, EXT, "ext:UBLExtensions");
-        Element extension = hijo(doc, extensiones, EXT, "ext:UBLExtension");
-        hijo(doc, extension, EXT, "ext:ExtensionContent");
-        texto(doc, invoice, CBC, "cbc:UBLVersionID", "UBL 2.1");
-        texto(doc, invoice, CBC, "cbc:ID", f.getNumeroCompleto());
-        Element uuid = texto(doc, invoice, CBC, "cbc:UUID", cufe);
-        uuid.setAttribute("schemeName", "CUFE-SHA384");
-        OffsetDateTime emision = f.getFechaEmision() == null ? OffsetDateTime.now(ZoneOffset.UTC) : f.getFechaEmision();
-        texto(doc, invoice, CBC, "cbc:IssueDate", emision.toLocalDate().toString());
-        texto(doc, invoice, CBC, "cbc:IssueTime", emision.toOffsetTime().withNano(0).toString());
-        Element total = hijo(doc, invoice, CAC, "cac:LegalMonetaryTotal");
-        BigDecimal valor = f.getTotal() == null ? BigDecimal.ZERO : f.getTotal();
-        Element pagar = texto(doc, total, CBC, "cbc:PayableAmount", valor.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString());
-        pagar.setAttribute("currencyID", f.getMoneda() == null ? "COP" : f.getMoneda());
-        return doc;
     }
 
     /** XAdES-EPES dentro de la última {@code ext:ExtensionContent}. */
@@ -231,6 +199,10 @@ public class FirmadorXadesEpes implements FirmadorDeXml {
         f.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         f.setExpandEntityReferences(false);
         return f.newDocumentBuilder();
+    }
+
+    static String texto(Document doc) throws Exception {
+        return new String(bytes(doc), java.nio.charset.StandardCharsets.UTF_8);
     }
 
     private static byte[] bytes(Document doc) throws Exception {

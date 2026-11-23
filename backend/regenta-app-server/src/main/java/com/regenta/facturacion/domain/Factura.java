@@ -336,11 +336,35 @@ public class Factura {
         this.aceptadaEn = OffsetDateTime.now();
     }
 
+    /**
+     * HU-117 C1: aceptada, queda el CUFE que devolvió la DIAN. Es el mismo que se calculó al firmar; si no lo
+     * fuera, manda el de la DIAN, y el calculado queda en la respuesta para poder explicar la diferencia.
+     */
+    public void aceptar(String cufeDeLaDian, Map<String, Object> respuesta) {
+        Map<String, Object> r = new LinkedHashMap<>(respuesta);
+        if (cufeDeLaDian != null && !cufeDeLaDian.isBlank()) {
+            if (!cufeDeLaDian.equalsIgnoreCase(this.cufe)) {
+                r.put("cufe_calculado", this.cufe);
+            }
+            r.put("cufe", cufeDeLaDian);
+            this.cufe = cufeDeLaDian;
+        }
+        aceptar(r);
+    }
+
     /** Criterio 3: la factura queda RECHAZADA con el código de error. */
     public void rechazar(String codigo, String mensaje) {
+        rechazar(codigo, mensaje, List.of());
+    }
+
+    /** HU-117 C2: con todas las reglas que reportó la DIAN, rechazos y notificaciones. */
+    public void rechazar(String codigo, String mensaje, List<String> reglas) {
         Map<String, Object> r = new LinkedHashMap<>();
         r.put("codigo", codigo);
         r.put("mensaje", mensaje);
+        if (reglas != null && !reglas.isEmpty()) {
+            r.put("reglas", List.copyOf(reglas));
+        }
         this.respuestaDian = r;
         this.estado = EstadoFactura.RECHAZADA;
     }
@@ -469,6 +493,10 @@ public class Factura {
 
     public BigDecimal getTotal() {
         return total;
+    }
+
+    public String getMedioPagoCodigo() {
+        return medioPagoCodigo;
     }
 
     public FormaPago getFormaPago() {

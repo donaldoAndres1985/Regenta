@@ -72,4 +72,21 @@ class VigilanciaDeFacturacionTest {
         verify(reglas, never()).save(any());
         verify(motor).evaluar(any());
     }
+
+    @Test
+    void hu117_c2_laFacturaRechazadaSeAvisaConElMotivo() {
+        UUID factura = UUID.randomUUID();
+        vigilancia.alFacturaRechazada(Map.of("negocio_id", negocio.toString(), "factura_id", factura.toString(),
+                "numero_completo", "SETP990000123", "codigo_error", "FAK21",
+                "mensaje", "Adquiriente · número de documento (datos del cliente): ID de adquiriente no Informado"));
+
+        ArgumentCaptor<ReglaAlerta> regla = ArgumentCaptor.forClass(ReglaAlerta.class);
+        verify(reglas).save(regla.capture());
+        assertThat(regla.getValue().getTipoCodigo()).isEqualTo("FACTURA_RECHAZADA");
+        ArgumentCaptor<HechoDeAlerta> hecho = ArgumentCaptor.forClass(HechoDeAlerta.class);
+        verify(motor).evaluar(hecho.capture());
+        assertThat(hecho.getValue().entidadId()).isEqualTo(factura);
+        assertThat(hecho.getValue().campos()).containsEntry("numero", "SETP990000123");
+        assertThat(hecho.getValue().campos().get("motivo").toString()).contains("número de documento");
+    }
 }

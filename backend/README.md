@@ -109,6 +109,12 @@ de ejemplo ("Ferretería Central").
 | `CORREO_REMITENTE` | dirección desde la que sale el correo (verificada en el proveedor); el nombre visible y el *Reply-To* son los del negocio | `notificaciones@regenta.app` |
 | `AUDITORIA_RETENCION_BASICO` / `_PROFESIONAL` / `_EMPRESARIAL` | días que la bitácora vive en la tabla viva antes de archivarse (HU-131), si el negocio no configuró los suyos | `365` / `730` / `1825` |
 | `BOVEDA_LLAVE_MAESTRA` | llave maestra de la bóveda del certificado de firma (HU-116): 32 bytes en base64 (`openssl rand -base64 32`). **Solo por entorno, nunca en el repo.** De ella se deriva una llave por negocio. Sin ella se usa una llave al azar del arranque (solo desarrollo: lo guardado no sobrevive a un reinicio). Si se pierde, hay que volver a cargar los certificados | — |
+| `DIAN_URL` | servicio web de la DIAN (HU-117): `https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc` en habilitación, `https://vpfe.dian.gov.co/WcfDianCustomerServices.svc` en producción. Sin ella, la DIAN es simulada | — |
+| `DIAN_AMBIENTE` | `2` pruebas/habilitación, `1` producción; entra al CUFE y al XML | `2` |
+| `DIAN_SOFTWARE_ID` / `DIAN_SOFTWARE_PIN` | ID y PIN del software registrado en el portal de habilitación (**solo por entorno**) | — |
+| `DIAN_TEST_SET_ID` | `TestSetId` del set de pruebas; mientras está puesto se envía con `SendTestSetAsync`. Se quita al terminar la habilitación | — |
+| `DIAN_CODIGO_PROVEEDOR` / `DIAN_NIT_PROVEEDOR` | código del proveedor tecnológico para el nombre de los archivos y su NIT; con software propio, `000` y el NIT del negocio | `000` / — |
+| `DIAN_TIMEOUT_SEGUNDOS` | espera por respuesta; agotada, la factura se reintenta y luego entra en contingencia | `30` |
 
 ## Compilar y probar
 

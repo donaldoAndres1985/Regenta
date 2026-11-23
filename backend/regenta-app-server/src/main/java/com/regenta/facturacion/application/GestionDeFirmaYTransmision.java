@@ -50,12 +50,14 @@ public class GestionDeFirmaYTransmision {
     private final BovedaDeSecretos boveda;
     private final GestionDeContingencia contingencia;
     private final RegistroDeEventos eventos;
+    private final DocumentosAFirmar documentos;
 
     public GestionDeFirmaYTransmision(FacturaRepositorio facturas,
             CertificadoRepositorio certificados, TransmisionesLog transmisiones,
             FirmadorDeXml firmador, AlmacenDeDocumentos almacen, ClienteDeLaDian dian,
             BovedaDeSecretos boveda, GestionDeContingencia contingencia,
-            RegistroDeEventos eventos) {
+            RegistroDeEventos eventos, DocumentosAFirmar documentos) {
+        this.documentos = documentos;
         this.facturas = facturas;
         this.certificados = certificados;
         this.transmisiones = transmisiones;
@@ -82,12 +84,11 @@ public class GestionDeFirmaYTransmision {
             return;
         }
         // HU-116: el certificado sale cifrado de la bóveda, se abre solo para firmar (C1, C2).
-        Certificado certificado = certificadoVigente(factura.getNegocioId());
-        CertificadoDeFirma abierto = CertificadoDeFirma.desdeSobre(
-                boveda.leer(factura.getNegocioId(), certificado.getReferenciaKms()));
-        FirmadorDeXml.FirmaDeFactura firma = firmador.firmar(factura, abierto);
+        // HU-117: el XML es el UBL completo, con el CUFE oficial.
+        FirmadorDeXml.FirmaDeFactura firma = firmador.firmar(documentos.de(factura),
+                certificadoAbierto(factura.getNegocioId()));
         String url = almacen.guardar(factura.getNegocioId(),
-                factura.getNumeroCompleto() + ".xml", firma.xmlFirmado(), "application/xml");
+                "fv" + documentos.nombreDeArchivo(factura) + ".xml", firma.xmlFirmado(), "application/xml");
         factura.firmar(firma.cufe(), url);
         facturas.save(factura);
     }
@@ -123,19 +124,33 @@ public class GestionDeFirmaYTransmision {
         factura.registrarIntentoDeEnvio();
 
         try {
-            ClienteDeLaDian.RespuestaDeLaDian r = dian.transmitir(xml, "PRODUCCION");
-            transmisiones.registrar(negocioId, facturaId, EventoDeTransmision.ENVIO, null,
-                    r.request(), r.response(), r.httpStatus(), r.codigoError(), r.mensaje(),
-                    (int) r.duracionMs());
+            // HU-117: el mensaje va firmado (WS-Security) con el mismo certificado; el ambiente lo
+            // decide la configuración, no este código (C5).
+            ClienteDeLaDian.RespuestaDeLaDian r = dian.transmitir(new ClienteDeLaDian.EnvioALaDian(
+                    documentos.nombreDeArchivo(factura), xml, certificadoAbierto(negocioId)));
             if (r.aceptada()) {
-                factura.aceptar(Map.of("estado", "ACEPTADA", "mensaje",
-                        r.mensaje() == null ? "" : r.mensaje()));
+                transmisiones.registrar(negocioId, facturaId, EventoDeTransmision.ENVIO, null,
+                        r.request(), r.response(), r.httpStatus(), null, r.mensaje(), (int) r.duracionMs());
+                // C1: queda el CUFE que devolvió la DIAN, y las notificaciones que haya hecho.
+                Map<String, Object> aceptada = new java.util.LinkedHashMap<>();
+                aceptada.put("estado", "ACEPTADA");
+                aceptada.put("mensaje", r.mensaje() == null ? "" : r.mensaje());
+                if (!r.errores().isEmpty()) {
+                    aceptada.put("notificaciones", r.errores());
+                }
+                factura.aceptar(r.cufe(), aceptada);
                 eventos.registrar(negocioId, "factura", facturaId, "factura_aceptada",
                         payload(negocioId, factura, null));
             } else {
-                factura.rechazar(r.codigoError(), r.mensaje());
+                // C2 y C4: el código y un mensaje que dice qué dato lo causó.
+                RechazosDeLaDian.Rechazo rechazo = RechazosDeLaDian.explicar(r.codigoError(), r.mensaje(),
+                        r.errores());
+                transmisiones.registrar(negocioId, facturaId, EventoDeTransmision.ENVIO, null,
+                        r.request(), r.response(), r.httpStatus(), rechazo.codigo(), rechazo.mensaje(),
+                        (int) r.duracionMs());
+                factura.rechazar(rechazo.codigo(), rechazo.mensaje(), r.errores());
                 eventos.registrar(negocioId, "factura", facturaId, "factura_rechazada",
-                        payload(negocioId, factura, r.codigoError()));
+                        payload(negocioId, factura, rechazo.codigo()));
             }
         } catch (DianNoDisponibleException noRespondio) {
             // No se relanza: si abortara la transacción, se perderían el intento
@@ -256,6 +271,11 @@ public class GestionDeFirmaYTransmision {
         return transmisiones.deLaFactura(facturaId);
     }
 
+    private CertificadoDeFirma certificadoAbierto(UUID negocioId) {
+        Certificado certificado = certificadoVigente(negocioId);
+        return CertificadoDeFirma.desdeSobre(boveda.leer(negocioId, certificado.getReferenciaKms()));
+    }
+
     private Certificado certificadoVigente(UUID negocioId) {
         LocalDate hoy = LocalDate.now();
         return certificados.findByNegocioIdAndEstado(negocioId, EstadoCertificado.ACTIVO).stream()
@@ -283,6 +303,11 @@ public class GestionDeFirmaYTransmision {
         p.put("cufe", f.getCufe());
         if (codigoError != null) {
             p.put("codigo_error", codigoError);
+            // HU-117 C2: el motivo viaja con el evento para que Alertas se lo diga a quien emitió.
+            Object mensaje = f.getRespuestaDian() == null ? null : f.getRespuestaDian().get("mensaje");
+            if (mensaje != null) {
+                p.put("mensaje", mensaje.toString());
+            }
         }
         return p;
     }

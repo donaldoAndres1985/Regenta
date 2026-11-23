@@ -60,6 +60,19 @@ regenta:
   # entorno: nunca en el repo.
   boveda:
     llave-maestra: ${BOVEDA_LLAVE_MAESTRA:}
+  # HU-117 · El servicio web de la DIAN. Habilitación y producción son solo configuración: la URL
+  # (https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc o https://vpfe.dian.gov.co/...) y el
+  # ambiente (2 pruebas, 1 producción). Sin URL, la DIAN es la simulada. ID y PIN del software y el
+  # TestSetId SOLO por entorno.
+  dian:
+    url: ${DIAN_URL:}
+    ambiente: ${DIAN_AMBIENTE:2}
+    software-id: ${DIAN_SOFTWARE_ID:}
+    software-pin: ${DIAN_SOFTWARE_PIN:}
+    test-set-id: ${DIAN_TEST_SET_ID:}
+    codigo-proveedor: ${DIAN_CODIGO_PROVEEDOR:000}
+    nit-proveedor: ${DIAN_NIT_PROVEEDOR:}
+    timeout-segundos: ${DIAN_TIMEOUT_SEGUNDOS:30}
   # HU-131 · Días que la bitácora vive en la tabla viva antes de archivarse, si el negocio no
   # configuró los suyos: la del plan.
   auditoria:
