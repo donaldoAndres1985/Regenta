@@ -60,12 +60,27 @@ public class ConfiguracionMultiSchemaFlyway {
         return new EntityManagerFactoryDependsOnPostProcessor("flywayMultiSchemaRunner");
     }
 
+    /**
+     * HU-125 C2: corre al arrancar, antes de JPA (que queda en {@code validate}). Si una migración falla,
+     * la excepción tumba el arranque: el healthcheck nunca pasa, el despliegue nuevo no recibe tráfico y
+     * la versión anterior sigue atendiendo. En PostgreSQL cada migración es una transacción, así que la
+     * que falla no deja nada a medias.
+     *
+     * <p>Ya no se hace {@code repair()} al arrancar: escondía migraciones editadas después de aplicadas.
+     * Ahora una migración aplicada que cambió también detiene el arranque ({@code validateOnMigrate}).
+     */
     public static class FlywayMultiSchemaRunner implements InitializingBean {
 
         private final DataSource dataSource;
+        private final List<ModuloMigracion> modulos;
 
         public FlywayMultiSchemaRunner(DataSource dataSource) {
+            this(dataSource, MODULOS);
+        }
+
+        public FlywayMultiSchemaRunner(DataSource dataSource, List<ModuloMigracion> modulos) {
             this.dataSource = dataSource;
+            this.modulos = modulos;
         }
 
         @Override
@@ -99,7 +114,7 @@ public class ConfiguracionMultiSchemaFlyway {
 
         public void ejecutarMigraciones() {
             log.info("Iniciando ejecución de migraciones Flyway multi-schema...");
-            for (ModuloMigracion m : MODULOS) {
+            for (ModuloMigracion m : modulos) {
                 log.info("Migrando esquema '{}'...", m.schema());
                 Flyway flyway = Flyway.configure()
                         .dataSource(dataSource)
@@ -109,8 +124,8 @@ public class ConfiguracionMultiSchemaFlyway {
                         .locations(m.location())
                         .table("flyway_schema_history")
                         .baselineOnMigrate(true)
+                        .validateOnMigrate(true)
                         .load();
-                flyway.repair();
                 MigrateResult result = flyway.migrate();
                 log.info("Migrando esquema '{}'... {} migraciones aplicadas", m.schema(), result.migrationsExecuted);
             }

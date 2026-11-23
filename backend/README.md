@@ -36,8 +36,8 @@ backend/
 
 Las carpetas `servicio-*`, `gateway`, `comun`, `integracion` y `estructura` son restos
 de la arquitectura anterior: ya no tienen fuentes ni forman parte del build.
-`docker-compose.yml` y `docker/postgres/` también son de esa época (levantan los 16
-servicios y RabbitMQ) y todavía no se adaptaron.
+`docker-compose.yml` levanta el monolito con PostgreSQL y un S3 local (HU-125); el despliegue
+está en `docs/migracion/07-despliegue.md`.
 
 ### Módulos
 
@@ -72,6 +72,16 @@ El mismo test regenera los diagramas de `docs/modulith/`.
 
 ## Arrancar en local
 
+Todo con Docker, con la misma imagen que va a Railway:
+
+```bash
+cp .env.example .env        # y cambiar los valores; el .env no se versiona
+docker compose up --build
+```
+
+O solo la base en Docker y la app con Maven (en desarrollo, sin `JWT_SECRETO` se usa uno al azar y
+la clave de la base es la de este contenedor):
+
 ```bash
 docker run --name regenta-pg -e POSTGRES_USER=regenta -e POSTGRES_PASSWORD=regenta \
   -e POSTGRES_DB=regenta_monolito -p 5432:5432 -d postgres:16
@@ -91,9 +101,11 @@ de ejemplo ("Ferretería Central").
 |---|---|---|
 | `PORT` | puerto HTTP | `8080` |
 | `DATABASE_URL` | JDBC de PostgreSQL | `jdbc:postgresql://localhost:5432/regenta_monolito` |
-| `DB_USER` / `DB_PASSWORD` | credenciales de la base | `regenta` / `regenta` |
+| `REGENTA_ENTORNO` | `desarrollo` o `produccion`; en producción la app no arranca si falta un secreto (HU-125) | `desarrollo` |
+| `DB_USER` / `DB_PASSWORD` | credenciales de la base; la clave **solo por entorno** (en desarrollo, la del contenedor local) | `regenta` / — |
 | `DB_POOL_MAX` | tamaño máximo del pool Hikari | `15` |
-| `JWT_SECRETO` | secreto HS256 (mínimo 32 bytes) | uno de desarrollo; **cambiarlo en producción** |
+| `JWT_SECRETO` | secreto HS256 (mínimo 32 bytes), **solo por entorno**; en desarrollo, si falta, uno al azar por arranque | — |
+| `REGENTA_OPERADOR_CLAVE` | clave del operador para dar de alta negocios (cabecera `X-Regenta-Operador`) | — |
 | `JWT_EMISOR` | `iss` esperado | `regenta` |
 | `CORS_ORIGINS` | orígenes permitidos | `https://regenta.pages.dev`, `https://*.regenta.pages.dev`, `localhost` |
 | `ALMACEN_TIPO` | `s3` para el almacén de documentos y archivos (HU-121); sin él, en memoria (se pierde al reiniciar) | `memoria` |

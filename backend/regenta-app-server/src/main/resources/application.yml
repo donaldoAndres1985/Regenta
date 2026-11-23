@@ -1,13 +1,23 @@
 server:
   port: ${PORT:8080}
+  # HU-125 C3: al llegar el SIGTERM de un despliegue nuevo, termina lo que está atendiendo antes de
+  # apagarse (Railway da drainingSeconds, en railway.json).
+  shutdown: graceful
 
 spring:
   application:
     name: regenta-server
+  # HU-125: el pipeline escribe aquí el commit que despliega.
+  config:
+    import: optional:classpath:version.properties
+  lifecycle:
+    timeout-per-shutdown-phase: 25s
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/regenta_monolito}
     username: ${DB_USER:regenta}
-    password: ${DB_PASSWORD:regenta}
+    # HU-125 C4: sin valor por defecto. En desarrollo lo completa VerificacionDelEntorno; en producción,
+    # si falta, no arranca.
+    password: ${DB_PASSWORD:}
     hikari:
       maximum-pool-size: ${DB_POOL_MAX:15}
       minimum-idle: 2
@@ -32,14 +42,16 @@ spring:
       mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
 
 regenta:
+  # HU-125 · desarrollo | produccion. En produccion se exigen todos los secretos al arrancar.
+  entorno: ${REGENTA_ENTORNO:desarrollo}
   cors:
     allowed-origin-patterns: ${CORS_ORIGINS:https://regenta.pages.dev,https://*.regenta.pages.dev,http://localhost:5000,http://localhost:*}
   seguridad:
     jwt:
-      secreto: ${JWT_SECRETO:regenta-secreto-super-seguro-de-al-menos-32-bytes!}
+      secreto: ${JWT_SECRETO:}
       emisor: ${JWT_EMISOR:regenta}
   jwt:
-    secreto: ${JWT_SECRETO:regenta-secreto-super-seguro-de-al-menos-32-bytes!}
+    secreto: ${JWT_SECRETO:}
     emisor: ${JWT_EMISOR:regenta}
   # HU-121 · Documentos y archivos (facturas, reportes) en un almacén de objetos S3. Sin
   # configurar, en memoria (desarrollo y pruebas). Las credenciales vienen solo del entorno.
@@ -93,3 +105,21 @@ management:
     health:
       probes:
         enabled: true
+      # HU-125 C5: se ve qué componente está caído (base, almacén, correo, DIAN), sin detalles.
+      show-components: always
+      show-details: never
+      # La disponibilidad para recibir tráfico depende solo de la base: si el almacén o la DIAN fallan,
+      # la app sigue atendiendo (encola, reintenta) y /actuator/health lo muestra.
+      group:
+        readiness:
+          include: readinessState,db
+        liveness:
+          include: livenessState
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    nombre: regenta
+    version: ${regenta.version:dev}

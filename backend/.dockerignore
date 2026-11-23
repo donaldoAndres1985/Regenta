@@ -4,3 +4,10 @@ target/
 .idea/
 .vscode/
 *.md
+.env
+.env.*
+*.p12
+*.pfx
+*.pem
+*.key
+*.jks

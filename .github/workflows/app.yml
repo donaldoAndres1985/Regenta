@@ -15,9 +15,10 @@ on:
       - "app/**"
       - ".github/workflows/app.yml"
 
+# En un PR, un push nuevo cancela la corrida vieja; en main no, para no cortar un despliegue (HU-125).
 concurrency:
   group: app-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze-test:
@@ -157,3 +158,52 @@ jobs:
           timeout_minutes: 10
           max_attempts: 3
           command: cd app/apps/regenta && flutter build apk --debug
+
+  # HU-125 C1 · La Web se despliega en Cloudflare Pages solo si el análisis y las pruebas pasaron.
+  # Pages publica atómicamente: hasta que la versión nueva está completa sigue sirviendo la anterior (C3).
+  # La URL del backend sale de la variable del repo API_URL; nada de esto es secreto salvo el token.
+  desplegar-web:
+    name: desplegar Web
+    needs: [analyze-test, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DESPLIEGUE_ACTIVO == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: produccion-web
+      url: ${{ vars.WEB_URL }}
+    concurrency:
+      group: despliegue-web
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: app/apps/regenta
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: build web
+        run: |
+          set -o pipefail
+          flutter build web --release --dart-define=API_BASE_URL=${{ vars.API_URL }} 2>&1 | tee build.log
+
+      - name: publicar error de build
+        if: failure()
+        run: |
+          grep -i -C 2 -E "(error|exception|failed)" build.log | head -n 35 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy app/apps/regenta/build/web --project-name=${{ vars.CLOUDFLARE_PAGES_PROYECTO || 'regenta' }} --branch=main --commit-hash=${{ github.sha }}
