@@ -68,6 +68,10 @@ public class SugerenciaDeCompra {
     @Column(name = "orden_id")
     private UUID ordenId;
 
+    /** Con qué múltiplo se redondea al refrescar; no se guarda, sale del catálogo. */
+    @jakarta.persistence.Transient
+    private BigDecimal cantidadMinimaProveedor;
+
     @Column(name = "sin_proveedor", insertable = false, updatable = false)
     private boolean sinProveedor;
 
@@ -109,7 +113,7 @@ public class SugerenciaDeCompra {
                 ? stockObjetivo
                 : this.stockMinimo.max(BigDecimal.ONE);
         this.stockObjetivo = objetivo;
-        recalcularCantidad(null);
+        recalcularCantidad(cantidadMinimaProveedor);
     }
 
     /** Fija el proveedor preferido y el costo; ajusta la cantidad al mínimo del proveedor. */
@@ -117,17 +121,22 @@ public class SugerenciaDeCompra {
             BigDecimal cantidadMinimaProveedor) {
         this.proveedorId = proveedorId;
         this.costoEstimado = costoEstimado;
+        this.cantidadMinimaProveedor = cantidadMinimaProveedor;
         recalcularCantidad(cantidadMinimaProveedor);
     }
 
+    /**
+     * HU-181 · I30: lo que falta para llegar al objetivo, redondeado hacia arriba al siguiente
+     * múltiplo de la cantidad mínima del proveedor (faltan 42 y vende de a 12 → 48).
+     */
     private void recalcularCantidad(BigDecimal minimoProveedor) {
         BigDecimal faltante = stockObjetivo.subtract(existencia);
         if (faltante.signum() <= 0) {
             faltante = BigDecimal.ONE;
         }
-        if (minimoProveedor != null && minimoProveedor.signum() > 0
-                && faltante.compareTo(minimoProveedor) < 0) {
-            faltante = minimoProveedor;
+        if (minimoProveedor != null && minimoProveedor.signum() > 0) {
+            BigDecimal paquetes = faltante.divide(minimoProveedor, 0, RoundingMode.CEILING);
+            faltante = minimoProveedor.multiply(paquetes);
         }
         this.cantidadSugerida = faltante.setScale(6, RoundingMode.HALF_UP);
     }

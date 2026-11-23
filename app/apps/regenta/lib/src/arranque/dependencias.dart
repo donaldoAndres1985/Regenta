@@ -283,6 +283,9 @@ class DependenciasDeLaApp {
     repositorioDeOrdenesProvider.overrideWithValue(
       RepositorioDeOrdenes(http),
     ),
+    repositorioDeSugerenciasProvider.overrideWithValue(
+      RepositorioDeSugerencias(http),
+    ),
     repositorioDeDevolucionesProvider.overrideWithValue(
       RepositorioDeDevoluciones(http),
     ),

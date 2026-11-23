@@ -88,6 +88,7 @@ public class LibroMayorDeInventario {
                 .orElseGet(() -> Existencia.enCero(negocioId, solicitud.productoId(),
                         solicitud.bodegaId()));
 
+        BigDecimal saldoAnterior = existencia.getCantidad();
         BigDecimal saldoPosterior = existencia.saldoSiAplico(signo, solicitud.cantidad());
         existencia.aplicar(signo, solicitud.cantidad());
         existencias.save(existencia);
@@ -109,7 +110,45 @@ public class LibroMayorDeInventario {
 
         eventos.registrar(negocioId, "existencia", solicitud.productoId(), "stock_actualizado",
                 payload(negocioId, movimiento, saldoPosterior));
+        if (signo != 0) {
+            avisarNivelDeStock(negocioId, solicitud, saldoAnterior, saldoPosterior);
+        }
         return comoDto(movimiento, false);
+    }
+
+    /**
+     * HU-181 · I30: si el movimiento deja el producto en su mínimo o por debajo en esa bodega, se
+     * publica {@code stock_bajo_minimo} (Compras lo vuelve sugerencia y Alertas, aviso). Se publica en
+     * cada movimiento que lo deja ahí, para que la sugerencia lleve la existencia del momento; los
+     * consumidores no duplican. Si vuelve a quedar por encima, {@code stock_normalizado}.
+     */
+    private void avisarNivelDeStock(UUID negocioId, SolicitudDeMovimiento solicitud,
+            BigDecimal saldoAnterior, BigDecimal saldoPosterior) {
+        Producto producto = productos.findById(solicitud.productoId()).orElse(null);
+        if (producto == null || !producto.isControlaStock()) {
+            return;
+        }
+        BigDecimal minimo = producto.getStockMinimo();
+        if (minimo == null || minimo.signum() <= 0) {
+            return;
+        }
+        boolean bajo = saldoPosterior.compareTo(minimo) <= 0;
+        boolean estabaBajo = saldoAnterior != null && saldoAnterior.compareTo(minimo) <= 0;
+        if (!bajo && !estabaBajo) {
+            return;
+        }
+        Map<String, Object> datos = new LinkedHashMap<>();
+        datos.put("negocio_id", negocioId.toString());
+        datos.put("producto_id", producto.getId().toString());
+        datos.put("producto_nombre", producto.getNombre());
+        datos.put("bodega_id", solicitud.bodegaId().toString());
+        datos.put("existencia", saldoPosterior);
+        datos.put("minimo", minimo);
+        if (producto.getStockMaximo() != null) {
+            datos.put("stock_maximo", producto.getStockMaximo());
+        }
+        eventos.registrar(negocioId, "existencia", producto.getId(),
+                bajo ? "stock_bajo_minimo" : "stock_normalizado", datos);
     }
 
     /**

@@ -41,6 +41,8 @@ export 'src/recepcion/estado_de_recepcion.dart';
 export 'src/recepcion/factura_de_recepcion.dart';
 export 'src/recepcion/precio_actual.dart';
 export 'src/recepcion/proveedores.dart';
+export 'src/sugerencias/datos.dart';
+export 'src/sugerencias/pantalla_sugerencias.dart';
 export 'src/ui/formato.dart';
 export 'src/ui/pantalla_compras.dart';
 export 'src/ui/pantalla_recepcion.dart';

@@ -223,7 +223,7 @@ DevolucionAProveedor (agregado)           SugerenciaDeCompra (agregado)
 | Publica | `devolucion_proveedor_registrada` | Inventario saca lo devuelto | **Nuevo** |
 | Publica | `cuenta_por_pagar_creada` | Alertas de vencimiento, reportes | Planeado |
 | Publica | `pago_a_proveedor_registrado` / `_anulado` | Caja registra la salida o su reverso (I29) | **Nuevo** (HU-145) |
-| Consume | `stock_bajo_minimo` | Sugerencias (I30) | Existe |
+| Consume | `stock_bajo_minimo` | Sugerencias (I30). Lo publica el libro mayor de Inventario en cada movimiento que deja el producto en su mínimo o por debajo en una bodega (HU-181) | Existe |
 | Llama | `InventarioApi`: producto (tarifa, maneja lotes, perecedero, costo promedio, precio), existencia por bodega y lote | Validar y mostrar antes de confirmar | **Nuevo** (`ComprasApi` e `InventarioApi` sin estos métodos) |
 | Llama | `InventarioApi`: crear producto, cambiar precio | I20, I21 | **Nuevo** |
 | Llama | `CajaApi`: sesión abierta | Validar I29 antes de registrar el pago | **Nuevo** |
