@@ -109,7 +109,10 @@ public class VerificacionDelEntorno implements EnvironmentPostProcessor, Ordered
             locales.put("spring.datasource.password", "regenta");
         }
         if (!locales.isEmpty()) {
-            entorno.getPropertySources().addLast(new MapPropertySource("regenta-desarrollo", locales));
+            // Primero: application.yml ya trae estas claves vacías (${JWT_SECRETO:}) y, con menos
+            // precedencia, el vacío ganaría. Solo se ponen las que llegaron vacías, así que no tapan nada
+            // que venga del entorno.
+            entorno.getPropertySources().addFirst(new MapPropertySource("regenta-desarrollo", locales));
         }
     }
 

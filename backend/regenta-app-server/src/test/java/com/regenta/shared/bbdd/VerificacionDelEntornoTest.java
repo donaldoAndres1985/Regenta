@@ -68,6 +68,22 @@ class VerificacionDelEntornoTest {
     }
 
     @Test
+    void enDesarrolloLlenaLasClavesQueApplicationYmlDejaVacias() {
+        // Como en application.yml: regenta.jwt.secreto: ${JWT_SECRETO:} sin la variable resuelve a "".
+        MockEnvironment entorno = new MockEnvironment()
+                .withProperty("regenta.jwt.secreto", "")
+                .withProperty("regenta.seguridad.jwt.secreto", "")
+                .withProperty("spring.datasource.password", "");
+
+        verificacion.postProcessEnvironment(entorno, null);
+
+        assertThat(entorno.getProperty("regenta.jwt.secreto")).hasSizeGreaterThanOrEqualTo(32);
+        assertThat(entorno.getProperty("regenta.seguridad.jwt.secreto"))
+                .isEqualTo(entorno.getProperty("regenta.jwt.secreto"));
+        assertThat(entorno.getProperty("spring.datasource.password")).isEqualTo("regenta");
+    }
+
+    @Test
     void enDesarrolloLoQueVieneDelEntornoManda() {
         MockEnvironment entorno = new MockEnvironment()
                 .withProperty("regenta.jwt.secreto", "b".repeat(40))
