@@ -205,6 +205,8 @@ DevolucionAProveedor (agregado)           SugerenciaDeCompra (agregado)
   identificador generado en el dispositivo y se envía al volver la señal. El envío es idempotente
   (reintentar no duplica) y el backend aplica **todas** las invariantes al recibirla; si alguna
   falla, la recepción queda en el dispositivo marcada con el error para corregirla.
+  Sube por `PUT /api/compras/recepciones/dispositivo/{idDispositivo}`, que crea y confirma en una sola
+  transacción; si ese identificador ya llegó, devuelve la misma recepción (HU-182).
 
 ### Configuración y multi-tenant
 - **I33** · Configuración de compras por negocio: `exigeAprobacion` (sí/no), `montoMinimoAprobacion`

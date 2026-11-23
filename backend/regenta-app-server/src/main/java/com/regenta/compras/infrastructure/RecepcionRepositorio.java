@@ -12,6 +12,9 @@ public interface RecepcionRepositorio extends JpaRepository<Recepcion, UUID> {
 
     Optional<Recepcion> findByIdAndNegocioId(UUID id, UUID negocioId);
 
+    /** HU-182 · I32: la que ya llegó desde el celular con ese identificador. */
+    Optional<Recepcion> findByNegocioIdAndIdDispositivo(UUID negocioId, UUID idDispositivo);
+
     List<Recepcion> findByNegocioIdOrderByFechaDesc(UUID negocioId);
 
     List<Recepcion> findByNegocioIdAndOrdenIdOrderByFechaDesc(UUID negocioId, UUID ordenId);

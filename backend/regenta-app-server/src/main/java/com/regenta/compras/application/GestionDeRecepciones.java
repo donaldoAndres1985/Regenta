@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -312,6 +313,27 @@ public class GestionDeRecepciones {
     public List<CostoYPrecio> preciosActuales(UUID bodegaId, List<UUID> productoIds) {
         return List.copyOf(inventario.costosYPrecios(ContextoDeNegocio.negocioActual(), bodegaId,
                 productoIds == null ? List.of() : productoIds).values());
+    }
+
+    /**
+     * HU-182 · I32 · La recepción que el celular armó, creada y confirmada en una sola transacción.
+     * Es idempotente por el identificador del dispositivo: si ya llegó, se devuelve la misma sin
+     * volver a tocar inventario ni cuentas (C2). Pasa por las mismas reglas que {@link #crear} y
+     * {@link #confirmar}; si alguna falla no queda nada guardado y el celular la conserva con el
+     * motivo para corregirla (C3).
+     */
+    @Transactional
+    @RequierePermiso("COMPRAS_COMPRA_CREAR")
+    public RecepcionDelNegocio registrarDesdeElDispositivo(UUID idDispositivo,
+            SolicitudDeRecepcionDesdeElDispositivo solicitud) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        Optional<Recepcion> yaLlego = recepciones.findByNegocioIdAndIdDispositivo(negocioId, idDispositivo);
+        if (yaLlego.isPresent()) {
+            return ver(yaLlego.get().getId());
+        }
+        RecepcionDelNegocio creada = crear(solicitud.recepcion());
+        delNegocio(creada.id()).desdeElDispositivo(idDispositivo);
+        return confirmar(creada.id(), new SolicitudDeConfirmacionDeRecepcion(null, solicitud.preciosNuevos()));
     }
 
     @Transactional

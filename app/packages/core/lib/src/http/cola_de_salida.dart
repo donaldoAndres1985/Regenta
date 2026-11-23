@@ -10,12 +10,17 @@ class OperacionEncolable {
     required this.ruta,
     this.datos,
     this.query,
+    this.clave,
   });
 
   final String metodo;
   final String ruta;
   final Object? datos;
   final Map<String, dynamic>? query;
+
+  /// HU-182 · I32: el identificador que le puso quien la armó (p. ej. una recepción hecha en el
+  /// celular). Encolarla otra vez con la misma clave la reemplaza en vez de duplicarla.
+  final String? clave;
 }
 
 /// Donde van a parar las operaciones que se registraron sin conexion.

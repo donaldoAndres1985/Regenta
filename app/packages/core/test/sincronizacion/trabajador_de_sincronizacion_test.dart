@@ -161,4 +161,31 @@ void main() {
     expect(resumen.conflictos, 1);
     expect(resumen.pendientes, 2);
   });
+
+  test('HU-182 · un rechazo guarda el motivo del servidor para corregirlo', () async {
+    await cola.encolar(const OperacionEncolable(metodo: 'PUT', ruta: '/api/compras/recepciones/dispositivo/r-1'));
+    final trabajador = trabajadorCon({
+      '/api/compras/recepciones/dispositivo/r-1': (
+        codigo: 422,
+        cuerpo: {'detail': 'Este producto maneja lotes: indica el código de lote que llegó'},
+      ),
+    });
+
+    await trabajador.ejecutarUnaPasada();
+
+    final [op] = await cola.operaciones(prefijo: '/api/compras/recepciones/dispositivo/');
+    expect(op.conError, isTrue);
+    expect(op.ultimoError, 'Este producto maneja lotes: indica el código de lote que llegó');
+  });
+
+  test('HU-182 · un 409 también queda con su motivo', () async {
+    await cola.encolar(const OperacionEncolable(metodo: 'PUT', ruta: '/api/x'));
+    final trabajador = trabajadorCon({'/api/x': (codigo: 409, cuerpo: {'detail': 'La factura FV-1 ya está'})});
+
+    await trabajador.ejecutarUnaPasada();
+
+    final [op] = await cola.operaciones();
+    expect(op.estado, 'CONFLICTO');
+    expect(op.ultimoError, 'La factura FV-1 ya está');
+  });
 }

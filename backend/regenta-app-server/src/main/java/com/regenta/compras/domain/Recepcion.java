@@ -53,6 +53,10 @@ public class Recepcion {
     @Column(nullable = false, length = 30, updatable = false)
     private String numero;
 
+    /** HU-182 · I32: el identificador que le puso el celular al armarla sin señal. */
+    @Column(name = "id_dispositivo", updatable = false)
+    private UUID idDispositivo;
+
     @Column(name = "factura_proveedor", length = 40)
     private String facturaProveedor;
 
@@ -364,6 +368,15 @@ public class Recepcion {
 
     public UUID getBodegaId() {
         return bodegaId;
+    }
+
+    /** HU-182 · I32: queda marcada con el identificador del celular; solo al crearla. */
+    public void desdeElDispositivo(UUID idDispositivo) {
+        this.idDispositivo = idDispositivo;
+    }
+
+    public UUID getIdDispositivo() {
+        return idDispositivo;
     }
 
     public String getNumero() {

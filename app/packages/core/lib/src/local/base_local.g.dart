@@ -405,6 +405,17 @@ class $OperacionesPendientesTable extends OperacionesPendientes
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _ultimoErrorMeta = const VerificationMeta(
+    'ultimoError',
+  );
+  @override
+  late final GeneratedColumn<String> ultimoError = GeneratedColumn<String>(
+    'ultimo_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -415,6 +426,7 @@ class $OperacionesPendientesTable extends OperacionesPendientes
     intentos,
     estado,
     proximoIntentoEn,
+    ultimoError,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -484,6 +496,15 @@ class $OperacionesPendientesTable extends OperacionesPendientes
         ),
       );
     }
+    if (data.containsKey('ultimo_error')) {
+      context.handle(
+        _ultimoErrorMeta,
+        ultimoError.isAcceptableOrUnknown(
+          data['ultimo_error']!,
+          _ultimoErrorMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -525,6 +546,10 @@ class $OperacionesPendientesTable extends OperacionesPendientes
         DriftSqlType.dateTime,
         data['${effectivePrefix}proximo_intento_en'],
       ),
+      ultimoError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ultimo_error'],
+      ),
     );
   }
 
@@ -544,6 +569,7 @@ class OperacionesPendiente extends DataClass
   final int intentos;
   final String estado;
   final DateTime? proximoIntentoEn;
+  final String? ultimoError;
   const OperacionesPendiente({
     required this.id,
     required this.metodo,
@@ -553,6 +579,7 @@ class OperacionesPendiente extends DataClass
     required this.intentos,
     required this.estado,
     this.proximoIntentoEn,
+    this.ultimoError,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -568,6 +595,9 @@ class OperacionesPendiente extends DataClass
     map['estado'] = Variable<String>(estado);
     if (!nullToAbsent || proximoIntentoEn != null) {
       map['proximo_intento_en'] = Variable<DateTime>(proximoIntentoEn);
+    }
+    if (!nullToAbsent || ultimoError != null) {
+      map['ultimo_error'] = Variable<String>(ultimoError);
     }
     return map;
   }
@@ -586,6 +616,9 @@ class OperacionesPendiente extends DataClass
       proximoIntentoEn: proximoIntentoEn == null && nullToAbsent
           ? const Value.absent()
           : Value(proximoIntentoEn),
+      ultimoError: ultimoError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ultimoError),
     );
   }
 
@@ -605,6 +638,7 @@ class OperacionesPendiente extends DataClass
       proximoIntentoEn: serializer.fromJson<DateTime?>(
         json['proximoIntentoEn'],
       ),
+      ultimoError: serializer.fromJson<String?>(json['ultimoError']),
     );
   }
   @override
@@ -619,6 +653,7 @@ class OperacionesPendiente extends DataClass
       'intentos': serializer.toJson<int>(intentos),
       'estado': serializer.toJson<String>(estado),
       'proximoIntentoEn': serializer.toJson<DateTime?>(proximoIntentoEn),
+      'ultimoError': serializer.toJson<String?>(ultimoError),
     };
   }
 
@@ -631,6 +666,7 @@ class OperacionesPendiente extends DataClass
     int? intentos,
     String? estado,
     Value<DateTime?> proximoIntentoEn = const Value.absent(),
+    Value<String?> ultimoError = const Value.absent(),
   }) => OperacionesPendiente(
     id: id ?? this.id,
     metodo: metodo ?? this.metodo,
@@ -642,6 +678,7 @@ class OperacionesPendiente extends DataClass
     proximoIntentoEn: proximoIntentoEn.present
         ? proximoIntentoEn.value
         : this.proximoIntentoEn,
+    ultimoError: ultimoError.present ? ultimoError.value : this.ultimoError,
   );
   OperacionesPendiente copyWithCompanion(OperacionesPendientesCompanion data) {
     return OperacionesPendiente(
@@ -655,6 +692,9 @@ class OperacionesPendiente extends DataClass
       proximoIntentoEn: data.proximoIntentoEn.present
           ? data.proximoIntentoEn.value
           : this.proximoIntentoEn,
+      ultimoError: data.ultimoError.present
+          ? data.ultimoError.value
+          : this.ultimoError,
     );
   }
 
@@ -668,7 +708,8 @@ class OperacionesPendiente extends DataClass
           ..write('creadoEn: $creadoEn, ')
           ..write('intentos: $intentos, ')
           ..write('estado: $estado, ')
-          ..write('proximoIntentoEn: $proximoIntentoEn')
+          ..write('proximoIntentoEn: $proximoIntentoEn, ')
+          ..write('ultimoError: $ultimoError')
           ..write(')'))
         .toString();
   }
@@ -683,6 +724,7 @@ class OperacionesPendiente extends DataClass
     intentos,
     estado,
     proximoIntentoEn,
+    ultimoError,
   );
   @override
   bool operator ==(Object other) =>
@@ -695,7 +737,8 @@ class OperacionesPendiente extends DataClass
           other.creadoEn == this.creadoEn &&
           other.intentos == this.intentos &&
           other.estado == this.estado &&
-          other.proximoIntentoEn == this.proximoIntentoEn);
+          other.proximoIntentoEn == this.proximoIntentoEn &&
+          other.ultimoError == this.ultimoError);
 }
 
 class OperacionesPendientesCompanion
@@ -708,6 +751,7 @@ class OperacionesPendientesCompanion
   final Value<int> intentos;
   final Value<String> estado;
   final Value<DateTime?> proximoIntentoEn;
+  final Value<String?> ultimoError;
   final Value<int> rowid;
   const OperacionesPendientesCompanion({
     this.id = const Value.absent(),
@@ -718,6 +762,7 @@ class OperacionesPendientesCompanion
     this.intentos = const Value.absent(),
     this.estado = const Value.absent(),
     this.proximoIntentoEn = const Value.absent(),
+    this.ultimoError = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   OperacionesPendientesCompanion.insert({
@@ -729,6 +774,7 @@ class OperacionesPendientesCompanion
     this.intentos = const Value.absent(),
     this.estado = const Value.absent(),
     this.proximoIntentoEn = const Value.absent(),
+    this.ultimoError = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        metodo = Value(metodo),
@@ -743,6 +789,7 @@ class OperacionesPendientesCompanion
     Expression<int>? intentos,
     Expression<String>? estado,
     Expression<DateTime>? proximoIntentoEn,
+    Expression<String>? ultimoError,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -754,6 +801,7 @@ class OperacionesPendientesCompanion
       if (intentos != null) 'intentos': intentos,
       if (estado != null) 'estado': estado,
       if (proximoIntentoEn != null) 'proximo_intento_en': proximoIntentoEn,
+      if (ultimoError != null) 'ultimo_error': ultimoError,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -767,6 +815,7 @@ class OperacionesPendientesCompanion
     Value<int>? intentos,
     Value<String>? estado,
     Value<DateTime?>? proximoIntentoEn,
+    Value<String?>? ultimoError,
     Value<int>? rowid,
   }) {
     return OperacionesPendientesCompanion(
@@ -778,6 +827,7 @@ class OperacionesPendientesCompanion
       intentos: intentos ?? this.intentos,
       estado: estado ?? this.estado,
       proximoIntentoEn: proximoIntentoEn ?? this.proximoIntentoEn,
+      ultimoError: ultimoError ?? this.ultimoError,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -809,6 +859,9 @@ class OperacionesPendientesCompanion
     if (proximoIntentoEn.present) {
       map['proximo_intento_en'] = Variable<DateTime>(proximoIntentoEn.value);
     }
+    if (ultimoError.present) {
+      map['ultimo_error'] = Variable<String>(ultimoError.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -826,6 +879,7 @@ class OperacionesPendientesCompanion
           ..write('intentos: $intentos, ')
           ..write('estado: $estado, ')
           ..write('proximoIntentoEn: $proximoIntentoEn, ')
+          ..write('ultimoError: $ultimoError, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1254,6 +1308,7 @@ typedef $$OperacionesPendientesTableCreateCompanionBuilder =
       Value<int> intentos,
       Value<String> estado,
       Value<DateTime?> proximoIntentoEn,
+      Value<String?> ultimoError,
       Value<int> rowid,
     });
 typedef $$OperacionesPendientesTableUpdateCompanionBuilder =
@@ -1266,6 +1321,7 @@ typedef $$OperacionesPendientesTableUpdateCompanionBuilder =
       Value<int> intentos,
       Value<String> estado,
       Value<DateTime?> proximoIntentoEn,
+      Value<String?> ultimoError,
       Value<int> rowid,
     });
 
@@ -1315,6 +1371,11 @@ class $$OperacionesPendientesTableFilterComposer
 
   ColumnFilters<DateTime> get proximoIntentoEn => $composableBuilder(
     column: $table.proximoIntentoEn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ultimoError => $composableBuilder(
+    column: $table.ultimoError,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1367,6 +1428,11 @@ class $$OperacionesPendientesTableOrderingComposer
     column: $table.proximoIntentoEn,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get ultimoError => $composableBuilder(
+    column: $table.ultimoError,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OperacionesPendientesTableAnnotationComposer
@@ -1401,6 +1467,11 @@ class $$OperacionesPendientesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get proximoIntentoEn => $composableBuilder(
     column: $table.proximoIntentoEn,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get ultimoError => $composableBuilder(
+    column: $table.ultimoError,
     builder: (column) => column,
   );
 }
@@ -1459,6 +1530,7 @@ class $$OperacionesPendientesTableTableManager
                 Value<int> intentos = const Value.absent(),
                 Value<String> estado = const Value.absent(),
                 Value<DateTime?> proximoIntentoEn = const Value.absent(),
+                Value<String?> ultimoError = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OperacionesPendientesCompanion(
                 id: id,
@@ -1469,6 +1541,7 @@ class $$OperacionesPendientesTableTableManager
                 intentos: intentos,
                 estado: estado,
                 proximoIntentoEn: proximoIntentoEn,
+                ultimoError: ultimoError,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1481,6 +1554,7 @@ class $$OperacionesPendientesTableTableManager
                 Value<int> intentos = const Value.absent(),
                 Value<String> estado = const Value.absent(),
                 Value<DateTime?> proximoIntentoEn = const Value.absent(),
+                Value<String?> ultimoError = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OperacionesPendientesCompanion.insert(
                 id: id,
@@ -1491,6 +1565,7 @@ class $$OperacionesPendientesTableTableManager
                 intentos: intentos,
                 estado: estado,
                 proximoIntentoEn: proximoIntentoEn,
+                ultimoError: ultimoError,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

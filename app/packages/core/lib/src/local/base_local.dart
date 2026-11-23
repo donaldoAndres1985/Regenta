@@ -29,6 +29,9 @@ class OperacionesPendientes extends Table {
   // HU-111 criterio 2: el trabajador de fondo espera hasta esta hora antes
   // de reintentar (backoff exponencial), en vez de machacar la red cada pasada.
   DateTimeColumn get proximoIntentoEn => dateTime().nullable()();
+  // HU-182 · I32: por qué la rechazó el servidor (CONFLICTO o RECHAZADA), para
+  // que quien la armó la corrija y la reenvíe.
+  TextColumn get ultimoError => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -56,7 +59,7 @@ class BaseLocal extends _$BaseLocal {
       BaseLocal(driftDatabase(name: 'regenta_test', native: const DriftNativeOptions()));
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -69,6 +72,9 @@ class BaseLocal extends _$BaseLocal {
           }
           if (from < 3) {
             await m.addColumn(operacionesPendientes, operacionesPendientes.proximoIntentoEn);
+          }
+          if (from < 4) {
+            await m.addColumn(operacionesPendientes, operacionesPendientes.ultimoError);
           }
         },
         beforeOpen: (details) async {

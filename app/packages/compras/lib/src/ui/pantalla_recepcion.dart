@@ -5,6 +5,7 @@ import 'package:regenta_core/regenta_core.dart';
 import '../datos/orden_recibible.dart';
 import '../compra_directa/estado.dart';
 import '../escaner/escaner_de_codigos.dart';
+import '../recepcion/recepciones_por_enviar.dart';
 import '../proveedores/ui/piezas.dart';
 import '../recepcion/entrada_de_linea.dart';
 import '../recepcion/estado_de_recepcion.dart';
@@ -27,9 +28,13 @@ class PantallaRecepcion extends ConsumerStatefulWidget {
     required this.ordenId,
     this.onVolver,
     this.onRegistrada,
+    this.correccion,
   });
 
   final String ordenId;
+
+  /// HU-182 C3 · La recepción del celular que el backend rechazó, para corregirla y reenviarla.
+  final RecepcionPorEnviar? correccion;
   final VoidCallback? onVolver;
   final void Function(String numeroRecepcion)? onRegistrada;
 
@@ -42,7 +47,8 @@ class _PantallaRecepcionState extends ConsumerState<PantallaRecepcion> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(controladorDeRecepcionProvider.notifier).cargarOrden(widget.ordenId);
+      ref.read(controladorDeRecepcionProvider.notifier)
+          .cargarOrden(widget.ordenId, correccion: widget.correccion);
     });
   }
 
@@ -137,7 +143,23 @@ class _PantallaRecepcionState extends ConsumerState<PantallaRecepcion> {
           const SizedBox(width: 6),
         ],
       ),
-      body: estado.cargando
+      body: Column(children: [
+        if (estado.errorPrevio != null && !estado.cargando)
+          Container(
+            key: const Key('recepcion-error-previo'),
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            color: RegentaColors.critSoft,
+            child: Text('No entró: ${estado.errorPrevio} Corrige y confirma de nuevo.',
+                style: RegentaType.cuerpo.copyWith(fontSize: 13, color: RegentaColors.crit)),
+          ),
+        Expanded(child: _cuerpo(estado, ctrl)),
+      ]),
+    );
+  }
+
+  Widget _cuerpo(EstadoDeRecepcion estado, dynamic ctrl) {
+    return estado.cargando
           ? const Center(child: CircularProgressIndicator())
           : estado.orden == null
               ? Center(
@@ -151,8 +173,7 @@ class _PantallaRecepcionState extends ConsumerState<PantallaRecepcion> {
                     }
                     return _UnaLinea(estado: estado, ctrl: ctrl);
                   },
-                ),
-    );
+                );
   }
 }
 
