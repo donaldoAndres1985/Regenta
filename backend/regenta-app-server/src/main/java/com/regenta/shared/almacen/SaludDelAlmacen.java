@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,7 @@ public class SaludDelAlmacen implements HealthIndicator {
     private volatile Health ultima;
     private volatile Instant cuando = Instant.EPOCH;
 
+    @Autowired
     public SaludDelAlmacen(AlmacenDeObjetos almacen) {
         this(almacen, Clock.systemUTC());
     }
