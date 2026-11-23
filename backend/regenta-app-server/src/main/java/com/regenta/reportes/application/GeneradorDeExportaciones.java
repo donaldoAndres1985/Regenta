@@ -43,11 +43,12 @@ public class GeneradorDeExportaciones {
     private final CatalogoDeReportes catalogo;
     private final ExportadorDeReportes exportador;
     private final RegistroDeEventos eventos;
-    private final PasarelaDeCorreo correo;
+    private final com.regenta.shared.correo.CorreoSaliente correo;
     private final ArchivosDeReporte archivos;
 
     public GeneradorDeExportaciones(JdbcTemplate jdbc, CatalogoDeReportes catalogo,
-            ExportadorDeReportes exportador, RegistroDeEventos eventos, PasarelaDeCorreo correo,
+            ExportadorDeReportes exportador, RegistroDeEventos eventos,
+            com.regenta.shared.correo.CorreoSaliente correo,
             ArchivosDeReporte archivos) {
         this.archivos = archivos;
         this.jdbc = jdbc;
@@ -160,12 +161,16 @@ public class GeneradorDeExportaciones {
         }
         List<String> destinatarios = destinatariosDe(programadoId);
         String asunto = reporte.nombre() + " · " + nombreDelProgramado(programadoId);
+        // HU-122 C3: el archivo va adjunto, no como un enlace que caduca.
+        var adjunto = new com.regenta.shared.correo.CorreoSaliente.Adjunto(archivo.nombre(), archivo.tipoMime(),
+                archivo.contenido());
         for (String destino : destinatarios) {
-            var resultado = correo.enviar(destino, asunto,
-                    "Adjunto va el reporte programado. Lo genera Regenta automáticamente.", archivo);
-            if (!resultado.ok()) {
+            var resultado = correo.enviar(new com.regenta.shared.correo.CorreoSaliente.Correo(
+                    (UUID) fila.get("negocio_id"), destino, asunto,
+                    "Adjunto va el reporte programado. Lo genera Regenta automáticamente.", List.of(adjunto)));
+            if (!resultado.enviado()) {
                 log.warn("No se pudo enviar el reporte {} a {}: {}", fila.get("id"), destino,
-                        resultado.error());
+                        resultado.motivo());
             }
         }
     }

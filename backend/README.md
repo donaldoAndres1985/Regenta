@@ -103,6 +103,10 @@ de ejemplo ("Ferretería Central").
 | `ALMACEN_S3_ACCESS_KEY` / `ALMACEN_S3_SECRET_KEY` | credenciales del almacén (solo por entorno) | — |
 | `ALMACEN_S3_CREAR_BUCKET` | crear el bucket al arrancar si no existe (útil en local) | `false` |
 | `REPORTES_RETENCION_ARCHIVOS` | cuánto vive un reporte exportado antes de borrarse solo | `30d` |
+| `SPRING_MAIL_HOST` / `SPRING_MAIL_PORT` | servidor SMTP del proveedor de correo (HU-122); sin host, el correo queda en memoria | — / `25` |
+| `SPRING_MAIL_USERNAME` / `SPRING_MAIL_PASSWORD` | credenciales SMTP (solo por entorno) | — |
+| `SMTP_STARTTLS` | usar STARTTLS | `true` |
+| `CORREO_REMITENTE` | dirección desde la que sale el correo (verificada en el proveedor); el nombre visible y el *Reply-To* son los del negocio | `notificaciones@regenta.app` |
 | `AUDITORIA_RETENCION_BASICO` / `_PROFESIONAL` / `_EMPRESARIAL` | días que la bitácora vive en la tabla viva antes de archivarse (HU-131), si el negocio no configuró los suyos | `365` / `730` / `1825` |
 
 ## Compilar y probar

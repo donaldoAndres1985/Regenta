@@ -21,6 +21,15 @@ spring:
         format_sql: false
   flyway:
     enabled: false
+  # HU-122 · Correo saliente por SMTP. El servidor y sus credenciales llegan SOLO por entorno
+  # (SPRING_MAIL_HOST, SPRING_MAIL_PORT, SPRING_MAIL_USERNAME, SPRING_MAIL_PASSWORD); sin
+  # SPRING_MAIL_HOST el correo queda en memoria. Tiempos cortos: un proveedor caído no cuelga nada.
+  mail:
+    properties:
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
 
 regenta:
   cors:
@@ -43,6 +52,10 @@ regenta:
       access-key: ${ALMACEN_S3_ACCESS_KEY:}
       secret-key: ${ALMACEN_S3_SECRET_KEY:}
       crear-bucket: ${ALMACEN_S3_CREAR_BUCKET:false}
+  # HU-122 · La dirección desde la que sale el correo (la que el proveedor tiene verificada). El
+  # nombre visible y a quién se responde salen de la configuración de cada negocio.
+  correo:
+    remitente: ${CORREO_REMITENTE:notificaciones@regenta.app}
   # HU-131 · Días que la bitácora vive en la tabla viva antes de archivarse, si el negocio no
   # configuró los suyos: la del plan.
   auditoria:
