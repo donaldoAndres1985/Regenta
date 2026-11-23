@@ -158,11 +158,13 @@ class RepositorioDeOrdenes {
   OrdenDeCompraVista _leer(dynamic res) => OrdenDeCompraVista.desdeJson((res as Map).cast<String, dynamic>());
 
   Future<List<OrdenDeCompraVista>> listar() async {
-    final res = await _http.get<List<dynamic>>(_base);
+    // HU-182 · En la bodega sin señal se ven las órdenes de la última vez que hubo.
+    final res = await _http.get<List<dynamic>>(_base, conRespaldo: true);
     return [for (final e in res) _leer(e)];
   }
 
-  Future<OrdenDeCompraVista> ver(String id) async => _leer(await _http.get<dynamic>('$_base/$id'));
+  Future<OrdenDeCompraVista> ver(String id) async =>
+      _leer(await _http.get<dynamic>('$_base/$id', conRespaldo: true));
 
   /// Crea la orden en borrador. Las líneas llevan producto, cantidad y, si se cambió, el costo.
   Future<OrdenDeCompraVista> crear(Map<String, dynamic> orden) async =>

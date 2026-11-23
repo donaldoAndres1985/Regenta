@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:regenta_core/regenta_core.dart';
 
@@ -102,5 +103,49 @@ void main() {
       cliente.post<dynamic>('/api/ventas', datos: {}, encolable: true),
       throwsA(isA<ErrorDeRed>()),
     );
+  });
+
+  group('HU-182 · consultas con respaldo', () {
+    late BaseLocal db;
+    setUp(() => db = BaseLocal(NativeDatabase.memory()));
+    tearDown(() => db.close());
+
+    ClienteHttp conRespaldo(HttpClientAdapter adaptador) =>
+        ClienteHttp(Dio(BaseOptions(baseUrl: 'https://gw.test'))..httpClientAdapter = adaptador,
+            respaldo: RespaldoDeConsultasLocal(db));
+
+    test('sin señal devuelve lo último que se consultó con señal', () async {
+      await conRespaldo(_Adaptador((_) => (codigo: 200, cuerpo: {'numero': 'OC-7', 'lineas': [1, 2]})))
+          .get<Map<String, dynamic>>('/api/compras/ordenes/o-7', conRespaldo: true);
+
+      final sinSenal = await conRespaldo(_AdaptadorSinRed())
+          .get<Map<String, dynamic>>('/api/compras/ordenes/o-7', conRespaldo: true);
+
+      expect(sinSenal['numero'], 'OC-7');
+      expect(sinSenal['lineas'], [1, 2]);
+    });
+
+    test('las listas también vuelven', () async {
+      await conRespaldo(_Adaptador((_) => (codigo: 200, cuerpo: [{'id': 'a'}])))
+          .get<List<dynamic>>('/api/compras/ordenes', conRespaldo: true);
+
+      final lista = await conRespaldo(_AdaptadorSinRed()).get<List<dynamic>>('/api/compras/ordenes', conRespaldo: true);
+
+      expect(lista, hasLength(1));
+    });
+
+    test('si nunca se consultó con señal, falla como siempre', () async {
+      await expectLater(
+        conRespaldo(_AdaptadorSinRed()).get<dynamic>('/api/compras/ordenes/otra', conRespaldo: true),
+        throwsA(isA<ErrorDeRed>()),
+      );
+    });
+
+    test('sin conRespaldo no se guarda nada', () async {
+      await conRespaldo(_Adaptador((_) => (codigo: 200, cuerpo: {'ok': true}))).get<dynamic>('/api/x');
+
+      await expectLater(conRespaldo(_AdaptadorSinRed()).get<dynamic>('/api/x', conRespaldo: true),
+          throwsA(isA<ErrorDeRed>()));
+    });
   });
 }

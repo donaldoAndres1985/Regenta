@@ -21,6 +21,7 @@ import com.regenta.compras.application.SolicitudDeAnulacionDeRecepcion;
 import com.regenta.compras.application.SolicitudDeCompraDirecta;
 import com.regenta.compras.application.SolicitudDeConfirmacionDeRecepcion;
 import com.regenta.compras.application.SolicitudDeRecepcion;
+import com.regenta.compras.application.SolicitudDeRecepcionDesdeElDispositivo;
 import com.regenta.inventario.api.CostoYPrecio;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -81,6 +82,22 @@ public class RecepcionesControlador {
             + "pasa lo pedido más la tolerancia, o de contado falta la factura o el método de pago")
     public RecepcionDelNegocio crear(@Valid @RequestBody SolicitudDeRecepcion solicitud) {
         return recepciones.crear(solicitud);
+    }
+
+    @PutMapping("/dispositivo/{idDispositivo}")
+    @Operation(summary = "Registra y confirma de una vez la recepción armada en el celular (HU-182)",
+            description = "El celular le pone el identificador al guardarla, con o sin señal (I32). Reenviarla "
+                    + "es seguro: si ya llegó, devuelve la misma recepción sin volver a sumar inventario. Aplica "
+                    + "las mismas reglas que crear y confirmar; si alguna falla, no queda nada guardado.")
+    @ApiResponse(responseCode = "403", description = "Sin COMPRAS_COMPRA_CREAR, o trae precios nuevos sin "
+            + "INVENTARIO_PRODUCTO_EDITAR")
+    @ApiResponse(responseCode = "409", description = "La orden ya no se puede recibir o la factura ya está "
+            + "registrada para ese proveedor")
+    @ApiResponse(responseCode = "422", description = "Falta el lote donde el producto lo exige, una línea pasa "
+            + "lo pedido más la tolerancia, o de contado falta la factura o el método de pago")
+    public RecepcionDelNegocio registrarDesdeElDispositivo(@PathVariable UUID idDispositivo,
+            @Valid @RequestBody SolicitudDeRecepcionDesdeElDispositivo solicitud) {
+        return recepciones.registrarDesdeElDispositivo(idDispositivo, solicitud);
     }
 
     @PostMapping("/directas")

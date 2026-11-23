@@ -6,6 +6,7 @@ import 'package:drift/drift.dart';
 
 import '../http/errores_http.dart';
 import '../local/base_local.dart';
+import 'cola_de_salida_local.dart' show motivoDelRechazo;
 import 'resumen_de_cola.dart';
 
 /// Saca operaciones de [OperacionesPendientes] y las reproduce contra el
@@ -108,13 +109,15 @@ class TrabajadorDeSincronizacion {
           intentos: Value(fila.intentos + 1),
           proximoIntentoEn: Value(_ahora().add(_backoff(fila.intentos + 1))),
         ),
-      RecursoDuplicado() => const OperacionesPendientesCompanion(
-          estado: Value('CONFLICTO'),
-          proximoIntentoEn: Value(null),
+      RecursoDuplicado() => OperacionesPendientesCompanion(
+          estado: const Value('CONFLICTO'),
+          proximoIntentoEn: const Value(null),
+          ultimoError: Value(motivoDelRechazo(error)),
         ),
-      _ => const OperacionesPendientesCompanion(
-          estado: Value('RECHAZADA'),
-          proximoIntentoEn: Value(null),
+      _ => OperacionesPendientesCompanion(
+          estado: const Value('RECHAZADA'),
+          proximoIntentoEn: const Value(null),
+          ultimoError: Value(motivoDelRechazo(error)),
         ),
     };
     await (_db.update(_db.operacionesPendientes)..where((t) => t.id.equals(fila.id)))

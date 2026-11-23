@@ -9,6 +9,8 @@ import '../ordenes/datos.dart';
 import '../ordenes/formulario_de_orden.dart';
 import '../ordenes/pantalla_orden.dart';
 import '../proveedores/ui/piezas.dart';
+import '../recepcion/pantalla_recepciones_por_enviar.dart';
+import '../recepcion/recepciones_por_enviar.dart';
 import '../sugerencias/pantalla_sugerencias.dart';
 import 'formato.dart';
 
@@ -257,6 +259,12 @@ class _PantallaComprasState extends ConsumerState<PantallaCompras> {
               ),
             ]),
           ),
+          // HU-182 · Lo recibido en el celular que todavía no entró.
+          _AvisoPorEnviar(
+            recepciones: ref.watch(recepcionesPorEnviarProvider).valueOrNull ?? const [],
+            onVer: () => unawaited(Navigator.of(context).push<void>(
+                MaterialPageRoute(builder: (_) => const PantallaRecepcionesPorEnviar()))),
+          ),
           if (_error != null)
             Padding(padding: const EdgeInsets.fromLTRB(14, 10, 14, 0), child: AvisoDeError(_error!)),
           Expanded(
@@ -330,6 +338,47 @@ class _FilaOrden extends StatelessWidget {
           const SizedBox(width: 4),
           const Icon(Icons.chevron_right, color: RegentaColors.faint),
         ]),
+      ),
+    );
+  }
+}
+
+/// HU-182 · «2 recepciones por enviar · 1 con error». Sin ninguna, no se ve.
+class _AvisoPorEnviar extends StatelessWidget {
+  const _AvisoPorEnviar({required this.recepciones, required this.onVer});
+
+  final List<RecepcionPorEnviar> recepciones;
+  final VoidCallback onVer;
+
+  @override
+  Widget build(BuildContext context) {
+    if (recepciones.isEmpty) return const SizedBox.shrink();
+    final conError = recepciones.where((r) => r.conError).length;
+    final porEnviar = recepciones.length - conError;
+    final partes = [
+      if (porEnviar > 0) porEnviar == 1 ? '1 recepción por enviar' : '$porEnviar recepciones por enviar',
+      if (conError > 0) conError == 1 ? '1 con error' : '$conError con error',
+    ];
+    return Material(
+      color: conError > 0 ? RegentaColors.critSoft : RegentaColors.warnSoft,
+      child: InkWell(
+        key: const Key('compras-por-enviar'),
+        onTap: onVer,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+          child: Row(children: [
+            Icon(conError > 0 ? Icons.error_outline : Icons.cloud_off_outlined,
+                size: 18, color: conError > 0 ? RegentaColors.crit : RegentaColors.warn),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(partes.join(' · '),
+                  style: RegentaType.cuerpo.copyWith(
+                      fontSize: 13, color: conError > 0 ? RegentaColors.crit : RegentaColors.warn)),
+            ),
+            const Text('Ver'),
+            const Icon(Icons.chevron_right, color: RegentaColors.faint),
+          ]),
+        ),
       ),
     );
   }

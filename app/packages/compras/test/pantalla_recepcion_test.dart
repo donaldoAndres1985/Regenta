@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:regenta_compras/regenta_compras.dart';
+import 'package:regenta_core/regenta_core.dart';
 
 class _RepoFake implements RepositorioDeRecepciones {
   _RepoFake({this.sinRed = false});
 
   bool sinRed;
   final List<List<LineaParaRecibir>> registradas = [];
+  final List<String?> ids = [];
+  ErrorDeApi? rechazo;
   final List<FacturaDeRecepcion?> facturas = [];
   final List<Map<String, num>> preciosEnviados = [];
   Map<String, PrecioActual> precios = const {};
@@ -61,11 +64,19 @@ class _RepoFake implements RepositorioDeRecepciones {
     FacturaDeRecepcion? factura,
     required List<LineaParaRecibir> lineas,
     Map<String, num> preciosNuevos = const {},
+    String? idDispositivo,
+    String? ordenNumero,
   }) async {
+    ids.add(idDispositivo);
+    if (rechazo != null) {
+      final r = rechazo!;
+      rechazo = null;
+      throw r;
+    }
     registradas.add(lineas);
     preciosEnviados.add(preciosNuevos);
     facturas.add(factura);
-    if (sinRed) return const ResultadoDeRecepcion.encolada();
+    if (sinRed) return ResultadoDeRecepcion.encolada(idDispositivo: idDispositivo);
     return const ResultadoDeRecepcion.confirmada('REC-1');
   }
 }
@@ -84,6 +95,7 @@ Future<void> _montar(
   Size size = const Size(390, 900),
   void Function(String)? onRegistrada,
   bool puedeCambiarPrecios = false,
+  RecepcionPorEnviar? correccion,
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -94,7 +106,7 @@ Future<void> _montar(
       puedeCambiarPreciosProvider.overrideWithValue(puedeCambiarPrecios),
     ],
     child: MaterialApp(
-      home: PantallaRecepcion(ordenId: 'oc-1', onRegistrada: onRegistrada),
+      home: PantallaRecepcion(ordenId: 'oc-1', onRegistrada: onRegistrada, correccion: correccion),
     ),
   ));
   await tester.pumpAndSettle();
@@ -377,6 +389,89 @@ void main() {
       expect(formatearMargen(margenSobreBase(12000, 9000)), '25,0 %');
       expect(formatearMargen(margenSobreBase(12000, 10500)), '12,5 %');
       expect(margenSobreBase(0, 1), isNull);
+    });
+  });
+
+  group('HU-182 · Recepción en el celular sin conexión', () {
+    Future<void> capturarYConfirmar(WidgetTester tester) async {
+      await tester.enterText(find.byKey(const Key('campo-recibido')), '120');
+      await tester.enterText(find.byKey(const Key('campo-lote')), 'L-2411');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('campo-vence')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar recepción'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('C1 · Sin señal queda guardada con un identificador del celular y «por enviar»', (tester) async {
+      final repo = _RepoFake(sinRed: true);
+      await _montar(tester, repo);
+
+      await capturarYConfirmar(tester);
+
+      expect(repo.ids.single, matches(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')));
+      expect(find.textContaining('«por enviar»'), findsOneWidget);
+    });
+
+    testWidgets('C2 · Si se confirma otra vez tras un rechazo, va con el mismo identificador', (tester) async {
+      final repo = _RepoFake()..rechazo = const ErroresDeValidacion({}, 'La orden ya no se puede recibir');
+      await _montar(tester, repo);
+
+      await capturarYConfirmar(tester);
+      expect(find.text('La orden ya no se puede recibir'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5)); // que se vaya el aviso de abajo
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar recepción'));
+      await tester.pumpAndSettle();
+
+      expect(repo.ids, hasLength(2));
+      expect(repo.ids.toSet(), hasLength(1));
+      expect(repo.registradas, hasLength(1));
+    });
+
+    testWidgets('C3 · Al corregir vuelve lo anotado y el motivo, y se reenvía con el mismo identificador',
+        (tester) async {
+      final repo = _RepoFake();
+      String? numero;
+      final rechazada = RecepcionPorEnviar(
+        id: 'id-del-celular',
+        ordenId: 'oc-1',
+        ordenNumero: 'OC-0231',
+        guardadaEn: DateTime(2026, 11, 22, 10, 42),
+        conError: true,
+        error: 'Este producto maneja lotes: indica el código de lote que llegó',
+        datos: const {
+          'recepcion': {
+            'ordenId': 'oc-1',
+            'bodegaId': 'bod-1',
+            'facturaProveedor': 'FV-88',
+            'condicionPago': 'CREDITO',
+            'lineas': [
+              {'ordenLineaId': 'l1', 'cantidad': 120, 'exigeLote': true, 'fechaVencimiento': '2027-06-30'},
+            ],
+          },
+        },
+      );
+      await _montar(tester, repo, correccion: rechazada, onRegistrada: (n) => numero = n);
+
+      expect(find.byKey(const Key('recepcion-error-previo')), findsOneWidget);
+      expect(find.textContaining('maneja lotes'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '120'), findsOneWidget);
+
+      await tester.enterText(find.byKey(const Key('campo-lote')), 'L-2411');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar recepción'));
+      await tester.pumpAndSettle();
+
+      expect(repo.ids.single, 'id-del-celular');
+      final linea = repo.registradas.single.single;
+      expect(linea.cantidad, 120);
+      expect(linea.codigoLote, 'L-2411');
+      expect(linea.fechaVencimiento, DateTime(2027, 6, 30));
+      expect(repo.facturas.single?.numero, 'FV-88');
+      expect(numero, 'REC-1');
     });
   });
 }

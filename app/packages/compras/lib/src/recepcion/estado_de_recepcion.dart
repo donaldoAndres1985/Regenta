@@ -18,6 +18,8 @@ class EstadoDeRecepcion {
     this.factura = const FacturaDeRecepcion(),
     this.precios = const {},
     this.preciosNuevos = const {},
+    this.idDispositivo,
+    this.errorPrevio,
   });
 
   final OrdenRecibible? orden;
@@ -43,6 +45,15 @@ class EstadoDeRecepcion {
 
   /// HU-179 · El precio de venta nuevo que se escribió (productoId → precio con IVA).
   final Map<String, num> preciosNuevos;
+
+  /// HU-182 · I32: el identificador del celular para esta recepción. Se fija al confirmar por
+  /// primera vez (o viene de la que se está corrigiendo) y no cambia: reenviarla no la duplica.
+  final String? idDispositivo;
+
+  /// HU-182 C3 · Por qué la rechazó el backend, cuando se abre para corregirla.
+  final String? errorPrevio;
+
+  bool get esCorreccion => errorPrevio != null;
 
   List<LineaRecibible> get lineas => orden?.lineas ?? const [];
 
@@ -86,6 +97,8 @@ class EstadoDeRecepcion {
     FacturaDeRecepcion? factura,
     Map<String, PrecioActual>? precios,
     Map<String, num>? preciosNuevos,
+    Object? idDispositivo = _sinCambio,
+    Object? errorPrevio = _sinCambio,
   }) =>
       EstadoDeRecepcion(
         orden: orden == _sinCambio ? this.orden : orden as OrdenRecibible?,
@@ -101,6 +114,8 @@ class EstadoDeRecepcion {
         factura: factura ?? this.factura,
         precios: precios ?? this.precios,
         preciosNuevos: preciosNuevos ?? this.preciosNuevos,
+        idDispositivo: idDispositivo == _sinCambio ? this.idDispositivo : idDispositivo as String?,
+        errorPrevio: errorPrevio == _sinCambio ? this.errorPrevio : errorPrevio as String?,
       );
 
   static const _sinCambio = Object();

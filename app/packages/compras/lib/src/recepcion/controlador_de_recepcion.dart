@@ -5,6 +5,7 @@ import '../datos/repositorio_de_recepciones.dart';
 import 'entrada_de_linea.dart';
 import 'estado_de_recepcion.dart';
 import 'factura_de_recepcion.dart';
+import 'recepciones_por_enviar.dart';
 
 /// La recepción móvil de una orden (HU-051). Carga la orden, deja capturar por
 /// línea lo recibido —y el lote donde la categoría lo exige (criterio 2)—,
@@ -15,16 +16,31 @@ class ControladorDeRecepcion extends StateNotifier<EstadoDeRecepcion> {
 
   final RepositorioDeRecepciones _repo;
 
-  Future<void> cargarOrden(String ordenId) async {
+  /// Abre la orden para recibir. HU-182 C3: con [correccion], vuelve lo que se había guardado en
+  /// el celular (cantidades, lotes, factura, precios) y el motivo del rechazo, con el mismo
+  /// identificador para que al reenviarla no quede doble.
+  Future<void> cargarOrden(String ordenId, {RecepcionPorEnviar? correccion}) async {
     state = state.copiar(cargando: true, mensaje: null);
     try {
       final orden = await _repo.verOrden(ordenId);
+      final guardadas = correccion?.lineasRecibidas ?? const <String, Map<String, dynamic>>{};
       state = EstadoDeRecepcion(
         orden: orden,
         entradas: {
           for (final l in orden.lineas)
-            l.id: EntradaDeLinea(costo: l.costoUnitario),
+            l.id: guardadas[l.id] == null
+                ? EntradaDeLinea(costo: l.costoUnitario)
+                : EntradaDeLinea(
+                    recibido: guardadas[l.id]!['cantidad'] as num?,
+                    costo: (guardadas[l.id]!['costoUnitario'] as num?) ?? l.costoUnitario,
+                    lote: (guardadas[l.id]!['codigoLote'] ?? '') as String,
+                    vencimiento: DateTime.tryParse((guardadas[l.id]!['fechaVencimiento'] ?? '') as String),
+                  ),
         },
+        factura: correccion?.factura ?? const FacturaDeRecepcion(),
+        preciosNuevos: correccion?.preciosNuevos ?? const {},
+        idDispositivo: correccion?.id,
+        errorPrevio: correccion == null ? null : (correccion.error ?? 'El servidor la rechazó.'),
       );
       // HU-179 · El margen es una ayuda: si no se pueden traer los precios, se recibe igual.
       try {
@@ -101,7 +117,9 @@ class ControladorDeRecepcion extends StateNotifier<EstadoDeRecepcion> {
       if (problema != null) state = state.copiar(mensaje: problema);
       return;
     }
-    state = state.copiar(guardando: true, mensaje: null);
+    // HU-182 · I32: un solo identificador por recepción, aunque se confirme dos veces.
+    final idDispositivo = state.idDispositivo ?? nuevoIdDeDispositivo();
+    state = state.copiar(guardando: true, mensaje: null, idDispositivo: idDispositivo);
     final lineas = [
       for (final l in state.lineasConEntrada)
         LineaParaRecibir(
@@ -123,28 +141,30 @@ class ControladorDeRecepcion extends StateNotifier<EstadoDeRecepcion> {
           for (final e in state.preciosNuevos.entries)
             if (state.lineasConEntrada.any((l) => l.productoId == e.key)) e.key: e.value,
         },
+        idDispositivo: idDispositivo,
+        ordenNumero: orden.numero,
       );
       if (resultado.encolada) {
         state = state.copiar(
           guardando: false,
           encolada: true,
-          mensaje: 'Sin señal: la recepción se guardó y subirá sola cuando vuelva.',
+          mensaje: _guardadaSinSenal,
         );
       } else {
         state = state.copiar(
           guardando: false,
           numeroRecepcion: resultado.numero,
+          errorPrevio: null,
           mensaje: 'Recepción ${resultado.numero} registrada.',
         );
       }
     } on ErrorDeRed {
-      state = state.copiar(
-        guardando: false,
-        encolada: true,
-        mensaje: 'Sin señal: la recepción se guardó y subirá sola cuando vuelva.',
-      );
+      state = state.copiar(guardando: false, encolada: true, mensaje: _guardadaSinSenal);
     } on ErrorDeApi catch (e) {
-      state = state.copiar(guardando: false, mensaje: e.mensaje);
+      state = state.copiar(guardando: false, mensaje: motivoDelRechazo(e));
     }
   }
+
+  static const _guardadaSinSenal =
+      'Sin señal: la recepción se guardó y subirá sola cuando vuelva. Queda «por enviar» en Compras.';
 }

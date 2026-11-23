@@ -34,6 +34,22 @@ class FacturaDeRecepcion {
     return null;
   }
 
+  /// HU-182 · La factura de una recepción guardada en el celular, para corregirla.
+  factory FacturaDeRecepcion.desdeJson(Map<String, dynamic> json) {
+    final fecha = json['fechaFactura'] as String?;
+    final metodo = json['metodoPago'] as String?;
+    return FacturaDeRecepcion(
+      numero: (json['facturaProveedor'] ?? '') as String,
+      fecha: fecha == null ? null : DateTime.tryParse(fecha),
+      flete: (json['flete'] as num?) ?? 0,
+      descuentoGlobal: (json['descuentoGlobal'] as num?) ?? 0,
+      condicion: json['condicionPago'] == 'CONTADO' ? CondicionDePago.contado : CondicionDePago.credito,
+      metodo: MetodoDePagoDeCompra.values.where((m) => m.codigo == metodo).firstOrNull ?? MetodoDePagoDeCompra.efectivo,
+      desdeLaCaja: (json['pagarDesdeLaCaja'] as bool?) ?? false,
+      referencia: (json['referenciaPago'] ?? '') as String,
+    );
+  }
+
   Map<String, dynamic> aJson() => {
         if (numero.trim().isNotEmpty) 'facturaProveedor': numero.trim(),
         if (fecha != null) 'fechaFactura': fecha!.toIso8601String().substring(0, 10),

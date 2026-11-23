@@ -118,7 +118,7 @@ OrdenDeCompraVista orden(String id, String numero, String estado,
 Future<RepoOrdenesFake> montarCompras(WidgetTester tester, List<OrdenDeCompraVista> ordenes,
     {Size tamano = const Size(1440, 900), ValueChanged<String>? onRecibir, CompartidorFake? compartidor,
     VoidCallback? onProveedores, VoidCallback? onCompraDirecta, VoidCallback? onCuentasPorPagar,
-    VoidCallback? onConfiguracion}) async {
+    VoidCallback? onConfiguracion, BandejaDeRecepciones? bandeja}) async {
   await tester.binding.setSurfaceSize(tamano);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final repo = RepoOrdenesFake(ordenes);
@@ -126,6 +126,7 @@ Future<RepoOrdenesFake> montarCompras(WidgetTester tester, List<OrdenDeCompraVis
     overrides: [
       repositorioDeOrdenesProvider.overrideWithValue(repo),
       compartidorDePdfProvider.overrideWithValue(compartidor ?? CompartidorFake()),
+      if (bandeja != null) bandejaDeRecepcionesProvider.overrideWithValue(bandeja),
     ],
     child: MaterialApp(
       home: PantallaCompras(

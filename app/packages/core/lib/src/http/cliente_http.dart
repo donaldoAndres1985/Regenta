@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import 'cola_de_salida.dart';
 import 'errores_http.dart';
+import 'respaldo_de_consultas.dart';
 
 /// El cliente HTTP de la app. Traduce todo lo que devuelve el backend a un
 /// [ErrorDeApi] (HU-112) y, cuando no hay red y la operacion es encolable, la
@@ -11,13 +12,40 @@ import 'errores_http.dart';
 /// HU-109, que se instala en el mismo `Dio`. Si tras refrescar el 401 persiste,
 /// aqui se traduce a [NoAutenticado].
 class ClienteHttp {
-  ClienteHttp(this._dio, {ColaDeSalida? cola}) : _cola = cola;
+  ClienteHttp(this._dio, {ColaDeSalida? cola, RespaldoDeConsultas? respaldo})
+      : _cola = cola,
+        _respaldo = respaldo;
 
   final Dio _dio;
   final ColaDeSalida? _cola;
+  final RespaldoDeConsultas? _respaldo;
 
-  Future<T> get<T>(String ruta, {Map<String, dynamic>? query}) async =>
-      await _enviar<T>('GET', ruta, query: query) as T;
+  /// Un GET. Con [conRespaldo], la respuesta se guarda en el [RespaldoDeConsultas] y, si después no
+  /// hay red, se devuelve la última guardada en vez de fallar (HU-182: abrir la orden en la bodega
+  /// sin señal). Si nunca se consultó con señal, falla con [ErrorDeRed] como siempre.
+  Future<T> get<T>(String ruta, {Map<String, dynamic>? query, bool conRespaldo = false}) async {
+    final respaldo = conRespaldo ? _respaldo : null;
+    if (respaldo == null) return await _enviar<T>('GET', ruta, query: query) as T;
+    final clave = query == null || query.isEmpty ? ruta : Uri(path: ruta, queryParameters: query.map(
+        (k, v) => MapEntry(k, v.toString()))).toString();
+    try {
+      final respuesta = await _enviar<T>('GET', ruta, query: query) as T;
+      await respaldo.guardar(clave, respuesta);
+      return respuesta;
+    } on ErrorDeRed {
+      final guardada = await respaldo.leer(clave);
+      if (guardada == null) rethrow;
+      return _comoTipo<T>(guardada);
+    }
+  }
+
+  /// Lo que vuelve del JSON guardado son `List<dynamic>` y `Map<String, dynamic>`, como lo que
+  /// devuelve Dio; aquí solo se ajusta el tipo pedido.
+  static T _comoTipo<T>(Object guardada) {
+    if (guardada is T) return guardada as T;
+    if (guardada is Map) return guardada.cast<String, dynamic>() as T;
+    return guardada as T;
+  }
 
   /// Un POST. Si [encolable] y no hay red, la operacion se encola y el resultado
   /// es un [Encolado]; usa el tipo `dynamic` en ese caso.
@@ -26,12 +54,13 @@ class ClienteHttp {
     Object? datos,
     Map<String, dynamic>? query,
     bool encolable = false,
+    String? claveDeCola,
   }) =>
-      _enviar<T>('POST', ruta, datos: datos, query: query, encolable: encolable);
+      _enviar<T>('POST', ruta, datos: datos, query: query, encolable: encolable, claveDeCola: claveDeCola);
 
   Future<dynamic> put<T>(String ruta,
-          {Object? datos, Map<String, dynamic>? query, bool encolable = false}) =>
-      _enviar<T>('PUT', ruta, datos: datos, query: query, encolable: encolable);
+          {Object? datos, Map<String, dynamic>? query, bool encolable = false, String? claveDeCola}) =>
+      _enviar<T>('PUT', ruta, datos: datos, query: query, encolable: encolable, claveDeCola: claveDeCola);
 
   Future<dynamic> delete<T>(String ruta,
           {Object? datos, bool encolable = false}) =>
@@ -57,6 +86,7 @@ class ClienteHttp {
     Object? datos,
     Map<String, dynamic>? query,
     bool encolable = false,
+    String? claveDeCola,
   }) async {
     try {
       final respuesta = await _dio.request<T>(
@@ -74,6 +104,7 @@ class ClienteHttp {
           ruta: ruta,
           datos: datos,
           query: query,
+          clave: claveDeCola,
         ));
         return const Encolado();
       }

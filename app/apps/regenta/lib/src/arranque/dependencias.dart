@@ -31,6 +31,7 @@ class DependenciasDeLaApp {
     required this.motor,
     required this.perfil,
     required this.http,
+    required this.cola,
     required this.auth,
   }) {
     // El puente que el núcleo no trae: `crearEnrutador` reacciona al perfil, y
@@ -91,12 +92,14 @@ class DependenciasDeLaApp {
     );
     dio.interceptors.add(InterceptorDeRefresco(motor, dio: dio));
 
+    final cola = ColaDeSalidaLocal(base);
     return DependenciasDeLaApp._(
       dio: dio,
       base: base,
       motor: motor,
       perfil: PerfilDeSesion(),
-      http: ClienteHttp(dio, cola: ColaDeSalidaLocal(base)),
+      http: ClienteHttp(dio, cola: cola, respaldo: RespaldoDeConsultasLocal(base)),
+      cola: cola,
       auth: ClienteAuthHttp(dio),
     );
   }
@@ -107,6 +110,9 @@ class DependenciasDeLaApp {
   final PerfilDeSesion perfil;
   final ClienteHttp http;
   final ClienteAuth auth;
+
+  /// HU-182 · La cola de salida, para ver y reenviar las recepciones del celular.
+  final ColaDeSalidaLocal cola;
 
   /// El id real de la bodega activa (HU-029). Ver `proveedores.dart`,
   /// `bodegaActivaProvider`, para por qué existe esto en vez de leer el
@@ -266,7 +272,10 @@ class DependenciasDeLaApp {
 
     // Compras
     repositorioDeRecepcionesProvider.overrideWithValue(
-      RepositorioDeRecepciones(http),
+      RepositorioDeRecepciones(http, cola: cola),
+    ),
+    bandejaDeRecepcionesProvider.overrideWithValue(
+      BandejaDeRecepciones(http: http, cola: cola),
     ),
     repositorioDeProveedoresProvider.overrideWithValue(
       RepositorioDeProveedores(http),
