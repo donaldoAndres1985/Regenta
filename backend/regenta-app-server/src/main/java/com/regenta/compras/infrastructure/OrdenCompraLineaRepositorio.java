@@ -14,6 +14,9 @@ public interface OrdenCompraLineaRepositorio extends JpaRepository<OrdenCompraLi
 
     List<OrdenCompraLinea> findByOrdenIdOrderByLinea(UUID ordenId);
 
+    /** HU-184 · Las líneas de varias órdenes, para los informes. */
+    List<OrdenCompraLinea> findByOrdenIdInOrderByLinea(java.util.Collection<UUID> ordenIds);
+
     boolean existsByOrdenId(UUID ordenId);
 
     @Modifying

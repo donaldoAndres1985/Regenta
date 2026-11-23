@@ -262,6 +262,12 @@ al rol de bodega; `COMPRAS_PAGO_REGISTRAR` también a Cajero, para pagar en efec
   recepciones confirmadas; las devoluciones del periodo restan por el valor de su nota crédito. La
   base es la de la factura ya rebajado el descuento global y el total lleva el flete. El periodo va
   por días completos en hora de Colombia; sin fechas, el mes en curso.
+- **Construidos en HU-184** (mismo prefijo, mismo permiso, mismas descargas): `antiguedad` (saldo
+  abierto por proveedor en al día, 1-30, 31-60, 61-90 y más de 90 días de mora a hoy, calculada
+  contra el vencimiento como pide I25), `pendientes-por-recibir` (órdenes aprobadas, enviadas o
+  parciales, por línea, atrasadas primero), `faltantes` (lo que nunca llegó de las órdenes cerradas)
+  y `pagos` (por proveedor y método en el periodo, sin los anulados). El valor de lo que falta es
+  cantidad × costo con el descuento de la línea, sin IVA.
 - Cuentas por pagar por antigüedad: al día, 1-30, 31-60, 61-90 y más de 90 días de mora, por
   proveedor.
 - Órdenes pendientes por recibir y faltantes de órdenes cerradas.

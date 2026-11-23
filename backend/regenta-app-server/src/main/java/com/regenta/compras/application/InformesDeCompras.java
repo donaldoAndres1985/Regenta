@@ -186,7 +186,8 @@ public class InformesDeCompras {
                 }
             }
             default -> throw new ReglaDeNegocioException(
-                    "Informe desconocido: " + informe + ". Son por-proveedor, por-producto o historial-de-costos");
+                    "Informe desconocido: " + informe + ". Son por-proveedor, por-producto, historial-de-costos, "
+                            + "antiguedad, pendientes-por-recibir, faltantes o pagos");
         }
         return new ArchivoDeInforme(exportador.nombreDeArchivo(titulo, f), exportador.tipoMime(f),
                 exportador.generar(f, titulo, columnas, filas));
