@@ -56,6 +56,10 @@ regenta:
   # nombre visible y a quién se responde salen de la configuración de cada negocio.
   correo:
     remitente: ${CORREO_REMITENTE:notificaciones@regenta.app}
+  # HU-116 · Llave maestra de la bóveda del certificado de firma (32 bytes en base64). SOLO por
+  # entorno: nunca en el repo.
+  boveda:
+    llave-maestra: ${BOVEDA_LLAVE_MAESTRA:}
   # HU-131 · Días que la bitácora vive en la tabla viva antes de archivarse, si el negocio no
   # configuró los suyos: la del plan.
   auditoria:

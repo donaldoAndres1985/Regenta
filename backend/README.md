@@ -108,6 +108,7 @@ de ejemplo ("Ferretería Central").
 | `SMTP_STARTTLS` | usar STARTTLS | `true` |
 | `CORREO_REMITENTE` | dirección desde la que sale el correo (verificada en el proveedor); el nombre visible y el *Reply-To* son los del negocio | `notificaciones@regenta.app` |
 | `AUDITORIA_RETENCION_BASICO` / `_PROFESIONAL` / `_EMPRESARIAL` | días que la bitácora vive en la tabla viva antes de archivarse (HU-131), si el negocio no configuró los suyos | `365` / `730` / `1825` |
+| `BOVEDA_LLAVE_MAESTRA` | llave maestra de la bóveda del certificado de firma (HU-116): 32 bytes en base64 (`openssl rand -base64 32`). **Solo por entorno, nunca en el repo.** De ella se deriva una llave por negocio. Sin ella se usa una llave al azar del arranque (solo desarrollo: lo guardado no sobrevive a un reinicio). Si se pierde, hay que volver a cargar los certificados | — |
 
 ## Compilar y probar
 

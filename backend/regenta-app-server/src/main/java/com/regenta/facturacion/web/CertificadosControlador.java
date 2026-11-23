@@ -39,9 +39,12 @@ public class CertificadosControlador {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Registra un certificado por su referencia en el gestor de secretos")
+    @Operation(summary = "Carga el certificado de firma (.p12 en base64 y su clave)",
+            description = "HU-116: emisor, serie y vigencia se leen del certificado. El archivo y su clave "
+                    + "quedan cifrados en la bóveda; la base solo guarda la referencia.")
     @ApiResponse(responseCode = "409", description = "Ya hay un certificado con ese alias")
-    @ApiResponse(responseCode = "422", description = "Vigencia inválida o referencia vacía")
+    @ApiResponse(responseCode = "422", description = "El .p12 no abre con esa clave, no trae llave privada o "
+            + "ya venció")
     public CertificadoDelNegocio registrar(@Valid @RequestBody SolicitudDeCertificado solicitud) {
         return firma.registrarCertificado(solicitud);
     }
