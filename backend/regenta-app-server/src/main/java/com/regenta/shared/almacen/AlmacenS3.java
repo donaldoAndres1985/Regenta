@@ -33,6 +33,11 @@ public class AlmacenS3 implements AlmacenDeObjetos {
         this.bucket = bucket;
     }
 
+    @Override
+    public void comprobar() {
+        s3.headBucket(b -> b.bucket(bucket));
+    }
+
     /** Crea el bucket si no existe (para el S3 local; en producción lo crea quien administra). */
     public void asegurarBucket() {
         try {

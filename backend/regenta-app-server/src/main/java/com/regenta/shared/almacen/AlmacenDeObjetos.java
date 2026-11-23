@@ -14,6 +14,14 @@ import java.util.UUID;
 public interface AlmacenDeObjetos {
 
     /**
+     * HU-125 C5: lanza si el almacén no responde. Lo usa {@code /actuator/health}; en memoria siempre
+     * está.
+     */
+    default void comprobar() {
+    }
+
+
+    /**
      * Guarda el objeto y devuelve su URL estable ({@code s3://bucket/negocio/carpeta/…}).
      *
      * @throws AlmacenNoDisponibleException si el almacén no responde: quien llama decide si reintenta

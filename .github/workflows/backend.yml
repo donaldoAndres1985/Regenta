@@ -15,9 +15,11 @@ on:
       - "backend/**"
       - ".github/workflows/backend.yml"
 
+# En un PR, un push nuevo cancela la corrida vieja. En main no: cancelar a mitad dejaría un
+# despliegue sin verificar (HU-125).
 concurrency:
   group: backend-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -57,3 +59,44 @@ jobs:
           name: surefire-reports
           path: "backend/**/target/surefire-reports/*.xml"
           if-no-files-found: ignore
+
+  # HU-125 · Un merge a main que pasa CI se despliega solo en Railway (C1). Se sube backend/ con su
+  # Dockerfile y railway.json. Railway levanta la versión nueva al lado de la anterior y solo le pasa el
+  # tráfico cuando /actuator/health/readiness responde (C3). Si una migración falla, la app no arranca,
+  # el healthcheck no pasa y sigue atendiendo la anterior (C2). Aquí se espera a ver el commit nuevo
+  # atendiendo.
+  #
+  # Se activa con la variable del repo DESPLIEGUE_ACTIVO=true, una vez configurados RAILWAY_TOKEN,
+  # RAILWAY_SERVICE y API_URL (docs/migracion/07-despliegue.md).
+  desplegar:
+    name: desplegar en Railway
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DESPLIEGUE_ACTIVO == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: produccion
+      url: ${{ vars.API_URL }}
+    concurrency:
+      group: despliegue-backend
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Railway CLI
+        run: npm install -g @railway/cli@5
+
+      # La versión viaja dentro del jar: /actuator/info la muestra y así se sabe qué commit atiende.
+      - name: marcar la versión
+        run: echo "regenta.version=$GITHUB_SHA" > backend/regenta-app-server/src/main/resources/version.properties
+
+      - name: subir a Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up backend --path-as-root --ci --service "${{ vars.RAILWAY_SERVICE }}" --message "$GITHUB_SHA"
+
+      - name: esperar a que la versión nueva atienda
+        run: bash .github/scripts/esperar-despliegue.sh "${{ vars.API_URL }}" "$GITHUB_SHA" 15
