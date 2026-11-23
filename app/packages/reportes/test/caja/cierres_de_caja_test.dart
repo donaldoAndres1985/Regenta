@@ -20,7 +20,22 @@ CierreDeCajaVista _cierre(String id, String numero, {String cajero = 'Ana Ruiz',
 
 class _RepoFake implements RepositorioDeCierresDeCaja {
   final List<({DateTime desde, DateTime hasta, String? cajeroId, int pagina})> busquedas = [];
+  final List<String> pdfsPedidos = [];
   ErrorDeApi? falla;
+  ErrorDeApi? fallaDelPdf;
+
+  @override
+  Future<List<int>> pdfDeCierre(String sesionId, {bool detallado = false}) async {
+    if (fallaDelPdf != null) throw fallaDelPdf!;
+    pdfsPedidos.add('$sesionId:${detallado ? 'detallado' : 'general'}');
+    return const [37, 80, 68, 70];
+  }
+
+  @override
+  Future<List<int>> pdfDeCierres({required DateTime desde, required DateTime hasta, String? cajeroId}) async {
+    pdfsPedidos.add('rango:${fechaIso(desde)}:${fechaIso(hasta)}:$cajeroId');
+    return const [37, 80, 68, 70];
+  }
 
   @override
   Future<PaginaDeCierresVista> buscar({
@@ -119,19 +134,23 @@ class _RepoFake implements RepositorioDeCierresDeCaja {
 void main() {
   late _RepoFake repo;
   final ventasAbiertas = <(String, String?)>[];
+  final guardados = <(String, List<int>)>[];
 
   setUp(() {
     repo = _RepoFake();
     ventasAbiertas.clear();
+    guardados.clear();
   });
 
-  Future<void> montar(WidgetTester tester, Widget pantalla) async {
+  Future<void> montar(WidgetTester tester, Widget pantalla, {bool puedeGuardar = true}) async {
     await tester.binding.setSurfaceSize(const Size(420, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(ProviderScope(
       overrides: [
         repositorioDeCierresDeCajaProvider.overrideWithValue(repo),
         abrirVentaDesdeCajaProvider.overrideWithValue((_, id, numero) => ventasAbiertas.add((id, numero))),
+        if (puedeGuardar)
+          guardarPdfDeCajaProvider.overrideWithValue((nombre, bytes) async => guardados.add((nombre, bytes))),
       ],
       child: MaterialApp(home: pantalla),
     ));
@@ -252,6 +271,63 @@ void main() {
     await tester.tap(find.byKey(const Key('movimiento-ir-a-venta')));
     await tester.pumpAndSettle();
     expect(ventasAbiertas.single, ('venta-1', 'V-1'));
+  });
+
+  group('HU-144', () {
+    testWidgets('C1 · El informe general del cierre se descarga en PDF', (tester) async {
+      await montar(tester, const PantallaDetalleDeCierre(sesionId: 's-12'));
+
+      await tester.tap(find.byKey(const Key('cierre-pdf')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('cierre-pdf-general')));
+      await tester.pumpAndSettle();
+
+      expect(repo.pdfsPedidos.single, 's-12:general');
+      expect(guardados.single.$1, 'cierre-caja-12-general.pdf');
+      expect(guardados.single.$2, [37, 80, 68, 70]);
+    });
+
+    testWidgets('C2 · El detallado trae los movimientos', (tester) async {
+      await montar(tester, const PantallaDetalleDeCierre(sesionId: 's-12'));
+
+      await tester.tap(find.byKey(const Key('cierre-pdf')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('cierre-pdf-detallado')));
+      await tester.pumpAndSettle();
+
+      expect(repo.pdfsPedidos.single, 's-12:detallado');
+      expect(guardados.single.$1, 'cierre-caja-12-detallado.pdf');
+    });
+
+    testWidgets('C3 · Los cierres del rango, con el cajero elegido, en PDF', (tester) async {
+      await montar(tester, PantallaCierresDeCaja(hoy: DateTime(2026, 11, 23)));
+      await tester.tap(find.byKey(const Key('cierres-cajero')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Luis Gómez').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('cierres-pdf')));
+      await tester.pumpAndSettle();
+
+      expect(repo.pdfsPedidos.single, 'rango:2026-11-16:2026-11-23:luis');
+      expect(guardados.single.$1, 'cierres-de-caja-2026-11-16-a-2026-11-23.pdf');
+    });
+
+    testWidgets('Si el backend no lo da, avisa por qué; sin dónde guardar, no se ofrece', (tester) async {
+      repo.fallaDelPdf = const SinPermiso();
+      await montar(tester, const PantallaDetalleDeCierre(sesionId: 's-12'));
+      await tester.tap(find.byKey(const Key('cierre-pdf')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('cierre-pdf-general')));
+      await tester.pumpAndSettle();
+      expect(find.text('No tienes permiso para ver los cierres de caja.'), findsOneWidget);
+      expect(guardados, isEmpty);
+    });
+
+    testWidgets('Sin dónde guardar, no aparece el botón del PDF', (tester) async {
+      await montar(tester, PantallaCierresDeCaja(hoy: DateTime(2026, 11, 23)), puedeGuardar: false);
+      expect(find.byKey(const Key('cierres-pdf')), findsNothing);
+    });
   });
 
   testWidgets('Sin CAJA_TURNO_VER el buscador lo dice', (tester) async {

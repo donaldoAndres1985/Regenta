@@ -322,6 +322,8 @@ class DependenciasDeLaApp {
     // HU-142: el listado de turnos reimprime la tirilla con el módulo de caja.
     // HU-143: consultar cierres de caja y, desde un movimiento, ir a su venta.
     repositorioDeCierresDeCajaProvider.overrideWithValue(RepositorioDeCierresDeCaja(http)),
+    // HU-144: los informes de caja en PDF se guardan como los de compras.
+    guardarPdfDeCajaProvider.overrideWithValue(const GuardadorConFilePicker().guardar),
     abrirVentaDesdeCajaProvider.overrideWithValue(
       (context, ventaId, numero) => unawaited(Navigator.of(context).push<void>(
         MaterialPageRoute(builder: (_) => PantallaBuscarVenta(busquedaInicial: numero)),

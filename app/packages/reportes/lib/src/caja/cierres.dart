@@ -310,6 +310,20 @@ class RepositorioDeCierresDeCaja {
 
   Future<DetalleDeMovimientoVista> movimiento(String movimientoId) async => DetalleDeMovimientoVista.desdeJson(
       await _http.get<Map<String, dynamic>>('$_base/movimientos/$movimientoId'));
+
+  /// HU-144 C1 / C2 · El informe de un cierre en PDF: general, o detallado con los movimientos.
+  Future<List<int>> pdfDeCierre(String sesionId, {bool detallado = false}) =>
+      _http.bytes('GET', '$_base/cierres/$sesionId/pdf?tipo=${detallado ? 'detallado' : 'general'}');
+
+  /// HU-144 C3 · Los cierres de un rango en PDF, con los totales.
+  Future<List<int>> pdfDeCierres({required DateTime desde, required DateTime hasta, String? cajeroId}) {
+    final query = Uri(queryParameters: {
+      'desde': fechaIso(desde),
+      'hasta': fechaIso(hasta),
+      'cajeroId': ?cajeroId,
+    }).query;
+    return _http.bytes('GET', '$_base/cierres/pdf?$query');
+  }
 }
 
 /// «2026-11-05».
@@ -347,6 +361,10 @@ String nombreDelMetodoDeCaja(String metodo) => switch (metodo) {
 final repositorioDeCierresDeCajaProvider = Provider<RepositorioDeCierresDeCaja>(
   (ref) => throw UnimplementedError('Sobrescribe repositorioDeCierresDeCajaProvider al montar el ProviderScope.'),
 );
+
+/// HU-144 · Guarda un PDF descargado (en web lo descarga; en el celular, el diálogo de guardar). La
+/// conecta la app; nula: no se ofrece descargar.
+final guardarPdfDeCajaProvider = Provider<Future<void> Function(String nombre, List<int> bytes)?>((ref) => null);
 
 /// HU-143 C4 · Ir a la venta de un movimiento. La conecta la app con Ventas; nula: no se ofrece.
 final abrirVentaDesdeCajaProvider =

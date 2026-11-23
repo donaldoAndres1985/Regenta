@@ -131,7 +131,7 @@ restricción en PostgreSQL probada con Testcontainers.
 | Buscar cierres por fecha y usuario | Adoptado (HU-143): por fecha de cierre y cajero (abrió o cerró), paginado, sin tope de 30 |
 | Movimientos de un cierre con total | Adoptado (HU-143) |
 | Resumen del cierre (ventas/compras contado y crédito, entradas, salidas) | Adoptado (HU-143): ventas de contado y a crédito, devoluciones, recaudos, ingresos, retiros, gastos y pagos a proveedor; un movimiento anulado no suma |
-| Informes PDF (general, detallado, cierres por rango) | Adoptar después, HU aparte |
+| Informes PDF (general, detallado, cierres por rango) | Adoptado (HU-144): `/api/caja/reportes/cierres/{id}/pdf?tipo=general\|detallado` y `/cierres/pdf?desde&hasta&cajeroId` |
 
 **Descartado:** movimiento excluido del arqueo y sus atajos ocultos; serie global entre
 usuarios; fecha de apertura tomada de otras cajas; fecha de cierre de un campo invisible;
