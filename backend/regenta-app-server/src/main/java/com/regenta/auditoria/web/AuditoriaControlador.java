@@ -29,23 +29,28 @@ public class AuditoriaControlador {
     }
 
     @GetMapping
-    @Operation(summary = "Reconstruye todo lo que hizo un request, aunque cruzara varios servicios")
-    public List<EventoDeAuditoria> porTraceId(@RequestParam String traceId) {
-        return consulta.porTraceId(traceId);
+    @Operation(summary = "Reconstruye todo lo que hizo un request, aunque cruzara varios servicios",
+            description = "Con incluirArchivados=true también busca en la bitácora archivada por retención "
+                    + "(HU-131): tarda más; los archivados vienen con archivado=true.")
+    public List<EventoDeAuditoria> porTraceId(@RequestParam String traceId,
+            @RequestParam(defaultValue = "false") boolean incluirArchivados) {
+        return consulta.porTraceId(traceId, incluirArchivados);
     }
 
     @GetMapping("/por-entidad")
     @Operation(summary = "El historial de un documento (una venta, un producto...), con autor y fecha")
     public List<EventoDeAuditoria> porEntidad(@RequestParam String entidadTipo,
-            @RequestParam UUID entidadId) {
-        return consulta.porEntidad(entidadTipo, entidadId);
+            @RequestParam UUID entidadId,
+            @RequestParam(defaultValue = "false") boolean incluirArchivados) {
+        return consulta.porEntidad(entidadTipo, entidadId, incluirArchivados);
     }
 
     @GetMapping("/por-usuario")
     @Operation(summary = "Toda la actividad de un usuario en un rango de fechas")
     public List<EventoDeAuditoria> porUsuario(@RequestParam UUID usuarioId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime desde,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime hasta) {
-        return consulta.porUsuario(usuarioId, desde, hasta);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime hasta,
+            @RequestParam(defaultValue = "false") boolean incluirArchivados) {
+        return consulta.porUsuario(usuarioId, desde, hasta, incluirArchivados);
     }
 }

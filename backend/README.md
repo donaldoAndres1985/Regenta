@@ -103,6 +103,7 @@ de ejemplo ("Ferretería Central").
 | `ALMACEN_S3_ACCESS_KEY` / `ALMACEN_S3_SECRET_KEY` | credenciales del almacén (solo por entorno) | — |
 | `ALMACEN_S3_CREAR_BUCKET` | crear el bucket al arrancar si no existe (útil en local) | `false` |
 | `REPORTES_RETENCION_ARCHIVOS` | cuánto vive un reporte exportado antes de borrarse solo | `30d` |
+| `AUDITORIA_RETENCION_BASICO` / `_PROFESIONAL` / `_EMPRESARIAL` | días que la bitácora vive en la tabla viva antes de archivarse (HU-131), si el negocio no configuró los suyos | `365` / `730` / `1825` |
 
 ## Compilar y probar
 
