@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.testcontainers.containers.MinIOContainer;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -27,7 +27,7 @@ import com.regenta.shared.tenancy.DatosDelNegocio;
 import com.regenta.shared.web.RecursoExpiradoException;
 
 /**
- * HU-121 de punta a punta: PostgreSQL (facturacion V6, reportes V8, con RLS) y MinIO. En la base
+ * HU-121 de punta a punta: PostgreSQL (facturacion V6, reportes V8, con RLS) y un servidor S3. En la base
  * queda la URL y no el contenido (C1); con el almacén caído la factura no se pierde (C3); los archivos
  * que estaban en la base se suben (C4) y los vencidos se borran y quedan expirados (C5).
  */
@@ -36,7 +36,7 @@ import com.regenta.shared.web.RecursoExpiradoException;
 class DocumentosEnElAlmacenEnLaBaseTest extends PostgresDePrueba {
 
     @Container
-    static final MinIOContainer MINIO = new MinIOContainer("minio/minio:RELEASE.2023-09-04T19-57-37Z");
+    static final GenericContainer<?> S3 = ServidorS3DePrueba.nuevo();
 
     private static AlmacenS3 almacen;
 
@@ -48,8 +48,8 @@ class DocumentosEnElAlmacenEnLaBaseTest extends PostgresDePrueba {
 
     @BeforeAll
     static void conectar() {
-        almacen = new AlmacenS3(ConfiguracionDelAlmacen.cliente(MINIO.getS3URL(), "us-east-1", MINIO.getUserName(),
-                MINIO.getPassword()), "regenta-documentos");
+        almacen = new AlmacenS3(ConfiguracionDelAlmacen.cliente(ServidorS3DePrueba.url(S3), "us-east-1", "prueba",
+                "prueba"), "regenta-documentos");
         almacen.asegurarBucket();
     }
 

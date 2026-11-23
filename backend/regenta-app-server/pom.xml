@@ -152,12 +152,6 @@
       <artifactId>postgresql</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- HU-121: el almacén de objetos se prueba contra un MinIO de verdad. -->
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>minio</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
   <build>

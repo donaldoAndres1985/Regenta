@@ -33,7 +33,7 @@ public class AlmacenS3 implements AlmacenDeObjetos {
         this.bucket = bucket;
     }
 
-    /** Crea el bucket si no existe (para MinIO en local; en producción lo crea quien administra). */
+    /** Crea el bucket si no existe (para el S3 local; en producción lo crea quien administra). */
     public void asegurarBucket() {
         try {
             s3.headBucket(b -> b.bucket(bucket));

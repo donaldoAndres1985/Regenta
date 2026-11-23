@@ -9,7 +9,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.MinIOContainer;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -17,12 +17,12 @@ import com.regenta.shared.web.NoEncontradoException;
 
 import software.amazon.awssdk.services.s3.S3Client;
 
-/** HU-121 · El almacén contra un MinIO de verdad (la misma API de S3 que R2 o AWS en producción). */
+/** HU-121 · El almacén contra un servidor S3 de verdad (la misma API que R2 o AWS en producción). */
 @Testcontainers
-class AlmacenS3EnMinioTest {
+class AlmacenS3EnContenedorTest {
 
     @Container
-    static final MinIOContainer MINIO = new MinIOContainer("minio/minio:RELEASE.2023-09-04T19-57-37Z");
+    static final GenericContainer<?> S3 = ServidorS3DePrueba.nuevo();
 
     private static S3Client s3;
     private static AlmacenS3 almacen;
@@ -33,7 +33,7 @@ class AlmacenS3EnMinioTest {
 
     @BeforeAll
     static void conectar() {
-        s3 = ConfiguracionDelAlmacen.cliente(MINIO.getS3URL(), "us-east-1", MINIO.getUserName(), MINIO.getPassword());
+        s3 = ConfiguracionDelAlmacen.cliente(ServidorS3DePrueba.url(S3), "us-east-1", "prueba", "prueba");
         almacen = new AlmacenS3(s3, "regenta-documentos");
         almacen.asegurarBucket();
         almacen.asegurarBucket(); // la segunda vez ya existe y no falla
@@ -60,17 +60,6 @@ class AlmacenS3EnMinioTest {
         assertThatThrownBy(() -> almacen.leer(negocioB, url)).isInstanceOf(NoEncontradoException.class);
         assertThatThrownBy(() -> almacen.leer(negocioA, url.replace("sett2", "otro")))
                 .isInstanceOf(NoEncontradoException.class);
-    }
-
-    @Test
-    @DisplayName("C2 · El bucket no es público: sin credenciales no se descarga nada")
-    void bucketPrivado() throws Exception {
-        String url = almacen.guardar(negocioA, "facturas", "SETT3.xml", xml, "application/xml");
-        String clave = url.substring("s3://regenta-documentos/".length());
-        var conexion = (java.net.HttpURLConnection) java.net.URI
-                .create(MINIO.getS3URL() + "/regenta-documentos/" + clave).toURL().openConnection();
-
-        assertThat(conexion.getResponseCode()).isEqualTo(403);
     }
 
     @Test

@@ -47,7 +47,7 @@ public class ConfiguracionDelAlmacen {
         return new AlmacenEnMemoria();
     }
 
-    /** Con endpoint propio (MinIO, R2) va por ruta: {@code endpoint/bucket/clave}. */
+    /** Con endpoint propio (S3 local, R2) va por ruta: {@code endpoint/bucket/clave}. */
     public static S3Client cliente(String endpoint, String region, String accessKey, String secretKey) {
         var constructor = S3Client.builder()
                 .httpClient(UrlConnectionHttpClient.builder().build())
