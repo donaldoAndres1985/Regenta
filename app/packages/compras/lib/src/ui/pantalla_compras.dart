@@ -9,6 +9,7 @@ import '../ordenes/datos.dart';
 import '../ordenes/formulario_de_orden.dart';
 import '../ordenes/pantalla_orden.dart';
 import '../proveedores/ui/piezas.dart';
+import '../sugerencias/pantalla_sugerencias.dart';
 import 'formato.dart';
 
 /// Las órdenes de compra del negocio (HU-174 C1): número, proveedor, estado, fecha esperada y total,
@@ -105,6 +106,20 @@ class _PantallaComprasState extends ConsumerState<PantallaCompras> {
     if (creada != null) unawaited(_abrir(creada.id));
   }
 
+  /// HU-181 · Las sugerencias; la orden que se cree desde ahí se abre al volver.
+  Future<void> _sugerencias() async {
+    String? creada;
+    await Navigator.of(context).push<void>(MaterialPageRoute(
+      builder: (rutaContext) => PantallaSugerencias(onOrdenCreada: (id) {
+        creada = id;
+        Navigator.of(rutaContext).pop();
+      }),
+    ));
+    if (!mounted) return;
+    unawaited(_cargar());
+    if (creada != null) unawaited(_abrir(creada!));
+  }
+
   @override
   Widget build(BuildContext context) {
     final todas = _ordenes ?? const <OrdenDeCompraVista>[];
@@ -126,6 +141,14 @@ class _PantallaComprasState extends ConsumerState<PantallaCompras> {
               conTexto: conTexto,
               onPressed: widget.onCompraDirecta!,
             ),
+          // HU-181 · Qué reponer, agrupado por proveedor, para volverlo orden.
+          _Atajo(
+            clave: const Key('compras-sugerencias'),
+            texto: 'Sugerencias',
+            icono: Icons.lightbulb_outline,
+            conTexto: conTexto,
+            onPressed: () => unawaited(_sugerencias()),
+          ),
           // HU-178 · Lo recibido, para devolverle al proveedor o anular.
           _Atajo(
             clave: const Key('compras-recepciones'),

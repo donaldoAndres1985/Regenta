@@ -5,7 +5,7 @@ import java.util.UUID;
 
 import com.regenta.compras.domain.SugerenciaDeCompra;
 
-/** Una sugerencia de compra: quÃ© reponer, cuÃ¡nto y a quÃ© proveedor (HU-050). */
+/** Una sugerencia de compra: qué reponer, cuánto y a qué proveedor (HU-050). */
 public record SugerenciaDelNegocio(
         UUID id,
         UUID productoId,

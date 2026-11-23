@@ -13,7 +13,11 @@ public interface SugerenciaDeCompraRepositorio extends JpaRepository<SugerenciaD
 
     Optional<SugerenciaDeCompra> findByIdAndNegocioId(UUID id, UUID negocioId);
 
-    Optional<SugerenciaDeCompra> findByNegocioIdAndProductoIdAndEstado(UUID negocioId,
+    /** HU-181 · I30: la pendiente de un producto en una bodega (con bodega nula, la que no tiene). */
+    Optional<SugerenciaDeCompra> findByNegocioIdAndProductoIdAndBodegaIdAndEstado(UUID negocioId,
+            UUID productoId, UUID bodegaId, EstadoSugerencia estado);
+
+    List<SugerenciaDeCompra> findByNegocioIdAndProductoIdAndEstado(UUID negocioId,
             UUID productoId, EstadoSugerencia estado);
 
     List<SugerenciaDeCompra> findByNegocioIdAndEstadoOrderByNombreSnapshotAsc(UUID negocioId,
