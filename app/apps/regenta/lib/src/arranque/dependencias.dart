@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_clientes/regenta_clientes.dart';
 import 'package:regenta_comandas/regenta_comandas.dart';
@@ -319,6 +320,13 @@ class DependenciasDeLaApp {
       RepositorioDeReportesDeCaja(http),
     ),
     // HU-142: el listado de turnos reimprime la tirilla con el módulo de caja.
+    // HU-143: consultar cierres de caja y, desde un movimiento, ir a su venta.
+    repositorioDeCierresDeCajaProvider.overrideWithValue(RepositorioDeCierresDeCaja(http)),
+    abrirVentaDesdeCajaProvider.overrideWithValue(
+      (context, ventaId, numero) => unawaited(Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => PantallaBuscarVenta(busquedaInicial: numero)),
+      )),
+    ),
     reimprimirTirillaDeCajaProvider.overrideWith(
       (ref) => (sesionId) async {
         final tirilla = await ref.read(repositorioDeCajaProvider).tirillaDeCierre(sesionId);

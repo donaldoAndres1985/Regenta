@@ -18,3 +18,5 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # HU-143: el contrato JSON de la consulta de cierres, contra un servidor de mentiras.
+  dio: ^5.7.0

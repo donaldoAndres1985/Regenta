@@ -127,10 +127,10 @@ restricción en PostgreSQL probada con Testcontainers.
 | Calculadora de denominaciones | Adoptar (ya existe) |
 | Eliminar entrada/salida | **Adaptar** — anulación compensatoria por supervisor (I5, I6) |
 | Tirilla de cierre y reimpresión | Adoptar |
-| Detalle de un movimiento | Adoptar, con nombre del movimiento y todos sus métodos |
-| Buscar cierres por fecha y usuario | Adoptar, con filtros y paginación (sin tope de 30) |
-| Movimientos de un cierre con total | Adoptar |
-| Resumen del cierre (ventas/compras contado y crédito, entradas, salidas) | Adoptar |
+| Detalle de un movimiento | Adoptado (HU-143): nombre del movimiento, quién lo registró, autorizó o anuló, la venta de origen y todos sus métodos |
+| Buscar cierres por fecha y usuario | Adoptado (HU-143): por fecha de cierre y cajero (abrió o cerró), paginado, sin tope de 30 |
+| Movimientos de un cierre con total | Adoptado (HU-143) |
+| Resumen del cierre (ventas/compras contado y crédito, entradas, salidas) | Adoptado (HU-143): ventas de contado y a crédito, devoluciones, recaudos, ingresos, retiros, gastos y pagos a proveedor; un movimiento anulado no suma |
 | Informes PDF (general, detallado, cierres por rango) | Adoptar después, HU aparte |
 
 **Descartado:** movimiento excluido del arqueo y sus atajos ocultos; serie global entre

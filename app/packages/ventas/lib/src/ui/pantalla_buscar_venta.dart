@@ -18,7 +18,11 @@ class PantallaBuscarVenta extends ConsumerStatefulWidget {
     super.key,
     this.onVentaAnulada,
     this.onSeleccionarParaDevolucion,
+    this.busquedaInicial,
   });
+
+  /// HU-143 · Abre ya buscando esta venta (su número), p. ej. desde un movimiento de caja.
+  final String? busquedaInicial;
 
   final void Function(VentaEnProceso venta)? onVentaAnulada;
   final void Function(VentaEnProceso venta)? onSeleccionarParaDevolucion;
@@ -39,7 +43,13 @@ class _PantallaBuscarVentaState extends ConsumerState<PantallaBuscarVenta> {
   void initState() {
     super.initState();
     _focoBusqueda.onKeyEvent = _manejarTeclasBusqueda;
-    _cargarVentas();
+    final inicial = widget.busquedaInicial?.trim();
+    if (inicial != null && inicial.isNotEmpty) {
+      _controladorBusqueda.text = inicial;
+      _cargarVentas(inicial);
+    } else {
+      _cargarVentas();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _focoBusqueda.requestFocus();

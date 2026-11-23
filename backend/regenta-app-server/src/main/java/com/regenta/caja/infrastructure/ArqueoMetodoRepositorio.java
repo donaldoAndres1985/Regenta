@@ -11,4 +11,7 @@ import com.regenta.caja.domain.ArqueoMetodo;
 public interface ArqueoMetodoRepositorio extends JpaRepository<ArqueoMetodo, UUID> {
 
     List<ArqueoMetodo> findBySesionIdOrderByMetodoPago(UUID sesionId);
+
+    /** HU-143 · El arqueo por método de varias sesiones, para el buscador de cierres. */
+    List<ArqueoMetodo> findBySesionIdIn(java.util.Collection<UUID> sesionIds);
 }

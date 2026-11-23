@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 import '../caja/lista_de_sesiones_de_caja.dart';
+import '../caja/pantalla_cierres_de_caja.dart';
 import '../caja/proveedores.dart';
 import '../caja/sesion_de_caja_vista.dart';
 
@@ -37,6 +38,14 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
     final ctrl = ref.watch(controladorDeReportesDeCajaProvider);
 
     final acciones = <Widget>[
+      // HU-143 · Buscar los cierres pasados, por cajero, y abrir su detalle.
+      IconButton(
+        key: const Key('reportes-buscar-cierres'),
+        tooltip: 'Buscar cierres de caja',
+        icon: const Icon(Icons.manage_search, color: RegentaColors.ink),
+        onPressed: () => unawaited(Navigator.of(context)
+            .push<void>(MaterialPageRoute(builder: (_) => const PantallaCierresDeCaja()))),
+      ),
       IconButton(
         tooltip: 'Refrescar',
         icon: const Icon(Icons.refresh, color: RegentaColors.ink),
@@ -472,6 +481,18 @@ class _PantallaReportesState extends ConsumerState<PantallaReportes> {
             ],
           ),
           actions: [
+            // HU-143: el detalle completo del cierre, con sus movimientos.
+            if (sesion.estaCerrada)
+              TextButton.icon(
+                key: const Key('sesion-ver-cierre'),
+                icon: const Icon(Icons.list_alt_outlined),
+                label: const Text('Ver detalle'),
+                onPressed: () {
+                  Navigator.of(dialogCtx).pop();
+                  unawaited(Navigator.of(context).push<void>(
+                      MaterialPageRoute(builder: (_) => PantallaDetalleDeCierre(sesionId: sesion.id))));
+                },
+              ),
             // HU-142: reimprimir la tirilla de un turno cerrado.
             if (reimprimir != null && sesion.estaCerrada)
               TextButton.icon(

@@ -84,4 +84,12 @@ public class ArqueoMetodo {
     public BigDecimal getDiferencia() {
         return diferencia;
     }
+
+    public UUID getSesionId() {
+        return sesionId;
+    }
+
+    public BigDecimal getEsperado() {
+        return esperado;
+    }
 }
