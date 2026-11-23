@@ -9,7 +9,7 @@ raiz="$(git rev-parse --show-toplevel)"
 cd "$raiz"
 fallas=0
 
-prohibidos=$(git ls-files | grep -Ei '\.(p12|pfx|jks|keystore|pem|key)$|(^|/)\.env(\..*)?$' | grep -Ev '(^|/)\.env\.example$' || true)
+prohibidos=$(git ls-files | grep -Ei '\.(p12|pfx|jks|keystore|pem|key)$|(^|/)\.env(\..*)?$|(^|/)google-services\.json$|(^|/)GoogleService-Info\.plist$|firebase-adminsdk.*\.json$' | grep -Ev '(^|/)\.env\.example$' || true)
 if [ -n "$prohibidos" ]; then
   while IFS= read -r f; do
     echo "::error file=$f::Archivo de llaves, certificado o .env versionado: va por entorno, no en el repo."

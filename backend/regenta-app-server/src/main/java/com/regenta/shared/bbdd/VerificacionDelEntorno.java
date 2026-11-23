@@ -87,6 +87,9 @@ public class VerificacionDelEntorno implements EnvironmentPostProcessor, Ordered
                     + String.join(", ", faltan) + ". Los secretos no van en el repo: se configuran en el "
                     + "servicio (docs/migracion/07-despliegue.md).");
         }
+        if (vacio(entorno.getProperty("regenta.fcm.credenciales"))) {
+            log.warn("Producción sin FCM_CREDENCIALES: las alertas push no salen al celular (HU-123).");
+        }
         if (vacio(entorno.getProperty("regenta.dian.url"))) {
             log.warn("Producción sin DIAN_URL: las facturas van a la DIAN simulada. Configúrala al terminar la "
                     + "habilitación.");

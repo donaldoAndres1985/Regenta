@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 class SecretosFueraDelRepoTest {
 
     private static final Pattern CLAVE_SECRETA = Pattern.compile(
-            "^\\s*([\\w.-]*(secreto|secret|password|clave|llave|token|pin|access-key|secret-key)[\\w.-]*)\\s*:\\s*(.+)$",
+            "^\\s*([\\w.-]*(secreto|secret|password|clave|llave|token|pin|credencial|access-key|secret-key)[\\w.-]*)\\s*:\\s*(.+)$",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern SOLO_ENTORNO = Pattern.compile("^\\$\\{[A-Z0-9_]+:?}$");
 

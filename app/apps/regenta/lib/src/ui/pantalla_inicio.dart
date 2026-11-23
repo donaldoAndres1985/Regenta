@@ -5,6 +5,7 @@ import 'package:regenta_core/regenta_core.dart';
 import '../arranque/proveedores.dart';
 import '../navegacion/catalogo.dart';
 import 'barra_lateral.dart';
+import 'campana_de_la_carcasa.dart';
 import 'carcasa_con_menu.dart';
 
 /// Pantalla de Inicio basada en la propuesta Pastel.
@@ -289,6 +290,8 @@ class _MovilLayout extends StatelessWidget {
             tooltip: 'Nueva venta',
             onPressed: () => onNavegar('/ventas'),
           ),
+          // HU-123: en el celular, desde aquí se activan las alertas push.
+          const CampanaDeLaCarcasa(),
           IconButton(
             icon: const Icon(Icons.logout, size: 20, color: RegentaColors.ink2),
             tooltip: 'Cerrar sesión',
@@ -548,7 +551,7 @@ class _EncabezadoSuperior extends StatelessWidget implements PreferredSizeWidget
         ),
         const SizedBox(width: 12),
 
-        // Botón de Notificaciones
+        // Botón de Notificaciones: el centro de alertas real (HU-095, HU-123).
         Container(
           width: 42,
           height: 42,
@@ -557,28 +560,7 @@ class _EncabezadoSuperior extends StatelessWidget implements PreferredSizeWidget
             shape: BoxShape.circle,
             border: Border.all(color: RegentaColors.line),
           ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              const Icon(
-                Icons.notifications_none_rounded,
-                size: 20,
-                color: RegentaColors.ink2,
-              ),
-              Positioned(
-                top: 10,
-                right: 11,
-                child: Container(
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(
-                    color: RegentaColors.crit,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: const Center(child: CampanaDeLaCarcasa()),
         ),
         const SizedBox(width: 12),
 

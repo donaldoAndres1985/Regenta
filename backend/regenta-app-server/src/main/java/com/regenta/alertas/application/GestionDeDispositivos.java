@@ -36,7 +36,9 @@ public class GestionDeDispositivos {
         }
         PlataformaDispositivo plataforma = plataformaDe(solicitud.plataforma());
 
-        DispositivoPush dispositivo = dispositivos.findByTokenFcm(token)
+        // HU-123 C1: el token queda contra el usuario y el negocio. El mismo celular puede estar en otro
+        // negocio (otra fila); aquí solo se mira el de este.
+        DispositivoPush dispositivo = dispositivos.findByNegocioIdAndTokenFcm(negocioId, token)
                 .map(existente -> {
                     existente.reasignar(usuarioId, plataforma, solicitud.modelo(),
                             solicitud.versionApp());

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:regenta/main.dart';
 import 'package:regenta/src/arranque/dependencias.dart';
+import 'package:regenta/src/arranque/proveedores.dart';
 import 'package:regenta_core/regenta_core.dart';
 
 /// La carcasa de punta a punta: arrancar la app y ver dónde aterriza.
@@ -66,6 +67,7 @@ Future<DependenciasDeLaApp> _arrancar(
   Sesion? guardada,
   Future<void> Function(BaseLocal base)? conLaCola,
   Size tamano = const Size(390, 844),
+  List<Override> extras = const [],
 }) async {
   await tester.binding.setSurfaceSize(tamano);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -79,7 +81,7 @@ Future<DependenciasDeLaApp> _arrancar(
   await deps.motor.iniciar();
   await tester.pumpWidget(
     ProviderScope(
-      overrides: deps.overrides(),
+      overrides: [...deps.overrides(), ...extras],
       child: RegentaApp(dependencias: deps),
     ),
   );
@@ -87,7 +89,69 @@ Future<DependenciasDeLaApp> _arrancar(
   return deps;
 }
 
+/// HU-123: el push del celular, simulado.
+class _PushSimulado implements ServicioDePush {
+  int preguntas = 0;
+  PermisoDePush estado = PermisoDePush.sinPreguntar;
+
+  @override
+  String get plataforma => 'ANDROID';
+
+  @override
+  Future<PermisoDePush> permiso() async => estado;
+
+  @override
+  Future<PermisoDePush> pedirPermiso() async {
+    preguntas++;
+    return estado = PermisoDePush.concedido;
+  }
+
+  @override
+  Future<String?> token() async => 'token-del-celular';
+
+  @override
+  Stream<String> get tokensNuevos => const Stream.empty();
+}
+
+class _DispositivosFake implements RepositorioDeDispositivos {
+  final List<String> tokens = [];
+
+  @override
+  Future<void> registrar({
+    required String tokenFcm,
+    required String plataforma,
+    String? modelo,
+    String? versionApp,
+  }) async =>
+      tokens.add(tokenFcm);
+}
+
 void main() {
+  testWidgets('HU-123: en el celular la campana abre el centro y desde ahí, no al arrancar, '
+      'se piden las notificaciones', (tester) async {
+    final push = _PushSimulado();
+    final dispositivos = _DispositivosFake();
+    final registro = RegistroDePush(push, dispositivos);
+    await registro.alEntrar();
+    await _arrancar(
+      tester,
+      guardada: _sesionCon(modulos: ['VENTAS', 'INVENTARIO']),
+      extras: [registroDePushProvider.overrideWith((ref) => registro)],
+    );
+
+    expect(push.preguntas, 0, reason: 'al arrancar no se pregunta');
+
+    await tester.tap(find.byKey(const Key('campana-de-la-carcasa')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('centro-de-alertas')), findsOneWidget);
+    expect(find.byKey(const Key('aviso-push')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('activar-push')));
+    await tester.pumpAndSettle();
+    expect(push.preguntas, 1);
+    expect(dispositivos.tokens, ['token-del-celular']);
+  });
+
   testWidgets('Encabezado E7 · Inicio en web saluda por el primer nombre, sin ícono', (tester) async {
     await _arrancar(tester, guardada: _sesionCon(modulos: ['VENTAS']), tamano: const Size(1440, 900));
     final encabezado = find.byType(EncabezadoDeSeccion);

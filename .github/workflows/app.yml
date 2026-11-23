@@ -151,13 +151,26 @@ jobs:
       - name: build web
         run: flutter build web --release
 
+      # HU-123: la configuración de Firebase entra por --dart-define desde los secretos del repo; sin ellos
+      # el APK sale igual, sin push. Nunca hay google-services.json en el repo.
       - name: build apk
         if: startsWith(github.ref, 'refs/tags/')
         uses: nick-fields/retry@v3
+        env:
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         with:
           timeout_minutes: 10
           max_attempts: 3
-          command: cd app/apps/regenta && flutter build apk --debug
+          command: >-
+            cd app/apps/regenta && flutter build apk --debug
+            --dart-define=API_BASE_URL=${{ vars.API_URL || 'https://regenta-production.up.railway.app' }}
+            --dart-define=FIREBASE_API_KEY=$FIREBASE_API_KEY
+            --dart-define=FIREBASE_APP_ID=$FIREBASE_APP_ID
+            --dart-define=FIREBASE_MESSAGING_SENDER_ID=$FIREBASE_MESSAGING_SENDER_ID
+            --dart-define=FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID
 
   # HU-125 C1 · La Web se despliega en Cloudflare Pages solo si el análisis y las pruebas pasaron.
   # Pages publica atómicamente: hasta que la versión nueva está completa sigue sirviendo la anterior (C3).

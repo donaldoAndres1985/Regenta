@@ -10,7 +10,8 @@ import com.regenta.alertas.domain.DispositivoPush;
 
 public interface DispositivoPushRepositorio extends JpaRepository<DispositivoPush, UUID> {
 
-    Optional<DispositivoPush> findByTokenFcm(String tokenFcm);
+    /** HU-123: el token es único por negocio (alertas V6). */
+    Optional<DispositivoPush> findByNegocioIdAndTokenFcm(UUID negocioId, String tokenFcm);
 
     Optional<DispositivoPush> findByIdAndNegocioId(UUID id, UUID negocioId);
 

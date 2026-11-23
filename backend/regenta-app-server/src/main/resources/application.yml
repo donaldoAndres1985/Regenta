@@ -72,6 +72,10 @@ regenta:
   # entorno: nunca en el repo.
   boveda:
     llave-maestra: ${BOVEDA_LLAVE_MAESTRA:}
+  # HU-123 · Push por Firebase Cloud Messaging: la cuenta de servicio del proyecto (el JSON, tal cual o
+  # en base64) SOLO por entorno. Sin ella, el push es simulado.
+  fcm:
+    credenciales: ${FCM_CREDENCIALES:}
   # HU-117 · El servicio web de la DIAN. Habilitación y producción son solo configuración: la URL
   # (https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc o https://vpfe.dian.gov.co/...) y el
   # ambiente (2 pruebas, 1 producción). Sin URL, la DIAN es la simulada. ID y PIN del software y el
