@@ -14,4 +14,7 @@ public interface LineaDeDevolucionAProveedorRepositorio extends JpaRepository<Li
 
     /** HU-178 C4 · Lo ya devuelto de cada línea de una recepción. */
     List<LineaDeDevolucionAProveedor> findByRecepcionLineaIdIn(Collection<UUID> recepcionLineaIds);
+
+    /** HU-183 · Las líneas de varias devoluciones, para los informes. */
+    List<LineaDeDevolucionAProveedor> findByDevolucionIdIn(Collection<UUID> devolucionIds);
 }

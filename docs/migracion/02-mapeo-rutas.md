@@ -51,6 +51,7 @@ El frontend Flutter (`regenta-app`) se comunica a través de HTTP/REST con el ba
 | **compras** | `/api/compras/recepciones/**`| `servicio-compras:8085`| `/api/compras/recepciones/**`| `RecepcionesControlador` |
 | **compras** | `/api/compras/cuentas-por-pagar/**`| `servicio-compras:8085`| `/api/compras/cuentas-por-pagar/**`| `CuentasPorPagarControlador` |
 | **compras** | `/api/compras/sugerencias/**`| `servicio-compras:8085`| `/api/compras/sugerencias/**`| `SugerenciasDeCompraControlador` |
+| **compras** | `/api/compras/informes/**`| `servicio-compras:8085`| `/api/compras/informes/**`| `InformesDeComprasControlador` |
 | **recursos** | `/api/recursos/**` | `servicio-recursos:8086` | `/api/recursos/**` | `RecursosControlador` |
 | **recursos** | `/api/recursos/tipos/**` | `servicio-recursos:8086` | `/api/recursos/tipos/**` | `TiposDeRecursoControlador` |
 | **recursos** | `/api/recursos/tarifas/**` | `servicio-recursos:8086` | `/api/recursos/tarifas/**` | `TarifasControlador` |

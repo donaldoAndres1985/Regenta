@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.regenta.shared.archivos.ExportadorDeReportes;
 import com.regenta.shared.web.NoEncontradoException;
 import com.regenta.shared.tenancy.ContextoDeNegocio;
 import com.regenta.shared.security.RequierePermiso;

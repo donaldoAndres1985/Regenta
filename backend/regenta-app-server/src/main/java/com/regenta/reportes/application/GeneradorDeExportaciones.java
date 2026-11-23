@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.regenta.shared.archivos.ExportadorDeReportes;
 import com.regenta.shared.events.RegistroDeEventos;
 
 /**

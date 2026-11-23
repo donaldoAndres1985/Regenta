@@ -225,6 +225,13 @@ class DependenciasDeLaApp {
               .contains('INVENTARIO_PRODUCTO_CREAR') ??
           false,
     ),
+    // HU-183: los informes de compras solo con el permiso que trae el token.
+    puedeVerInformesDeComprasProvider.overrideWith(
+      (ref) =>
+          ref.watch(perfilComoNotifierProvider).claims?.permisos
+              .contains('COMPRAS_INFORME_VER') ??
+          false,
+    ),
     // HU-179: cambiar el precio al recibir solo con el permiso que trae el token.
     puedeCambiarPreciosProvider.overrideWith(
       (ref) =>
@@ -273,6 +280,9 @@ class DependenciasDeLaApp {
     // Compras
     repositorioDeRecepcionesProvider.overrideWithValue(
       RepositorioDeRecepciones(http, cola: cola),
+    ),
+    repositorioDeInformesDeComprasProvider.overrideWithValue(
+      RepositorioDeInformesDeCompras(http),
     ),
     bandejaDeRecepcionesProvider.overrideWithValue(
       BandejaDeRecepciones(http: http, cola: cola),

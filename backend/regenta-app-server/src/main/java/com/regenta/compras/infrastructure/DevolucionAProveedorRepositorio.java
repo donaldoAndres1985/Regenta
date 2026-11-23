@@ -15,4 +15,8 @@ public interface DevolucionAProveedorRepositorio extends JpaRepository<Devolucio
     List<DevolucionAProveedor> findByNegocioIdOrderByFechaDesc(UUID negocioId);
 
     List<DevolucionAProveedor> findByNegocioIdAndRecepcionIdOrderByFechaDesc(UUID negocioId, UUID recepcionId);
+
+    /** HU-183 · Las devoluciones de un periodo [desde, hasta): restan en los informes. */
+    List<DevolucionAProveedor> findByNegocioIdAndFechaGreaterThanEqualAndFechaLessThan(UUID negocioId,
+            java.time.OffsetDateTime desde, java.time.OffsetDateTime hasta);
 }

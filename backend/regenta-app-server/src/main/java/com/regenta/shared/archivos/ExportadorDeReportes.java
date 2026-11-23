@@ -1,4 +1,4 @@
-package com.regenta.reportes.application;
+package com.regenta.shared.archivos;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 import com.regenta.shared.web.ReglaDeNegocioException;
 
 /**
- * Convierte filas en un archivo (HU-100 criterio 1). No sabe de dónde salen
+ * Convierte filas en un archivo (HU-100 criterio 1; HU-183 lo usa desde Compras). No sabe de dónde salen
  * las filas ni quién las pidió: recibe columnas y valores y devuelve bytes.
  */
 @Component
