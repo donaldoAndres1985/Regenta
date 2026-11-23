@@ -145,17 +145,248 @@ String fechaIso(DateTime d) =>
 String fechaCorta(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-/// Los tres informes de la HU-183, con el nombre que usa la ruta del backend.
+/// Los informes de compras (HU-183 y HU-184), en el orden de las pestañas, con el nombre que usa la
+/// ruta del backend y el del archivo descargado.
 enum InformeDeCompras {
-  porProveedor('por-proveedor', 'compras-por-proveedor'),
-  porProducto('por-producto', 'compras-por-producto'),
-  historialDeCostos('historial-de-costos', 'historial-de-costos');
+  porProveedor('por-proveedor', 'compras-por-proveedor', conPeriodo: true),
+  porProducto('por-producto', 'compras-por-producto', conPeriodo: true),
+  historialDeCostos('historial-de-costos', 'historial-de-costos'),
+  antiguedad('antiguedad', 'cuentas-por-pagar-por-antiguedad'),
+  pendientesPorRecibir('pendientes-por-recibir', 'pendientes-por-recibir'),
+  faltantes('faltantes', 'faltantes-de-ordenes-cerradas'),
+  pagos('pagos', 'pagos-a-proveedores', conPeriodo: true);
 
-  const InformeDeCompras(this.ruta, this.archivo);
+  const InformeDeCompras(this.ruta, this.archivo, {this.conPeriodo = false});
 
   final String ruta;
   final String archivo;
+
+  /// Si se consulta por un periodo (los demás van a hoy, o completos).
+  final bool conPeriodo;
 }
+
+num _n(Object? v) => (v as num?) ?? 0;
+
+List<Map<String, dynamic>> _lista(Object? v) =>
+    [for (final e in (v as List<dynamic>? ?? const [])) (e as Map).cast<String, dynamic>()];
+
+/// HU-184 C1 · Un saldo repartido por días de mora.
+class TramosDeMora {
+  const TramosDeMora({this.alDia = 0, this.de1a30 = 0, this.de31a60 = 0, this.de61a90 = 0, this.masDe90 = 0, this.total = 0});
+
+  final num alDia;
+  final num de1a30;
+  final num de31a60;
+  final num de61a90;
+  final num masDe90;
+  final num total;
+
+  /// Las cinco columnas, en orden, con su título.
+  List<(String, num)> get columnas => [
+        ('Al día', alDia),
+        ('1-30', de1a30),
+        ('31-60', de31a60),
+        ('61-90', de61a90),
+        ('+90', masDe90),
+      ];
+
+  factory TramosDeMora.desdeJson(Object? json) {
+    final m = (json as Map?)?.cast<String, dynamic>() ?? const {};
+    return TramosDeMora(
+      alDia: _n(m['alDia']),
+      de1a30: _n(m['de1a30']),
+      de31a60: _n(m['de31a60']),
+      de61a90: _n(m['de61a90']),
+      masDe90: _n(m['masDe90']),
+      total: _n(m['total']),
+    );
+  }
+}
+
+/// HU-184 C1 · Lo que se le debe a un proveedor, por antigüedad.
+class AntiguedadDeProveedorVista {
+  const AntiguedadDeProveedorVista({
+    required this.proveedorId,
+    required this.proveedor,
+    this.cuentas = 0,
+    this.moraMaxima = 0,
+    this.saldo = const TramosDeMora(),
+  });
+
+  final String proveedorId;
+  final String proveedor;
+  final int cuentas;
+  final int moraMaxima;
+  final TramosDeMora saldo;
+
+  factory AntiguedadDeProveedorVista.desdeJson(Map<String, dynamic> json) => AntiguedadDeProveedorVista(
+        proveedorId: json['proveedorId'] as String,
+        proveedor: (json['proveedor'] ?? 'Proveedor') as String,
+        cuentas: _n(json['cuentas']).toInt(),
+        moraMaxima: _n(json['moraMaxima']).toInt(),
+        saldo: TramosDeMora.desdeJson(json['saldo']),
+      );
+}
+
+/// HU-184 C1 · Una fila por proveedor y el total de cada columna.
+class InformeDeAntiguedadVista {
+  const InformeDeAntiguedadVista({this.proveedores = const [], this.totales = const TramosDeMora()});
+
+  final List<AntiguedadDeProveedorVista> proveedores;
+  final TramosDeMora totales;
+
+  factory InformeDeAntiguedadVista.desdeJson(Map<String, dynamic> json) => InformeDeAntiguedadVista(
+        proveedores: [for (final p in _lista(json['proveedores'])) AntiguedadDeProveedorVista.desdeJson(p)],
+        totales: TramosDeMora.desdeJson(json['totales']),
+      );
+}
+
+/// HU-184 C2 / C3 · Una línea de orden con lo que falta; `valor` sin IVA.
+class LineaPendienteVista {
+  const LineaPendienteVista({
+    required this.linea,
+    required this.producto,
+    this.pedida = 0,
+    this.recibida = 0,
+    this.faltante = 0,
+    this.valor = 0,
+  });
+
+  final int linea;
+  final String producto;
+  final num pedida;
+  final num recibida;
+  final num faltante;
+  final num valor;
+
+  factory LineaPendienteVista.desdeJson(Map<String, dynamic> json) => LineaPendienteVista(
+        linea: _n(json['linea']).toInt(),
+        producto: (json['producto'] ?? 'Producto') as String,
+        pedida: _n(json['pedida']),
+        recibida: _n(json['recibida']),
+        faltante: _n(json['faltante']),
+        valor: _n(json['valor']),
+      );
+}
+
+/// HU-184 C2 · Una orden con mercancía por llegar.
+class PendientePorRecibirVista {
+  const PendientePorRecibirVista({
+    required this.ordenId,
+    required this.numero,
+    required this.proveedor,
+    this.estado = '',
+    this.fechaEsperada,
+    this.atrasada = false,
+    this.diasDeAtraso = 0,
+    this.lineas = const [],
+    this.valorPendiente = 0,
+  });
+
+  final String ordenId;
+  final String numero;
+  final String proveedor;
+  final String estado;
+  final DateTime? fechaEsperada;
+  final bool atrasada;
+  final int diasDeAtraso;
+  final List<LineaPendienteVista> lineas;
+  final num valorPendiente;
+
+  factory PendientePorRecibirVista.desdeJson(Map<String, dynamic> json) => PendientePorRecibirVista(
+        ordenId: json['ordenId'] as String,
+        numero: (json['numero'] ?? '') as String,
+        proveedor: (json['proveedor'] ?? 'Proveedor') as String,
+        estado: (json['estado'] ?? '') as String,
+        fechaEsperada: json['fechaEsperada'] == null ? null : DateTime.parse(json['fechaEsperada'] as String),
+        atrasada: (json['atrasada'] as bool?) ?? false,
+        diasDeAtraso: _n(json['diasDeAtraso']).toInt(),
+        lineas: [for (final l in _lista(json['lineas'])) LineaPendienteVista.desdeJson(l)],
+        valorPendiente: _n(json['valorPendiente']),
+      );
+}
+
+/// HU-184 C3 · Una orden cerrada con faltante y lo que nunca llegó.
+class FaltanteDeOrdenVista {
+  const FaltanteDeOrdenVista({
+    required this.ordenId,
+    required this.numero,
+    required this.proveedor,
+    this.cerradaEn,
+    this.motivo,
+    this.lineas = const [],
+    this.valorFaltante = 0,
+  });
+
+  final String ordenId;
+  final String numero;
+  final String proveedor;
+  final DateTime? cerradaEn;
+  final String? motivo;
+  final List<LineaPendienteVista> lineas;
+  final num valorFaltante;
+
+  factory FaltanteDeOrdenVista.desdeJson(Map<String, dynamic> json) => FaltanteDeOrdenVista(
+        ordenId: json['ordenId'] as String,
+        numero: (json['numero'] ?? '') as String,
+        proveedor: (json['proveedor'] ?? 'Proveedor') as String,
+        cerradaEn: json['cerradaEn'] == null ? null : DateTime.parse(json['cerradaEn'] as String).toLocal(),
+        motivo: json['motivo'] as String?,
+        lineas: [for (final l in _lista(json['lineas'])) LineaPendienteVista.desdeJson(l)],
+        valorFaltante: _n(json['valorFaltante']),
+      );
+}
+
+/// HU-184 C4 · Lo pagado a un proveedor con un método.
+class PagosPorProveedorYMetodoVista {
+  const PagosPorProveedorYMetodoVista({
+    required this.proveedorId,
+    required this.proveedor,
+    required this.metodo,
+    this.pagos = 0,
+    this.total = 0,
+  });
+
+  final String proveedorId;
+  final String proveedor;
+  final String metodo;
+  final int pagos;
+  final num total;
+
+  factory PagosPorProveedorYMetodoVista.desdeJson(Map<String, dynamic> json) => PagosPorProveedorYMetodoVista(
+        proveedorId: json['proveedorId'] as String,
+        proveedor: (json['proveedor'] ?? 'Proveedor') as String,
+        metodo: (json['metodo'] ?? 'OTRO') as String,
+        pagos: _n(json['pagos']).toInt(),
+        total: _n(json['total']),
+      );
+}
+
+/// HU-184 C4 · Los pagos del periodo: por proveedor y método, totales por método y total.
+class InformeDePagosVista {
+  const InformeDePagosVista({this.filas = const [], this.porMetodo = const {}, this.total = 0});
+
+  final List<PagosPorProveedorYMetodoVista> filas;
+  final Map<String, num> porMetodo;
+  final num total;
+
+  factory InformeDePagosVista.desdeJson(Map<String, dynamic> json) => InformeDePagosVista(
+        filas: [for (final f in _lista(json['filas'])) PagosPorProveedorYMetodoVista.desdeJson(f)],
+        porMetodo: {
+          for (final e in ((json['porMetodo'] as Map?) ?? const {}).entries) e.key as String: _n(e.value),
+        },
+        total: _n(json['total']),
+      );
+}
+
+/// «Transferencia» para `TRANSFERENCIA`.
+String nombreDelMetodo(String metodo) => switch (metodo) {
+      'EFECTIVO' => 'Efectivo',
+      'TRANSFERENCIA' => 'Transferencia',
+      'CHEQUE' => 'Cheque',
+      'TARJETA' => 'Tarjeta',
+      _ => 'Otro',
+    };
 
 /// Acceso a los informes de `compras` (HU-183). Todos exigen `COMPRAS_INFORME_VER`.
 class RepositorioDeInformesDeCompras {
@@ -179,6 +410,30 @@ class RepositorioDeInformesDeCompras {
   Future<List<CostoHistoricoVista>> historialDeCostos(String productoId) async {
     final res = await _http.get<List<dynamic>>('$_base/historial-de-costos', query: {'productoId': productoId});
     return [for (final e in res) CostoHistoricoVista.desdeJson((e as Map).cast<String, dynamic>())];
+  }
+
+  /// HU-184 C1 · Lo que se debe a hoy, por días de mora.
+  Future<InformeDeAntiguedadVista> antiguedad() async {
+    final res = await _http.get<Map<String, dynamic>>('$_base/antiguedad');
+    return InformeDeAntiguedadVista.desdeJson(res);
+  }
+
+  /// HU-184 C2 · Lo que falta por recibir de las órdenes abiertas; las atrasadas primero.
+  Future<List<PendientePorRecibirVista>> pendientesPorRecibir() async {
+    final res = await _http.get<List<dynamic>>('$_base/pendientes-por-recibir');
+    return [for (final e in res) PendientePorRecibirVista.desdeJson((e as Map).cast<String, dynamic>())];
+  }
+
+  /// HU-184 C3 · Lo que nunca llegó de las órdenes cerradas con faltante.
+  Future<List<FaltanteDeOrdenVista>> faltantes() async {
+    final res = await _http.get<List<dynamic>>('$_base/faltantes');
+    return [for (final e in res) FaltanteDeOrdenVista.desdeJson((e as Map).cast<String, dynamic>())];
+  }
+
+  /// HU-184 C4 · Los pagos del periodo por proveedor y método, sin los anulados.
+  Future<InformeDePagosVista> pagos(PeriodoDeInforme periodo) async {
+    final res = await _http.get<Map<String, dynamic>>('$_base/pagos', query: periodo.query);
+    return InformeDePagosVista.desdeJson(res);
   }
 
   /// C4 · El informe en PDF o XLSX.

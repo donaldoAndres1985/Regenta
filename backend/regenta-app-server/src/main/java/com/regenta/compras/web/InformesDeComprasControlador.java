@@ -19,22 +19,70 @@ import com.regenta.compras.application.InformesDeCompras.ArchivoDeInforme;
 import com.regenta.compras.application.InformesDeCompras.CompraPorProducto;
 import com.regenta.compras.application.InformesDeCompras.CompraPorProveedor;
 import com.regenta.compras.application.InformesDeCompras.CostoHistorico;
+import com.regenta.compras.application.InformesDePagosYPendientes;
+import com.regenta.compras.application.InformesDePagosYPendientes.FaltanteDeOrden;
+import com.regenta.compras.application.InformesDePagosYPendientes.InformeDeAntiguedad;
+import com.regenta.compras.application.InformesDePagosYPendientes.InformeDePagos;
+import com.regenta.compras.application.InformesDePagosYPendientes.PendientePorRecibir;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-/** HU-183 · Informes de compras y de costos. Todos exigen {@code COMPRAS_INFORME_VER}. */
+/**
+ * HU-183 · Informes de compras y de costos; HU-184 · antigüedad de las cuentas por pagar, pendientes
+ * por recibir, faltantes y pagos. Todos exigen {@code COMPRAS_INFORME_VER}.
+ */
 @RestController
 @RequestMapping("/api/compras/informes")
 @Tag(name = "Informes de compras", description = "Cuánto se compra, a quién y cómo cambian los costos")
 public class InformesDeComprasControlador {
 
     private final InformesDeCompras informes;
+    private final InformesDePagosYPendientes deudaYPendientes;
 
-    public InformesDeComprasControlador(InformesDeCompras informes) {
+    public InformesDeComprasControlador(InformesDeCompras informes, InformesDePagosYPendientes deudaYPendientes) {
         this.informes = informes;
+        this.deudaYPendientes = deudaYPendientes;
+    }
+
+    @GetMapping("/antiguedad")
+    @Operation(summary = "Cuentas por pagar por antigüedad a hoy (HU-184)",
+            description = "El saldo abierto de cada proveedor en al día, 1-30, 31-60, 61-90 y más de 90 días de "
+                    + "mora, con el total de cada columna. La mora se calcula contra el vencimiento (I25).")
+    @ApiResponse(responseCode = "403", description = "Sin el permiso COMPRAS_INFORME_VER")
+    public InformeDeAntiguedad antiguedad() {
+        return deudaYPendientes.antiguedad();
+    }
+
+    @GetMapping("/pendientes-por-recibir")
+    @Operation(summary = "Lo que falta por recibir de las órdenes aprobadas, enviadas o parciales (HU-184)",
+            description = "Por orden y línea, con la fecha esperada. Las atrasadas van primero y marcadas.")
+    @ApiResponse(responseCode = "403", description = "Sin el permiso COMPRAS_INFORME_VER")
+    public List<PendientePorRecibir> pendientesPorRecibir() {
+        return deudaYPendientes.pendientesPorRecibir();
+    }
+
+    @GetMapping("/faltantes")
+    @Operation(summary = "Lo que nunca llegó de las órdenes cerradas con faltante (HU-184)",
+            description = "Con fechas, solo las cerradas en ese periodo; sin fechas, todas.")
+    @ApiResponse(responseCode = "403", description = "Sin el permiso COMPRAS_INFORME_VER")
+    public List<FaltanteDeOrden> faltantes(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        return deudaYPendientes.faltantes(desde, hasta);
+    }
+
+    @GetMapping("/pagos")
+    @Operation(summary = "Pagos a proveedores por proveedor y método en un periodo (HU-184)",
+            description = "Sin los anulados. Sin fechas: el mes en curso.")
+    @ApiResponse(responseCode = "403", description = "Sin el permiso COMPRAS_INFORME_VER")
+    @ApiResponse(responseCode = "422", description = "El periodo termina antes de empezar")
+    public InformeDePagos pagos(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        return deudaYPendientes.pagos(desde, hasta);
     }
 
     @GetMapping("/por-proveedor")
@@ -74,16 +122,20 @@ public class InformesDeComprasControlador {
     @GetMapping(value = "/{informe}/archivo",
             produces = {"application/pdf", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})
     @Operation(summary = "Descarga un informe en PDF o Excel",
-            description = "informe: por-proveedor, por-producto o historial-de-costos (este último con productoId).")
+            description = "informe: por-proveedor, por-producto, historial-de-costos (con productoId), "
+                    + "antiguedad, pendientes-por-recibir, faltantes o pagos.")
     @ApiResponse(responseCode = "403", description = "Sin el permiso COMPRAS_INFORME_VER")
     @ApiResponse(responseCode = "422", description = "Informe o formato desconocido, o periodo al revés")
     public ResponseEntity<byte[]> archivo(
-            @Parameter(description = "por-proveedor, por-producto o historial-de-costos") @PathVariable String informe,
+            @Parameter(description = "por-proveedor, por-producto, historial-de-costos, antiguedad, "
+                    + "pendientes-por-recibir, faltantes o pagos") @PathVariable String informe,
             @Parameter(description = "PDF o XLSX") @RequestParam(defaultValue = "PDF") String formato,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(required = false) UUID productoId) {
-        ArchivoDeInforme a = informes.archivo(informe, formato, desde, hasta, productoId);
+        ArchivoDeInforme a = InformesDePagosYPendientes.INFORMES.contains(informe)
+                ? deudaYPendientes.archivo(informe, formato, desde, hasta)
+                : informes.archivo(informe, formato, desde, hasta, productoId);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(a.tipo()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + a.nombre() + "\"")

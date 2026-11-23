@@ -10,4 +10,8 @@ import com.regenta.compras.domain.PagoProveedor;
 public interface PagoProveedorRepositorio extends JpaRepository<PagoProveedor, UUID> {
 
     List<PagoProveedor> findByCuentaIdOrderByFechaAsc(UUID cuentaId);
+
+    /** HU-184 C4 · Los pagos vigentes (sin anular) de un periodo, extremos incluidos. */
+    List<PagoProveedor> findByNegocioIdAndAnuladoEnIsNullAndFechaBetween(UUID negocioId,
+            java.time.LocalDate desde, java.time.LocalDate hasta);
 }

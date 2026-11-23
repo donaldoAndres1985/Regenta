@@ -44,6 +44,62 @@ class _Backend implements HttpClientAdapter {
           'costoEntrada': 10500.00,
         },
       ];
+    } else if (ruta.endsWith('/antiguedad')) {
+      cuerpo = {
+        'fecha': '2026-11-23',
+        'proveedores': [
+          {
+            'proveedorId': 'prov-1',
+            'proveedor': 'Andina',
+            'cuentas': 3,
+            'moraMaxima': 100,
+            'saldo': {'alDia': 248000.00, 'de1a30': 100000.00, 'de31a60': 0.00, 'de61a90': 0.00, 'masDe90': 50000.00, 'total': 398000.00},
+          },
+        ],
+        'totales': {'alDia': 248000.00, 'de1a30': 100000.00, 'de31a60': 0.00, 'de61a90': 0.00, 'masDe90': 50000.00, 'total': 398000.00},
+      };
+    } else if (ruta.endsWith('/pendientes-por-recibir')) {
+      cuerpo = [
+        {
+          'ordenId': 'oc-1',
+          'numero': 'OC-0231',
+          'proveedorId': 'prov-1',
+          'proveedor': 'Andina',
+          'estado': 'ENVIADA',
+          'fechaEsperada': '2026-11-20',
+          'atrasada': true,
+          'diasDeAtraso': 3,
+          'lineas': [
+            {'linea': 1, 'productoId': 'p-1', 'producto': 'Acetaminofén', 'pedida': 120, 'recibida': 0, 'faltante': 120, 'costoUnitario': 8400.00, 'valor': 1008000.00},
+          ],
+          'valorPendiente': 1008000.00,
+        },
+      ];
+    } else if (ruta.endsWith('/faltantes')) {
+      cuerpo = [
+        {
+          'ordenId': 'oc-6',
+          'numero': 'OC-0220',
+          'proveedorId': 'prov-1',
+          'proveedor': 'Andina',
+          'cerradaEn': '2026-11-12T10:00:00-05:00',
+          'motivo': 'El proveedor no tenía más',
+          'lineas': [
+            {'linea': 1, 'productoId': 'p-1', 'producto': 'Acetaminofén', 'pedida': 10, 'recibida': 7, 'faltante': 3, 'costoUnitario': 10000.00, 'valor': 30000.00},
+          ],
+          'valorFaltante': 30000.00,
+        },
+      ];
+    } else if (ruta.endsWith('/pagos')) {
+      cuerpo = {
+        'desde': '2026-11-01',
+        'hasta': '2026-11-23',
+        'filas': [
+          {'proveedorId': 'prov-1', 'proveedor': 'Andina', 'metodo': 'TRANSFERENCIA', 'pagos': 2, 'total': 150000.00},
+        ],
+        'porMetodo': {'TRANSFERENCIA': 150000.00},
+        'total': 150000.00,
+      };
     } else if (ruta.endsWith('/archivo')) {
       return ResponseBody.fromBytes(const [37, 80, 68, 70], 200, headers: {
         Headers.contentTypeHeader: ['application/pdf'],
@@ -96,6 +152,46 @@ void main() {
     expect(h.recepcion, 'REC-1');
     expect(h.costoEntrada, 10500);
     expect(h.fecha.toUtc(), DateTime.utc(2026, 11, 20, 15, 15));
+  });
+
+  test('HU-184 C1 · Antigüedad: tramos por proveedor y totales', () async {
+    final a = await repo.antiguedad();
+
+    expect(backend.pedidos.single.path, '/api/compras/informes/antiguedad');
+    expect(a.proveedores.single.moraMaxima, 100);
+    expect(a.proveedores.single.saldo.de1a30, 100000);
+    expect(a.totales.masDe90, 50000);
+    expect(a.totales.total, 398000);
+  });
+
+  test('HU-184 C2 · Pendientes por recibir con su fecha esperada y si va atrasada', () async {
+    final [o] = await repo.pendientesPorRecibir();
+
+    expect(o.fechaEsperada, DateTime(2026, 11, 20));
+    expect(o.atrasada, isTrue);
+    expect(o.diasDeAtraso, 3);
+    expect(o.lineas.single.faltante, 120);
+    expect(o.valorPendiente, 1008000);
+  });
+
+  test('HU-184 C3 · Faltantes de las órdenes cerradas', () async {
+    final [f] = await repo.faltantes();
+
+    expect(f.motivo, 'El proveedor no tenía más');
+    expect(f.cerradaEn!.toUtc(), DateTime.utc(2026, 11, 12, 15));
+    expect(f.lineas.single.recibida, 7);
+    expect(f.valorFaltante, 30000);
+  });
+
+  test('HU-184 C4 · Pagos del periodo por proveedor y método', () async {
+    final p = await repo.pagos(noviembre);
+
+    expect(backend.pedidos.single.queryParameters, {'desde': '2026-11-01', 'hasta': '2026-11-23'});
+    expect(p.filas.single.metodo, 'TRANSFERENCIA');
+    expect(p.filas.single.pagos, 2);
+    expect(p.porMetodo, {'TRANSFERENCIA': 150000});
+    expect(p.total, 150000);
+    expect(nombreDelMetodo('TRANSFERENCIA'), 'Transferencia');
   });
 
   test('C4 · El archivo se pide con formato y periodo, y llegan sus bytes', () async {

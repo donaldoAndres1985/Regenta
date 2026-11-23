@@ -28,6 +28,85 @@ const _acetaminofen = CompraPorProductoVista(
 
 class _RepoFake implements RepositorioDeInformesDeCompras {
   final List<PeriodoDeInforme> periodos = [];
+  final List<PeriodoDeInforme> periodosDePagos = [];
+
+  @override
+  Future<InformeDeAntiguedadVista> antiguedad() async => const InformeDeAntiguedadVista(
+        proveedores: [
+          AntiguedadDeProveedorVista(
+            proveedorId: 'prov-1',
+            proveedor: 'Distribuidora Andina',
+            cuentas: 3,
+            moraMaxima: 100,
+            saldo: TramosDeMora(alDia: 248000, de1a30: 100000, masDe90: 50000, total: 398000),
+          ),
+          AntiguedadDeProveedorVista(
+            proveedorId: 'prov-2',
+            proveedor: 'Pinturas del Valle',
+            cuentas: 1,
+            saldo: TramosDeMora(alDia: 156000, total: 156000),
+          ),
+        ],
+        totales: TramosDeMora(alDia: 404000, de1a30: 100000, masDe90: 50000, total: 554000),
+      );
+
+  @override
+  Future<List<PendientePorRecibirVista>> pendientesPorRecibir() async => [
+        PendientePorRecibirVista(
+          ordenId: 'oc-1',
+          numero: 'OC-0231',
+          proveedor: 'Distribuidora Andina',
+          estado: 'ENVIADA',
+          fechaEsperada: DateTime(2026, 11, 20),
+          atrasada: true,
+          diasDeAtraso: 3,
+          valorPendiente: 1008000,
+          lineas: const [
+            LineaPendienteVista(linea: 1, producto: 'Acetaminofén 500 mg x100', pedida: 120, faltante: 120, valor: 1008000),
+          ],
+        ),
+        PendientePorRecibirVista(
+          ordenId: 'oc-2',
+          numero: 'OC-0232',
+          proveedor: 'Pinturas del Valle',
+          estado: 'PARCIAL',
+          fechaEsperada: DateTime(2026, 11, 28),
+          valorPendiente: 54000,
+          lineas: const [
+            LineaPendienteVista(linea: 2, producto: 'Brocha 3"', pedida: 5, recibida: 2, faltante: 3, valor: 54000),
+          ],
+        ),
+      ];
+
+  @override
+  Future<List<FaltanteDeOrdenVista>> faltantes() async => [
+        FaltanteDeOrdenVista(
+          ordenId: 'oc-6',
+          numero: 'OC-0220',
+          proveedor: 'Distribuidora Andina',
+          cerradaEn: DateTime(2026, 11, 12, 10),
+          motivo: 'El proveedor no tenía más',
+          valorFaltante: 30000,
+          lineas: const [
+            LineaPendienteVista(linea: 1, producto: 'Acetaminofén', pedida: 10, recibida: 7, faltante: 3, valor: 30000),
+          ],
+        ),
+      ];
+
+  @override
+  Future<InformeDePagosVista> pagos(PeriodoDeInforme periodo) async {
+    periodosDePagos.add(periodo);
+    return const InformeDePagosVista(
+      filas: [
+        PagosPorProveedorYMetodoVista(
+            proveedorId: 'prov-1', proveedor: 'Distribuidora Andina', metodo: 'TRANSFERENCIA', pagos: 2, total: 150000),
+        PagosPorProveedorYMetodoVista(
+            proveedorId: 'prov-2', proveedor: 'Pinturas del Valle', metodo: 'CHEQUE', pagos: 1, total: 80000),
+      ],
+      porMetodo: {'TRANSFERENCIA': 150000, 'CHEQUE': 80000},
+      total: 230000,
+    );
+  }
   final List<(InformeDeCompras, String, PeriodoDeInforme?, String?)> archivos = [];
   ErrorDeApi? falla;
 
@@ -105,6 +184,13 @@ void main() {
 
   String texto(WidgetTester tester, String clave) => tester.widget<Text>(find.byKey(Key(clave))).data!;
 
+  Future<void> abrir(WidgetTester tester, String pestana) async {
+    await tester.ensureVisible(find.byKey(Key('informes-tab-$pestana')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('informes-tab-$pestana')));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('C1 · Por proveedor: neto, directas, con orden y devoluciones del mes en curso', (tester) async {
     await montar(tester);
 
@@ -178,10 +264,7 @@ void main() {
 
   testWidgets('C4 · El historial sin producto elegido no se descarga', (tester) async {
     await montar(tester);
-    await tester.ensureVisible(find.byKey(const Key('informes-tab-historial')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('informes-tab-historial')));
-    await tester.pumpAndSettle();
+    await abrir(tester, 'historial');
     expect(find.byKey(const Key('informes-historial-sin-producto')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('informes-descargar')));
@@ -191,6 +274,83 @@ void main() {
 
     expect(repo.archivos, isEmpty);
     expect(find.text('Elige primero un producto en «Por producto».'), findsOneWidget);
+  });
+
+  group('HU-184', () {
+    testWidgets('C1 · Antigüedad: el saldo de cada proveedor por días de mora y el total de cada columna',
+        (tester) async {
+      await montar(tester);
+      await abrir(tester, 'antiguedad');
+
+      expect(find.byKey(const Key('informes-este-mes')), findsNothing, reason: 'la antigüedad va a hoy');
+      expect(texto(tester, 'informes-antiguedad-total'), r'$554.000');
+      // Columnas: al día, 1-30, 31-60, 61-90, +90.
+      expect(texto(tester, 'informes-antiguedad-columna-0'), r'$404.000');
+      expect(texto(tester, 'informes-antiguedad-columna-1'), r'$100.000');
+      expect(texto(tester, 'informes-antiguedad-columna-2'), '—');
+      expect(texto(tester, 'informes-antiguedad-columna-4'), r'$50.000');
+      expect(texto(tester, 'informes-antiguedad-saldo-prov-1'), r'$398.000');
+      expect(texto(tester, 'informes-antiguedad-prov-1-0'), r'$248.000');
+      expect(texto(tester, 'informes-antiguedad-prov-1-4'), r'$50.000');
+      expect(find.text('3 facturas · la más vieja con 100 días de mora'), findsOneWidget);
+      expect(find.text('1 factura · al día'), findsOneWidget);
+    });
+
+    testWidgets('C2 · Por recibir: por orden y línea lo que falta y la fecha esperada; la atrasada marcada',
+        (tester) async {
+      await montar(tester);
+      await abrir(tester, 'por-recibir');
+
+      expect(find.byKey(const Key('informes-atrasada-oc-1')), findsOneWidget);
+      expect(find.text('ATRASADA · 3 DÍAS'), findsOneWidget);
+      expect(find.byKey(const Key('informes-atrasada-oc-2')), findsNothing);
+      expect(texto(tester, 'informes-por-recibir-fecha-oc-1'), 'Se esperaba el 20/11/2026');
+      expect(texto(tester, 'informes-por-recibir-oc-1-1'), 'Faltan 120 und');
+      expect(texto(tester, 'informes-por-recibir-oc-2-2'), 'Faltan 3 und');
+      expect(find.text('Pedido 5 und · llegó 2 und'), findsOneWidget);
+      expect(find.text('Por recibir · 1 orden atrasada'), findsOneWidget);
+      expect(texto(tester, 'informes-por-recibir-total'), r'$1.062.000');
+    });
+
+    testWidgets('C3 · Faltantes: lo que nunca llegó de las órdenes cerradas', (tester) async {
+      await montar(tester);
+      await abrir(tester, 'faltantes');
+
+      expect(texto(tester, 'informes-faltantes-motivo-oc-6'), 'Cerrada el 12/11/2026 · El proveedor no tenía más');
+      expect(texto(tester, 'informes-faltantes-oc-6-1'), 'No llegó 3 und');
+      expect(texto(tester, 'informes-faltantes-total'), r'$30.000');
+    });
+
+    testWidgets('C4 · Pagos por proveedor y método en el periodo elegido', (tester) async {
+      await montar(tester);
+      await abrir(tester, 'pagos');
+
+      expect(texto(tester, 'informes-pagos-total'), r'$230.000');
+      expect(find.text(r'Transferencia $150.000'), findsOneWidget);
+      expect(find.text(r'Cheque $80.000'), findsOneWidget);
+      expect(find.text('Transferencia · 2 pagos'), findsOneWidget);
+      expect(texto(tester, 'informes-pagos-total-prov-2-CHEQUE'), r'$80.000');
+
+      await tester.tap(find.byKey(const Key('informes-mes-pasado')));
+      await tester.pumpAndSettle();
+      expect(repo.periodosDePagos.last, PeriodoDeInforme(DateTime(2026, 10), DateTime(2026, 10, 31)));
+    });
+
+    testWidgets('La antigüedad se descarga a la fecha de hoy, sin periodo', (tester) async {
+      await montar(tester);
+      await abrir(tester, 'antiguedad');
+
+      await tester.tap(find.byKey(const Key('informes-descargar')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('informes-descargar-xlsx')));
+      await tester.pumpAndSettle();
+
+      final (informe, formato, periodo, _) = repo.archivos.single;
+      expect(informe, InformeDeCompras.antiguedad);
+      expect(formato, 'XLSX');
+      expect(periodo, isNull);
+      expect(guardador.guardados.single.$1, 'cuentas-por-pagar-por-antiguedad-2026-11-23.xlsx');
+    });
   });
 
   testWidgets('C5 · Sin COMPRAS_INFORME_VER el backend responde 403 y la pantalla lo dice', (tester) async {
