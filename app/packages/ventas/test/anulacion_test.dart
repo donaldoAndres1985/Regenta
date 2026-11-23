@@ -174,6 +174,21 @@ void main() {
     expect(cerro, isTrue);
   });
 
+  testWidgets('HU-143 · Desde un movimiento de caja abre ya buscando esa venta', (tester) async {
+    final repo = _FakeRepoVentas();
+    repo.ventas.addAll(const [
+      VentaEnProceso(id: 'v-1', numero: '001', estado: 'CONFIRMADA', total: 10000),
+      VentaEnProceso(id: 'v-2', numero: '002', estado: 'CONFIRMADA', total: 20000),
+    ]);
+
+    await tester.pumpWidget(crearApp(const PantallaBuscarVenta(busquedaInicial: '002'), repo));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Venta #002'), findsOneWidget);
+    expect(find.text('Venta #001'), findsNothing);
+    expect(tester.widget<TextField>(find.byKey(const Key('buscar-venta-input'))).controller!.text, '002');
+  });
+
   testWidgets('PantallaBuscarVenta filtra multi-palabra en cualquier orden',
       (tester) async {
     final repo = _FakeRepoVentas();

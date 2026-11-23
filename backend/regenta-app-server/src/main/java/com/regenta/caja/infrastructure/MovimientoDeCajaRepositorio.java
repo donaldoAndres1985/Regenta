@@ -22,6 +22,13 @@ public interface MovimientoDeCajaRepositorio extends JpaRepository<MovimientoDeC
 
     boolean existsByAnulaA(UUID movimientoId);
 
+    /** HU-143 C4 · La anulación de un movimiento, si la tiene. */
+    java.util.Optional<MovimientoDeCaja> findFirstByAnulaA(UUID movimientoId);
+
+    /** HU-143 C5 · Todos los movimientos de un mismo cobro: uno por método. */
+    List<MovimientoDeCaja> findByNegocioIdAndOrigenTipoAndOrigenIdOrderByOcurridoEnAsc(UUID negocioId,
+            String origenTipo, UUID origenId);
+
     /** HU-172 · La salida de un pago a proveedor, por su llave ({@code PAGO_PROVEEDOR:<pagoId>}). */
     java.util.Optional<MovimientoDeCaja> findByNegocioIdAndIdempotencyKey(UUID negocioId, String idempotencyKey);
 

@@ -22,6 +22,38 @@ public interface SesionDeCajaRepositorio extends JpaRepository<SesionDeCaja, UUI
     Optional<SesionDeCaja> findFirstByNegocioIdAndUsuarioAperturaIdAndEstadoOrderByAbiertaEnDesc(
             UUID negocioId, UUID usuarioAperturaId, EstadoSesionCaja estado);
 
+    /**
+     * HU-143 C1 · Los cierres (sesiones ya cerradas) de un rango por fecha de cierre, opcionalmente de un
+     * cajero —el que abrió o el que cerró—, el más reciente primero y paginados.
+     */
+    @org.springframework.data.jpa.repository.Query(value = """
+            select s from SesionDeCaja s
+            where s.negocioId = :negocioId
+              and s.estado <> com.regenta.caja.domain.EstadoSesionCaja.ABIERTA
+              and s.cerradaEn >= :desde and s.cerradaEn < :hasta
+              and (:cajeroId is null or s.usuarioAperturaId = :cajeroId or s.usuarioCierreId = :cajeroId)
+            order by s.cerradaEn desc, s.numero desc
+            """, countQuery = """
+            select count(s) from SesionDeCaja s
+            where s.negocioId = :negocioId
+              and s.estado <> com.regenta.caja.domain.EstadoSesionCaja.ABIERTA
+              and s.cerradaEn >= :desde and s.cerradaEn < :hasta
+              and (:cajeroId is null or s.usuarioAperturaId = :cajeroId or s.usuarioCierreId = :cajeroId)
+            """)
+    org.springframework.data.domain.Page<SesionDeCaja> cierres(
+            @org.springframework.data.repository.query.Param("negocioId") UUID negocioId,
+            @org.springframework.data.repository.query.Param("desde") java.time.OffsetDateTime desde,
+            @org.springframework.data.repository.query.Param("hasta") java.time.OffsetDateTime hasta,
+            @org.springframework.data.repository.query.Param("cajeroId") UUID cajeroId,
+            org.springframework.data.domain.Pageable pagina);
+
+    /** HU-143 · Quienes han abierto caja en el negocio, para filtrar los cierres por cajero. */
+    @org.springframework.data.jpa.repository.Query("""
+            select distinct s.usuarioAperturaId from SesionDeCaja s
+            where s.negocioId = :negocioId and s.usuarioAperturaId is not null
+            """)
+    List<UUID> cajerosDelNegocio(@org.springframework.data.repository.query.Param("negocioId") UUID negocioId);
+
     /** Sesiones en un rango de fechas, con filtro opcional de estado y de caja (HU-063). */
     @org.springframework.data.jpa.repository.Query("""
             select s from SesionDeCaja s

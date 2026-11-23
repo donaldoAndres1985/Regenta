@@ -3,8 +3,10 @@ library;
 
 import 'package:regenta_core/regenta_core.dart';
 
+export 'src/caja/cierres.dart';
 export 'src/caja/controlador_de_reportes_de_caja.dart';
 export 'src/caja/lista_de_sesiones_de_caja.dart';
+export 'src/caja/pantalla_cierres_de_caja.dart';
 export 'src/caja/proveedores.dart';
 export 'src/caja/repositorio_de_reportes_de_caja.dart';
 export 'src/ui/pantalla_reportes.dart';
