@@ -22,7 +22,9 @@ public interface ClientesApi {
             String direccion,
             String regimenFiscal,
             String digitoVerificacion,
-            List<String> responsabilidadesFiscales
+            List<String> responsabilidadesFiscales,
+            /** HU-132 · La lista de precios con que se le vende; {@code null}: la del negocio. */
+            UUID listaPreciosId
     ) {}
 
     record CarteraInfo(

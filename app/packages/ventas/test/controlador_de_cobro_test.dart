@@ -68,6 +68,7 @@ class _RepoDeCobroFake implements RepositorioDeVentas {
     required String bodegaId,
     String? clienteId,
     String? notaCliente,
+    String? listaPreciosId,
   }) async {
     if (sinRedAlCrear) throw const ErrorDeRed();
     clienteDelBorrador = clienteId;
@@ -143,6 +144,7 @@ class _RepoDeCobroFake implements RepositorioDeVentas {
     required String bodegaId,
     required List<LineaParaEnviar> lineas,
     String? clienteId,
+    String? listaPreciosId,
   }) =>
       throw UnimplementedError();
 }

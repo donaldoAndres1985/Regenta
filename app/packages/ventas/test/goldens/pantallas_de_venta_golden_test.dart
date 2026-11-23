@@ -45,6 +45,7 @@ class _VentasFijas implements RepositorioDeVentas {
     required String bodegaId,
     required List<LineaParaEnviar> lineas,
     String? clienteId,
+    String? listaPreciosId,
   }) async =>
       const ResultadoDeCobro(origenOfflineId: 'o1', venta: VentaCreada(id: 'v1', numero: 'FV-1'));
 
@@ -53,6 +54,7 @@ class _VentasFijas implements RepositorioDeVentas {
     required String bodegaId,
     String? clienteId,
     String? notaCliente,
+    String? listaPreciosId,
   }) async =>
       const VentaEnProceso(id: 'v1', numero: 'FV-1', estado: 'BORRADOR', total: 0);
 

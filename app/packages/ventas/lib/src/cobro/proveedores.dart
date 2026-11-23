@@ -18,6 +18,7 @@ class ParametrosDeCobro {
     required this.lineas,
     this.clienteId,
     this.notaCliente,
+    this.listaPreciosId,
   });
 
   final num total;
@@ -26,6 +27,9 @@ class ParametrosDeCobro {
   final List<LineaParaEnviar> lineas;
   final String? clienteId;
   final String? notaCliente;
+
+  /// HU-132 · La lista de precios del carrito.
+  final String? listaPreciosId;
 }
 
 final controladorDeCobroProvider = StateNotifierProvider.autoDispose
@@ -37,6 +41,7 @@ final controladorDeCobroProvider = StateNotifierProvider.autoDispose
     bodegaId: params.bodegaId,
     clienteId: params.clienteId,
     notaCliente: params.notaCliente,
+    listaPreciosId: params.listaPreciosId,
     lineas: params.lineas,
   );
 });

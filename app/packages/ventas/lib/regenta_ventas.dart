@@ -18,6 +18,7 @@ export 'src/cobro/proveedores.dart';
 export 'src/datos/cliente_de_la_venta.dart';
 export 'src/datos/detallado_en_pos.dart';
 export 'src/datos/fraccion_de_venta.dart';
+export 'src/datos/precios_por_lista.dart';
 export 'src/datos/producto_buscado.dart';
 export 'src/datos/repositorio_de_clientes_de_venta.dart';
 export 'src/datos/repositorio_de_ventas.dart';

@@ -51,6 +51,7 @@ class PantallaCobro extends ConsumerStatefulWidget {
     this.clienteNombre,
     this.clienteDoc,
     this.notaCliente,
+    this.listaPreciosId,
   });
 
   final num total;
@@ -61,6 +62,9 @@ class PantallaCobro extends ConsumerStatefulWidget {
   final String? clienteNombre;
   final String? clienteDoc;
   final String? notaCliente;
+
+  /// HU-132 · La lista de precios del carrito.
+  final String? listaPreciosId;
 
   @override
   ConsumerState<PantallaCobro> createState() => _PantallaCobroState();
@@ -85,6 +89,7 @@ class _PantallaCobroState extends ConsumerState<PantallaCobro> {
       lineas: widget.lineas,
       clienteId: widget.clienteId,
       notaCliente: widget.notaCliente,
+      listaPreciosId: widget.listaPreciosId,
     );
   }
 

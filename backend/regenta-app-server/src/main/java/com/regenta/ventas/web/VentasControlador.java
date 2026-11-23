@@ -62,20 +62,38 @@ public class VentasControlador {
         return credito.confirmarACredito(ventaId, solicitud);
     }
 
+    @GetMapping("/{ventaId}/cliente/prevision")
+    @Operation(summary = "Qué precios cambiarían al asignar ese cliente (HU-132)",
+            description = "Con la lista de precios del cliente (o la del negocio si no tiene una propia): las "
+                    + "líneas que cambian de precio y las que no (descuento a mano o precio especial), y el "
+                    + "total antes y después. Sin clienteId: volver a consumidor final. No guarda nada.")
+    @ApiResponse(responseCode = "404", description = "La venta o el cliente no existen en este negocio")
+    @ApiResponse(responseCode = "409", description = "La venta ya no está en borrador")
+    public com.regenta.ventas.application.RecalculoDePreciosPorCliente.PrevisionDePrecios preverCliente(
+            @PathVariable UUID ventaId, @RequestParam(required = false) UUID clienteId) {
+        return clienteDeLaVenta.prever(ventaId, clienteId);
+    }
+
     @PutMapping("/{ventaId}/cliente")
-    @Operation(summary = "Asigna el cliente de la venta y congela su snapshot")
+    @Operation(summary = "Asigna el cliente de la venta y congela su snapshot",
+            description = "HU-132: con aplicarPrecios (por defecto sí) la venta toma la lista de precios del "
+                    + "cliente y recalcula sus líneas, salvo las de descuento a mano o precio especial; con "
+                    + "aplicarPrecios=false se rechaza el recálculo y los precios quedan como estaban.")
     @ApiResponse(responseCode = "404", description = "Ese cliente no existe en este negocio")
     @ApiResponse(responseCode = "409", description = "La venta ya no está en borrador")
     public VentaDelNegocio asignarCliente(@PathVariable UUID ventaId,
             @RequestBody ClienteDeLaSolicitud cuerpo) {
-        return clienteDeLaVenta.asignar(ventaId, cuerpo.clienteId());
+        return clienteDeLaVenta.asignar(ventaId, cuerpo.clienteId(),
+                cuerpo.aplicarPrecios() == null || cuerpo.aplicarPrecios());
     }
 
     @DeleteMapping("/{ventaId}/cliente")
-    @Operation(summary = "Vuelve la venta a consumidor final y limpia el crédito si lo había")
+    @Operation(summary = "Vuelve la venta a consumidor final y limpia el crédito si lo había",
+            description = "HU-132: con aplicarPrecios (por defecto sí) vuelve a la lista del negocio.")
     @ApiResponse(responseCode = "409", description = "La venta ya no está en borrador")
-    public VentaDelNegocio quitarCliente(@PathVariable UUID ventaId) {
-        return clienteDeLaVenta.quitar(ventaId);
+    public VentaDelNegocio quitarCliente(@PathVariable UUID ventaId,
+            @RequestParam(defaultValue = "true") boolean aplicarPrecios) {
+        return clienteDeLaVenta.quitar(ventaId, aplicarPrecios);
     }
 
     @PostMapping
@@ -143,7 +161,12 @@ public class VentasControlador {
     }
 
     /** Cuerpo de la asignación de cliente. */
-    public record ClienteDeLaSolicitud(UUID clienteId) {
+    /** HU-132 · {@code aplicarPrecios} nulo: sí (C1); {@code false}: se rechazó el recálculo (C2). */
+    public record ClienteDeLaSolicitud(UUID clienteId, Boolean aplicarPrecios) {
+
+        public ClienteDeLaSolicitud(UUID clienteId) {
+            this(clienteId, null);
+        }
     }
 
     /** Cuerpo de la anulación. */

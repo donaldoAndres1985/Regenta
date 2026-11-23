@@ -34,7 +34,14 @@ class EstadoDelPos {
     this.nota,
     this.descuentoGeneralPct = 0,
     this.descuentoGeneralValor = 0,
+    this.listaPreciosId,
+    this.listaPreciosNombre,
   });
+
+  /// HU-132 · La lista de precios con que se cobra este carrito; se manda al cobrar para que el
+  /// backend precie igual. Nula: los precios del negocio (catálogo).
+  final String? listaPreciosId;
+  final String? listaPreciosNombre;
 
   /// R7c: `Esc` cerró la lista de resultados sin borrar lo escrito.
   final bool desplegableCerrado;
@@ -178,6 +185,8 @@ class EstadoDelPos {
     Object? nota = _sinCambio,
     num? descuentoGeneralPct,
     num? descuentoGeneralValor,
+    Object? listaPreciosId = _sinCambio,
+    Object? listaPreciosNombre = _sinCambio,
   }) => EstadoDelPos(
     lineas: lineas ?? this.lineas,
     termino: termino ?? this.termino,
@@ -203,6 +212,9 @@ class EstadoDelPos {
     nota: nota == _sinCambio ? this.nota : nota as String?,
     descuentoGeneralPct: descuentoGeneralPct ?? this.descuentoGeneralPct,
     descuentoGeneralValor: descuentoGeneralValor ?? this.descuentoGeneralValor,
+    listaPreciosId: listaPreciosId == _sinCambio ? this.listaPreciosId : listaPreciosId as String?,
+    listaPreciosNombre:
+        listaPreciosNombre == _sinCambio ? this.listaPreciosNombre : listaPreciosNombre as String?,
   );
 
   static const _sinCambio = Object();

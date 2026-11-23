@@ -23,6 +23,8 @@ public class InventarioServicio implements InventarioApi {
     private final com.regenta.inventario.infrastructure.BodegaRepositorio bodegas;
     private final SalidaPorAnulacionDeCompra salidaPorAnulacion;
     private final PreciosParaCompras precios;
+    /** HU-132 · Nulo solo en pruebas que no lo usan. */
+    private final PreciosPorLista preciosPorLista;
 
     public InventarioServicio(GestionDeLotes lotes,
                              GestionDeProductos productos,
@@ -31,6 +33,19 @@ public class InventarioServicio implements InventarioApi {
                              com.regenta.inventario.infrastructure.BodegaRepositorio bodegas,
                              SalidaPorAnulacionDeCompra salidaPorAnulacion,
                              PreciosParaCompras precios) {
+        this(lotes, productos, reservas, fracciones, bodegas, salidaPorAnulacion, precios, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public InventarioServicio(GestionDeLotes lotes,
+                             GestionDeProductos productos,
+                             GestionDeReservasStock reservas,
+                             GestionDeFracciones fracciones,
+                             com.regenta.inventario.infrastructure.BodegaRepositorio bodegas,
+                             SalidaPorAnulacionDeCompra salidaPorAnulacion,
+                             PreciosParaCompras precios,
+                             PreciosPorLista preciosPorLista) {
+        this.preciosPorLista = preciosPorLista;
         this.precios = precios;
         this.bodegas = bodegas;
         this.salidaPorAnulacion = salidaPorAnulacion;
@@ -47,6 +62,18 @@ public class InventarioServicio implements InventarioApi {
                 .map(f -> new com.regenta.inventario.api.FraccionDeCatalogo(f.medida(), f.factor(),
                         f.precio()))
                 .toList();
+    }
+
+    @Override
+    public java.util.Optional<com.regenta.inventario.api.ListaDePreciosInfo> listaDePrecios(UUID negocioId,
+            UUID listaId) {
+        return preciosPorLista.lista(negocioId, listaId);
+    }
+
+    @Override
+    public java.util.Optional<BigDecimal> precioEnLista(UUID negocioId, UUID listaId, UUID productoId,
+            BigDecimal cantidad) {
+        return preciosPorLista.precio(negocioId, listaId, productoId, cantidad);
     }
 
     @Override

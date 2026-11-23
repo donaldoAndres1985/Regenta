@@ -1,3 +1,4 @@
+import '../datos/precios_por_lista.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../datos/repositorio_de_ventas.dart';
@@ -37,6 +38,8 @@ final controladorDelPosProvider =
     ref.watch(repositorioDeVentasProvider),
     bodegaId: ref.watch(bodegaDeVentaProvider),
     montoParaIdentificar: ref.read(montoParaIdentificarCompradorProvider),
+    // HU-132 · Precios por la lista del cliente; sin él, el POS no recalcula.
+    precios: ref.watch(repositorioDePreciosDeVentaProvider),
   );
   // Se escucha y no se observa: si el monto llega con el carrito ya armado,
   // reconstruir el controlador vaciaría la venta en curso.

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +8,7 @@ import 'package:regenta_core/regenta_core.dart';
 import '../caja/proveedores.dart';
 import '../datos/cliente_de_la_venta.dart';
 import '../datos/detallado_en_pos.dart';
+import '../datos/precios_por_lista.dart';
 import '../datos/producto_buscado.dart';
 import '../datos/repositorio_de_ventas.dart';
 import '../pos/estado_del_pos.dart';
@@ -648,6 +651,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
           clienteNombre: estado.cliente?.nombre,
           clienteDoc: estado.cliente?.documento,
           notaCliente: estado.nota,
+          listaPreciosId: estado.listaPreciosId,
         ),
       ),
     );
@@ -714,6 +718,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
         bodegaId: bodegaId,
         clienteId: estado.cliente?.id,
         notaCliente: estado.nota,
+        listaPreciosId: estado.listaPreciosId,
       );
 
       for (final l in estado.lineasParaEnviar()) {
@@ -866,20 +871,46 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
     _cambiarDeVenta(() => pos.cerrarVenta(indice));
   }
 
+  /// HU-132 · R7: cambiar de cliente recalcula los precios que dependen de él, avisando antes (C2).
+  /// Si no se puede preguntar (sin señal), el cliente se asigna y los precios quedan como estaban.
+  Future<void> _cambiarCliente(ClienteDeLaVenta? cliente) async {
+    final pos = ref.read(controladorDelPosProvider.notifier);
+    final prevision = await pos.preverCliente(cliente);
+    if (!mounted) return;
+    pos.fijarCliente(cliente);
+    if (prevision == null || !prevision.cambiaLaLista) return;
+    if (!prevision.hayCambios) {
+      // Nada que recalcular (carrito vacío o sin líneas de lista): lo que se agregue ya va con ella.
+      pos.aplicarPrevision(prevision);
+      if (prevision.listaNuevaNombre != null) {
+        _mostrarNotificacionPos(context, '${cliente?.nombre ?? 'El cliente'} compra con la lista '
+            '«${prevision.listaNuevaNombre}».');
+      }
+      return;
+    }
+    final aplicar = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogo) => _DialogoDePrecios(cliente: cliente, prevision: prevision),
+    );
+    if (aplicar == true && mounted) {
+      ref.read(controladorDelPosProvider.notifier).aplicarPrevision(prevision);
+    }
+  }
+
   Future<void> _abrirSelectorDeCliente({required bool escritorio}) async {
     if (widget.onAgregarCliente != null) {
       widget.onAgregarCliente!();
       return;
     }
-    final pos = ref.read(controladorDelPosProvider.notifier);
     final asignado = ref.read(controladorDelPosProvider).cliente;
     Widget selector(BuildContext contexto) => Theme(
       data: PastelTheme.light(),
       child: PantallaClienteDeVenta(
         asignado: asignado,
         onAsignado: (cliente) {
-          pos.fijarCliente(cliente);
           Navigator.of(contexto).pop();
+          unawaited(_cambiarCliente(cliente));
         },
         onCerrar: () => Navigator.of(contexto).pop(),
       ),
@@ -1310,8 +1341,7 @@ class _PantallaPosState extends ConsumerState<PantallaPos> {
             compacta: !escritorio,
             onAgregar: () => _abrirSelectorDeCliente(escritorio: escritorio),
             onQuitar: () {
-              pos.fijarCliente(null);
-              _enfocarBuscador();
+              unawaited(_cambiarCliente(null).then((_) => _enfocarBuscador()));
             },
           );
 
@@ -1778,6 +1808,68 @@ class _BotonNuevaVenta extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Cliente (R10a)
 // ---------------------------------------------------------------------------
+
+/// HU-132 C2 · «Este cliente compra con la lista Mayorista»: qué precios cambian y el total antes y
+/// después. Se puede aplicar o mantener los precios (rechazar el recálculo).
+class _DialogoDePrecios extends StatelessWidget {
+  const _DialogoDePrecios({required this.cliente, required this.prevision});
+
+  final ClienteDeLaVenta? cliente;
+  final PrevisionDePreciosVista prevision;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = prevision;
+    final titulo = p.listaNuevaId == null
+        ? 'Volver a los precios del negocio'
+        : '${cliente?.nombre ?? 'Este cliente'} compra con la lista «${p.listaNuevaNombre ?? 'propia'}»';
+    final quedan = [
+      if (p.conDescuentoAMano > 0)
+        p.conDescuentoAMano == 1 ? '1 línea con descuento a mano' : '${p.conDescuentoAMano} líneas con descuento a mano',
+      if (p.conPrecioEspecial > 0)
+        p.conPrecioEspecial == 1 ? '1 línea con precio especial' : '${p.conPrecioEspecial} líneas con precio especial',
+    ];
+    return AlertDialog(
+      key: const Key('pos-precios-dialogo'),
+      title: Text(titulo),
+      content: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(p.cambios.length == 1 ? 'Cambia el precio de 1 producto:' : 'Cambia el precio de ${p.cambios.length} productos:'),
+          const SizedBox(height: 8),
+          for (final c in p.cambios)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(children: [
+                Expanded(child: Text('${c.producto} ×${formatearCantidadExacta(c.cantidad)}', overflow: TextOverflow.ellipsis)),
+                Text('${formatearPesos(c.precioActual)} → ${formatearPesos(c.precioNuevo)}',
+                    key: Key('pos-precios-cambio-${c.linea}'),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          if (quedan.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('No cambian: ${quedan.join(' y ')}.', key: const Key('pos-precios-quedan')),
+          ],
+          const Divider(height: 20),
+          Text('Total ${formatearPesos(p.totalActual)} → ${formatearPesos(p.totalNuevo)}',
+              key: const Key('pos-precios-total'), style: const TextStyle(fontWeight: FontWeight.w700)),
+        ]),
+      ),
+      actions: [
+        TextButton(
+          key: const Key('pos-precios-mantener'),
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Mantener precios'),
+        ),
+        FilledButton(
+          key: const Key('pos-precios-aplicar'),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Aplicar precios'),
+        ),
+      ],
+    );
+  }
+}
 
 class _FranjaCliente extends StatelessWidget {
   const _FranjaCliente({

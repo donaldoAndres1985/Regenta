@@ -56,6 +56,8 @@ public class GestionDeVentas {
     public VentaDelNegocio crearBorrador(SolicitudDeVenta solicitud) {
         UUID negocioId = ContextoDeNegocio.negocioActual();
         long numero = consecutivos.siguiente(negocioId, "VENTA");
+        // HU-132 · La lista la decide quien vende al asignar el cliente (y acepta o no el recálculo);
+        // sin lista, los precios del negocio: el catálogo.
         Venta venta = Venta.crear(negocioId, solicitud.bodegaId(), Long.toString(numero),
                 solicitud.clienteId(), ContextoDeNegocio.actual().usuario(),
                 solicitud.listaPreciosId(), solicitud.canal());
@@ -98,7 +100,11 @@ public class GestionDeVentas {
             return agregar(venta, comoUnidades, f.precio());
         }
         // HU-148 · I4: precio e IVA salen del catálogo; lo que mande el cliente se ignora.
-        PrecioDeLinea.Resuelto precio = precios.de(venta.getNegocioId(), solicitud.productoId());
+        // HU-132: con lista de precios en la venta, el precio es el de la lista (si tiene el producto).
+        PrecioDeLinea.Resuelto precio = venta.getListaPreciosId() == null
+                ? precios.de(venta.getNegocioId(), solicitud.productoId())
+                : precios.de(venta.getNegocioId(), solicitud.productoId(), venta.getListaPreciosId(),
+                        solicitud.cantidad());
         return agregar(venta, solicitud, precio);
     }
 
@@ -201,7 +207,8 @@ public class GestionDeVentas {
         return comoDto(ventaDelNegocio(ventaId));
     }
 
-    private void recalcular(Venta venta) {
+    /** Totales de la venta desde sus líneas. HU-132: también lo usa el recálculo por cliente. */
+    void recalcular(Venta venta) {
         BigDecimal subtotal = BigDecimal.ZERO;
         BigDecimal descuento = BigDecimal.ZERO;
         BigDecimal base = BigDecimal.ZERO;

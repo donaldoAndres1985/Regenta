@@ -98,6 +98,10 @@ public class Cliente {
     @Column(name = "regimen_fiscal", length = 40)
     private String regimenFiscal;
 
+    /** HU-132 · La lista de precios con que se le vende (de Inventario); nula: la del negocio. */
+    @Column(name = "lista_precios_id")
+    private UUID listaPreciosId;
+
     /** HU-133: codigos DIAN del adquiriente (O-13, O-15, R-99-PN...). */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "responsabilidades_fiscales", nullable = false)
@@ -290,6 +294,15 @@ public class Cliente {
 
     public String getSegmento() {
         return segmento;
+    }
+
+    public UUID getListaPreciosId() {
+        return listaPreciosId;
+    }
+
+    /** HU-132 · Con qué lista de precios se le vende; {@code null} vuelve a la del negocio. */
+    public void usarListaDePrecios(UUID listaPreciosId) {
+        this.listaPreciosId = listaPreciosId;
     }
 
     public boolean isCreditoHabilitado() {

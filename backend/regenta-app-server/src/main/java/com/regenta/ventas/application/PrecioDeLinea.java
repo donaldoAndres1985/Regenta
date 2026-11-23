@@ -36,6 +36,26 @@ public class PrecioDeLinea {
     }
 
     /**
+     * HU-132 · El precio de la línea con una lista de precios: el de la lista para esa cantidad (con
+     * su tramo por volumen) o, si el producto no está en ella, el del catálogo. La tarifa de IVA es
+     * siempre la del producto. Sin lista, es {@link #de(UUID, UUID)}.
+     */
+    public Resuelto de(UUID negocioId, UUID productoId, UUID listaId, BigDecimal cantidad) {
+        Resuelto catalogo = de(negocioId, productoId);
+        if (listaId == null) {
+            return catalogo;
+        }
+        return inventario.precioEnLista(negocioId, listaId, productoId, cantidad)
+                .map(p -> new Resuelto(p, catalogo.impuestoCodigo(), catalogo.impuestoPct()))
+                .orElse(catalogo);
+    }
+
+    /** HU-132 · Una lista por su id, si existe y sigue vigente. */
+    public java.util.Optional<com.regenta.inventario.api.ListaDePreciosInfo> lista(UUID negocioId, UUID listaId) {
+        return listaId == null ? java.util.Optional.empty() : inventario.listaDePrecios(negocioId, listaId);
+    }
+
+    /**
      * HU-158 · {@code n} fracciones de una medida: la línea descuenta {@code n × factor} del
      * producto (lo que reserva la saga) y cobra {@code n × precio de la fracción}. El precio
      * unitario de la línea queda por unidad entera ({@code precio / factor}) para que
