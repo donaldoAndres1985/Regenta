@@ -2,6 +2,7 @@ import 'package:regenta_core/regenta_core.dart';
 
 import '../proveedores/datos/producto_del_proveedor.dart';
 import '../proveedores/datos/proveedor_del_negocio.dart';
+import 'producto_nuevo.dart';
 
 /// Una bodega del negocio, para elegir a dónde entra la mercancía.
 class BodegaParaComprar {
@@ -105,6 +106,29 @@ class RepositorioDeCompraDirecta {
     } on ErrorDeApi {
       return false;
     }
+  }
+
+  /// HU-180 · Las categorías y unidades del negocio, para el formulario corto del producto nuevo.
+  Future<List<OpcionDeCatalogo>> categorias() async {
+    final res = await _http.get<List<dynamic>>('/api/inventario/categorias');
+    return [
+      for (final e in res)
+        if (((e as Map)['activa'] as bool?) ?? true) OpcionDeCatalogo(e['id'] as String, (e['nombre'] ?? '') as String),
+    ];
+  }
+
+  Future<List<OpcionDeCatalogo>> unidades() async {
+    final res = await _http.get<List<dynamic>>('/api/inventario/unidades');
+    return [
+      for (final e in res)
+        if (((e as Map)['activa'] as bool?) ?? true) OpcionDeCatalogo(e['id'] as String, (e['nombre'] ?? '') as String),
+    ];
+  }
+
+  /// HU-180 · Crea el producto en Inventario y lo deja en el catálogo del proveedor; devuelve la línea lista.
+  Future<ProductoParaComprar> crearProducto(String proveedorId, Map<String, dynamic> datos) async {
+    final dynamic res = await _http.post<dynamic>('/api/compras/proveedores/$proveedorId/productos-nuevos', datos: datos);
+    return ProductoParaComprar.desdeJson((res as Map).cast<String, dynamic>());
   }
 
   Future<ProductoParaComprar> paraComprar(String proveedorId, String productoId) async {

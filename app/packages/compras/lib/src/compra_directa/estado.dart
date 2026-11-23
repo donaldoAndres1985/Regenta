@@ -111,6 +111,7 @@ class EstadoDeCompraDirecta {
     this.descuentoGlobal = 0,
     this.lineas = const [],
     this.resultados = const [],
+    this.sinResultados,
     this.cargando = false,
     this.buscando = false,
     this.guardando = false,
@@ -135,6 +136,9 @@ class EstadoDeCompraDirecta {
   final num descuentoGlobal;
   final List<LineaEnEdicion> lineas;
   final List<ProductoEncontrado> resultados;
+
+  /// HU-180 · El término buscado que no encontró nada: se ofrece crear el producto.
+  final String? sinResultados;
   final bool cargando;
   final bool buscando;
   final bool guardando;
@@ -219,6 +223,7 @@ class EstadoDeCompraDirecta {
     num? descuentoGlobal,
     List<LineaEnEdicion>? lineas,
     List<ProductoEncontrado>? resultados,
+    Object? sinResultados = _sin,
     bool? cargando,
     bool? buscando,
     bool? guardando,
@@ -241,6 +246,7 @@ class EstadoDeCompraDirecta {
         descuentoGlobal: descuentoGlobal ?? this.descuentoGlobal,
         lineas: lineas ?? this.lineas,
         resultados: resultados ?? this.resultados,
+        sinResultados: identical(sinResultados, _sin) ? this.sinResultados : sinResultados as String?,
         cargando: cargando ?? this.cargando,
         buscando: buscando ?? this.buscando,
         guardando: guardando ?? this.guardando,

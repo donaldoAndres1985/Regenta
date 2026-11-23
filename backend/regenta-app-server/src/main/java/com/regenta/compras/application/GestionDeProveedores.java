@@ -203,6 +203,26 @@ public class GestionDeProveedores {
         return ProductoDeProveedor.de(pp, producto);
     }
 
+    /**
+     * HU-180 · Da de alta en Inventario un producto que llega por primera vez y lo deja en el catálogo
+     * del proveedor con su código y su costo (I21, C3). Inventario exige
+     * {@code INVENTARIO_PRODUCTO_CREAR} y aplica sus reglas (C2). Devuelve lo que la recepción necesita
+     * para agregar la línea.
+     */
+    @Transactional
+    @RequierePermiso("COMPRAS_COMPRA_CREAR")
+    public ProductoParaComprarDelProveedor crearProductoNuevo(UUID proveedorId, SolicitudDeProductoNuevo solicitud) {
+        UUID negocioId = ContextoDeNegocio.negocioActual();
+        activoDelNegocio(proveedorId);
+        UUID productoId = inventario.crearProducto(negocioId, new com.regenta.inventario.api.ProductoNuevo(
+                solicitud.sku(), solicitud.codigoBarras(), solicitud.nombre(), solicitud.categoriaId(),
+                solicitud.unidadMedidaId(), solicitud.tarifaIva(), solicitud.precioVenta(), solicitud.manejaLotes(),
+                solicitud.perecedero()));
+        catalogo.save(ProveedorProducto.de(negocioId, proveedorId, productoId, limpiar(solicitud.codigoProveedor()),
+                solicitud.costo(), null, null, false));
+        return paraComprar(proveedorId, productoId);
+    }
+
     /** HU-166 · Saca un producto del catálogo del proveedor. No toca órdenes ni recepciones. */
     @Transactional
     @RequierePermiso("COMPRAS_PROVEEDOR_EDITAR")

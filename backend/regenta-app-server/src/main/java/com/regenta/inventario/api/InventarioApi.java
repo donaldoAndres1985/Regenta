@@ -58,4 +58,10 @@ public interface InventarioApi {
      * {@code INVENTARIO_PRODUCTO_EDITAR}.
      */
     void cambiarPrecioDeVenta(UUID negocioId, UUID productoId, BigDecimal precioConIva);
+
+    /**
+     * HU-180 · Da de alta un producto con las reglas y los mensajes de la ficha de Inventario (HU-147).
+     * Exige {@code INVENTARIO_PRODUCTO_CREAR} (403). Devuelve su id.
+     */
+    UUID crearProducto(UUID negocioId, ProductoNuevo producto);
 }

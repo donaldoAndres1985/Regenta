@@ -43,6 +43,25 @@ class _RepoFake implements RepositorioDeCompraDirecta {
   @override
   Future<bool> tengoCajaAbierta() async => cajaAbierta;
 
+  final List<Map<String, dynamic>> creados = [];
+  ErrorDeApi? fallaAlCrearProducto;
+
+  @override
+  Future<List<OpcionDeCatalogo>> categorias() async => const [OpcionDeCatalogo('cat-1', 'Droguería')];
+
+  @override
+  Future<List<OpcionDeCatalogo>> unidades() async => const [OpcionDeCatalogo('und', 'Unidad')];
+
+  @override
+  Future<ProductoParaComprar> crearProducto(String proveedorId, Map<String, dynamic> datos) async {
+    creados.add(datos);
+    if (fallaAlCrearProducto != null) throw fallaAlCrearProducto!;
+    final p = ProductoParaComprar(productoId: 'nuevo', nombre: datos['nombre'] as String, sku: datos['sku'] as String,
+        impuestoPct: 19, costoSugerido: datos['costo'] as num?, codigoProveedor: datos['codigoProveedor'] as String?);
+    productos['nuevo'] = p;
+    return p;
+  }
+
   @override
   Future<ProductoParaComprar> paraComprar(String proveedorId, String productoId) async =>
       productos[productoId]!;
@@ -62,12 +81,15 @@ class _RepoFake implements RepositorioDeCompraDirecta {
 }
 
 Future<_RepoFake> _montar(WidgetTester tester,
-    {Size tamano = const Size(1440, 1600), bool cajaAbierta = true}) async {
+    {Size tamano = const Size(1440, 1600), bool cajaAbierta = true, bool puedeCrear = true}) async {
   await tester.binding.setSurfaceSize(tamano);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final repo = _RepoFake()..cajaAbierta = cajaAbierta;
   await tester.pumpWidget(ProviderScope(
-    overrides: [repositorioDeCompraDirectaProvider.overrideWithValue(repo)],
+    overrides: [
+      repositorioDeCompraDirectaProvider.overrideWithValue(repo),
+      puedeCrearProductosProvider.overrideWithValue(puedeCrear),
+    ],
     child: const MaterialApp(home: PantallaCompraDirecta()),
   ));
   await tester.pumpAndSettle();
@@ -370,5 +392,92 @@ void main() {
 
     expect(find.text('Una compra de contado necesita el número de la factura del proveedor.'), findsOneWidget);
     expect(repo.enviadas, isEmpty);
+  });
+
+  group('HU-180 · Crear un producto desde la recepción', () {
+    Future<_RepoFake> buscarCodigoDesconocido(WidgetTester tester, {bool puedeCrear = true}) async {
+      final repo = await _montar(tester, puedeCrear: puedeCrear);
+      await tester.tap(find.byKey(const Key('compra-proveedor')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Distribuidora Andina SAS').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('compra-buscar')), '7701234567890');
+      await tester.tap(find.byKey(const Key('compra-buscar-boton')));
+      await tester.pumpAndSettle();
+      return repo;
+    }
+
+    testWidgets('C1 · Un código que no existe ofrece «Crear producto» con el código de barras ya puesto',
+        (tester) async {
+      await buscarCodigoDesconocido(tester);
+
+      await tester.tap(find.byKey(const Key('compra-crear-producto')));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<TextField>(find.byKey(const Key('nuevo-codigo'))).controller!.text, '7701234567890');
+      expect(tester.widget<TextField>(find.byKey(const Key('nuevo-nombre'))).controller!.text, isEmpty);
+    });
+
+    testWidgets('C3 · Creado, queda en la factura con su costo y su código del proveedor', (tester) async {
+      final repo = await buscarCodigoDesconocido(tester);
+      await tester.tap(find.byKey(const Key('compra-crear-producto')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const Key('nuevo-sku')), 'GUA-01');
+      await tester.enterText(find.byKey(const Key('nuevo-nombre')), 'Guantes de nitrilo');
+      await tester.tap(find.byKey(const Key('nuevo-categoria')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Droguería').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('nuevo-tarifa')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('IVA 19 %').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('nuevo-precio')), '11900');
+      await tester.enterText(find.byKey(const Key('nuevo-costo')), '7000');
+      await tester.enterText(find.byKey(const Key('nuevo-codigo-proveedor')), 'AND-55');
+      await tester.tap(find.byKey(const Key('nuevo-guardar')));
+      await tester.pumpAndSettle();
+
+      final enviado = repo.creados.single;
+      expect(enviado['sku'], 'GUA-01');
+      expect(enviado['codigoBarras'], '7701234567890');
+      expect(enviado['categoriaId'], 'cat-1');
+      expect(enviado['unidadMedidaId'], 'und', reason: 'con una sola unidad queda elegida');
+      expect(enviado['tarifaIva'], 'IVA_19');
+      expect(enviado['precioVenta'], 11900);
+      expect(find.text('Guantes de nitrilo'), findsOneWidget);
+      expect(find.byKey(const Key('compra-crear-producto')), findsNothing);
+    });
+
+    testWidgets('C2 · Sin SKU o sin tarifa, se ven los mismos mensajes de Inventario', (tester) async {
+      final repo = await buscarCodigoDesconocido(tester);
+      repo.fallaAlCrearProducto = const ErroresDeValidacion({'sku': ['no debe estar vacío']}, 'Datos inválidos');
+      await tester.tap(find.byKey(const Key('compra-crear-producto')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('nuevo-guardar')));
+      await tester.pumpAndSettle();
+      expect(find.text('sku: no debe estar vacío'), findsOneWidget);
+
+      repo.fallaAlCrearProducto = const ErroresDeValidacion({}, 'Elige la tarifa de IVA del producto.');
+      await tester.tap(find.byKey(const Key('nuevo-guardar')));
+      await tester.pumpAndSettle();
+      expect(find.text('Elige la tarifa de IVA del producto.'), findsOneWidget);
+      expect(find.byKey(const Key('nuevo-guardar')), findsOneWidget, reason: 'el formulario sigue abierto');
+    });
+
+    testWidgets('C4 · Sin INVENTARIO_PRODUCTO_CREAR se explica que lo cree un administrador', (tester) async {
+      await buscarCodigoDesconocido(tester, puedeCrear: false);
+
+      expect(find.byKey(const Key('compra-crear-producto')), findsNothing);
+      expect(find.text('Este producto no existe. Pide a un administrador que lo cree.'), findsOneWidget);
+    });
+
+    test('Un término de solo dígitos (8 o más) es un código de barras', () {
+      expect(pareceCodigoDeBarras('7701234567890'), isTrue);
+      expect(pareceCodigoDeBarras('guantes'), isFalse);
+      expect(pareceCodigoDeBarras('1234'), isFalse);
+    });
   });
 }
