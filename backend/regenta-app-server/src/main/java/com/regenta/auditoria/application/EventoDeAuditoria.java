@@ -13,5 +13,7 @@ import java.util.UUID;
  */
 public record EventoDeAuditoria(UUID id, UUID usuarioId, String servicio, String entidadTipo,
         UUID entidadId, String accion, String traceId, String resultado, OffsetDateTime ocurridoEn,
-        Map<String, Object> cambios) {
+        Map<String, Object> cambios,
+        /** HU-131 C3: salió de la tabla viva por retención y se recuperó de su archivo. */
+        boolean archivado) {
 }

@@ -43,6 +43,13 @@ regenta:
       access-key: ${ALMACEN_S3_ACCESS_KEY:}
       secret-key: ${ALMACEN_S3_SECRET_KEY:}
       crear-bucket: ${ALMACEN_S3_CREAR_BUCKET:false}
+  # HU-131 · Días que la bitácora vive en la tabla viva antes de archivarse, si el negocio no
+  # configuró los suyos: la del plan.
+  auditoria:
+    retencion:
+      basico: ${AUDITORIA_RETENCION_BASICO:365}
+      profesional: ${AUDITORIA_RETENCION_PROFESIONAL:730}
+      empresarial: ${AUDITORIA_RETENCION_EMPRESARIAL:1825}
   reportes:
     # Cuánto vive un archivo exportado en el almacén antes de borrarse solo.
     retencion-de-archivos: ${REPORTES_RETENCION_ARCHIVOS:30d}
