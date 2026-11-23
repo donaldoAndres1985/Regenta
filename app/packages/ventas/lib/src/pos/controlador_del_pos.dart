@@ -5,6 +5,7 @@ import 'package:regenta_core/regenta_core.dart';
 
 import '../datos/cliente_de_la_venta.dart';
 import '../datos/fraccion_de_venta.dart';
+import '../datos/precios_por_lista.dart';
 import '../datos/producto_buscado.dart';
 import '../datos/repositorio_de_ventas.dart';
 import 'estado_del_pos.dart';
@@ -19,12 +20,17 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     required String bodegaId,
     Duration? rebote,
     num? montoParaIdentificar,
+    RepositorioDePreciosDeVenta? precios,
   }) : _bodegaId = bodegaId,
+       _precios = precios,
        _rebote = rebote ?? const Duration(milliseconds: 250),
        _montoParaIdentificar = montoParaIdentificar,
        super(EstadoDelPos(montoParaIdentificar: montoParaIdentificar));
 
   final RepositorioDeVentas _repo;
+
+  /// HU-132 · Nulo: el POS cobra con los precios del catálogo y no recalcula por cliente.
+  final RepositorioDePreciosDeVenta? _precios;
   final String _bodegaId;
   final Duration _rebote;
   num? _montoParaIdentificar;
@@ -303,6 +309,75 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
           ? 'Agregaste "${producto.nombre}" sin stock: no se puede cobrar hasta quitarlo.'
           : null,
     );
+    unawaited(_preciarConLaLista(producto.id));
+  }
+
+  /// HU-132 · Con una lista de precios en el carrito, la línea de ese producto (sin fracción) toma el
+  /// precio de la lista para su cantidad (tramo por volumen). Sin señal se queda como estaba: al
+  /// cobrar, el backend precia con la misma lista.
+  Future<void> _preciarConLaLista(String productoId) async {
+    final lista = state.listaPreciosId;
+    final precios = _precios;
+    if (lista == null || precios == null) return;
+    final i = state.lineas.indexWhere((l) => l.producto.id == productoId && l.fraccion == null);
+    if (i < 0) return;
+    final cantidad = state.lineas[i].cantidad;
+    try {
+      final precio = await precios.precio(listaPreciosId: lista, productoId: productoId, cantidad: cantidad);
+      if (!mounted || state.listaPreciosId != lista) return;
+      final j = state.lineas.indexWhere((l) => l.producto.id == productoId && l.fraccion == null);
+      if (j < 0 || state.lineas[j].cantidad != cantidad) return;
+      final lineas = [...state.lineas];
+      lineas[j] = lineas[j].conPrecioDeLista(precio);
+      state = state.copiar(lineas: lineas);
+    } on ErrorDeApi {
+      // Se queda con el precio que tenía.
+    }
+  }
+
+  /// HU-132 C2 · Antes de asignar un cliente (o de volver a consumidor final), qué precios del carrito
+  /// cambiarían con su lista. Nulo si no se pudo preguntar (sin señal): se asigna sin recalcular.
+  Future<PrevisionDePreciosVista?> preverCliente(ClienteDeLaVenta? cliente) async {
+    final precios = _precios;
+    if (precios == null) return null;
+    try {
+      return await precios.prever(
+        clienteId: cliente?.id,
+        listaPreciosId: state.listaPreciosId,
+        lineas: [
+          for (var i = 0; i < state.lineas.length; i++)
+            LineaAPreciar(
+              linea: i,
+              productoId: state.lineas[i].producto.id,
+              nombre: state.lineas[i].producto.nombre,
+              cantidad: state.lineas[i].cantidad,
+              precioUnitario: state.lineas[i].precioUnitario,
+              descuentoPct: state.lineas[i].descuentoPct,
+            ),
+        ],
+      );
+    } on ErrorDeApi {
+      return null;
+    }
+  }
+
+  /// HU-132 C1 · Se aceptó: el carrito pasa a la lista nueva y las líneas que cambian, a su precio.
+  /// Las de descuento a mano o precio especial no venían en la previsión (C3).
+  void aplicarPrevision(PrevisionDePreciosVista prevision) {
+    final lineas = [...state.lineas];
+    for (final c in prevision.cambios) {
+      if (c.linea >= 0 && c.linea < lineas.length) {
+        // Sin lista, el precio de la línea vuelve a ser el del catálogo.
+        final catalogo = lineas[c.linea].producto.precioVenta;
+        lineas[c.linea] = lineas[c.linea]
+            .conPrecioDeLista(prevision.listaNuevaId == null && c.precioNuevo == catalogo ? null : c.precioNuevo);
+      }
+    }
+    state = state.copiar(
+      lineas: lineas,
+      listaPreciosId: prevision.listaNuevaId,
+      listaPreciosNombre: prevision.listaNuevaNombre,
+    );
   }
 
   /// Un código leído por cámara o escrito a mano: mismo camino que Enter (R7).
@@ -313,12 +388,14 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
     if (indice < 0 || indice >= state.lineas.length) return;
     final lineas = [...state.lineas];
     final nueva = lineas[indice].cantidad + delta;
+    final productoId = lineas[indice].producto.id;
     if (nueva <= 0) {
       lineas.removeAt(indice);
     } else {
       lineas[indice] = lineas[indice].conCantidad(nueva);
     }
     state = state.copiar(lineas: lineas, mensaje: null);
+    if (nueva > 0) unawaited(_preciarConLaLista(productoId));
   }
 
   /// HU-158 · la línea pasa a venderse en esa fracción (1 de ella); el precio es el del
@@ -359,12 +436,14 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
   void fijarCantidad(int indice, num cantidad) {
     if (indice < 0 || indice >= state.lineas.length) return;
     final lineas = [...state.lineas];
+    final productoId = lineas[indice].producto.id;
     if (cantidad <= 0) {
       lineas.removeAt(indice);
     } else {
       lineas[indice] = lineas[indice].conCantidad(cantidad);
     }
     state = state.copiar(lineas: lineas, mensaje: null);
+    if (cantidad > 0) unawaited(_preciarConLaLista(productoId));
   }
 
   /// Carga líneas desde una venta existente o cotización convertida (HU-044).
@@ -452,6 +531,7 @@ class ControladorDelPos extends StateNotifier<EstadoDelPos> {
         bodegaId: _bodegaId,
         lineas: state.lineasParaEnviar(),
         clienteId: state.cliente?.id,
+        listaPreciosId: state.listaPreciosId,
       );
       // Sólo se vacía la venta cobrada; las otras siguen guardadas (R12).
       state = _ventaNueva().copiar(

@@ -31,7 +31,8 @@ public class ConsultaDeClientesDirecto implements ConsultaDeClientes {
                         c.numeroDocumento(),
                         c.digitoVerificacion(),
                         c.regimenFiscal(),
-                        c.responsabilidadesFiscales()
+                        c.responsabilidadesFiscales(),
+                        c.listaPreciosId()
                 ))
                 .orElseThrow(() -> new NoEncontradoException("Ese cliente no existe"));
     }

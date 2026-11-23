@@ -29,7 +29,9 @@ public record ClienteDelNegocio(
         String regimenFiscal,
         List<String> responsabilidadesFiscales,
         /** Viajan para que editar la ficha no las borre al guardar. */
-        String notas) {
+        String notas,
+        /** HU-132 · La lista de precios con que se le vende; {@code null}: la del negocio. */
+        UUID listaPreciosId) {
 
     static ClienteDelNegocio de(Cliente c) {
         return new ClienteDelNegocio(c.getId(), c.getTipoPersona().name(),
@@ -37,6 +39,6 @@ public record ClienteDelNegocio(
                 c.getNombres(), c.getApellidos(), c.getRazonSocial(), c.getNombreDisplay(),
                 c.getEmail(), c.getTelefono(), c.getTelefonoAlterno(), c.getSegmento(),
                 c.isCreditoHabilitado(), c.getCupoCredito(), c.getSaldoPendiente(), c.isActivo(),
-                c.getRegimenFiscal(), c.getResponsabilidadesFiscales(), c.getNotas());
+                c.getRegimenFiscal(), c.getResponsabilidadesFiscales(), c.getNotas(), c.getListaPreciosId());
     }
 }

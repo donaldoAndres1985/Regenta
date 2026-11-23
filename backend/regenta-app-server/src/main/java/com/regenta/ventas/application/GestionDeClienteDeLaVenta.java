@@ -27,36 +27,80 @@ public class GestionDeClienteDeLaVenta {
     private final VentaRepositorio ventas;
     private final ConsultaDeClientes clientes;
     private final GestionDeVentas gestion;
+    private final RecalculoDePreciosPorCliente recalculo;
 
     public GestionDeClienteDeLaVenta(VentaRepositorio ventas, ConsultaDeClientes clientes,
-            GestionDeVentas gestion) {
+            GestionDeVentas gestion, RecalculoDePreciosPorCliente recalculo) {
         this.ventas = ventas;
         this.clientes = clientes;
         this.gestion = gestion;
+        this.recalculo = recalculo;
     }
 
-    /** Criterios 2 y 3. */
+    /**
+     * HU-132 C2 · Antes de asignar un cliente (o de volver a consumidor final, {@code clienteId}
+     * nulo), qué precios cambiarían con su lista. No guarda nada.
+     */
+    @Transactional(readOnly = true)
+    @RequierePermiso("VENTAS_VENTA_CREAR")
+    public RecalculoDePreciosPorCliente.PrevisionDePrecios prever(UUID ventaId, UUID clienteId) {
+        Venta venta = ventaDelNegocio(ventaId);
+        venta.exigirBorrador("cambiar el cliente");
+        UUID lista = clienteId == null ? null : clientes.consultar(clienteId).listaPreciosId();
+        return recalculo.prever(venta, lista);
+    }
+
+    /** Criterios 2 y 3 (HU-113), con los precios de su lista (HU-132 C1). */
     @Transactional
     @RequierePermiso("VENTAS_VENTA_CREAR")
     public VentaDelNegocio asignar(UUID ventaId, UUID clienteId) {
+        return asignar(ventaId, clienteId, true);
+    }
+
+    /**
+     * HU-113 · Asigna el cliente y congela su snapshot. HU-132 · Con {@code aplicarPrecios}, la venta
+     * pasa a la lista del cliente (o a la del negocio) y sus líneas se recalculan (C1); sin él se
+     * rechazó el recálculo (C2): cambia el cliente y los precios se quedan como estaban.
+     */
+    @Transactional
+    @RequierePermiso("VENTAS_VENTA_CREAR")
+    public VentaDelNegocio asignar(UUID ventaId, UUID clienteId, boolean aplicarPrecios) {
         Venta venta = ventaDelNegocio(ventaId);
         // Se pregunta a servicio-clientes con las cabeceras de quien vende, que
         // filtra por negocio con RLS: un cliente de otro negocio simplemente no
         // existe, y por eso esto responde 404 y no 403 (criterio 3).
         ClienteDeLaVenta cliente = clientes.consultar(clienteId);
         venta.asignarCliente(cliente.id(), snapshotDe(cliente));
+        if (aplicarPrecios) {
+            recalcularCon(venta, cliente.listaPreciosId());
+        }
         ventas.save(venta);
         return gestion.ver(ventaId);
     }
 
-    /** Criterio 4. */
+    /** Criterio 4 (HU-113), volviendo a los precios del negocio (HU-132). */
     @Transactional
     @RequierePermiso("VENTAS_VENTA_CREAR")
     public VentaDelNegocio quitar(UUID ventaId) {
+        return quitar(ventaId, true);
+    }
+
+    @Transactional
+    @RequierePermiso("VENTAS_VENTA_CREAR")
+    public VentaDelNegocio quitar(UUID ventaId, boolean aplicarPrecios) {
         Venta venta = ventaDelNegocio(ventaId);
         venta.quitarCliente();
+        if (aplicarPrecios) {
+            recalcularCon(venta, null);
+        }
         ventas.save(venta);
         return gestion.ver(ventaId);
+    }
+
+    private void recalcularCon(Venta venta, UUID listaDelCliente) {
+        RecalculoDePreciosPorCliente.PrevisionDePrecios p = recalculo.prever(venta, listaDelCliente);
+        recalculo.aplicar(venta, p);
+        gestion.recalcular(venta);
     }
 
     /**

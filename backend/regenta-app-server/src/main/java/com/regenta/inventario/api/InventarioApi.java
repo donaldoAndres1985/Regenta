@@ -64,4 +64,13 @@ public interface InventarioApi {
      * Exige {@code INVENTARIO_PRODUCTO_CREAR} (403). Devuelve su id.
      */
     UUID crearProducto(UUID negocioId, ProductoNuevo producto);
+
+    /** HU-132 · Una lista de precios del negocio, si existe y está activa y vigente hoy. */
+    java.util.Optional<ListaDePreciosInfo> listaDePrecios(UUID negocioId, UUID listaId);
+
+    /**
+     * HU-132 · El precio (IVA incluido, como el del catálogo) de un producto en una lista para esa
+     * cantidad, con su tramo por volumen. Vacío si la lista no aplica o el producto no está en ella.
+     */
+    java.util.Optional<BigDecimal> precioEnLista(UUID negocioId, UUID listaId, UUID productoId, BigDecimal cantidad);
 }

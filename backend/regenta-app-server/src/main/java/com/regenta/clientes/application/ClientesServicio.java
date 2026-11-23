@@ -34,7 +34,8 @@ public class ClientesServicio implements ClientesApi {
                     "",
                     c.regimenFiscal(),
                     c.digitoVerificacion(),
-                    c.responsabilidadesFiscales() != null ? c.responsabilidadesFiscales() : List.of()
+                    c.responsabilidadesFiscales() != null ? c.responsabilidadesFiscales() : List.of(),
+                    c.listaPreciosId()
             ));
         } catch (Exception e) {
             return Optional.empty();

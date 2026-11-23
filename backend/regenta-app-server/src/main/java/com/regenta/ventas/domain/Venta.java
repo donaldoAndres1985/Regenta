@@ -384,6 +384,17 @@ public class Venta {
         return sesionCajaId;
     }
 
+    /** HU-132 · La lista de precios con que se cobran las líneas; {@code null}: el catálogo. */
+    public UUID getListaPreciosId() {
+        return listaPreciosId;
+    }
+
+    /** HU-132 · Cambia la lista de la venta; solo en borrador (una confirmada no cambia, C5). */
+    public void usarListaDePrecios(UUID listaPreciosId) {
+        exigirBorrador("cambiar la lista de precios");
+        this.listaPreciosId = listaPreciosId;
+    }
+
     public UUID getClienteId() {
         return clienteId;
     }

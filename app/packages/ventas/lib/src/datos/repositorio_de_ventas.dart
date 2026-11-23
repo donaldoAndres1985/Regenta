@@ -506,6 +506,7 @@ class RepositorioDeVentas {
     required String bodegaId,
     required List<LineaParaEnviar> lineas,
     String? clienteId,
+    String? listaPreciosId,
   }) async {
     final origenOfflineId = _uuid.v4();
     final cuerpo = <String, dynamic>{
@@ -515,6 +516,8 @@ class RepositorioDeVentas {
       'lineas': [for (final linea in lineas) linea.aJson()],
     };
     if (clienteId != null) cuerpo['clienteId'] = clienteId;
+    // HU-132 · El backend precia con la lista que aceptó quien vende, no con la del catálogo.
+    if (listaPreciosId != null) cuerpo['listaPreciosId'] = listaPreciosId;
 
     final respuesta = await _http.post<Map<String, dynamic>>(
       '/api/ventas/offline',
@@ -540,9 +543,11 @@ class RepositorioDeVentas {
     required String bodegaId,
     String? clienteId,
     String? notaCliente,
+    String? listaPreciosId,
   }) async {
     final cuerpo = <String, dynamic>{'bodegaId': bodegaId};
     if (clienteId != null) cuerpo['clienteId'] = clienteId;
+    if (listaPreciosId != null) cuerpo['listaPreciosId'] = listaPreciosId;
     if (notaCliente != null && notaCliente.trim().isNotEmpty) {
       cuerpo['notaCliente'] = notaCliente.trim();
     }

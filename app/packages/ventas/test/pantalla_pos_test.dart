@@ -36,6 +36,7 @@ class _RepoFake implements RepositorioDeVentas {
     required String bodegaId,
     String? clienteId,
     String? notaCliente,
+    String? listaPreciosId,
   }) async {
     if (sinSenal) throw const ErrorDeRed();
     final id = 'borrador-${++_contadorDeBorradores}';
@@ -186,6 +187,7 @@ class _RepoFake implements RepositorioDeVentas {
     required String bodegaId,
     required List<LineaParaEnviar> lineas,
     String? clienteId,
+    String? listaPreciosId,
   }) async {
     ventasConfirmadas.add(lineas);
     return ResultadoDeCobro(
@@ -219,12 +221,35 @@ ProductoBuscado _prod({
 
 const _rebote = Duration(milliseconds: 300);
 
+/// HU-132 · Responde la previsión que se le pida.
+class _PreciosFake implements RepositorioDePreciosDeVenta {
+  _PreciosFake(this.respuesta);
+
+  PrevisionDePreciosVista respuesta;
+  final List<String?> clientes = [];
+
+  @override
+  Future<PrevisionDePreciosVista> prever({
+    String? clienteId,
+    String? listaPreciosId,
+    required List<LineaAPreciar> lineas,
+  }) async {
+    clientes.add(clienteId);
+    return respuesta;
+  }
+
+  @override
+  Future<num> precio({required String listaPreciosId, required String productoId, required num cantidad}) async =>
+      8500;
+}
+
 Future<void> _montar(
   WidgetTester tester,
   _RepoFake repo, {
   Size size = const Size(390, 844),
   void Function(String)? onCobrada,
   num? montoParaIdentificar,
+  RepositorioDePreciosDeVenta? precios,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
@@ -240,6 +265,7 @@ Future<void> _montar(
         repositorioDeVentasProvider.overrideWithValue(repo),
         bodegaDeVentaProvider.overrideWithValue('bodega-1'),
         escanerProvider.overrideWithValue(_EscanerFake()),
+        if (precios != null) repositorioDePreciosDeVentaProvider.overrideWithValue(precios),
         if (montoParaIdentificar != null)
           montoParaIdentificarCompradorProvider.overrideWithValue(
             montoParaIdentificar,
@@ -355,6 +381,85 @@ void main() {
       );
     },
   );
+
+  group('HU-132 · R7: cambiar de cliente recalcula avisando antes', () {
+    const mayorista = ClienteDeLaVenta(
+      id: 'c-mayorista',
+      nombre: 'Ferretería El Tornillo',
+      tipoDocumento: 'NIT',
+      numeroDocumento: '900111222',
+    );
+    const vuelta = PrevisionDePreciosVista(
+      listaActualId: 'l-mayorista',
+      cambios: [CambioDePrecioVista(linea: 0, producto: 'Martillo', cantidad: 2, precioActual: 8500, precioNuevo: 10000)],
+      conDescuentoAMano: 1,
+      totalActual: 17000,
+      totalNuevo: 20000,
+    );
+
+    Future<ControladorDelPos> conMayorista(WidgetTester tester, _PreciosFake precios) async {
+      await _montar(tester, _RepoFake(), size: const Size(1280, 900), precios: precios);
+      final pos = ProviderScope.containerOf(tester.element(find.byType(PantallaPos)))
+          .read(controladorDelPosProvider.notifier);
+      pos.agregar(_prod(id: 'p-martillo', sku: 'MAR', nombre: 'Martillo', precio: 10000));
+      pos.cambiarCantidad(0, 1);
+      pos.fijarCliente(mayorista);
+      pos.aplicarPrevision(const PrevisionDePreciosVista(
+        listaNuevaId: 'l-mayorista',
+        listaNuevaNombre: 'Mayorista',
+        cambios: [CambioDePrecioVista(linea: 0, producto: 'Martillo', cantidad: 2, precioActual: 10000, precioNuevo: 8500)],
+      ));
+      await tester.pumpAndSettle();
+      return pos;
+    }
+
+    testWidgets('C2 · Avisa qué precios cambian y el total; «Aplicar precios» los cambia', (tester) async {
+      final precios = _PreciosFake(vuelta);
+      await conMayorista(tester, precios);
+      expect(_estado(tester).lineas.single.precioUnitario, 8500);
+
+      await tester.tap(find.text('Quitar'));
+      await tester.pumpAndSettle();
+
+      expect(precios.clientes.single, isNull, reason: 'volver a consumidor final');
+      expect(find.text('Volver a los precios del negocio'), findsOneWidget);
+      expect(find.text(r'$ 8.500 → $ 10.000'), findsOneWidget);
+      expect(find.text('No cambian: 1 línea con descuento a mano.'), findsOneWidget);
+      expect(find.text(r'Total $ 17.000 → $ 20.000'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('pos-precios-aplicar')));
+      await tester.pumpAndSettle();
+
+      expect(_estado(tester).cliente, isNull);
+      expect(_estado(tester).listaPreciosId, isNull);
+      expect(_estado(tester).lineas.single.precioUnitario, 10000);
+    });
+
+    testWidgets('C2 · «Mantener precios» rechaza el recálculo: cambia el cliente, no los precios', (tester) async {
+      await conMayorista(tester, _PreciosFake(vuelta));
+
+      await tester.tap(find.text('Quitar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pos-precios-mantener')));
+      await tester.pumpAndSettle();
+
+      expect(_estado(tester).cliente, isNull);
+      expect(_estado(tester).listaPreciosId, 'l-mayorista');
+      expect(_estado(tester).lineas.single.precioUnitario, 8500);
+    });
+
+    testWidgets('C4 · Si no cambia ningún precio, no se pregunta nada', (tester) async {
+      await conMayorista(tester, _PreciosFake(const PrevisionDePreciosVista(listaActualId: 'l-mayorista',
+          listaNuevaId: 'l-mayorista', listaNuevaNombre: 'Mayorista')));
+
+      await tester.tap(find.text('Quitar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('pos-precios-dialogo')), findsNothing);
+      expect(_estado(tester).cliente, isNull);
+      expect(_estado(tester).lineas.single.precioUnitario, 8500);
+    });
+  });
 
   testWidgets(
     'R10a: sin cliente se ofrece agregarlo; con cliente se cambia o se quita',

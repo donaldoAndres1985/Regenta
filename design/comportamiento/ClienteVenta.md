@@ -54,6 +54,15 @@ crédito es del cliente.
 ya tiene líneas, **entonces** los precios se recalculan y se avisa antes de aplicarlo. Los
 descuentos escritos a mano no se tocan.
 
+> Construida en HU-132. El cliente tiene su lista de precios (`PUT /api/clientes/{id}/lista-de-precios`;
+> el `segmento` sigue siendo una etiqueta libre). Antes de asignarlo, el POS pregunta qué cambia
+> (`POST /api/ventas/precios/prevision`; en un borrador del servidor, `GET /api/ventas/{id}/cliente/prevision`)
+> y muestra los precios que cambian y el total antes y después; se aplica o se mantiene. Solo se
+> recalcula lo que salió de la lista de la venta: una línea con descuento a mano o con precio especial
+> (fracción, cotización) queda igual. Sin lista propia, el cliente compra con los precios del negocio (el
+> catálogo). La lista aceptada viaja al cobrar y el backend precia con ella (HU-148 I4); una venta
+> confirmada ya no cambia.
+
 ## Al abrir
 
 El foco entra en el buscador. La lista arranca con los clientes de compras más recientes de este

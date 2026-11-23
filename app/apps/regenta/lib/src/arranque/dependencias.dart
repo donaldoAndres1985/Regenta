@@ -320,6 +320,8 @@ class DependenciasDeLaApp {
       RepositorioDeReportesDeCaja(http),
     ),
     // HU-142: el listado de turnos reimprime la tirilla con el módulo de caja.
+    // HU-132: el POS recalcula los precios con la lista de precios del cliente.
+    repositorioDePreciosDeVentaProvider.overrideWithValue(RepositorioDePreciosDeVenta(http)),
     // HU-143: consultar cierres de caja y, desde un movimiento, ir a su venta.
     repositorioDeCierresDeCajaProvider.overrideWithValue(RepositorioDeCierresDeCaja(http)),
     // HU-144: los informes de caja en PDF se guardan como los de compras.

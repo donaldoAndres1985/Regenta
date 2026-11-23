@@ -15,6 +15,7 @@ class LineaDeCarrito {
     required this.cantidad,
     this.descuentoPct = 0,
     this.fraccion,
+    this.precioDeLista,
   });
 
   final ProductoBuscado producto;
@@ -22,11 +23,14 @@ class LineaDeCarrito {
   final num descuentoPct;
   final FraccionDeVenta? fraccion;
 
+  /// HU-132 · El precio de la lista de precios del cliente (IVA incluido). Nulo: el del catálogo.
+  final num? precioDeLista;
+
   bool get sinStock =>
       !ConfiguradorDeStock.politicaStockNegativoHabilitada && producto.sinStock;
 
   /// El precio de una unidad de la línea, con IVA incluido.
-  num get precioUnitario => fraccion?.precio ?? producto.precioVenta;
+  num get precioUnitario => fraccion?.precio ?? precioDeLista ?? producto.precioVenta;
 
   /// HU-149: el precio del producto es el de la etiqueta, con IVA incluido (I2). El total de
   /// la línea es ese precio menos el descuento; la base y el IVA salen de adentro.
@@ -41,6 +45,7 @@ class LineaDeCarrito {
         cantidad: nueva,
         descuentoPct: descuentoPct,
         fraccion: fraccion,
+        precioDeLista: precioDeLista,
       );
 
   LineaDeCarrito conDescuento(num nuevoDescuento) => LineaDeCarrito(
@@ -48,5 +53,15 @@ class LineaDeCarrito {
         cantidad: cantidad,
         descuentoPct: nuevoDescuento,
         fraccion: fraccion,
+        precioDeLista: precioDeLista,
+      );
+
+  /// HU-132 · Con el precio de una lista (nulo: vuelve al del catálogo).
+  LineaDeCarrito conPrecioDeLista(num? precio) => LineaDeCarrito(
+        producto: producto,
+        cantidad: cantidad,
+        descuentoPct: descuentoPct,
+        fraccion: fraccion,
+        precioDeLista: precio,
       );
 }

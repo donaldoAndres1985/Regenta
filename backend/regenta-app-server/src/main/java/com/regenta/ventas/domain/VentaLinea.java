@@ -109,6 +109,12 @@ public class VentaLinea {
         return l;
     }
 
+    /** HU-132 · Otro precio unitario (IVA incluido) por cambio de lista; el descuento queda igual. */
+    public void cambiarPrecio(BigDecimal precioUnitario) {
+        this.precioUnitario = precioUnitario;
+        calcular();
+    }
+
     public void cambiarCantidad(BigDecimal cantidad) {
         this.cantidad = cantidad;
         calcular();

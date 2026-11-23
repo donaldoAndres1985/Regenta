@@ -20,8 +20,10 @@ class ControladorDeCobro extends StateNotifier<EstadoDelCobro> {
     required String bodegaId,
     String? clienteId,
     String? notaCliente,
+    String? listaPreciosId,
     required List<LineaParaEnviar> lineas,
   })  : _bodegaId = bodegaId,
+        _listaPreciosId = listaPreciosId,
         _clienteId = clienteId,
         _notaCliente = notaCliente,
         _lineas = lineas,
@@ -31,6 +33,7 @@ class ControladorDeCobro extends StateNotifier<EstadoDelCobro> {
   final String _bodegaId;
   final String? _clienteId;
   final String? _notaCliente;
+  final String? _listaPreciosId;
   final List<LineaParaEnviar> _lineas;
 
   void agregarPago(LineaDePagoEnCurso pago) {
@@ -177,6 +180,7 @@ class ControladorDeCobro extends StateNotifier<EstadoDelCobro> {
       bodegaId: _bodegaId,
       clienteId: _clienteId,
       notaCliente: _notaCliente,
+      listaPreciosId: _listaPreciosId,
     );
     for (final linea in _lineas) {
       await _repo.agregarLineaAlBorrador(venta.id, linea);
