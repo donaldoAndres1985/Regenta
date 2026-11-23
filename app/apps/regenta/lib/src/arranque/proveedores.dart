@@ -53,6 +53,18 @@ final motorComoNotifierProvider = ChangeNotifierProvider<MotorDeSesion>(
   (ref) => ref.watch(motorDeSesionProvider),
 );
 
+/// El centro de alertas (HU-095). `main` lo reemplaza por uno que carga al
+/// entrar a la sesión; el de por defecto carga cuando se abre la campana.
+final controladorDeAlertasProvider = ChangeNotifierProvider<ControladorDeAlertas>(
+  (ref) => ControladorDeAlertas(RepositorioDeAlertas(ref.watch(clienteHttpProvider))),
+);
+
+/// Las alertas al celular (HU-123). Por defecto sin push (Web, pruebas); `main`
+/// lo reemplaza por el de Firebase cuando la compilación trae su configuración.
+final registroDePushProvider = ChangeNotifierProvider<RegistroDePush>(
+  (ref) => RegistroDePush(const SinPush(), RepositorioDeDispositivos(ref.watch(clienteHttpProvider))),
+);
+
 /// La cola de salida de este dispositivo, para mirarla sin tocarla.
 final trabajadorDeSincronizacionProvider = Provider<TrabajadorDeSincronizacion>(
   (ref) {

@@ -75,6 +75,7 @@ merge a main
 | `CORREO_REMITENTE` | no | dirección verificada en el proveedor |
 | `CORS_ORIGINS` | no | el dominio de la Web si no es `*.regenta.pages.dev` |
 | `DIAN_URL`, `DIAN_AMBIENTE`, `DIAN_SOFTWARE_ID`, `DIAN_SOFTWARE_PIN`, `DIAN_TEST_SET_ID` | no (avisa) | HU-117, ver `docs/dominio/facturacion-dian.md` |
+| `FCM_CREDENCIALES` | no (avisa) | cuenta de servicio de Firebase (el JSON, o en base64) para las alertas push (HU-123). Sin ella, el push es simulado |
 | `PORT` | automática | la pone Railway |
 
 ## 5. Salud: qué está caído (C5)
@@ -96,15 +97,21 @@ merge a main
    - En *Settings → Source* del servicio, **desconectar el auto-deploy desde GitHub**: ahora despliega el pipeline, solo después de CI.
    - En *Project Settings → Tokens*, crear un **Project Token** del ambiente de producción.
    - Generar el dominio público del servicio.
-2. **Cloudflare:**
+2. **Firebase (push, HU-123):**
+   - Crear el proyecto y registrar la app Android con el paquete `com.regenta.regenta`.
+   - En *Configuración del proyecto → Cuentas de servicio*, generar una llave privada (JSON) y ponerla en Railway como `FCM_CREDENCIALES`.
+   - De la app Android registrada, anotar `apiKey`, `appId`, `messagingSenderId` y `projectId` para los secrets de GitHub del APK.
+   - **No se descarga ni se versiona `google-services.json`:** la app recibe esos valores por `--dart-define`.
+3. **Cloudflare:**
    - Crear el proyecto de Pages (por defecto `regenta`).
    - Crear un API Token con permiso *Cloudflare Pages: Edit*.
    - Crear el bucket de R2 y sus credenciales S3.
-3. **GitHub**, en *Settings → Secrets and variables → Actions*:
+4. **GitHub**, en *Settings → Secrets and variables → Actions*:
    - **Secrets:**
      - `RAILWAY_TOKEN`;
      - `CLOUDFLARE_API_TOKEN`;
-     - `CLOUDFLARE_ACCOUNT_ID`.
+     - `CLOUDFLARE_ACCOUNT_ID`;
+     - `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID` y `FIREBASE_PROJECT_ID`, para el APK con push; sin ellos, el APK sale sin push.
    - **Variables:**
      - `RAILWAY_SERVICE`: nombre o ID del servicio;
      - `API_URL`: la URL pública del backend, sin `/` al final;
@@ -112,7 +119,7 @@ merge a main
      - `CLOUDFLARE_PAGES_PROYECTO`: opcional; por defecto `regenta`;
      - `DESPLIEGUE_ACTIVO=true`: la última, cuando todo lo anterior está listo.
    - Opcional: en *Environments*, proteger `produccion` y `produccion-web` con revisores o reglas de rama.
-4. Hacer un merge a `main`, o volver a correr el workflow, y mirar el resumen del job **desplegar en Railway**.
+5. Hacer un merge a `main`, o volver a correr el workflow, y mirar el resumen del job **desplegar en Railway**.
 
 ## 7. Volver atrás
 

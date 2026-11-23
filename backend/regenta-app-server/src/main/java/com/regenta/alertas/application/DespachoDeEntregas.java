@@ -119,13 +119,16 @@ public class DespachoDeEntregas {
                 .findByNegocioIdAndUsuarioIdAndActivoTrue(alerta.getNegocioId(), e.getUsuarioId())
                 .stream().filter(DispositivoPush::recibePush).toList();
         if (activos.isEmpty()) {
-            e.marcarFallida("El usuario no tiene un dispositivo push activo");
+            // HU-123 C5: sin un celular con la app (quien usa solo la Web) el push no aplica. No es un
+            // fallo ni se reintenta: la alerta ya está en el centro de la app.
+            e.marcarNoSoportada("Sin un celular con la app activo: en la Web el push no aplica");
             return;
         }
         Map<String, String> datos = Map.of(
                 "alerta_id", alerta.getId().toString(),
                 "ruta", alerta.getRutaApp() == null ? "" : alerta.getRutaApp());
-        String proveedorId = null;
+        // HU-123 C4: a todos sus dispositivos activos; quedan los ids de FCM de los que salieron.
+        List<String> idsDeFcm = new java.util.ArrayList<>();
         String ultimoError = null;
         boolean algunoOk = false;
         for (DispositivoPush d : activos) {
@@ -137,13 +140,16 @@ public class DespachoDeEntregas {
                 ultimoError = r.error();
             } else if (r.exito()) {
                 algunoOk = true;
-                proveedorId = r.proveedorId();
+                if (r.proveedorId() != null) {
+                    idsDeFcm.add(r.proveedorId());
+                }
             } else {
                 ultimoError = r.error();
             }
         }
         if (algunoOk) {
-            e.marcarEnviada(proveedorId);
+            String ids = String.join(",", idsDeFcm);
+            e.marcarEnviada(ids.length() > 120 ? ids.substring(0, 120) : ids);
         } else {
             e.marcarFallida(ultimoError == null ? "Fallo el envío push" : ultimoError);
         }

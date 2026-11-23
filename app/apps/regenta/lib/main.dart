@@ -8,6 +8,8 @@ import 'package:workmanager/workmanager.dart';
 
 import 'core/config/env.dart';
 import 'src/arranque/dependencias.dart';
+import 'src/arranque/proveedores.dart';
+import 'src/arranque/push_firebase.dart';
 import 'src/arranque/sincronizacion.dart';
 import 'src/navegacion/catalogo.dart';
 import 'src/ui/carcasa_con_menu.dart';
@@ -37,9 +39,32 @@ Future<void> main() async {
   // probablemente hay red y alguien mirando.
   unawaited(subirLoPendiente(dependencias));
 
+  // HU-123: el centro de alertas y el push. El permiso NO se pide aquí: al
+  // entrar a la sesión solo se registra el celular si ya estaba concedido; el
+  // diálogo sale cuando el usuario toca "Activar" en el centro de alertas.
+  final alertas = ControladorDeAlertas(RepositorioDeAlertas(dependencias.http));
+  final push = await crearServicioDePush(alRecibir: () => unawaited(alertas.cargar()));
+  final registroDePush = RegistroDePush(push, RepositorioDeDispositivos(dependencias.http));
+  var conSesion = false;
+  void alCambiarLaSesion() {
+    final ahora = dependencias.motor.sesion != null;
+    if (ahora && !conSesion) {
+      unawaited(alertas.cargar());
+      unawaited(registroDePush.alEntrar());
+    }
+    conSesion = ahora;
+  }
+
+  dependencias.motor.addListener(alCambiarLaSesion);
+  alCambiarLaSesion();
+
   runApp(
     ProviderScope(
-      overrides: dependencias.overrides(),
+      overrides: [
+        ...dependencias.overrides(),
+        controladorDeAlertasProvider.overrideWith((ref) => alertas),
+        registroDePushProvider.overrideWith((ref) => registroDePush),
+      ],
       child: RegentaApp(dependencias: dependencias),
     ),
   );

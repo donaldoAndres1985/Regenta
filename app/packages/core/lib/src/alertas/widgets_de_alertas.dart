@@ -5,6 +5,8 @@ import '../tema/regenta_spacing.dart';
 import '../tema/regenta_type.dart';
 import 'alerta_vista.dart';
 import 'controlador_de_alertas.dart';
+import 'push/aviso_de_push.dart';
+import 'push/registro_de_push.dart';
 
 /// La campana de la barra superior (HU-095 criterio 4). Muestra un punto cuando
 /// hay alertas nuevas; al tocarla se abre el centro y las nuevas pasan a vistas.
@@ -74,10 +76,14 @@ class CentroDeAlertas extends StatelessWidget {
     super.key,
     required this.controlador,
     required this.onAbrirEntidad,
+    this.registroDePush,
   });
 
   final ControladorDeAlertas controlador;
   final void Function(AlertaVista alerta) onAbrirEntidad;
+
+  /// HU-123: con él, el centro invita a recibir las alertas en el celular.
+  final RegistroDePush? registroDePush;
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +111,7 @@ class CentroDeAlertas extends StatelessWidget {
                 ],
               ),
             ),
+            if (registroDePush != null) AvisoDePush(registro: registroDePush!),
             if (controlador.cargando)
               const Padding(
                 padding: EdgeInsets.all(24),

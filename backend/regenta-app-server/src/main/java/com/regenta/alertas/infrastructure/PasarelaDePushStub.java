@@ -10,10 +10,11 @@ import org.springframework.stereotype.Component;
 import com.regenta.alertas.application.PasarelaDePush;
 
 /**
- * Stub de FCM (HU-094). Por defecto acepta todo; los tests le fijan el próximo
- * resultado con {@link #proximo}. La integración real queda como seguimiento.
+ * FCM simulado (HU-094): se usa solo si no hay {@code FCM_CREDENCIALES} (HU-123). Por defecto acepta
+ * todo; los tests le fijan el próximo resultado con {@link #proximo}.
  */
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${regenta.fcm.credenciales:}' == ''")
 public class PasarelaDePushStub implements PasarelaDePush {
 
     private final AtomicReference<ResultadoDePush> proximo =

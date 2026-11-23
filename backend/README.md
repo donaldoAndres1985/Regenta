@@ -126,6 +126,7 @@ de ejemplo ("Ferretería Central").
 | `DIAN_SOFTWARE_ID` / `DIAN_SOFTWARE_PIN` | ID y PIN del software registrado en el portal de habilitación (**solo por entorno**) | — |
 | `DIAN_TEST_SET_ID` | `TestSetId` del set de pruebas; mientras está puesto se envía con `SendTestSetAsync`. Se quita al terminar la habilitación | — |
 | `DIAN_CODIGO_PROVEEDOR` / `DIAN_NIT_PROVEEDOR` | código del proveedor tecnológico para el nombre de los archivos y su NIT; con software propio, `000` y el NIT del negocio | `000` / — |
+| `FCM_CREDENCIALES` | cuenta de servicio de Firebase (JSON o base64) para las alertas push (HU-123), **solo por entorno**; sin ella el push es simulado | — |
 | `DIAN_TIMEOUT_SEGUNDOS` | espera por respuesta; agotada, la factura se reintenta y luego entra en contingencia | `30` |
 
 ## Compilar y probar

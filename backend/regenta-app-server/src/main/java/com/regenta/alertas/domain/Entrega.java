@@ -124,6 +124,15 @@ public class Entrega {
         }
     }
 
+    /** HU-123 C5: el canal no aplica a este usuario; queda registrado, sin reintento y sin error. */
+    public void marcarNoSoportada(String motivo) {
+        this.estado = EstadoEntrega.NO_SOPORTADA;
+        this.error = motivo;
+        this.proximoIntento = null;
+        this.retenidaHasta = null;
+        this.intentos++;
+    }
+
     public void marcarLeida() {
         this.estado = EstadoEntrega.LEIDA;
         this.leidaEn = OffsetDateTime.now();

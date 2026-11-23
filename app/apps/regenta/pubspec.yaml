@@ -41,6 +41,8 @@ dependencies:
     path: ../../packages/reservas
   regenta_ventas:
     path: ../../packages/ventas
+  firebase_core: ^5.2.0
+  firebase_messaging: ^17.1.0
 
 dev_dependencies:
   flutter_test:

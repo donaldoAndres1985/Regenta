@@ -6,5 +6,7 @@ public enum EstadoEntrega {
     ENVIADA,
     ENTREGADA,
     FALLIDA,
-    LEIDA
+    LEIDA,
+    /** HU-123 C5: el canal no aplica (push a quien solo usa la Web). No se reintenta. */
+    NO_SOPORTADA
 }
